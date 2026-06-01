@@ -1197,13 +1197,16 @@ const WOW_DB={
 // ── Discovery state ──
 const disc = {
   formActive: false,
-  recordId: null,        // Firestore doc ID, null=new
+  recordId: null,
   status: 'borrador',
   currentInd: null,
   activeTV: new Set(),
   selections: {},
   discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; }
 };
+// Expose disc setters for inline HTML handlers
+window.discSetStatus = (v) => { disc.status = v; };
+window.discGetStatus = () => disc.status;
 
 // ── Sessions list view ──
 async function renderDiscoveryList(){
@@ -1676,7 +1679,7 @@ function buildDiscoveryFormHTML(data){
           <div class="disc-pc-sub" style="margin-bottom:0">Guarda los datos de esta sesión en tu historial.</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <select class="disc-status-select" id="discStatusSel" onchange="disc.status=this.value">
+          <select class="disc-status-select" id="discStatusSel" onchange="discSetStatus(this.value)">
             <option value="borrador">Borrador</option>
             <option value="en_proceso">En proceso</option>
             <option value="completado">Completada</option>
