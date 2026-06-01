@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outbound México — Odoo</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── APP VARIABLES ── */
+:root {
+  --purple:#714B67; --purple-dark:#5a3a52; --purple-light:#f3eef1; --purple-mid:#9b6b8a;
+  --accent:#017E84; --accent-light:#e6f4f5;
+  --success:#16a34a; --success-light:#f0fdf4;
+  --warning:#d97706; --warning-light:#fffbeb;
+  --danger:#dc2626; --danger-light:#fef2f2;
+  --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb;
+  --gray-400:#9ca3af; --gray-500:#6b7280; --gray-700:#374151; --gray-900:#111827;
+  --white:#ffffff; --sidebar-w:240px; --topbar-h:60px;
+  --radius:10px; --radius-sm:6px;
+  --shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.05);
+  --shadow-lg:0 10px 15px rgba(0,0,0,.1),0 4px 6px rgba(0,0,0,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray-900);}
+a{color:var(--purple);text-decoration:none;}
+a:hover{text-decoration:underline;}
+button{cursor:pointer;font-family:inherit;}
+input,select,textarea{font-family:inherit;}
+
+/* ── SCREENS ── */
+.screen{display:none;min-height:100vh;width:100%;}
+
+/* ── SETUP / AUTH ── */
+#screen-setup,#screen-login,#screen-register,#screen-pending{
+  flex-direction:column;align-items:center;justify-content:center;padding:24px;
+  background:linear-gradient(135deg,var(--purple) 0%,var(--purple-dark) 100%);min-height:100vh;
+}
+.auth-card{background:white;border-radius:16px;padding:40px;width:100%;max-width:420px;box-shadow:var(--shadow-lg);}
+.setup-card{background:white;border-radius:16px;padding:40px;max-width:640px;width:100%;box-shadow:var(--shadow-lg);}
+.auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
+.auth-logo-icon{width:44px;height:44px;background:var(--purple);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;color:white;font-weight:700;}
+.auth-logo-text strong{display:block;font-size:16px;font-weight:700;}
+.auth-logo-text span{font-size:12px;color:var(--gray-500);}
+.auth-title{font-size:22px;font-weight:700;margin-bottom:4px;}
+.auth-subtitle{color:var(--gray-500);font-size:14px;margin-bottom:28px;}
+.auth-switch{text-align:center;font-size:14px;color:var(--gray-500);margin-top:20px;}
+.auth-switch button{background:none;border:none;color:var(--purple);font-weight:600;padding:0;font-size:14px;}
+.pending-icon{font-size:56px;margin-bottom:16px;}
+.pending-card{text-align:center;}
+.pending-card h2{font-size:24px;font-weight:700;margin-bottom:8px;}
+.pending-card p{color:var(--gray-500);font-size:15px;line-height:1.6;margin-bottom:12px;}
+.pending-steps{background:var(--purple-light);border-radius:var(--radius);padding:16px 20px;margin:20px 0;text-align:left;font-size:14px;line-height:1.8;color:var(--purple-dark);}
+.pending-steps strong{display:block;margin-bottom:8px;font-size:13px;text-transform:uppercase;letter-spacing:.5px;}
+.setup-steps{background:var(--gray-50);border-radius:var(--radius);padding:20px;margin-bottom:24px;font-size:14px;line-height:1.8;border:1px solid var(--gray-200);}
+.setup-steps ol{padding-left:20px;}
+.setup-steps li{margin-bottom:6px;}
+.setup-steps code{background:var(--gray-200);padding:1px 6px;border-radius:4px;font-size:12px;}
+
+/* ── FORMS ── */
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.form-group label{font-size:13px;font-weight:600;color:var(--gray-700);}
+.input{padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:14px;color:var(--gray-900);background:white;transition:border-color .15s,box-shadow .15s;width:100%;}
+.input:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(113,75,103,.1);}
+.input::placeholder{color:var(--gray-400);}
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;border:none;transition:all .15s;}
+.btn:disabled{opacity:.55;cursor:not-allowed;}
+.btn-primary{background:var(--purple);color:white;}
+.btn-primary:hover:not(:disabled){background:var(--purple-dark);}
+.btn-full{width:100%;}
+.btn-success{background:var(--success);color:white;}
+.btn-success:hover:not(:disabled){background:#15803d;}
+.btn-ghost{background:transparent;color:var(--gray-700);border:1.5px solid var(--gray-200);}
+.btn-ghost:hover{background:var(--gray-100);}
+.btn-ghost-danger{background:transparent;color:var(--danger);border:1.5px solid var(--danger);}
+.btn-ghost-danger:hover{background:var(--danger-light);}
+.btn-sm{padding:6px 12px;font-size:13px;}
+
+/* ── APP LAYOUT ── */
+#screen-app{flex-direction:row;min-height:100vh;}
+.sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--purple-dark);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.1);}
+.sidebar-logo-inner{display:flex;align-items:center;gap:10px;}
+.sidebar-logo-icon{width:36px;height:36px;background:rgba(255,255,255,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:white;}
+.sidebar-logo-text strong{display:block;font-size:14px;font-weight:700;color:white;}
+.sidebar-logo-text span{font-size:11px;color:rgba(255,255,255,.5);}
+.sidebar-nav{padding:12px 0;flex:1;}
+.nav-section-label{padding:8px 20px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;color:rgba(255,255,255,.7);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-size:14px;font-weight:500;transition:all .15s;position:relative;}
+.nav-item:hover{background:rgba(255,255,255,.08);color:white;}
+.nav-item.active{background:rgba(255,255,255,.15);color:white;}
+.nav-item.active::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:white;border-radius:0 3px 3px 0;}
+.nav-icon{font-size:16px;width:20px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--warning);color:white;font-size:11px;font-weight:700;min-width:18px;height:18px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 5px;}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.1);}
+#userInfo{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.user-avatar{width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:white;flex-shrink:0;}
+.user-avatar.sm{width:32px;height:32px;font-size:13px;background:var(--purple-light);color:var(--purple);}
+.user-details{min-width:0;}
+.user-name{display:block;font-size:13px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role{display:inline-block;font-size:10px;padding:1px 7px;border-radius:99px;margin-top:2px;font-weight:600;}
+.user-meta{font-size:12px;color:var(--gray-400);margin-top:1px;}
+.role-manager{background:rgba(255,255,255,.2);color:white;}
+.role-tl{background:rgba(255,200,100,.25);color:#fde68a;}
+.role-ae{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);}
+.btn-logout{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.6);border-radius:var(--radius-sm);padding:8px;font-size:13px;transition:all .15s;}
+.btn-logout:hover{background:rgba(255,255,255,.15);color:white;}
+.main-content{flex:1;overflow-y:auto;height:100vh;}
+.topbar{height:var(--topbar-h);background:white;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 28px;gap:16px;position:sticky;top:0;z-index:50;}
+.topbar-title{font-size:16px;font-weight:600;}
+.topbar-spacer{flex:1;}
+.topbar-hidden .topbar{display:none;}
+#moduleContent{padding:28px;}
+
+/* ── CARDS ── */
+.card{background:white;border-radius:var(--radius);border:1px solid var(--gray-200);box-shadow:var(--shadow);overflow:hidden;}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;gap:10px;}
+.card-header h3{font-size:15px;font-weight:600;flex:1;}
+
+/* ── HOME ── */
+.home-wrap{max-width:960px;}
+.home-hero{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;}
+.home-hero h1{font-size:28px;font-weight:700;margin-bottom:8px;}
+.home-hero p{color:var(--gray-500);font-size:15px;max-width:480px;}
+.text-purple{color:var(--purple);}
+.role-pill{display:inline-block;padding:4px 14px;border-radius:99px;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.role-pill.role-manager{background:var(--purple);color:white;}
+.role-pill.role-tl{background:var(--warning-light);color:var(--warning);border:1px solid var(--warning);}
+.role-pill.role-ae{background:var(--purple-light);color:var(--purple);}
+.modules-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;}
+.module-card{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:24px 20px;text-align:left;display:flex;flex-direction:column;gap:6px;transition:all .2s;box-shadow:var(--shadow);}
+.module-card:hover{border-color:var(--purple);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.module-card.ready-module{border-color:var(--purple-light);}
+.module-icon{font-size:28px;margin-bottom:4px;}
+.module-label{font-size:15px;font-weight:600;}
+.module-phase{font-size:11px;color:var(--gray-400);font-weight:500;}
+.module-status{font-size:11px;padding:2px 8px;border-radius:99px;display:inline-block;margin-top:4px;}
+.module-status.coming{background:var(--gray-100);color:var(--gray-500);}
+.module-status.ready{background:var(--success-light);color:var(--success);}
+.quick-panel{margin-top:8px;}
+.quick-panel h3{font-size:16px;font-weight:600;margin-bottom:12px;}
+
+/* ── ALERTS ── */
+.alert-banner{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-sm);font-size:14px;}
+.alert-warning{background:var(--warning-light);color:var(--warning);border:1px solid #fed7aa;}
+.alert-success{background:var(--success-light);color:var(--success);border:1px solid #bbf7d0;}
+.alert-cta{margin-left:auto;font-weight:600;}
+
+/* ── COMING SOON ── */
+.coming-soon-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 40px;max-width:500px;margin:0 auto;}
+.coming-soon-icon{font-size:64px;margin-bottom:20px;}
+.coming-soon-wrap h2{font-size:26px;font-weight:700;margin-bottom:10px;}
+.coming-badge{display:inline-block;background:var(--purple-light);color:var(--purple);padding:3px 12px;border-radius:99px;font-size:12px;font-weight:700;margin-bottom:16px;}
+.coming-soon-wrap p{color:var(--gray-500);font-size:15px;line-height:1.6;margin-bottom:16px;}
+.coming-soon-note{background:var(--gray-100);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--gray-500);}
+
+/* ── MANAGER PANEL ── */
+.manager-wrap{max-width:1100px;}
+.page-header{margin-bottom:24px;}
+.page-header h2{font-size:22px;font-weight:700;margin-bottom:4px;}
+.page-header p{color:var(--gray-500);font-size:14px;}
+.manager-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.user-card{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--gray-100);gap:12px;}
+.user-card:last-child{border-bottom:none;}
+.user-card-info{display:flex;align-items:center;gap:10px;min-width:0;}
+.user-card-info strong{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-card-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.role-select{padding:5px 8px;border-radius:var(--radius-sm);border:1.5px solid var(--gray-200);font-size:13px;color:var(--gray-700);background:white;}
+.role-select:focus{outline:none;border-color:var(--purple);}
+.team-section{}
+.section-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);padding:8px 20px;}
+.empty-state{padding:24px 20px;color:var(--gray-400);font-size:14px;text-align:center;}
+.empty-state-sm{padding:8px 20px;color:var(--gray-400);font-size:13px;}
+.badge{padding:2px 8px;border-radius:99px;font-size:12px;font-weight:700;}
+.badge-warning{background:var(--warning-light);color:var(--warning);}
+
+/* ── SETTINGS ── */
+.settings-wrap{max-width:700px;}
+.settings-sections{display:flex;flex-direction:column;gap:20px;}
+.settings-card{padding:24px;}
+.settings-card h3{font-size:16px;font-weight:600;flex:1;margin-bottom:4px;}
+.settings-card .card-header{padding:0;border:none;margin-bottom:12px;}
+.settings-desc{font-size:14px;color:var(--gray-500);line-height:1.5;margin-bottom:16px;}
+.settings-about{background:var(--gray-50);}
+.settings-about p{font-size:14px;color:var(--gray-500);margin-top:4px;}
+.status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.dot-green{background:var(--success);}
+.dot-red{background:var(--danger);}
+.key-saved{font-size:13px;color:var(--success);margin-left:12px;}
+.link{color:var(--purple);font-weight:500;}
+
+/* ── SKELETON ── */
+.skeleton-list{padding:16px 20px;display:flex;flex-direction:column;gap:10px;}
+.skeleton{height:20px;border-radius:4px;background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-200) 50%,var(--gray-100) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;}
+.skeleton:nth-child(2){width:75%;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── NOTIF ── */
+.global-notif{position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;box-shadow:var(--shadow-lg);transform:translateY(20px);opacity:0;transition:all .25s ease;max-width:360px;}
+.global-notif.show{transform:translateY(0);opacity:1;}
+.notif-success{background:var(--success);color:white;}
+.notif-error{background:var(--danger);color:white;}
+.notif-info{background:var(--gray-700);color:white;}
+.notif-warning{background:var(--warning);color:white;}
+
+/* ════════════════════════════════════════
+   DISCOVERY MODULE — FASE 2
+════════════════════════════════════════ */
+
+/* Sessions list */
+.disc-list-wrap{max-width:1100px;}
+.disc-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.disc-list-header h2{font-size:22px;font-weight:700;}
+.disc-filters{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.disc-filter-btn{padding:6px 14px;border-radius:99px;border:1.5px solid var(--gray-200);font-size:13px;font-weight:500;background:white;color:var(--gray-500);cursor:pointer;transition:all .15s;}
+.disc-filter-btn.active{background:var(--purple);color:white;border-color:var(--purple);}
+.disc-sessions-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.disc-session-card{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:20px;cursor:pointer;transition:all .2s;box-shadow:var(--shadow);}
+.disc-session-card:hover{border-color:var(--purple);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.disc-session-empresa{font-size:16px;font-weight:700;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.disc-session-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray-400);margin-bottom:12px;flex-wrap:wrap;}
+.disc-session-meta .sep{color:var(--gray-200);}
+.disc-bant-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.disc-bant-chip{font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;}
+.disc-bant-g{background:var(--success-light);color:var(--success);}
+.disc-bant-y{background:var(--warning-light);color:var(--warning);}
+.disc-bant-r{background:var(--danger-light);color:var(--danger);}
+.disc-bant-b{background:#eff6ff;color:#1d4ed8;}
+.disc-session-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;}
+.disc-status-badge{font-size:11px;padding:3px 10px;border-radius:99px;font-weight:600;}
+.status-borrador{background:var(--gray-100);color:var(--gray-500);}
+.status-en_proceso{background:#eff6ff;color:#1d4ed8;}
+.status-completado{background:var(--success-light);color:var(--success);}
+.status-archivado{background:var(--gray-100);color:var(--gray-400);}
+.disc-dolores-tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;}
+.disc-dolor-tag{font-size:11px;background:var(--danger-light);color:var(--danger);padding:2px 7px;border-radius:4px;}
+.disc-ai-indicator{font-size:11px;color:var(--purple);font-weight:600;}
+.disc-empty{display:flex;flex-direction:column;align-items:center;padding:60px 20px;text-align:center;}
+.disc-empty-icon{font-size:48px;margin-bottom:16px;}
+.disc-empty h3{font-size:18px;font-weight:600;margin-bottom:8px;}
+.disc-empty p{color:var(--gray-500);font-size:14px;max-width:340px;}
+
+/* ── DISCOVERY FORM (embedded) ── */
+/* Scoped vars */
+.disc-wrap{
+  --d-orange:#f97316; --d-orange-light:#fff7ed;
+  --d-blue:#1d4ed8; --d-blue-light:#eff6ff;
+  --d-green:#16a34a; --d-green-light:#f0fdf4;
+  --d-red:#dc2626; --d-red-light:#fef2f2;
+  --d-amber:#d97706; --d-amber-light:#fffbeb;
+  --d-purple:#7c3aed; --d-purple-light:#faf5ff;
+  --d-gray:#6b7280; --d-border:#e5e7eb;
+}
+.disc-wrap{font-family:'DM Sans',sans-serif;color:#1f2937;background:#F8F9FA;}
+
+/* Mode bar */
+.disc-mode-bar{
+  position:sticky;top:0;z-index:100;
+  background:white;border-bottom:1px solid #e5e7eb;
+  padding:10px 20px;display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 1px 4px rgba(0,0,0,.08);flex-wrap:wrap;gap:8px;
+}
+.disc-mode-bar-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.disc-back-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;border:1.5px solid var(--gray-200);background:white;font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;transition:all .15s;}
+.disc-back-btn:hover{border-color:var(--purple);color:var(--purple);}
+.disc-mode-title{font-size:15px;font-weight:700;}
+.disc-empresa-badge{font-size:13px;font-weight:700;color:#1f2937;background:#f3f4f6;border-radius:6px;padding:2px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.disc-ind-label{font-size:12px;color:#6b7280;}
+
+/* BANT bar */
+.disc-bant-bar{display:flex;align-items:center;gap:0;}
+.disc-bant-item{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;cursor:pointer;transition:background .15s;user-select:none;position:relative;}
+.disc-bant-item:not(:last-child)::after{content:'';position:absolute;right:-1px;width:16px;height:1px;background:#e5e7eb;top:50%;pointer-events:none;}
+.disc-bant-item:hover{background:#f3f4f6;}
+.disc-bant-item.covered{background:#f0fdf4;}
+.disc-bant-dot{width:10px;height:10px;border-radius:50%;background:#e5e7eb;flex-shrink:0;transition:all .2s;}
+.disc-bant-dot.filled{background:#f97316;box-shadow:0 0 0 2px #fed7aa;}
+.disc-bant-dot.covered{background:#16a34a;box-shadow:0 0 0 2px #bbf7d0;}
+.disc-bant-label{font-size:12px;font-weight:600;color:#6b7280;transition:color .2s;}
+.disc-bant-item.covered .disc-bant-label{color:#16a34a;}
+.disc-bant-sep{width:20px;height:1px;background:#e5e7eb;flex-shrink:0;}
+
+/* Mode toggle */
+.disc-mode-bar-right{display:flex;align-items:center;gap:10px;}
+.disc-mode-toggle{display:flex;background:#f3f4f6;border-radius:999px;padding:4px;gap:4px;}
+.disc-mode-btn{padding:7px 16px;border-radius:999px;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;color:#6b7280;background:transparent;}
+.disc-mode-btn.active{background:white;color:#1f2937;box-shadow:0 1px 4px rgba(0,0,0,.12);}
+.disc-mode-btn.postcall-active{background:#f97316;color:white;box-shadow:0 2px 8px rgba(249,115,22,.3);}
+.disc-end-btn{padding:9px 20px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;background:#dc2626;color:white;border:none;border-radius:999px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px;}
+.disc-end-btn:hover{background:#b91c1c;transform:scale(1.02);}
+.disc-save-btn{padding:9px 20px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;background:var(--success);color:white;border:none;border-radius:999px;cursor:pointer;transition:all .2s;}
+.disc-save-btn:hover{background:#15803d;}
+
+/* Selectors bar */
+.disc-sel-bar{background:white;border-bottom:1px solid #e5e7eb;padding:10px 20px;display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;position:sticky;top:57px;z-index:99;}
+.disc-sel-label{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9ca3af;margin-bottom:5px;}
+.disc-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid #e5e7eb;border-radius:999px;font-size:12.5px;font-weight:500;cursor:pointer;color:#6b7280;background:#f9fafb;transition:all .15s;user-select:none;}
+.disc-chip:hover{border-color:#9ca3af;color:#374151;}
+.disc-chip.active{background:#1f2937;color:#fff;border-color:#1f2937;}
+.disc-tvchip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1.5px solid #e5e7eb;border-radius:999px;font-size:12px;font-weight:500;cursor:pointer;color:#6b7280;background:#f9fafb;transition:all .15s;user-select:none;}
+.disc-tvchip.active{background:#1d4ed8;color:#fff;border-color:#1d4ed8;}
+
+/* Topic grid */
+.disc-topic-grid{display:flex;flex-direction:column;gap:16px;padding:20px;max-width:1200px;margin:0 auto;}
+.disc-topic-row-1{display:flex;}
+.disc-topic-row-1 .disc-topic-card{width:100%;}
+.disc-topic-row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.disc-topic-card{background:white;border-radius:16px;border:2px solid #e5e7eb;padding:20px;transition:all .2s;position:relative;}
+.disc-topic-card:hover{border-color:#d1d5db;box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.disc-topic-card.covered{border-color:#86efac;background:#f0fdf4;}
+.disc-topic-card.covered .disc-topic-icon{opacity:.6;}
+.disc-topic-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.disc-topic-icon{font-size:28px;}
+.disc-covered-badge{display:none;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#16a34a;color:white;}
+.disc-topic-card.covered .disc-covered-badge{display:inline-flex;}
+.disc-topic-name{font-size:15px;font-weight:700;color:#1f2937;margin-bottom:4px;}
+.disc-topic-sub{font-size:11.5px;color:#6b7280;margin-bottom:14px;}
+.disc-topic-question{background:#eff6ff;border-left:3px solid #3b82f6;border-radius:0 8px 8px 0;padding:10px 13px;font-size:13px;color:#1e40af;font-style:italic;line-height:1.6;margin-bottom:14px;}
+.disc-listen-for{margin-bottom:14px;}
+.disc-listen-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;}
+.disc-listen-items{display:flex;flex-direction:column;gap:5px;}
+.disc-listen-item{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#374151;padding:4px 0;}
+.disc-listen-dot{width:6px;height:6px;border-radius:50%;background:#d1d5db;flex-shrink:0;}
+.disc-listen-item.heard .disc-listen-dot{background:#16a34a;}
+.disc-quick-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.disc-qpill{padding:5px 12px;border:1.5px solid #e5e7eb;border-radius:999px;font-size:12px;font-weight:500;cursor:pointer;color:#6b7280;background:#f9fafb;transition:all .15s;user-select:none;}
+.disc-qpill:hover{border-color:#9ca3af;color:#374151;}
+.disc-qpill.selected-g{background:#f0fdf4;border-color:#86efac;color:#16a34a;font-weight:600;}
+.disc-qpill.selected-y{background:#fffbeb;border-color:#fcd34d;color:#d97706;font-weight:600;}
+.disc-qpill.selected-r{background:#fef2f2;border-color:#fca5a5;color:#dc2626;font-weight:600;}
+.disc-qpill.selected-b{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8;font-weight:600;}
+.disc-mark-btn{width:100%;margin-top:14px;padding:9px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;border:1.5px dashed #d1d5db;border-radius:8px;background:transparent;color:#9ca3af;cursor:pointer;transition:all .15s;}
+.disc-mark-btn:hover{border-color:#86efac;color:#16a34a;background:#f0fdf4;}
+.disc-topic-card.covered .disc-mark-btn{border-color:#86efac;color:#16a34a;background:#dcfce7;border-style:solid;}
+.disc-pill-section{margin-bottom:12px;}
+.disc-pill-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px;}
+.disc-section-divider{border:none;border-top:1px solid #e5e7eb;margin:14px 0;}
+
+/* Flujos */
+.disc-flujos-card{padding:0;overflow:hidden;}
+.disc-flujos-toggle{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;cursor:pointer;user-select:none;transition:background .15s;}
+.disc-flujos-toggle:hover{background:#f9fafb;}
+.disc-flujos-toggle-left{display:flex;align-items:center;gap:10px;}
+.disc-flujos-title{font-size:15px;font-weight:700;color:#1f2937;}
+.disc-flujos-chevron{font-size:12px;color:#9ca3af;transition:transform .25s;}
+.disc-flujos-chevron.open{transform:rotate(180deg);}
+.disc-flujos-body{border-top:1px solid #e5e7eb;}
+.disc-flujos-tabs{display:flex;border-bottom:1px solid #e5e7eb;background:#f9fafb;}
+.disc-flujos-tab{flex:1;padding:12px 8px;text-align:center;font-size:13px;font-weight:600;color:#6b7280;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none;}
+.disc-flujos-tab:hover{color:#374151;background:#f3f4f6;}
+.disc-flujos-tab.active{color:#1d4ed8;border-bottom-color:#1d4ed8;background:white;}
+.disc-flujos-tab.covered-tab{color:#16a34a;}
+.disc-flujos-tab.covered-tab.active{border-bottom-color:#16a34a;}
+.disc-flujos-panel{display:none;padding:20px;}
+.disc-flujos-panel.active{display:block;}
+.disc-flujos-inner{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+.disc-flujos-col-title{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;}
+.disc-flujos-covered-row{display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid #f3f4f6;margin-top:14px;}
+
+/* WoW */
+.disc-wow-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1.5px solid #7c3aed;background:#faf5ff;color:#7c3aed;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;}
+.disc-wow-btn:hover{background:#7c3aed;color:white;}
+.disc-wow-panel{display:none;margin-top:14px;background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1.5px solid #c4b5fd;border-radius:12px;padding:16px;}
+.disc-wow-panel.open{display:block;}
+.disc-wow-panel-title{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#7c3aed;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.disc-wow-items{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.disc-wow-item{background:white;border-radius:10px;padding:12px 14px;border:1px solid #e9d5ff;transition:box-shadow .15s;}
+.disc-wow-item:hover{box-shadow:0 4px 12px rgba(124,58,237,.12);}
+.disc-wow-item-title{font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px;}
+.disc-wow-item-desc{font-size:12px;color:#6b7280;line-height:1.5;margin-bottom:6px;}
+.disc-wow-item-wow{font-size:11.5px;font-weight:600;color:#7c3aed;background:#f5f3ff;padding:4px 8px;border-radius:6px;display:inline-block;}
+.disc-wow-tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-bottom:6px;}
+.disc-wow-tag-ind{background:#fff7ed;color:#c2410c;}
+.disc-wow-tag-tv{background:#eff6ff;color:#1d4ed8;}
+.disc-wow-tag-gen{background:#f0fdf4;color:#15803d;}
+
+/* Empresa fields */
+.disc-emp-fields{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.disc-emp-fields-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:2px;}
+.disc-emp-field{display:flex;flex-direction:column;gap:3px;}
+.disc-emp-field label{font-size:11.5px;font-weight:600;color:#374151;}
+.disc-emp-input{width:100%;padding:7px 10px;font-family:'DM Sans',sans-serif;font-size:13px;border:1.5px solid #e5e7eb;border-radius:8px;background:#f9fafb;color:#1f2937;outline:none;transition:border-color .15s;}
+.disc-emp-input:focus{border-color:#1d4ed8;background:white;}
+.disc-emp-input::placeholder{color:#9ca3af;}
+.disc-emp-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.disc-emp-select{width:100%;padding:7px 10px;font-family:'DM Sans',sans-serif;font-size:13px;border:1.5px solid #e5e7eb;border-radius:8px;background:#f9fafb;color:#1f2937;outline:none;cursor:pointer;transition:border-color .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+.disc-emp-select:focus{border-color:#1d4ed8;background-color:white;}
+
+/* Post-call */
+.disc-postcall-area{max-width:900px;margin:0 auto;padding:20px;display:none;}
+.disc-postcall-area.show{display:block;}
+.disc-pc-card{background:white;border-radius:16px;border:1px solid #e5e7eb;padding:24px;margin-bottom:16px;}
+.disc-pc-title{font-size:16px;font-weight:700;margin-bottom:4px;}
+.disc-pc-sub{font-size:13px;color:#6b7280;margin-bottom:16px;}
+.disc-summary-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;}
+.disc-summary-key{font-weight:600;color:#374151;min-width:140px;}
+.disc-summary-val{color:#1f2937;}
+.disc-summary-val-pill{display:inline-flex;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;}
+.disc-transcript-ta{width:100%;min-height:180px;padding:14px;font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.7;border:1.5px solid #e5e7eb;border-radius:10px;background:#f9fafb;color:#1f2937;resize:vertical;outline:none;transition:border-color .15s;}
+.disc-transcript-ta:focus{border-color:#f97316;background:white;}
+.disc-ai-btn{width:100%;padding:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;background:linear-gradient(135deg,var(--purple),var(--purple-mid));color:white;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;margin-top:12px;}
+.disc-ai-btn:hover{opacity:.9;transform:translateY(-2px);box-shadow:0 6px 20px rgba(113,75,103,.35);}
+.disc-ai-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+/* keep legacy IDs working */
+.disc-gemini-btn{width:100%;padding:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;background:linear-gradient(135deg,var(--purple),var(--purple-mid));color:white;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;margin-top:12px;}
+.disc-gemini-btn:hover{opacity:.9;transform:translateY(-2px);box-shadow:0 6px 20px rgba(113,75,103,.35);}
+.disc-gemini-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+.disc-gemini-output{background:#f8f9fa;border:1px solid #e5e7eb;border-radius:10px;padding:20px;font-family:'DM Mono',monospace;font-size:12.5px;line-height:1.8;color:#1f2937;white-space:pre-wrap;min-height:200px;margin-top:12px;display:none;}
+.disc-gemini-output.show{display:block;}
+.disc-gemini-loading{display:none;align-items:center;gap:10px;padding:16px;color:#6b7280;font-size:13px;}
+.disc-gemini-loading.show{display:flex;}
+.disc-spinner{width:20px;height:20px;border:2px solid #e5e7eb;border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.disc-copy-btn{padding:6px 16px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;border:1px solid #e5e7eb;border-radius:999px;background:white;color:#374151;cursor:pointer;}
+.disc-status-select{padding:7px 12px;border-radius:var(--radius-sm);border:1.5px solid var(--gray-200);font-size:14px;font-weight:600;color:var(--gray-700);background:white;cursor:pointer;}
+
+/* ── Discovery START POPUP ── */
+#discStartPopup{position:fixed;inset:0;z-index:9999;transition:opacity .2s,transform .2s;}
+.dsp-overlay{position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;}
+.dsp-card{background:#1a1a2e;border-radius:20px;padding:28px;max-width:420px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5);color:white;}
+.dsp-header{text-align:center;margin-bottom:24px;}
+.dsp-icon{font-size:40px;margin-bottom:10px;}
+.dsp-title{font-size:20px;font-weight:700;margin-bottom:6px;}
+.dsp-sub{font-size:13px;color:#9ca3af;line-height:1.5;}
+.dsp-steps{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.dsp-step{display:flex;align-items:center;gap:12px;background:#2d2d42;border-radius:12px;padding:14px 16px;transition:background .2s;}
+.dsp-step-num{font-size:11px;font-weight:700;color:#6b7280;min-width:16px;}
+.dsp-step-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.dsp-step-info{flex:1;}
+.dsp-step-title{font-size:14px;font-weight:700;margin-bottom:2px;}
+.dsp-step-desc{font-size:12px;color:#9ca3af;line-height:1.4;}
+.dsp-play-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#1d4ed8;border-radius:50%;font-size:9px;vertical-align:middle;}
+.dsp-step-check{width:28px;height:28px;border-radius:50%;border:2px solid #4b5563;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;transition:all .2s;color:transparent;flex-shrink:0;}
+.dsp-step-check.checked{background:#16a34a;border-color:#16a34a;color:white;}
+.dsp-tip{background:rgba(113,75,103,.25);border:1px solid rgba(155,107,138,.3);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#d4b8cc;display:flex;gap:8px;align-items:flex-start;margin-bottom:20px;line-height:1.5;}
+.dsp-cta{width:100%;background:linear-gradient(135deg,#714B67,#9b6b8a);color:white;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.3px;}
+.dsp-cta:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(113,75,103,.4);}
+.dsp-skip{display:block;width:100%;background:none;border:none;color:#4b5563;font-size:12px;cursor:pointer;margin-top:10px;padding:6px;text-align:center;}
+.dsp-skip:hover{color:#9ca3af;}
+
+/* Pendientes drawer in disc */
+.disc-pendientes-btn{padding:7px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;background:white;color:#374151;border:1.5px solid #e5e7eb;border-radius:999px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;}
+.disc-pendientes-btn:hover{border-color:#f97316;color:#f97316;}
+.disc-pend-count{background:#f97316;color:white;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;min-width:18px;text-align:center;}
+</style>
+</head>
+<body>
+
+<!-- ════ SETUP ════ -->
+<div id="screen-setup" class="screen" style="display:none">
+  <div class="setup-card">
+    <div class="auth-logo" style="margin-bottom:20px">
+      <div class="auth-logo-icon">O</div>
+      <div class="auth-logo-text"><strong>Outbound México</strong><span>Odoo Sales Team</span></div>
+    </div>
+    <h2 style="font-size:20px;font-weight:700;color:var(--purple);margin-bottom:8px;">Configuración inicial</h2>
+    <p style="color:var(--gray-500);font-size:14px;margin-bottom:20px;">Conecta con Firebase para habilitar auth y base de datos.</p>
+    <div class="setup-steps">
+      <ol>
+        <li>Ve a <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → crea proyecto <code>outbound-mx</code></li>
+        <li>Activa <strong>Authentication</strong> → Email/Password</li>
+        <li>Activa <strong>Firestore Database</strong> en modo producción</li>
+        <li>Configuración del proyecto → Agrega app web → copia los valores</li>
+      </ol>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group"><label>API Key</label><input type="text" id="cfgApiKey" class="input" placeholder="AIza..."></div>
+      <div class="form-group"><label>Auth Domain</label><input type="text" id="cfgAuthDomain" class="input" placeholder="proyecto.firebaseapp.com"></div>
+      <div class="form-group"><label>Project ID</label><input type="text" id="cfgProjectId" class="input" placeholder="proyecto-id"></div>
+      <div class="form-group"><label>Storage Bucket</label><input type="text" id="cfgStorageBucket" class="input" placeholder="proyecto.appspot.com"></div>
+      <div class="form-group"><label>Messaging Sender ID</label><input type="text" id="cfgMessagingSenderId" class="input" placeholder="123456789"></div>
+      <div class="form-group"><label>App ID</label><input type="text" id="cfgAppId" class="input" placeholder="1:123:web:abc..."></div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveFirebaseConfig()" style="margin-top:8px">Guardar y conectar Firebase</button>
+  </div>
+</div>
+
+<!-- ════ LOGIN ════ -->
+<div id="screen-login" class="screen" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo"><div class="auth-logo-icon">O</div><div class="auth-logo-text"><strong>Outbound México</strong><span>Odoo Sales Team</span></div></div>
+    <h2 class="auth-title">Bienvenido</h2>
+    <p class="auth-subtitle">Ingresa con tu correo corporativo @odoo.com</p>
+    <div class="form-group"><label>Correo</label><input type="email" id="loginEmail" class="input" placeholder="tu.nombre@odoo.com" onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()"></div>
+    <div class="form-group"><label>Contraseña</label><input type="password" id="loginPass" class="input" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleLogin()"></div>
+    <button id="loginBtn" class="btn btn-primary btn-full" onclick="handleLogin()">Iniciar sesión</button>
+    <div class="auth-switch">¿Primera vez? <button onclick="showScreen('register')">Crear cuenta</button></div>
+  </div>
+</div>
+
+<!-- ════ REGISTER ════ -->
+<div id="screen-register" class="screen" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo"><div class="auth-logo-icon">O</div><div class="auth-logo-text"><strong>Outbound México</strong><span>Odoo Sales Team</span></div></div>
+    <h2 class="auth-title">Crear cuenta</h2>
+    <p class="auth-subtitle">Tu cuenta quedará pendiente hasta que el manager la apruebe.</p>
+    <div class="form-group"><label>Nombre completo</label><input type="text" id="regName" class="input" placeholder="Nombre Apellido"></div>
+    <div class="form-group"><label>Correo corporativo</label><input type="email" id="regEmail" class="input" placeholder="tu.nombre@odoo.com"></div>
+    <div class="form-group"><label>Contraseña</label><input type="password" id="regPass" class="input" placeholder="Mínimo 6 caracteres"></div>
+    <div class="form-group"><label>Confirmar contraseña</label><input type="password" id="regPass2" class="input" placeholder="Repite tu contraseña" onkeydown="if(event.key==='Enter')handleRegister()"></div>
+    <button id="regBtn" class="btn btn-primary btn-full" onclick="handleRegister()">Crear cuenta</button>
+    <div class="auth-switch">¿Ya tienes cuenta? <button onclick="showScreen('login')">Iniciar sesión</button></div>
+  </div>
+</div>
+
+<!-- ════ PENDING ════ -->
+<div id="screen-pending" class="screen" style="display:none">
+  <div class="auth-card pending-card">
+    <div class="pending-icon">⏳</div>
+    <h2>Hola, <span id="pendingName">amigo/a</span></h2>
+    <p>Tu cuenta está <strong>pendiente de aprobación</strong>.</p>
+    <p>El manager revisará tu solicitud y te dará acceso en breve.</p>
+    <div class="pending-steps">
+      <strong>¿Qué sigue?</strong>
+      <div>1. Tu manager recibe notificación de tu registro</div>
+      <div>2. Aprueba tu cuenta desde el Panel de Manager</div>
+      <div>3. La próxima vez que inicies sesión, ya tendrás acceso</div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:20px;width:100%" onclick="handleLogout()">Cerrar sesión</button>
+  </div>
+</div>
+
+<!-- ════ APP ════ -->
+<div id="screen-app" class="screen" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-inner">
+        <div class="sidebar-logo-icon">O</div>
+        <div class="sidebar-logo-text"><strong>Outbound MX</strong><span>Sales Hub</span></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Principal</div>
+      <button class="nav-item" id="nav-home" onclick="showModule('home')"><span class="nav-icon">🏠</span> Inicio</button>
+      <div class="nav-section-label" style="margin-top:8px">Módulos</div>
+      <button class="nav-item" id="nav-discovery" onclick="showModule('discovery')"><span class="nav-icon">🔍</span> Discovery Guide</button>
+      <button class="nav-item" id="nav-csv" onclick="showModule('csv')"><span class="nav-icon">📋</span> CSV Builder</button>
+      <button class="nav-item" id="nav-seguimiento" onclick="showModule('seguimiento')"><span class="nav-icon">💬</span> Seguimiento IA</button>
+      <button class="nav-item" id="nav-contenidos" onclick="showModule('contenidos')"><span class="nav-icon">🎨</span> Contenidos</button>
+      <button class="nav-item" id="nav-pricing" onclick="showModule('pricing')"><span class="nav-icon">💰</span> Pricing</button>
+      <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')"><span class="nav-icon">📊</span> Analytics</button>
+      <div class="nav-section-label" style="margin-top:8px">Gestión</div>
+      <button class="nav-item" id="nav-manager" onclick="showModule('manager')" style="display:none"><span class="nav-icon">👥</span> Manager<span class="nav-badge" id="pendingBadge"></span></button>
+      <button class="nav-item" id="nav-settings" onclick="showModule('settings')"><span class="nav-icon">⚙️</span> Configuración</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="userInfo"></div>
+      <button class="btn-logout" onclick="handleLogout()">Cerrar sesión</button>
+    </div>
+  </aside>
+  <main class="main-content" id="mainContent">
+    <div class="topbar" id="appTopbar">
+      <span class="topbar-title" id="topbarTitle">Inicio</span>
+      <span class="topbar-spacer"></span>
+    </div>
+    <div id="moduleContent" style="padding:28px"></div>
+  </main>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDoc,
+  collection, query, where, onSnapshot, orderBy, serverTimestamp, Timestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ══════════════════════════════════════════
+// CONFIG & CONSTANTS
+// ══════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:"AIzaSyBHKTEqeB_NdFJ_L3FXW2arzOZYgHFa4vk",
+  authDomain:"outbound-mx.firebaseapp.com",
+  projectId:"outbound-mx",
+  storageBucket:"outbound-mx.firebasestorage.app",
+  messagingSenderId:"518866509616",
+  appId:"1:518866509616:web:c39bb99cade2e1704a72f5"
+};
+
+const AE_LIST = {
+  'altre':'Alejandro Daniel Trejo Mercado','anesp':'Anyul Danae Espindola Garcia',
+  'argar':'Arturo Javier García Hernández','dalog':'Daniel Lozano González',
+  'hedi':'Diana Lizette Heredia Maldonado','edmay':'Edgar Ibrahim Maya Chino',
+  'imrg':'Ivonne Mariana Rivera Hernández','ivbes':'Iván Bernardo Saucedo',
+  'herje':'Jesús Alejandro Hernández García','jyoba':'Jonathan Yadir Orta Barrón',
+  'mtova':'María Teresa Olalde Vázquez','miram':'Miguel Gustavo Ramírez Castillo',
+  'roagu':'Roberto Alejandro Aguilar Vaca','rorui':'Roberto Ruiz Díaz',
+};
+const MANAGER = { gram:'gacj', name:'Geovani Ariel Jiménez Cruz', email:'gacj@odoo.com' };
+const MODULES = [
+  { id:'discovery', icon:'🔍', label:'Discovery Guide', phase:2, ready:true },
+  { id:'csv',       icon:'📋', label:'CSV Builder',    phase:3, ready:false },
+  { id:'seguimiento',icon:'💬',label:'Seguimiento IA', phase:4, ready:false },
+  { id:'contenidos',icon:'🎨', label:'Contenidos',     phase:5, ready:false },
+  { id:'pricing',   icon:'💰', label:'Pricing',        phase:6, ready:false },
+  { id:'analytics', icon:'📊', label:'Analytics',      phase:7, ready:false },
+];
+
+let app, auth, db, firebaseReady=false;
+let currentUser=null, currentUserData=null;
+let pendingUsersUnsub=null, allUsersUnsub=null;
+
+// ══════════════════════════════════════════
+// FIREBASE INIT
+// ══════════════════════════════════════════
+function tryInitFirebase(){
+  const cfg = firebaseConfig;
+  if(cfg.apiKey==='REPLACE_WITH_YOUR_API_KEY') return false;
+  try {
+    app = initializeApp(cfg);
+    auth = getAuth(app);
+    db   = getFirestore(app);
+    firebaseReady = true;
+    startAuthListener();
+    return true;
+  } catch(e){ console.error('Firebase init error:',e); return false; }
+}
+function startAuthListener(){
+  onAuthStateChanged(auth, async (user) => {
+    if(user){
+      currentUser = user;
+      const snap = await getDoc(doc(db,'users',user.uid));
+      if(snap.exists()){ currentUserData=snap.data(); routeByStatus(); }
+      else showScreen('register');
+    } else { currentUser=null; currentUserData=null; showScreen('login'); }
+  });
+}
+function routeByStatus(){
+  if(!currentUserData){ showScreen('login'); return; }
+  if(currentUserData.status==='pending'){ showScreen('pending'); return; }
+  if(currentUserData.status==='active'){ showScreen('app'); return; }
+  showScreen('login');
+}
+
+// ══════════════════════════════════════════
+// AUTH ACTIONS
+// ══════════════════════════════════════════
+window.handleLogin = async function(){
+  if(!firebaseReady){ showNotif('Configura Firebase primero','error'); return; }
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass =document.getElementById('loginPass').value;
+  if(!email||!pass){ showNotif('Ingresa correo y contraseña','error'); return; }
+  setLoading('loginBtn',true);
+  try { await signInWithEmailAndPassword(auth,email,pass); }
+  catch(e){
+    const msgs={'auth/user-not-found':'Cuenta no encontrada','auth/wrong-password':'Contraseña incorrecta',
+      'auth/invalid-email':'Correo inválido','auth/invalid-credential':'Correo o contraseña incorrectos'};
+    showNotif(msgs[e.code]||'Error: '+e.message,'error');
+  }
+  setLoading('loginBtn',false);
+};
+window.handleRegister = async function(){
+  if(!firebaseReady){ showNotif('Configura Firebase primero','error'); return; }
+  const name=document.getElementById('regName').value.trim();
+  const email=document.getElementById('regEmail').value.trim().toLowerCase();
+  const pass=document.getElementById('regPass').value;
+  const pass2=document.getElementById('regPass2').value;
+  if(!name||!email||!pass){ showNotif('Completa todos los campos','error'); return; }
+  if(!email.endsWith('@odoo.com')){ showNotif('Solo correos @odoo.com','error'); return; }
+  if(pass.length<6){ showNotif('Contraseña mínimo 6 caracteres','error'); return; }
+  if(pass!==pass2){ showNotif('Las contraseñas no coinciden','error'); return; }
+  const gram=email.replace('@odoo.com','');
+  const isManager=gram===MANAGER.gram;
+  const isKnown=AE_LIST[gram]!==undefined;
+  if(!isManager&&!isKnown){ showNotif('Tu correo no está en la lista del equipo','error'); return; }
+  setLoading('regBtn',true);
+  try {
+    const cred=await createUserWithEmailAndPassword(auth,email,pass);
+    const ud={ uid:cred.user.uid, name:isManager?MANAGER.name:(AE_LIST[gram]||name), email, gram,
+      role:isManager?'manager':'ae', status:isManager?'active':'pending', tlId:null,
+      createdAt:serverTimestamp(), approvedAt:isManager?serverTimestamp():null };
+    await setDoc(doc(db,'users',cred.user.uid),ud);
+    if(!isManager) await setDoc(doc(db,'notifications','pending_'+cred.user.uid),
+      {type:'new_user_pending',targetRole:'manager',newUserName:ud.name,newUserEmail:ud.email,
+       newUserUid:cred.user.uid,read:false,createdAt:serverTimestamp()});
+  } catch(e){
+    const msgs={'auth/email-already-in-use':'Ya existe una cuenta con ese correo','auth/weak-password':'Contraseña muy débil'};
+    showNotif(msgs[e.code]||'Error: '+e.message,'error');
+  }
+  setLoading('regBtn',false);
+};
+window.handleLogout = async function(){
+  if(!auth) return;
+  disc.discardForm();
+  try { await signOut(auth); } catch(e){}
+};
+
+// ══════════════════════════════════════════
+// MANAGER PANEL
+// ══════════════════════════════════════════
+async function loadManagerPanel(){
+  if(!db) return;
+  const q1=query(collection(db,'users'),where('status','==','pending'));
+  if(pendingUsersUnsub) pendingUsersUnsub();
+  pendingUsersUnsub=onSnapshot(q1,(snap)=>{
+    const list=snap.docs.map(d=>d.data());
+    renderPendingUsers(list);
+    const b=document.getElementById('pendingBadge');
+    if(b) b.textContent=list.length>0?list.length:'';
+  });
+  const q2=query(collection(db,'users'),where('status','==','active'));
+  if(allUsersUnsub) allUsersUnsub();
+  allUsersUnsub=onSnapshot(q2,(snap)=>{
+    renderTeamList(snap.docs.map(d=>d.data()).filter(u=>u.gram!==MANAGER.gram));
+  });
+}
+window.approveUser = async(uid)=>{ try{ await updateDoc(doc(db,'users',uid),{status:'active',approvedAt:serverTimestamp()}); showNotif('Usuario aprobado ✓','success'); } catch(e){ showNotif('Error: '+e.message,'error'); }};
+window.rejectUser  = async(uid)=>{ if(!confirm('¿Rechazar este usuario?')) return; try{ await updateDoc(doc(db,'users',uid),{status:'rejected'}); showNotif('Rechazado','info'); } catch(e){}};
+window.assignRole  = async(uid,role)=>{ try{ await updateDoc(doc(db,'users',uid),{role}); showNotif('Rol actualizado','success'); } catch(e){}};
+window.assignTL    = async(aeUid,tlUid)=>{ try{ await updateDoc(doc(db,'users',aeUid),{tlId:tlUid||null}); showNotif('TL asignado','success'); } catch(e){}};
+
+function renderPendingUsers(users){
+  const c=document.getElementById('pendingList'); if(!c) return;
+  if(users.length===0){ c.innerHTML='<p class="empty-state">No hay usuarios pendientes ✓</p>'; return; }
+  c.innerHTML=users.map(u=>`
+    <div class="user-card">
+      <div class="user-card-info"><div class="user-avatar sm">${u.name[0]}</div><div><strong>${u.name}</strong><div class="user-meta">${u.email}</div></div></div>
+      <div class="user-card-actions">
+        <button class="btn btn-sm btn-success" onclick="approveUser('${u.uid}')">✓ Aprobar</button>
+        <button class="btn btn-sm btn-ghost-danger" onclick="rejectUser('${u.uid}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+function renderTeamList(users){
+  const c=document.getElementById('teamList'); if(!c) return;
+  if(users.length===0){ c.innerHTML='<p class="empty-state">No hay usuarios activos todavía</p>'; return; }
+  const tls=users.filter(u=>u.role==='tl'), aes=users.filter(u=>u.role==='ae');
+  const tlOpts='<option value="">Sin TL</option>'+tls.map(t=>`<option value="${t.uid}">${t.name}</option>`).join('');
+  const row=(u)=>`<div class="user-card">
+    <div class="user-card-info"><div class="user-avatar sm">${u.name[0]}</div><div><strong>${u.name}</strong><div class="user-meta">${u.gram}</div></div></div>
+    <div class="user-card-actions">
+      <select class="role-select" onchange="assignRole('${u.uid}',this.value)">
+        <option value="ae" ${u.role==='ae'?'selected':''}>AE</option>
+        <option value="tl" ${u.role==='tl'?'selected':''}>TL</option>
+      </select>
+      <select class="role-select" onchange="assignTL('${u.uid}',this.value)">
+        ${tlOpts.replace(`value="${u.tlId||''}"`,`value="${u.tlId||''}" selected`)}
+      </select>
+    </div></div>`;
+  c.innerHTML=`<div class="team-section"><h4 class="section-label">Team Leaders (${tls.length})</h4>${tls.map(row).join('')}</div>
+    <div class="team-section" style="margin-top:24px"><h4 class="section-label">Account Executives (${aes.length})</h4>${aes.map(row).join('')}</div>`;
+}
+
+// ══════════════════════════════════════════
+// FIREBASE CONFIG (UI)
+// ══════════════════════════════════════════
+window.saveFirebaseConfig = function(){
+  const cfg={
+    apiKey:document.getElementById('cfgApiKey').value.trim(),
+    authDomain:document.getElementById('cfgAuthDomain').value.trim(),
+    projectId:document.getElementById('cfgProjectId').value.trim(),
+    storageBucket:document.getElementById('cfgStorageBucket').value.trim(),
+    messagingSenderId:document.getElementById('cfgMessagingSenderId').value.trim(),
+    appId:document.getElementById('cfgAppId').value.trim(),
+  };
+  if(!cfg.apiKey||!cfg.projectId){ showNotif('API Key y Project ID son obligatorios','error'); return; }
+  localStorage.setItem('outbound_firebase_cfg',JSON.stringify(cfg));
+  showNotif('Guardado. Recargando…','success');
+  setTimeout(()=>location.reload(),1200);
+};
+function loadSavedConfig(){
+  try{ const s=localStorage.getItem('outbound_firebase_cfg'); if(s) Object.assign(firebaseConfig,JSON.parse(s)); } catch(e){}
+}
+
+// ══════════════════════════════════════════
+// MODULE ROUTING
+// ══════════════════════════════════════════
+window.showModule = function(moduleId, skipNavHighlight=false){
+  if(!skipNavHighlight){
+    document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+    const n=document.getElementById('nav-'+moduleId); if(n) n.classList.add('active');
+  }
+  // Show topbar unless discovery form
+  const mc=document.getElementById('mainContent');
+  const tb=document.getElementById('appTopbar');
+  if(disc.formActive){ disc.discardForm(); }
+  mc.classList.remove('topbar-hidden');
+  tb.style.display='flex';
+  const titles={home:'Inicio',discovery:'Discovery Guide',csv:'CSV Builder',seguimiento:'Seguimiento IA',
+    contenidos:'Contenidos',pricing:'Pricing',analytics:'Analytics',manager:'Panel de Manager',settings:'Configuración'};
+  const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
+  const content=document.getElementById('moduleContent');
+  const map={
+    home:renderHome, discovery:renderDiscoveryList,
+    csv:()=>renderComingSoon('CSV Builder','📋','Fase 3','Describe prospectos en texto libre y Claude genera el CSV listo para importar en Odoo CRM.'),
+    seguimiento:()=>renderComingSoon('Seguimiento IA','💬','Fase 4','Genera mensajes personalizados de LinkedIn, Email y WhatsApp con cadencia sugerida.'),
+    contenidos:()=>renderComingSoon('Contenidos','🎨','Fase 5','Brochures, imágenes para WhatsApp/LinkedIn/Email y propuestas comerciales.'),
+    pricing:()=>renderComingSoon('Pricing','💰','Fase 6','Calculadora de precios y propuestas con módulos de Odoo.'),
+    analytics:()=>renderComingSoon('Analytics','📊','Fase 7','Métricas de uso por AE, TL y equipo.'),
+    manager:renderManagerPanel, settings:renderSettings,
+  };
+  const fn=map[moduleId]; if(fn){ content.style.padding='28px'; content.innerHTML=''; fn(); }
+};
+
+function renderHome(){
+  const content=document.getElementById('moduleContent');
+  const name=(currentUserData?.name||'').split(' ')[0];
+  content.innerHTML=`
+    <div class="home-wrap">
+      <div class="home-hero">
+        <div class="home-hero-text">
+          <h1>Hola, <span class="text-purple">${name}</span> 👋</h1>
+          <p>Bienvenido a <strong>Outbound México</strong> — tu centro de trabajo para el equipo de ventas de Odoo.</p>
+        </div>
+        <span class="role-pill role-${currentUserData?.role}">${currentUserData?.role?.toUpperCase()}</span>
+      </div>
+      <div class="modules-grid">
+        ${MODULES.map(m=>`
+          <button class="module-card${m.ready?' ready-module':''}" onclick="showModule('${m.id}')">
+            <div class="module-icon">${m.icon}</div>
+            <div class="module-label">${m.label}</div>
+            <div class="module-phase">Fase ${m.phase}</div>
+            <div class="module-status ${m.ready?'ready':'coming'}">${m.ready?'✓ Disponible':'Próximamente'}</div>
+          </button>`).join('')}
+      </div>
+      ${currentUserData?.role==='manager'?'<div class="quick-panel"><h3>Panel rápido</h3><div id="pendingAlertHome"></div></div>':''}
+    </div>`;
+  if(currentUserData?.role==='manager') loadPendingCountForHome();
+}
+async function loadPendingCountForHome(){
+  if(!db) return;
+  const snap=await getDocs(query(collection(db,'users'),where('status','==','pending')));
+  const el=document.getElementById('pendingAlertHome'); if(!el) return;
+  el.innerHTML=snap.size>0
+    ?`<div class="alert-banner alert-warning" onclick="showModule('manager')" style="cursor:pointer">⏳ <strong>${snap.size} usuario${snap.size>1?'s':''} pendiente${snap.size>1?'s':''}</strong> de aprobación<span class="alert-cta">Ver →</span></div>`
+    :`<div class="alert-banner alert-success">✓ No hay usuarios pendientes</div>`;
+}
+function renderComingSoon(title,icon,phase,desc){
+  document.getElementById('moduleContent').innerHTML=`
+    <div class="coming-soon-wrap">
+      <div class="coming-soon-icon">${icon}</div><h2>${title}</h2>
+      <div class="coming-badge">${phase}</div><p>${desc}</p>
+      <div class="coming-soon-note">En desarrollo — se habilitará en la siguiente fase.</div>
+    </div>`;
+}
+function renderManagerPanel(){
+  document.getElementById('moduleContent').innerHTML=`
+    <div class="manager-wrap">
+      <div class="page-header"><h2>Panel de Manager</h2><p>Aprobaciones de usuarios y asignación de roles.</p></div>
+      <div class="manager-grid">
+        <div class="card"><div class="card-header"><h3>⏳ Usuarios pendientes</h3></div><div id="pendingList"><div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div></div></div></div>
+        <div class="card"><div class="card-header"><h3>👥 Equipo activo</h3></div><div id="teamList"><div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div></div>
+      </div>
+    </div>`;
+  loadManagerPanel();
+}
+function renderSettings(){
+  const saved=(() =>{ try{ const ls=JSON.parse(localStorage.getItem('outbound_firebase_cfg')||'{}'); return Object.keys(ls).length>0?ls:firebaseConfig; }catch(e){ return firebaseConfig; }})();
+  const ck=localStorage.getItem('outbound_claude_key')||'';
+  document.getElementById('moduleContent').innerHTML=`
+    <div class="settings-wrap">
+      <div class="page-header"><h2>⚙️ Configuración</h2><p>Integraciones de la app.</p></div>
+      <div class="settings-sections">
+        <div class="card settings-card">
+          <div class="card-header"><h3>🔥 Firebase</h3><span class="status-dot ${firebaseReady?'dot-green':'dot-red'}"></span></div>
+          <p class="settings-desc">Autenticación y base de datos. <a href="https://console.firebase.google.com" target="_blank" class="link">Firebase Console →</a></p>
+          <div class="form-grid-2">
+            <div class="form-group"><label>API Key</label><input type="text" id="cfgApiKey" class="input" placeholder="AIza..." value="${saved.apiKey||''}"></div>
+            <div class="form-group"><label>Auth Domain</label><input type="text" id="cfgAuthDomain" class="input" placeholder="proyecto.firebaseapp.com" value="${saved.authDomain||''}"></div>
+            <div class="form-group"><label>Project ID</label><input type="text" id="cfgProjectId" class="input" placeholder="proyecto-id" value="${saved.projectId||''}"></div>
+            <div class="form-group"><label>Storage Bucket</label><input type="text" id="cfgStorageBucket" class="input" placeholder="proyecto.appspot.com" value="${saved.storageBucket||''}"></div>
+            <div class="form-group"><label>Messaging Sender ID</label><input type="text" id="cfgMessagingSenderId" class="input" value="${saved.messagingSenderId||''}"></div>
+            <div class="form-group"><label>App ID</label><input type="text" id="cfgAppId" class="input" value="${saved.appId||''}"></div>
+          </div>
+          <button class="btn btn-primary" onclick="saveFirebaseConfig()">Guardar Firebase</button>
+        </div>
+        <div class="card settings-card">
+          <div class="card-header"><h3>🤖 Claude API (Anthropic)</h3><span class="status-dot ${ck?'dot-green':'dot-red'}"></span></div>
+          <p class="settings-desc">Motor de IA para todos los módulos — Discovery, CSV Builder, Seguimiento y Contenidos. Se guarda en este dispositivo.<br><a href="https://console.anthropic.com" target="_blank" class="link">Anthropic Console →</a></p>
+          <div class="form-group"><label>Claude API Key</label><input type="password" id="claudeApiKey" class="input" placeholder="sk-ant-api03-..." value="${ck}"></div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+            <button class="btn btn-primary" onclick="saveClaudeKey()">Guardar</button>
+            ${ck?'<span class="key-saved">✓ Activa</span>':'<span style="font-size:13px;color:var(--gray-400)">Sin configurar — los módulos de IA no funcionarán</span>'}
+          </div>
+        </div>
+        <div class="card settings-card settings-about">
+          <h3>ℹ️ Acerca de</h3>
+          <p><strong>Outbound México v2.0</strong></p>
+          <p>Fase 1 (App shell) + Fase 2 (Discovery Guide) completadas</p>
+          <p style="margin-top:8px;color:var(--gray-400)">Motor de IA: Claude (Anthropic) · Base de datos: Firebase Firestore</p>
+        </div>
+      </div>
+    </div>`;
+}
+window.saveClaudeKey=function(){
+  const k=document.getElementById('claudeApiKey').value.trim();
+  if(!k.startsWith('sk-ant')){ showNotif('La key debe empezar con sk-ant','error'); return; }
+  localStorage.setItem('outbound_claude_key',k);
+  showNotif('Claude API Key guardada ✓','success');
+  setTimeout(()=>renderSettings(),800);
+};
+
+// ══════════════════════════════════════════
+// DISCOVERY MODULE
+// ══════════════════════════════════════════
+const IND_NAMES={ construccion:'Construcción',retail:'Retail',restaurante:'Restaurante',comercializadora:'Comercializadora',otra:'Otra' };
+const TV_NAMES={ cotizacion:'Cotización',suscripcion:'Suscripción',alquiler:'Alquiler',ecommerce:'Ecommerce',pos:'Punto de venta' };
+
+const APPS_DB={
+  construccion:[{name:'Proyecto',reason:'Costeo de obra, avance y tareas en tiempo real'},{name:'Compras',reason:'OCs ligadas a obra, trazabilidad de materiales'},{name:'Inventario',reason:'Materiales y herramientas por almacén u obra'},{name:'Contabilidad',reason:'Margen por proyecto, facturación por estimaciones'},{name:'Ventas',reason:'Presupuestos de obra profesionales'},{name:'RRHH',reason:'Nómina fija y trabajadores eventuales'}],
+  retail:[{name:'Punto de Venta',reason:'POS integrado con inventario en tiempo real'},{name:'Inventario',reason:'Stock por tienda, reabasto automático'},{name:'Ventas',reason:'Pedidos B2B, listas de precio'},{name:'Contabilidad',reason:'P&L por tienda, cierre de caja automático'},{name:'eCommerce',reason:'Tienda online integrada con inventario físico'}],
+  restaurante:[{name:'Punto de Venta',reason:'Comandas, POS integrado con cocina'},{name:'Fabricación',reason:'Costeo de recetas, food cost en tiempo real'},{name:'Compras',reason:'Compras de insumos por receta'},{name:'Inventario',reason:'Merma, caducidades, reabasto por sucursal'},{name:'Contabilidad',reason:'Flujo diario por sucursal, conciliación delivery'}],
+  comercializadora:[{name:'Ventas',reason:'Listas de precio por cliente, pedidos recurrentes'},{name:'Inventario',reason:'Lotes, caducidad, consignación'},{name:'Compras',reason:'OCs automáticas por stock mínimo'},{name:'Contabilidad',reason:'Cobranza, alertas de vencimiento, margen por cliente'},{name:'CRM',reason:'Seguimiento de cartera activa'}],
+  otra:[{name:'Ventas',reason:'Cotizaciones, pedidos, seguimiento comercial'},{name:'Inventario',reason:'Control de stock en tiempo real'},{name:'Contabilidad',reason:'Facturación CFDI, visibilidad financiera'},{name:'CRM',reason:'Pipeline de ventas y prospectos'}],
+};
+const TV_APPS={ cotizacion:{name:'Ventas',reason:'Cotizaciones multi-línea, conversión automática a pedido'},suscripcion:{name:'Suscripciones',reason:'Facturación recurrente, renovaciones, pagos vencidos'},alquiler:{name:'Alquiler',reason:'Disponibilidad de activos, depósitos, logística'},ecommerce:{name:'eCommerce',reason:'Tienda online multi-canal, conciliación automática'},pos:{name:'Punto de Venta',reason:'POS multi-caja, métodos de pago, integración inventario'} };
+
+const WOW_DB={
+  comercial:[
+    {type:'gen',title:'Portal del cliente',desc:'El cliente aprueba cotizaciones, ve pedidos y facturas en línea.',wow:'✦ Firma electrónica sin salir del portal — cero ida y vuelta por correo'},
+    {type:'gen',title:'Email tracking en tiempo real',desc:'Odoo avisa cuando el cliente abre tu cotización.',wow:'✦ "El cliente acaba de abrir tu propuesta" — llámalo ahora'},
+    {type:'gen',title:'WhatsApp + CRM integrado',desc:'Mensajes de WhatsApp visibles dentro de la oportunidad.',wow:'✦ Todo el historial en un solo lugar, no en el teléfono del vendedor'},
+    {type:'gen',title:'Pipeline con IA',desc:'Odoo predice la probabilidad de cierre de cada oportunidad.',wow:'✦ El sistema te dice en cuáles oportunidades enfocarte esta semana'},
+    {type:'ind',ind:'construccion',title:'Presupuesto de obra versionable',desc:'Crea múltiples versiones; el cliente aprueba en línea.',wow:'✦ El cliente firma el presupuesto desde su celular'},
+    {type:'ind',ind:'retail',title:'Programa de lealtad integrado al POS',desc:'Puntos y recompensas configurables, aplicados en caja.',wow:'✦ Sin tarjetas físicas: se identifica con teléfono o email'},
+    {type:'ind',ind:'restaurante',title:'QR en mesa para ordenar',desc:'El cliente escanea, ve el menú y ordena directamente.',wow:'✦ La orden llega a cocina en segundos — sin mesero'},
+    {type:'ind',ind:'comercializadora',title:'Lista de precios por cliente/volumen',desc:'Precios automáticos según tipo de cliente o canal.',wow:'✦ El vendedor no necesita preguntar al gerente'},
+    {type:'tv',tv:'suscripcion',title:'Renovación y cargo automático',desc:'Renueva contratos y genera facturas recurrentes sin intervención.',wow:'✦ El ingreso llega aunque el vendedor esté de vacaciones'},
+    {type:'tv',tv:'pos',title:'POS sin internet (modo offline)',desc:'El POS sigue funcionando sin red y sincroniza al reconectarse.',wow:'✦ Nunca pierdes una venta por problemas de red'},
+  ],
+  operativo:[
+    {type:'gen',title:'Reabasto automático por mínimos',desc:'Cuando el inventario baja del mínimo, Odoo genera la OC.',wow:'✦ Cero quiebres de stock sin que nadie revise el inventario'},
+    {type:'gen',title:'Trazabilidad lote/serie completa',desc:'Rastrear cualquier producto desde proveedor hasta cliente.',wow:'✦ En un recall, en 30 segundos sabes a quién le vendiste ese lote'},
+    {type:'gen',title:'App de almacén en celular',desc:'Operadores escanean y mueven inventario desde su celular.',wow:'✦ El picking se hace con el teléfono — el sistema guía paso a paso'},
+    {type:'ind',ind:'construccion',title:'Lista de materiales por obra (BOM)',desc:'Define materiales, MO y subcontratos; el costo se actualiza en tiempo real.',wow:'✦ En cualquier momento ves si la obra está dentro de presupuesto'},
+    {type:'ind',ind:'retail',title:'Alertas automáticas de quiebre',desc:'Notifica cuando un artículo crítico está por agotarse.',wow:'✦ El gerente recibe el WhatsApp antes de que el cliente no encuentre el producto'},
+    {type:'ind',ind:'restaurante',title:'Descuento automático de receta',desc:'Al vender un platillo, los ingredientes se descuentan automáticamente.',wow:'✦ Siempre sabes cuántos ingredientes tienes — sin inventario físico constante'},
+    {type:'ind',ind:'comercializadora',title:'Rutas de entrega en mapa',desc:'Optimización de rutas con geolocalización de clientes.',wow:'✦ El repartidor recibe su ruta optimizada — menos km, más entregas'},
+    {type:'tv',tv:'alquiler',title:'Estado de activo en tiempo real',desc:'Dashboard: disponible / en uso / en mantenimiento.',wow:'✦ Nunca rentes algo que ya está rentado — el sistema bloquea'},
+    {type:'tv',tv:'ecommerce',title:'Inventario multi-bodega sincronizado',desc:'La tienda online siempre muestra el stock real.',wow:'✦ Cero ventas de productos que ya no tienes'},
+    {type:'tv',tv:'pos',title:'Inventario actualizado al vender',desc:'Cada venta en POS descuenta automáticamente del inventario.',wow:'✦ Al cerrar el día, el inventario ya está cuadrado'},
+  ],
+  administrativo:[
+    {type:'gen',title:'Conciliación bancaria automática',desc:'Odoo importa movimientos del banco y concilia con facturas.',wow:'✦ Lo que tomaba días ahora tarda minutos'},
+    {type:'gen',title:'Dashboard financiero en tiempo real',desc:'Estado de resultados, flujo de caja y cartera al minuto.',wow:'✦ El dueño ve cuánto ganó este mes desde su celular'},
+    {type:'gen',title:'CFDI automático al facturar',desc:'La factura CFDI se genera y timbra automáticamente.',wow:'✦ Cero captura manual en el portal del SAT'},
+    {type:'gen',title:'Nómina timbrada desde Odoo',desc:'Cálculo, timbrado CFDI y dispersión desde un solo sistema.',wow:'✦ El contador calcula, el dueño aprueba, los empleados reciben'},
+    {type:'ind',ind:'construccion',title:'Costeo por proyecto con CFDI',desc:'Ingresos y egresos de cada obra con facturación por estimación.',wow:'✦ El cliente recibe su CFDI automáticamente por el avance'},
+    {type:'ind',ind:'retail',title:'Comisiones de vendedores automáticas',desc:'Calcula comisiones según reglas (por producto, monto, margen).',wow:'✦ Los vendedores ven sus comisiones en tiempo real'},
+    {type:'ind',ind:'restaurante',title:'Costo real por platillo',desc:'Cruza precios de insumos con la receta y calcula margen.',wow:'✦ Sabes exactamente cuánto ganas en cada taco'},
+    {type:'ind',ind:'comercializadora',title:'Límite de crédito con alerta automática',desc:'Bloquea o avisa cuando un cliente supera su límite.',wow:'✦ El vendedor no puede vender a crédito a quien ya no puede pagar'},
+    {type:'tv',tv:'suscripcion',title:'Facturación recurrente automática',desc:'Las facturas se generan, timbran y envían solas cada período.',wow:'✦ El ingreso del mes ya está facturado antes de que empiece'},
+    {type:'tv',tv:'ecommerce',title:'Contabilidad e-commerce automática',desc:'Cada venta online genera su asiento contable y factura.',wow:'✦ Miles de transacciones contabilizadas sin captura manual'},
+  ]
+};
+
+// ── Discovery state ──
+const disc = {
+  formActive: false,
+  recordId: null,        // Firestore doc ID, null=new
+  status: 'borrador',
+  currentInd: null,
+  activeTV: new Set(),
+  selections: {},
+  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; }
+};
+
+// ── Sessions list view ──
+async function renderDiscoveryList(){
+  const content=document.getElementById('moduleContent');
+  content.innerHTML=`
+    <div class="disc-list-wrap">
+      <div class="disc-list-header">
+        <div><h2>🔍 Discovery Guide</h2><p style="color:var(--gray-500);font-size:14px;margin-top:4px">Sesiones de discovery con tus prospectos</p></div>
+        <button class="btn btn-primary" onclick="openDiscoveryForm(null)">+ Nueva sesión</button>
+      </div>
+      <div class="disc-filters">
+        <button class="disc-filter-btn active" data-f="all" onclick="filterSessions(this,'all')">Todas</button>
+        <button class="disc-filter-btn" data-f="borrador" onclick="filterSessions(this,'borrador')">Borrador</button>
+        <button class="disc-filter-btn" data-f="en_proceso" onclick="filterSessions(this,'en_proceso')">En proceso</button>
+        <button class="disc-filter-btn" data-f="completado" onclick="filterSessions(this,'completado')">Completadas</button>
+        <button class="disc-filter-btn" data-f="archivado" onclick="filterSessions(this,'archivado')">Archivadas</button>
+      </div>
+      <div id="discSessionsGrid" class="disc-sessions-grid">
+        <div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+      </div>
+    </div>`;
+  await loadDiscoverySessions();
+}
+
+let discSessionsAll=[];
+async function loadDiscoverySessions(){
+  if(!db){ renderDiscSessionsOffline(); return; }
+  const role=currentUserData?.role;
+  let q;
+  if(role==='manager') q=query(collection(db,'discoveryRecords'),orderBy('createdAt','desc'));
+  else if(role==='tl')  q=query(collection(db,'discoveryRecords'),where('tlId','==',currentUserData.uid),orderBy('createdAt','desc'));
+  else                  q=query(collection(db,'discoveryRecords'),where('aeUid','==',currentUserData.uid),orderBy('createdAt','desc'));
+  try {
+    const snap=await getDocs(q);
+    discSessionsAll=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderDiscSessions(discSessionsAll);
+  } catch(e){ console.error(e); renderDiscSessionsOffline(); }
+}
+
+function renderDiscSessionsOffline(){
+  const g=document.getElementById('discSessionsGrid'); if(!g) return;
+  g.innerHTML=`<div class="disc-empty"><div class="disc-empty-icon">📡</div><h3>Sin conexión a Firebase</h3><p>Configura Firebase en Ajustes para guardar y ver sesiones. Mientras tanto puedes trabajar en modo local.</p><button class="btn btn-primary" style="margin-top:16px" onclick="openDiscoveryForm(null)">Iniciar sesión local</button></div>`;
+}
+
+window.filterSessions=function(btn,filter){
+  document.querySelectorAll('.disc-filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const filtered=filter==='all'?discSessionsAll:discSessionsAll.filter(s=>s.status===filter);
+  renderDiscSessions(filtered);
+};
+
+function renderDiscSessions(sessions){
+  const g=document.getElementById('discSessionsGrid'); if(!g) return;
+  if(sessions.length===0){ g.innerHTML=`<div class="disc-empty"><div class="disc-empty-icon">🔍</div><h3>Sin sesiones aquí</h3><p>Empieza una nueva sesión de discovery con un prospecto.</p><button class="btn btn-primary" style="margin-top:16px" onclick="openDiscoveryForm(null)">+ Nueva sesión</button></div>`; return; }
+  const statusLabel={borrador:'Borrador',en_proceso:'En proceso',completado:'Completada',archivado:'Archivada'};
+  const bColor=(v)=>{ const m={'Tienen presupuesto':'g','El que decide':'g','Menos de 1 mes':'g','1 – 3 meses':'g','Obvio — es perfecto para ellos':'g','En evaluación':'y','Influenciador':'y','3 – 6 meses':'y','Probable — con algunos ajustes':'y','No definido':'r','No sé quién decide':'r','Más de 6 meses':'r','Incierto — hay gaps importantes':'r'}; return m[v]||'b'; };
+  g.innerHTML=sessions.map(s=>{
+    const sel=s.selections||{};
+    const bant=[];
+    if(sel.budget) bant.push({l:'Budget',v:sel.budget});
+    if(sel.decisor) bant.push({l:'Decisor',v:sel.decisor});
+    if(sel.timeline) bant.push({l:'Timeline',v:sel.timeline});
+    if(sel.fit) bant.push({l:'Fit',v:sel.fit});
+    const dolores=(sel.dolores||[]).slice(0,3);
+    const ts=s.createdAt?.toDate?.()??new Date();
+    const fecha=ts.toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'});
+    return `<div class="disc-session-card" onclick="openDiscoveryForm('${s.id}')">
+      <div class="disc-session-empresa">${s.empresa||'Sin nombre'}</div>
+      <div class="disc-session-meta">
+        <span>${IND_NAMES[s.industria]||'Sin industria'}</span>
+        ${s.tipoVenta?.length?`<span class="sep">·</span><span>${s.tipoVenta.map(t=>TV_NAMES[t]||t).join(', ')}</span>`:''}
+        <span class="sep">·</span><span>${fecha}</span>
+        ${s.aeGram&&s.aeGram!==currentUserData?.gram?`<span class="sep">·</span><span style="font-weight:600;color:var(--purple)">${s.aeGram}</span>`:''}
+      </div>
+      ${dolores.length?`<div class="disc-dolores-tags">${dolores.map(d=>`<span class="disc-dolor-tag">${d}</span>`).join('')}</div>`:''}
+      ${bant.length?`<div class="disc-bant-row">${bant.map(b=>`<span class="disc-bant-chip disc-bant-${bColor(b.v)}">${b.l}</span>`).join('')}</div>`:''}
+      <div class="disc-session-footer">
+        <span class="disc-status-badge status-${s.status||'borrador'}">${statusLabel[s.status||'borrador']}</span>
+        ${s.geminiNote?'<span class="disc-ai-indicator">✨ Nota Claude</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Open form ──
+window.openDiscoveryForm = async function(recordId){
+  disc.discardForm();
+  disc.formActive=true;
+  disc.recordId=recordId;
+  let existingData=null;
+  if(recordId&&db){
+    try{ const snap=await getDoc(doc(db,'discoveryRecords',recordId)); if(snap.exists()) existingData={id:snap.id,...snap.data()}; } catch(e){ console.warn(e); }
+  }
+  document.getElementById('appTopbar').style.display='none';
+  document.getElementById('moduleContent').style.padding='0';
+  document.getElementById('moduleContent').innerHTML=buildDiscoveryFormHTML(existingData);
+  discInitForm(existingData);
+  // Show start popup only for NEW sessions
+  if(!recordId) discShowStartPopup();
+};
+
+// ── Start popup (record + transcribe reminder) ──
+function discShowStartPopup(){
+  const popup = document.createElement('div');
+  popup.id = 'discStartPopup';
+  popup.innerHTML = `
+    <div class="dsp-overlay">
+      <div class="dsp-card">
+        <div class="dsp-header">
+          <div class="dsp-icon">🎙️</div>
+          <h2 class="dsp-title">Antes de empezar</h2>
+          <p class="dsp-sub">Activa estas dos opciones en Google Meet para poder analizar la llamada después con IA</p>
+        </div>
+
+        <div class="dsp-steps">
+          <div class="dsp-step">
+            <div class="dsp-step-num">1</div>
+            <div class="dsp-step-icon" style="background:#ef4444">⏺</div>
+            <div class="dsp-step-info">
+              <div class="dsp-step-title">Grabar la reunión</div>
+              <div class="dsp-step-desc">Actividades → <strong>Grabar</strong> → Comenzar a grabar</div>
+            </div>
+            <div class="dsp-step-check" id="dspCheck1" onclick="dspToggle(1)">✓</div>
+          </div>
+
+          <div class="dsp-step">
+            <div class="dsp-step-num">2</div>
+            <div class="dsp-step-icon" style="background:#1d4ed8">📝</div>
+            <div class="dsp-step-info">
+              <div class="dsp-step-title">Activar transcripción</div>
+              <div class="dsp-step-desc">Actividades → <strong>Transcribir</strong> → <span class="dsp-play-btn">▶</span> Comenzar</div>
+            </div>
+            <div class="dsp-step-check" id="dspCheck2" onclick="dspToggle(2)">✓</div>
+          </div>
+        </div>
+
+        <div class="dsp-tip">
+          <span>💡</span>
+          <span>La transcripción es clave — sin ella no puedes generar la nota con IA después de la llamada</span>
+        </div>
+
+        <button class="dsp-cta" id="dspCtaBtn" onclick="discCloseStartPopup()">
+          TODO LISTO 🚀
+        </button>
+        <button class="dsp-skip" onclick="discCloseStartPopup()">Omitir (no recomendado)</button>
+      </div>
+    </div>`;
+  document.body.appendChild(popup);
+}
+
+window.dspToggle = function(n){
+  const el = document.getElementById('dspCheck'+n);
+  if(!el) return;
+  el.classList.toggle('checked');
+};
+window.discCloseStartPopup = function(){
+  const p = document.getElementById('discStartPopup');
+  if(p){ p.style.opacity='0'; p.style.transform='scale(.97)'; setTimeout(()=>p.remove(), 200); }
+};
+
+function buildDiscoveryFormHTML(data){
+  const empresa=data?.empresa||data?.selections?.['emp-nombre']||'';
+  return `<div class="disc-wrap" id="discWrap">
+
+  <!-- MODE BAR -->
+  <div class="disc-mode-bar" id="discModeBar">
+    <div class="disc-mode-bar-left">
+      <button class="disc-back-btn" onclick="showModule('discovery')">← Sesiones</button>
+      <div>
+        <div class="disc-mode-title">🔍 Discovery Guide</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+          <span class="disc-empresa-badge" id="discEmpresaBadge" style="${empresa?'':'display:none'}">${empresa?'📄 '+empresa:''}</span>
+          <span class="disc-ind-label" id="discIndLabel">Selecciona industria para comenzar</span>
+        </div>
+      </div>
+      <div class="disc-bant-bar" id="discBantBar">
+        <div class="disc-bant-item" id="dbi-situacion" onclick="discScrollTo('dcard-situacion')"><div class="disc-bant-dot" id="dbant-situacion"></div><span class="disc-bant-label">Situación</span></div>
+        <div class="disc-bant-sep"></div>
+        <div class="disc-bant-item" id="dbi-comercial" onclick="discScrollToFlujo('comercial')"><div class="disc-bant-dot" id="dbant-comercial"></div><span class="disc-bant-label">Comercial</span></div>
+        <div class="disc-bant-item" id="dbi-operativo" onclick="discScrollToFlujo('operativo')"><div class="disc-bant-dot" id="dbant-operativo"></div><span class="disc-bant-label">Operativo</span></div>
+        <div class="disc-bant-item" id="dbi-admin" onclick="discScrollToFlujo('administrativo')"><div class="disc-bant-dot" id="dbant-admin"></div><span class="disc-bant-label">Administrativo</span></div>
+        <div class="disc-bant-sep"></div>
+        <div class="disc-bant-item" id="dbi-dolor" onclick="discScrollTo('dcard-dolor')"><div class="disc-bant-dot" id="dbant-d"></div><span class="disc-bant-label">Dolor</span></div>
+        <div class="disc-bant-item" id="dbi-budget" onclick="discScrollTo('dcard-budget')"><div class="disc-bant-dot" id="dbant-b"></div><span class="disc-bant-label">Budget</span></div>
+        <div class="disc-bant-item" id="dbi-timeline" onclick="discScrollTo('dcard-timeline')"><div class="disc-bant-dot" id="dbant-t"></div><span class="disc-bant-label">Timeline</span></div>
+      </div>
+    </div>
+    <div class="disc-mode-bar-right">
+      <div class="disc-mode-toggle">
+        <button class="disc-mode-btn active" id="dmbEscucha" onclick="discSetMode('escucha')">🎧 En llamada</button>
+        <button class="disc-mode-btn" id="dmbPostcall" onclick="discSetMode('postcall')">📋 Post-call</button>
+      </div>
+      <button class="disc-end-btn" id="discEndBtn" onclick="discEndCall()">⏹ Finalizar llamada</button>
+    </div>
+  </div>
+
+  <!-- SELECTORS BAR -->
+  <div class="disc-sel-bar" id="discSelBar">
+    <div>
+      <div class="disc-sel-label">Industria</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span class="disc-chip" onclick="discSelectInd('construccion',this)">🏗 Construcción</span>
+        <span class="disc-chip" onclick="discSelectInd('retail',this)">🏪 Retail</span>
+        <span class="disc-chip" onclick="discSelectInd('restaurante',this)">🍽 Restaurante</span>
+        <span class="disc-chip" onclick="discSelectInd('comercializadora',this)">📦 Comercializadora</span>
+        <span class="disc-chip" onclick="discSelectInd('otra',this)">✏️ Otra</span>
+      </div>
+    </div>
+    <div>
+      <div class="disc-sel-label">Tipo de venta</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span class="disc-tvchip" onclick="discToggleTV('cotizacion',this)">📋 Cotización</span>
+        <span class="disc-tvchip" onclick="discToggleTV('suscripcion',this)">🔄 Suscripción</span>
+        <span class="disc-tvchip" onclick="discToggleTV('alquiler',this)">🔑 Alquiler</span>
+        <span class="disc-tvchip" onclick="discToggleTV('ecommerce',this)">🛒 Ecommerce</span>
+        <span class="disc-tvchip" onclick="discToggleTV('pos',this)">🏪 POS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ESCUCHA AREA -->
+  <div id="discEscuchaArea">
+  <div class="disc-topic-grid">
+
+    <!-- SITUACIÓN -->
+    <div class="disc-topic-row-1">
+    <div class="disc-topic-card" id="dcard-situacion">
+      <div class="disc-topic-header"><span class="disc-topic-icon">🏢</span><span class="disc-covered-badge">✓ Cubierto</span></div>
+      <div class="disc-topic-name">Situación General</div>
+      <div class="disc-topic-sub">Datos de la empresa — captura mientras presentan</div>
+      <div class="disc-topic-question">"Para entender bien cómo podríamos ayudarles, cuéntame sobre la empresa — ¿a qué se dedican y cómo está estructurada la operación?"</div>
+      <div class="disc-emp-fields">
+        <div class="disc-emp-fields-label">Datos de la empresa</div>
+        <div class="disc-emp-field"><label>Nombre de la empresa</label><input class="disc-emp-input" id="d-emp-nombre" type="text" placeholder="Ej. Grupo Constructora Norte SA de CV" oninput="discSaveEmpresa()"></div>
+        <div class="disc-emp-row">
+          <div class="disc-emp-field"><label>Razones sociales</label><input class="disc-emp-input" id="d-emp-razones" type="number" min="1" placeholder="# de razones" oninput="discSaveEmpresa()"></div>
+          <div class="disc-emp-field"><label>Empleados totales</label><input class="disc-emp-input" id="d-emp-empleados" type="number" min="1" placeholder="# de empleados" oninput="discSaveEmpresa()"></div>
+        </div>
+        <div class="disc-emp-field"><label>Sistemas actuales</label><input class="disc-emp-input" id="d-emp-sistemas" type="text" placeholder="Ej. SAP, Excel, sistema a la medida..." oninput="discSaveEmpresa()"></div>
+        <div class="disc-emp-row">
+          <div class="disc-emp-field"><label>Usuarios con acceso a sistema</label><input class="disc-emp-input" id="d-emp-usuarios" type="number" min="0" placeholder="# de usuarios" oninput="discSaveEmpresa()"></div>
+          <div class="disc-emp-field"><label>Presupuesto sistemas / mes</label><input class="disc-emp-input" id="d-emp-presupuesto" type="text" placeholder="Ej. $15,000 MXN" oninput="discSaveEmpresa()"></div>
+        </div>
+        <div class="disc-emp-field">
+          <label>Facturación mensual aproximada</label>
+          <select class="disc-emp-select" id="d-emp-facturacion" onchange="discSaveEmpresa()">
+            <option value="">— Selecciona un rango —</option>
+            <option>Menos de $500K MXN</option><option>$500K – $2M MXN</option><option>$2M – $5M MXN</option>
+            <option>$5M – $15M MXN</option><option>$15M – $50M MXN</option><option>$50M – $150M MXN</option><option>Más de $150M MXN</option>
+          </select>
+        </div>
+      </div>
+      <div class="disc-pill-section">
+        <div class="disc-pill-label">Tipo de empresa</div>
+        <div class="disc-quick-pills" id="dpill-tipo-empresa">
+          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa')">Productos físicos</span>
+          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa')">Servicios</span>
+          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa')">Mixta</span>
+        </div>
+      </div>
+      <button class="disc-mark-btn" onclick="discMarkCovered('dcard-situacion',this)">Marcar como cubierto</button>
+    </div>
+    </div>
+
+    <!-- FLUJOS -->
+    <div class="disc-topic-card disc-flujos-card" id="dcard-flujos">
+      <div class="disc-flujos-toggle" onclick="discToggleFlujos()">
+        <div class="disc-flujos-toggle-left">
+          <span style="font-size:22px">🔄</span>
+          <div><div class="disc-flujos-title">Flujos de la empresa</div><div style="font-size:12px;color:#6b7280">Comercial · Operativo · Administrativo</div></div>
+          <div style="display:flex;gap:6px;margin-left:8px" id="dfi-indicators">
+            <span id="dfi-comercial" style="display:none;font-size:11px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:999px;font-weight:700">💼 Cubierto</span>
+            <span id="dfi-operativo" style="display:none;font-size:11px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:999px;font-weight:700">⚙️ Cubierto</span>
+            <span id="dfi-administrativo" style="display:none;font-size:11px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:999px;font-weight:700">📑 Cubierto</span>
+          </div>
+        </div>
+        <span class="disc-flujos-chevron open" id="dflujos-chevron">▼</span>
+      </div>
+      <div class="disc-flujos-body" id="dflujos-body">
+        <div class="disc-flujos-tabs">
+          <div class="disc-flujos-tab active" id="dtab-comercial" onclick="discSwitchTab('comercial')">💼 Comercial</div>
+          <div class="disc-flujos-tab" id="dtab-operativo" onclick="discSwitchTab('operativo')">⚙️ Operativo</div>
+          <div class="disc-flujos-tab" id="dtab-administrativo" onclick="discSwitchTab('administrativo')">📑 Administrativo</div>
+        </div>
+        <!-- COMERCIAL -->
+        <div class="disc-flujos-panel active" id="dpanel-comercial">
+          <div class="disc-topic-question">"¿Cómo consiguen a sus clientes hoy — y una vez que llega un prospecto, cómo es el proceso hasta que cierran la venta?"</div>
+          <div class="disc-flujos-inner">
+            <div>
+              <div class="disc-flujos-col-title">Genérico — siempre escuchar</div>
+              <div class="disc-listen-items">
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿De dónde vienen sus clientes?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo cotizan y cuánto les toma?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cuántas ventas al mes y ticket promedio?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Tienen CRM o lo llevan en Excel/WhatsApp?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Qué pasa después de vender?</div>
+              </div>
+            </div>
+            <div>
+              <div class="disc-flujos-col-title">Por industria / tipo de venta</div>
+              <div class="disc-listen-items">
+                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Licitaciones o cartera fija?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Cuánto tiempo tarda un presupuesto?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Cuántas cajas/puntos de venta?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Venden también en línea?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-restaurante" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿En qué plataformas de delivery están?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-comercializadora" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Precios distintos por tipo de cliente?</div>
+                <div class="disc-listen-item disc-tv-listen disc-tv-cotizacion" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿Cuántas versiones de cotización por cliente?</div>
+                <div class="disc-listen-item disc-tv-listen disc-tv-suscripcion" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿Renovaciones automáticas o manuales?</div>
+                <div class="disc-listen-item disc-tv-listen disc-tv-ecommerce" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿En qué plataforma tienen su tienda?</div>
+                <div class="disc-listen-item disc-tv-listen disc-tv-pos" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿Cuántas cajas? ¿El POS está integrado?</div>
+              </div>
+            </div>
+          </div>
+          <div id="dwow-panel-comercial" class="disc-wow-panel"></div>
+          <div class="disc-flujos-covered-row">
+            <button class="disc-wow-btn" onclick="discToggleWow('comercial',this)">✨ WoW Effects</button>
+            <button class="disc-mark-btn" style="width:auto;padding:7px 20px;margin:0" onclick="discMarkFlujo('comercial',this)">Marcar Comercial como cubierto</button>
+          </div>
+        </div>
+        <!-- OPERATIVO -->
+        <div class="disc-flujos-panel" id="dpanel-operativo">
+          <div class="disc-topic-question">"¿Cómo funciona la operación del día a día — desde que compran o producen hasta que entregan al cliente?"</div>
+          <div class="disc-flujos-inner">
+            <div>
+              <div class="disc-flujos-col-title">Genérico — siempre escuchar</div>
+              <div class="disc-listen-items">
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo controlan su inventario hoy?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Fabrican o solo compran para revender?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Tienen órdenes de compra formales?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo hacen las entregas?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Qué pasa con devoluciones?</div>
+              </div>
+            </div>
+            <div>
+              <div class="disc-flujos-col-title">Por industria / tipo de venta</div>
+              <div class="disc-listen-items">
+                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Cuántas obras activas en paralelo?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Costeo de materiales y MO por obra?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Inventario centralizado o por tienda?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-restaurante" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Costean recetas por platillo?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-comercializadora" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Manejan lotes o fechas de caducidad?</div>
+                <div class="disc-listen-item disc-tv-listen disc-tv-alquiler" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿Cómo controlan estado y mantenimiento de activos?</div>
+                <div class="disc-listen-item disc-tv-listen disc-tv-ecommerce" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿El inventario se sincroniza con la tienda online?</div>
+                <div class="disc-listen-item disc-tv-listen disc-tv-pos" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿El POS actualiza inventario en tiempo real?</div>
+              </div>
+            </div>
+          </div>
+          <div id="dwow-panel-operativo" class="disc-wow-panel"></div>
+          <div class="disc-flujos-covered-row">
+            <button class="disc-wow-btn" onclick="discToggleWow('operativo',this)">✨ WoW Effects</button>
+            <button class="disc-mark-btn" style="width:auto;padding:7px 20px;margin:0" onclick="discMarkFlujo('operativo',this)">Marcar Operativo como cubierto</button>
+          </div>
+        </div>
+        <!-- ADMINISTRATIVO -->
+        <div class="disc-flujos-panel" id="dpanel-administrativo">
+          <div class="disc-topic-question">"En el lado administrativo — ¿cómo llevan la contabilidad y la parte de personal?"</div>
+          <div class="disc-flujos-inner">
+            <div>
+              <div class="disc-flujos-col-title">Contabilidad y Finanzas</div>
+              <div class="disc-listen-items">
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Contador interno, externo o despacho?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Emiten CFDI internamente o subcontratan?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Visibilidad del flujo de caja en tiempo real?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo concilian bancos?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Pueden ver la utilidad real en cualquier momento?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Costeo por proyecto o contabilidad global?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Concilian ventas por caja al cierre del día?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-restaurante" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Conocen el costo real de cada platillo?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-comercializadora" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Control de crédito y límites por cliente?</div>
+              </div>
+            </div>
+            <div>
+              <div class="disc-flujos-col-title">Recursos Humanos</div>
+              <div class="disc-listen-items">
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo procesan la nómina hoy?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Controlan asistencias y horas extra?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Mucha rotación? ¿Cuánto cuesta gestionar altas/bajas?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Vacaciones y permisos centralizados?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Controlan horas por obra y cuadrilla?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Turnos rotativos por tienda?</div>
+                <div class="disc-listen-item disc-ind-listen disc-ind-restaurante" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Alta rotación de personal como dolor recurrente?</div>
+              </div>
+            </div>
+          </div>
+          <div id="dwow-panel-administrativo" class="disc-wow-panel"></div>
+          <div class="disc-flujos-covered-row">
+            <button class="disc-wow-btn" onclick="discToggleWow('administrativo',this)">✨ WoW Effects</button>
+            <button class="disc-mark-btn" style="width:auto;padding:7px 20px;margin:0" onclick="discMarkFlujo('administrativo',this)">Marcar Administrativo como cubierto</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOLOR · BUDGET · TIMELINE -->
+    <div class="disc-topic-row-3">
+
+    <!-- DOLOR -->
+    <div class="disc-topic-card" id="dcard-dolor">
+      <div class="disc-topic-header"><span class="disc-topic-icon">🎯</span><span class="disc-covered-badge">✓ Cubierto</span></div>
+      <div class="disc-topic-name">Dolor</div>
+      <div class="disc-topic-sub">Escucha — no preguntes directamente</div>
+      <div class="disc-topic-question">"Con todo lo que me platicas de [retomar algo] — ¿eso les ha generado algún problema concreto en el día a día?"</div>
+      <div class="disc-listen-for">
+        <div class="disc-listen-label">Dolores detectados — toca los que mencionen</div>
+        <div class="disc-quick-pills" id="ddolor-chips">
+          <span class="disc-qpill" data-dolor="Sistemas no integrados" onclick="discToggleDolor(this)">Sistemas no integrados</span>
+          <span class="disc-qpill" data-dolor="Todo en Excel" onclick="discToggleDolor(this)">Todo en Excel</span>
+          <span class="disc-qpill" data-dolor="Inventario descontrolado" onclick="discToggleDolor(this)">Inventario descontrolado</span>
+          <span class="disc-qpill" data-dolor="Sin visibilidad financiera" onclick="discToggleDolor(this)">Sin visibilidad financiera</span>
+          <span class="disc-qpill" data-dolor="Facturación tardía" onclick="discToggleDolor(this)">Facturación tardía</span>
+          <span class="disc-qpill" data-dolor="Sin margen por proyecto" onclick="discToggleDolor(this)">Sin margen por proyecto</span>
+          <span class="disc-qpill" data-dolor="Procesos manuales / reprocesos" onclick="discToggleDolor(this)">Procesos manuales / reprocesos</span>
+          <span class="disc-qpill" data-dolor="No saben cuánto ganan realmente" onclick="discToggleDolor(this)">No saben cuánto ganan realmente</span>
+        </div>
+      </div>
+      <hr class="disc-section-divider">
+      <div class="disc-pill-section">
+        <div class="disc-pill-label">¿El dolor afecta...</div>
+        <div class="disc-quick-pills">
+          <span class="disc-qpill" data-color="r" onclick="discPillMulti(this,'implicacion')">Sus finanzas / margen</span>
+          <span class="disc-qpill" data-color="r" onclick="discPillMulti(this,'implicacion')">Su crecimiento</span>
+          <span class="disc-qpill" data-color="y" onclick="discPillMulti(this,'implicacion')">Relación con clientes</span>
+          <span class="disc-qpill" data-color="y" onclick="discPillMulti(this,'implicacion')">Solo tiempo / operación</span>
+        </div>
+      </div>
+      <button class="disc-mark-btn" onclick="discMarkCovered('dcard-dolor',this)">Marcar como cubierto</button>
+    </div>
+
+    <!-- BUDGET -->
+    <div class="disc-topic-card" id="dcard-budget">
+      <div class="disc-topic-header"><span class="disc-topic-icon">💰</span><span class="disc-covered-badge">✓ Cubierto</span></div>
+      <div class="disc-topic-name">Budget &amp; Decisores</div>
+      <div class="disc-topic-sub">Al final, cuando ya hay confianza</div>
+      <div class="disc-topic-question">"Para recomendarte la mejor opción, ¿ya tienen contemplado un presupuesto? ¿Y cómo funciona el proceso de decisión?"</div>
+      <div class="disc-pill-section"><div class="disc-pill-label">Estado del presupuesto</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'budget')">Tienen presupuesto</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'budget')">En evaluación</span><span class="disc-qpill" data-color="r" onclick="discPillSingle(this,'budget')">No definido</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'budget')">Pendiente aprobación</span></div></div>
+      <div class="disc-pill-section"><div class="disc-pill-label">Modelo de pago preferido</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'modelo-pago')">Suscripción mensual</span><span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'modelo-pago')">Suscripción anual</span><span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'modelo-pago')">Sin preferencia</span></div></div>
+      <hr class="disc-section-divider">
+      <div class="disc-pill-section"><div class="disc-pill-label">¿Con quién hablas?</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'decisor')">El que decide</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'decisor')">Influenciador</span><span class="disc-qpill" data-color="r" onclick="discPillSingle(this,'decisor')">No sé quién decide</span></div></div>
+      <div class="disc-pill-section"><div class="disc-pill-label">Proceso de aprobación</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'aprobacion')">Decide solo</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'aprobacion')">Validación interna</span><span class="disc-qpill" data-color="r" onclick="discPillSingle(this,'aprobacion')">Junta directiva</span></div></div>
+      <button class="disc-mark-btn" onclick="discMarkCovered('dcard-budget',this)">Marcar como cubierto</button>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="disc-topic-card" id="dcard-timeline">
+      <div class="disc-topic-header"><span class="disc-topic-icon">⏱️</span><span class="disc-covered-badge">✓ Cubierto</span></div>
+      <div class="disc-topic-name">Timeline &amp; Fit</div>
+      <div class="disc-topic-sub">¿Cuándo y por qué Odoo?</div>
+      <div class="disc-topic-question">"¿Para cuándo necesitarían tener esto funcionando? ¿Hay alguna fecha que haga urgente resolverlo?"</div>
+      <div class="disc-pill-section"><div class="disc-pill-label">¿Cuándo arrancan?</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'timeline')">Menos de 1 mes</span><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'timeline')">1 – 3 meses</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'timeline')">3 – 6 meses</span><span class="disc-qpill" data-color="r" onclick="discPillSingle(this,'timeline')">Más de 6 meses</span></div></div>
+      <div class="disc-pill-section"><div class="disc-pill-label">Evento detonante</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'detonante')">Cierre fiscal</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'detonante')">Sistema actual que falla</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'detonante')">Expansión / nueva sucursal</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'detonante')">Cambio de dirección</span></div></div>
+      <hr class="disc-section-divider">
+      <div class="disc-pill-section"><div class="disc-pill-label">¿Odoo resuelve su caso?</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'fit')">Obvio — es perfecto para ellos</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'fit')">Probable — con algunos ajustes</span><span class="disc-qpill" data-color="r" onclick="discPillSingle(this,'fit')">Incierto — hay gaps importantes</span></div></div>
+      <div class="disc-pill-section"><div class="disc-pill-label">¿Qué quieren lograr?</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'vision')">Control total de la operación</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'vision')">Info en tiempo real</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'vision')">Eliminar Excel</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'vision')">Escalar sin cambiar sistema</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'vision')">Ver márgenes reales</span></div></div>
+      <button class="disc-mark-btn" onclick="discMarkCovered('dcard-timeline',this)">Marcar como cubierto</button>
+    </div>
+
+    </div><!-- end topic-row-3 -->
+  </div><!-- end topic-grid -->
+  </div><!-- end escucha-area -->
+
+  <!-- POST-CALL AREA -->
+  <div class="disc-postcall-area" id="discPostcallArea">
+
+    <!-- Save card -->
+    <div class="disc-pc-card" style="background:linear-gradient(135deg,#fff7ed,#fffbeb);border-color:#fed7aa">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <div class="disc-pc-title" style="color:#c2410c">💾 Guardar sesión</div>
+          <div class="disc-pc-sub" style="margin-bottom:0">Guarda los datos de esta sesión en tu historial.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <select class="disc-status-select" id="discStatusSel" onchange="disc.status=this.value">
+            <option value="borrador">Borrador</option>
+            <option value="en_proceso">En proceso</option>
+            <option value="completado">Completada</option>
+            <option value="archivado">Archivada</option>
+          </select>
+          <button class="disc-save-btn" id="discSaveBtn" onclick="discSaveRecord()">💾 Guardar en historial</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="disc-pc-card"><div class="disc-pc-title">📊 Resumen de selecciones</div><div class="disc-pc-sub">Generado automáticamente de lo capturado durante la llamada</div><div id="discSummaryContent"></div></div>
+
+    <!-- AI Analysis -->
+    <div class="disc-pc-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="disc-pc-title" style="margin-bottom:0">🤖 Analizar con IA</div>
+        <span style="font-size:11px;background:#f3eef1;color:var(--purple);padding:3px 10px;border-radius:99px;font-weight:700">⚡ Claude</span>
+      </div>
+      <div class="disc-pc-sub">Pega la transcripción de Google Meet. Claude usará el historial del equipo para enriquecer el análisis.</div>
+
+      <!-- Claude info box -->
+      <div style="background:#f3eef1;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:var(--purple-dark);display:flex;align-items:flex-start;gap:8px">
+        <span>✨</span>
+        <span>Claude analiza la transcripción <strong>junto con el historial de sesiones</strong> del equipo para detectar patrones y generar notas más precisas. Configura tu Claude API key en <strong>⚙️ Configuración</strong>.</span>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Transcripción de Google Meet</div>
+      <textarea class="disc-transcript-ta" id="discTranscriptInput" placeholder="Pega aquí la transcripción completa de la llamada...&#10;&#10;(En Google Meet: Actividades → Transcribir → Ver transcripción → Copiar todo)"></textarea>
+
+      <button class="disc-gemini-btn" id="discAnalyzeBtn" onclick="discAnalyzeClaude()" style="background:linear-gradient(135deg,var(--purple),var(--purple-mid))">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+        Generar nota con Claude
+      </button>
+
+      <div class="disc-gemini-loading" id="discGeminiLoading"><div class="disc-spinner"></div></div>
+
+      <div id="discGeminiOutputWrap" style="display:none;margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div>
+            <div style="font-size:13px;font-weight:600">Nota generada para CRM</div>
+            <div id="discEngineLabel" style="font-size:11px;color:var(--gray-400);margin-top:2px"></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="disc-copy-btn" onclick="discCopyOutput()">Copiar</button>
+            <button class="disc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="discAnalyzeClaude()">Regenerar</button>
+          </div>
+        </div>
+        <div class="disc-gemini-output show" id="discGeminiOutput"></div>
+        <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar nota en historial</button>
+      </div>
+    </div>
+
+    <!-- Apps -->
+    <div class="disc-pc-card"><div class="disc-pc-title">📱 Apps de Odoo recomendadas</div><div class="disc-pc-sub">Basadas en industria y tipo de venta seleccionados</div><div id="discAppsContainer"><div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div></div></div>
+
+  </div><!-- end postcall -->
+  </div><!-- end disc-wrap -->`;
+}
+
+// ── Form init & restore ──
+function discInitForm(data){
+  if(data){
+    disc.recordId=data.id;
+    disc.status=data.status||'borrador';
+    disc.currentInd=data.industria||null;
+    disc.activeTV=new Set(Array.isArray(data.tipoVenta)?data.tipoVenta:[]);
+    disc.selections=Object.assign({},data.selections||{});
+    // Restore empresa fields
+    const fmap={'d-emp-nombre':'emp-nombre','d-emp-razones':'emp-razones','d-emp-empleados':'emp-empleados','d-emp-sistemas':'emp-sistemas','d-emp-usuarios':'emp-usuarios','d-emp-presupuesto':'emp-presupuesto','d-emp-facturacion':'emp-facturacion'};
+    Object.entries(fmap).forEach(([elId,selKey])=>{ const el=document.getElementById(elId); if(el) el.value=disc.selections[selKey]||''; });
+    // Restore industry chip
+    if(disc.currentInd){
+      document.querySelectorAll('.disc-chip').forEach(c=>{ if(c.getAttribute('onclick')?.includes("'"+disc.currentInd+"'")) c.classList.add('active'); });
+      document.querySelectorAll('.disc-ind-listen.disc-ind-'+disc.currentInd).forEach(i=>i.style.display='flex');
+      const lbl=document.getElementById('discIndLabel'); if(lbl) lbl.textContent=IND_NAMES[disc.currentInd]+' · En llamada';
+    }
+    // Restore TV chips
+    disc.activeTV.forEach(tv=>{
+      document.querySelectorAll('.disc-tvchip').forEach(c=>{ if(c.getAttribute('onclick')?.includes("'"+tv+"'")) c.classList.add('active'); });
+      document.querySelectorAll('.disc-tv-listen.disc-tv-'+tv).forEach(i=>i.style.display='flex');
+    });
+    // Restore empresa badge
+    const nb=document.getElementById('discEmpresaBadge');
+    const nom=disc.selections['emp-nombre']||'';
+    if(nb&&nom){ nb.textContent='📄 '+nom; nb.style.display='inline-block'; }
+    // Restore status select
+    const ss=document.getElementById('discStatusSel'); if(ss) ss.value=disc.status;
+    // Restore pills
+    discRestorePills();
+    // Restore AI note if any
+    if(data.geminiNote){ const o=document.getElementById('discGeminiOutput'); const w=document.getElementById('discGeminiOutputWrap'); if(o&&w){ o.textContent=data.geminiNote; o.classList.add('show'); w.style.display='block'; } }
+    // Restore transcript
+    if(data.transcript){ const ta=document.getElementById('discTranscriptInput'); if(ta) ta.value=data.transcript; }
+  }
+  discSetMode('escucha');
+}
+
+function discRestorePills(){
+  const s=disc.selections;
+  // Single pills
+  ['tipo-empresa','budget','modelo-pago','decisor','aprobacion','timeline','fit'].forEach(group=>{
+    if(!s[group]) return;
+    document.querySelectorAll('.disc-quick-pills .disc-qpill').forEach(p=>{
+      if(p.getAttribute('onclick')?.includes("'"+group+"'")&&p.textContent.trim()===s[group]){
+        const c='selected-'+(p.dataset.color||'b'); p.classList.add(c);
+      }
+    });
+  });
+  // Dolor
+  if(Array.isArray(s['dolores'])){ s['dolores'].forEach(d=>{ document.querySelectorAll('.disc-qpill[data-dolor]').forEach(p=>{ if(p.dataset.dolor===d) p.classList.add('selected-r'); }); }); }
+  // Multi
+  ['implicacion','detonante','vision'].forEach(group=>{
+    const vals=Array.isArray(s[group])?s[group]:[];
+    vals.forEach(v=>{ document.querySelectorAll('.disc-quick-pills .disc-qpill').forEach(p=>{ if(p.getAttribute('onclick')?.includes("'"+group+"'")&&p.textContent.trim()===v){ p.classList.add('selected-'+(p.dataset.color||'b')); } }); });
+  });
+}
+
+// ── Form actions ──
+window.discSetMode=function(mode){
+  const ea=document.getElementById('discEscuchaArea');
+  const sb=document.getElementById('discSelBar');
+  const pa=document.getElementById('discPostcallArea');
+  const me=document.getElementById('dmbEscucha');
+  const mp=document.getElementById('dmbPostcall');
+  if(ea) ea.style.display=mode==='escucha'?'block':'none';
+  if(sb) sb.style.display=mode==='escucha'?'flex':'none';
+  if(pa){ pa.style.display=mode==='postcall'?'block':'none'; }
+  if(me) me.className='disc-mode-btn'+(mode==='escucha'?' active':'');
+  if(mp) mp.className='disc-mode-btn'+(mode==='postcall'?' postcall-active':'');
+  if(mode==='postcall'){ discGenerateSummary(); discUpdateApps(); }
+};
+window.discEndCall=function(){
+  const btn=document.getElementById('discEndBtn');
+  if(btn){ btn.textContent='✓ Llamada finalizada'; btn.style.background='#16a34a'; setTimeout(()=>discSetMode('postcall'),800); }
+};
+window.discSelectInd=function(id,el){
+  disc.currentInd=id;
+  document.querySelectorAll('.disc-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.disc-ind-listen').forEach(i=>i.style.display='none');
+  document.querySelectorAll('.disc-ind-listen.disc-ind-'+id).forEach(i=>i.style.display='flex');
+  const lbl=document.getElementById('discIndLabel'); if(lbl) lbl.textContent=IND_NAMES[id]+' · En llamada';
+  disc.selections['industria']=IND_NAMES[id];
+  discUpdateApps();
+};
+window.discToggleTV=function(id,el){
+  if(disc.activeTV.has(id)){ disc.activeTV.delete(id); el.classList.remove('active'); }
+  else { disc.activeTV.add(id); el.classList.add('active'); }
+  document.querySelectorAll('.disc-tv-listen').forEach(i=>i.style.display='none');
+  disc.activeTV.forEach(tv=>document.querySelectorAll('.disc-tv-listen.disc-tv-'+tv).forEach(i=>i.style.display='flex'));
+  disc.selections['tipo_venta']=[...disc.activeTV].map(k=>TV_NAMES[k]).join(', ');
+  discUpdateApps();
+};
+window.discSaveEmpresa=function(){
+  const fields=['nombre','razones','empleados','sistemas','usuarios','presupuesto','facturacion'];
+  fields.forEach(f=>{ const el=document.getElementById('d-emp-'+f); if(el) disc.selections['emp-'+f]=el.value.trim?el.value.trim():el.value; });
+  const nb=document.getElementById('discEmpresaBadge');
+  const nom=disc.selections['emp-nombre']||'';
+  if(nb){ nb.textContent='📄 '+nom; nb.style.display=nom?'inline-block':'none'; }
+};
+window.discPillSingle=function(el,group){
+  el.closest('.disc-quick-pills').querySelectorAll('.disc-qpill').forEach(p=>{ p.className='disc-qpill'; });
+  el.classList.add('selected-'+(el.dataset.color||'b'));
+  disc.selections[group]=el.textContent.trim();
+  discUpdateBANT();
+};
+window.discPillMulti=function(el,group){
+  const cls='selected-'+(el.dataset.color||'b');
+  el.classList.toggle(cls);
+  if(!disc.selections[group]) disc.selections[group]=[];
+  const val=el.textContent.trim();
+  if(el.classList.contains(cls)){ if(!disc.selections[group].includes(val)) disc.selections[group].push(val); }
+  else disc.selections[group]=disc.selections[group].filter(v=>v!==val);
+};
+window.discToggleDolor=function(el){
+  el.classList.toggle('selected-r');
+  if(!disc.selections['dolores']) disc.selections['dolores']=[];
+  const val=el.dataset.dolor||el.textContent.trim();
+  if(el.classList.contains('selected-r')){ if(!disc.selections['dolores'].includes(val)) disc.selections['dolores'].push(val); }
+  else disc.selections['dolores']=disc.selections['dolores'].filter(v=>v!==val);
+  const c=document.getElementById('dcard-dolor'); if(c) c.style.borderColor=disc.selections['dolores']?.length?'#f97316':'';
+  discUpdateBANT();
+};
+window.discMarkCovered=function(cardId,btn){
+  const card=document.getElementById(cardId); if(!card) return;
+  card.classList.toggle('covered');
+  const cov=card.classList.contains('covered');
+  btn.textContent=cov?'✓ Cubierto':'Marcar como cubierto';
+  const map={'dcard-situacion':'situacion','dcard-dolor':'d','dcard-budget':'b','dcard-timeline':'t'};
+  const key=map[cardId]; if(key) discSetBarDot('dbant-'+key,'dbi-'+key,cov);
+};
+window.discMarkFlujo=function(name,btn){
+  const cov=!btn.textContent.startsWith('✓');
+  const lbl=name.charAt(0).toUpperCase()+name.slice(1);
+  btn.textContent=cov?'✓ '+lbl+' cubierto':'Marcar '+lbl+' como cubierto';
+  btn.style.borderStyle=cov?'solid':'dashed'; btn.style.background=cov?'#dcfce7':'transparent';
+  btn.style.color=cov?'#16a34a':'#9ca3af'; btn.style.borderColor=cov?'#86efac':'#d1d5db';
+  const fi=document.getElementById('dfi-'+name); if(fi) fi.style.display=cov?'inline-block':'none';
+  const tab=document.getElementById('dtab-'+name); if(tab) tab.classList.toggle('covered-tab',cov);
+  const dm={'comercial':'dbant-comercial','operativo':'dbant-operativo','administrativo':'dbant-admin'};
+  const di={'comercial':'dbi-comercial','operativo':'dbi-operativo','administrativo':'dbi-admin'};
+  discSetBarDot(dm[name],di[name],cov);
+};
+function discSetBarDot(dotId,itemId,cov){
+  const dot=document.getElementById(dotId); if(dot){ dot.classList.toggle('covered',cov); dot.classList.toggle('filled',false); }
+  const item=document.getElementById(itemId); if(item) item.classList.toggle('covered',cov);
+}
+function discUpdateBANT(){
+  const s=disc.selections;
+  const setDot=(id,active)=>{ const d=document.getElementById('dbant-'+id); if(d) d.classList.toggle('filled',!!active); };
+  setDot('d',s.dolores?.length>0); setDot('b',!!s.budget); setDot('t',!!s.timeline);
+}
+window.discToggleFlujos=function(){
+  const body=document.getElementById('dflujos-body'); const chev=document.getElementById('dflujos-chevron');
+  const open=body.style.display!=='none';
+  body.style.display=open?'none':'block'; chev.classList.toggle('open',!open);
+};
+window.discSwitchTab=function(name){
+  ['comercial','operativo','administrativo'].forEach(t=>{
+    document.getElementById('dtab-'+t)?.classList.toggle('active',t===name);
+    document.getElementById('dpanel-'+t)?.classList.toggle('active',t===name);
+  });
+};
+window.discScrollTo=function(id){ const el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); };
+window.discScrollToFlujo=function(name){ discScrollTo('dcard-flujos'); discSwitchTab(name); };
+window.discToggleWow=function(flujo,btn){
+  const panel=document.getElementById('dwow-panel-'+flujo);
+  if(panel.classList.contains('open')){ panel.classList.remove('open'); btn.textContent='✨ WoW Effects'; return; }
+  const items=(WOW_DB[flujo]||[]).filter(w=>w.type==='gen'||(w.type==='ind'&&w.ind===disc.currentInd)||(w.type==='tv'&&disc.activeTV.has(w.tv)));
+  const tagLabel={gen:'General',ind:IND_NAMES[disc.currentInd]||'Industria',tv:'Tipo de venta'};
+  panel.innerHTML=items.length===0?'<div style="color:#7c3aed;font-size:13px;text-align:center;padding:12px">Selecciona industria y/o tipo de venta para ver efectos específicos.</div>':`
+    <div class="disc-wow-panel-title">✨ Efectos WoW de Odoo</div>
+    <div class="disc-wow-items">${items.map(w=>`<div class="disc-wow-item"><span class="disc-wow-tag disc-wow-tag-${w.type}">${tagLabel[w.type]}</span><div class="disc-wow-item-title">${w.title}</div><div class="disc-wow-item-desc">${w.desc}</div><div class="disc-wow-item-wow">${w.wow}</div></div>`).join('')}</div>`;
+  panel.classList.add('open'); btn.textContent='✕ Cerrar WoW';
+};
+function discGenerateSummary(){
+  const s=disc.selections;
+  const c=document.getElementById('discSummaryContent'); if(!c) return;
+  const empF=[
+    {k:'Empresa',v:s['emp-nombre']},{k:'Razones sociales',v:s['emp-razones']},{k:'Empleados',v:s['emp-empleados']},
+    {k:'Sistemas actuales',v:s['emp-sistemas']},{k:'Usuarios en sistema',v:s['emp-usuarios']},
+    {k:'Presupuesto sistemas',v:s['emp-presupuesto']},{k:'Facturación mensual',v:s['emp-facturacion']},
+  ].filter(r=>r.v);
+  const rows=[
+    {k:'Industria',v:s['industria']},{k:'Tipo de venta',v:s['tipo_venta']},{k:'Tipo de empresa',v:s['tipo-empresa']},
+    {k:'Budget',v:s['budget']},{k:'Modelo de pago',v:s['modelo-pago']},{k:'¿Con el decisor?',v:s['decisor']},
+    {k:'Proceso aprobación',v:s['aprobacion']},{k:'Timeline',v:s['timeline']},{k:'Fit con Odoo',v:s['fit']},
+    {k:'Dolores detectados',v:s['dolores']?.join(', ')},{k:'Implicación',v:Array.isArray(s['implicacion'])?s['implicacion'].join(', '):s['implicacion']},
+    {k:'Visión',v:Array.isArray(s['vision'])?s['vision'].join(', '):s['vision']},{k:'Detonante',v:Array.isArray(s['detonante'])?s['detonante'].join(', '):s['detonante']},
+  ].filter(r=>r.v);
+  if(!empF.length&&!rows.length){ c.innerHTML='<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px">No hay datos registrados.</div>'; return; }
+  const bgMap={'Tienen presupuesto':'#f0fdf4','En evaluación':'#fffbeb','No definido':'#fef2f2','El que decide':'#f0fdf4','Influenciador':'#fffbeb','No sé quién decide':'#fef2f2','Menos de 1 mes':'#f0fdf4','1 – 3 meses':'#f0fdf4','3 – 6 meses':'#fffbeb','Más de 6 meses':'#fef2f2','Obvio — es perfecto para ellos':'#f0fdf4','Probable — con algunos ajustes':'#fffbeb','Incierto — hay gaps importantes':'#fef2f2'};
+  const tcMap={'Tienen presupuesto':'#16a34a','En evaluación':'#d97706','No definido':'#dc2626','El que decide':'#16a34a','Influenciador':'#d97706','No sé quién decide':'#dc2626','Menos de 1 mes':'#16a34a','1 – 3 meses':'#16a34a','3 – 6 meses':'#d97706','Más de 6 meses':'#dc2626','Obvio — es perfecto para ellos':'#16a34a','Probable — con algunos ajustes':'#d97706','Incierto — hay gaps importantes':'#dc2626'};
+  c.innerHTML=(empF.length?`<div style="margin-bottom:16px"><div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Datos de la empresa</div>${empF.map(r=>`<div class="disc-summary-row"><span class="disc-summary-key">${r.k}</span><span class="disc-summary-val">${r.v}</span></div>`).join('')}</div><hr style="border:none;border-top:1px solid #f3f4f6;margin-bottom:14px">`:'')+
+  (rows.length?`<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Calificación</div>${rows.map(r=>{ const bg=bgMap[r.v]||'#f3f4f6',tc=tcMap[r.v]||'#374151'; return `<div class="disc-summary-row"><span class="disc-summary-key">${r.k}</span><span class="disc-summary-val-pill" style="background:${bg};color:${tc};border:1px solid ${tc}22">${r.v}</span></div>`; }).join('')}`:'');
+}
+function discUpdateApps(){
+  const c=document.getElementById('discAppsContainer'); if(!c) return;
+  const apps=[]; const seen=new Set();
+  if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>{ if(!seen.has(a.name)){ apps.push(a); seen.add(a.name); }});
+  disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!seen.has(TV_APPS[tv].name)){ apps.push(TV_APPS[tv]); seen.add(TV_APPS[tv].name); }});
+  c.innerHTML=apps.length===0?'<div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div>':`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">${apps.map(a=>`<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;background:#f9fafb"><div style="font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px">Odoo ${a.name}</div><div style="font-size:11.5px;color:#6b7280;line-height:1.5">${a.reason}</div></div>`).join('')}</div>`;
+}
+
+// ── AI Analysis (Claude) ──
+
+async function discLoadRecentSessions(industry, limit=5){
+  if(!db||!industry) return [];
+  try{
+    const q=query(collection(db,'discoveryRecords'),
+      where('industria','==',industry),
+      where('status','==','completado'),
+      orderBy('createdAt','desc'));
+    const snap=await getDocs(q);
+    return snap.docs.slice(0,limit).map(d=>d.data());
+  } catch(e){ return []; }
+}
+
+function discBuildClaudePrompt(transcript, recentSessions=[]){
+  const s=disc.selections;
+  const apps=[]; if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>apps.push('Odoo '+a.name));
+  disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!apps.includes('Odoo '+TV_APPS[tv].name)) apps.push('Odoo '+TV_APPS[tv].name); });
+
+  const memoryBlock = recentSessions.length>0 ? `
+MEMORIA DEL EQUIPO — Patrones detectados en las últimas ${recentSessions.length} sesiones de ${IND_NAMES[disc.currentInd]||'esta industria'}:
+${recentSessions.map((r,i)=>{
+  const d=(r.selections?.dolores||r.dolores||[]).join(', ')||'no registrados';
+  const b=r.selections?.budget||r.budget||'nd';
+  const fit=r.selections?.fit||r.fit||'nd';
+  return `  Sesión ${i+1} (${r.empresa||'Sin nombre'}): Dolores=[${d}] Budget=[${b}] Fit=[${fit}]`;
+}).join('\n')}
+
+Con base en este historial, identifica patrones recurrentes y menciónalos en tu análisis cuando sean relevantes.
+` : '';
+
+  return `Eres un Account Executive senior de Odoo México especializado en ventas B2B. Tienes acceso a datos históricos del equipo y debes documentar esta discovery call con precisión quirúrgica.
+${memoryBlock}
+DATOS CAPTURADOS DURANTE LA LLAMADA:
+- Empresa: ${s['emp-nombre']||'no capturado'}, Empleados: ${s['emp-empleados']||'nd'}
+- Razones sociales: ${s['emp-razones']||'nd'}, Sistemas actuales: ${s['emp-sistemas']||'nd'}
+- Usuarios en sistema: ${s['emp-usuarios']||'nd'}, Presupuesto sistemas/mes: ${s['emp-presupuesto']||'nd'}
+- Facturación mensual: ${s['emp-facturacion']||'nd'}
+- Industria: ${s['industria']||'nd'}, Tipo de venta: ${s['tipo_venta']||'nd'}
+- Dolores detectados: ${s['dolores']?.join(', ')||'nd'}
+- Budget: ${s['budget']||'nd'}, Decisor: ${s['decisor']||'nd'}
+- Timeline: ${s['timeline']||'nd'}, Fit con Odoo: ${s['fit']||'nd'}
+- Visión del prospecto: ${Array.isArray(s['vision'])?s['vision'].join(', '):(s['vision']||'nd')}
+- Apps recomendadas: ${apps.join(', ')||'por definir'}
+
+TRANSCRIPCIÓN COMPLETA:
+${transcript}
+
+Genera la nota de discovery para el CRM con exactamente estas secciones:
+
+1. RESUMEN EJECUTIVO
+   Máximo 3 líneas: quiénes son, su dolor principal y nivel de oportunidad.
+
+2. SITUACIÓN DEL NEGOCIO
+   Complementa los datos capturados con lo que dijo el prospecto en la llamada.
+
+3. CÓMO VENDEN
+   Canal de adquisición, proceso de cotización, ticket promedio, CRM actual.
+
+4. CÓMO OPERAN
+   Inventario, proveedores, logística, producción si aplica.
+
+5. CÓMO ADMINISTRAN
+   Contabilidad, CFDI, nómina, visibilidad financiera.
+
+6. DOLORES CONFIRMADOS
+   Lista numerada. Incluye citas textuales entre comillas cuando el prospecto lo mencionó explícitamente.
+
+7. CALIFICACIÓN BANT
+   Budget: [estado] | Autoridad: [decisor] | Necesidad: [nivel 1-3] | Timeline: [plazo]
+
+8. PRÓXIMOS PASOS
+   Acciones concretas con responsable y fecha sugerida.
+
+9. MÓDULOS ODOO RECOMENDADOS
+   Para cada módulo: nombre → dolor específico que resuelve → WoW effect clave.
+${recentSessions.length>0?`
+10. PATRONES DEL EQUIPO
+    Compara esta sesión con el historial de ${IND_NAMES[disc.currentInd]||'la industria'}. ¿Hay dolores recurrentes? ¿Qué diferencia a este prospecto?`:''}
+
+Escribe en español de México, tono profesional pero directo. Sé conciso y accionable. No repitas información entre secciones.`;
+}
+
+
+
+window.discAnalyzeClaude = async function(){
+  const transcript=document.getElementById('discTranscriptInput').value.trim();
+  if(!transcript){ showNotif('Pega la transcripción de la llamada','error'); return; }
+  const claudeKey=localStorage.getItem('outbound_claude_key')||'';
+  if(!claudeKey){ showNotif('Configura tu Claude API key en ⚙️ Configuración','error'); return; }
+  const btn=document.getElementById('discAnalyzeBtn');
+  const loading=document.getElementById('discGeminiLoading');
+  const wrap=document.getElementById('discGeminiOutputWrap');
+  const output=document.getElementById('discGeminiOutput');
+  const engineLabel=document.getElementById('discEngineLabel');
+  btn.disabled=true; loading.classList.add('show'); if(wrap) wrap.style.display='none';
+  // Step 1: load recent sessions (memory context)
+  loading.insertAdjacentHTML('beforeend','<span id="discLoadMsg"> Cargando historial del equipo...</span>');
+  let recentSessions=[];
+  if(disc.currentInd) recentSessions=await discLoadRecentSessions(disc.currentInd,5);
+  const msg=document.getElementById('discLoadMsg');
+  if(msg) msg.textContent=recentSessions.length>0?` ${recentSessions.length} sesiones de contexto cargadas. Analizando...`:' Analizando...';
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:3000,messages:[{role:'user',content:discBuildClaudePrompt(transcript,recentSessions)}]})
+    });
+    const data=await res.json();
+    if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+    const text=data.content?.[0]?.text||'Sin respuesta';
+    output.textContent=text; output.classList.add('show');
+    wrap.style.display='block';
+    if(engineLabel) engineLabel.textContent='⚡ Claude'+(recentSessions.length>0?` · ${recentSessions.length} sesiones de contexto`:'');
+    wrap.scrollIntoView({behavior:'smooth',block:'start'});
+  } catch(e){
+    output.textContent='Error: '+e.message+'\n\nVerifica tu Claude API key en ⚙️ Configuración.';
+    output.classList.add('show'); wrap.style.display='block';
+  } finally {
+    btn.disabled=false; loading.classList.remove('show');
+    const m=document.getElementById('discLoadMsg'); if(m) m.remove();
+  }
+};
+window.discCopyOutput=function(){
+  const text=document.getElementById('discGeminiOutput').textContent;
+  navigator.clipboard.writeText(text).then(()=>showNotif('Copiado al portapapeles ✓','success'));
+};
+
+// ── Save to Firestore ──
+window.discSaveRecord=async function(){
+  discSaveEmpresa();
+  const empresa=disc.selections['emp-nombre']||'Sin nombre';
+  const statusEl=document.getElementById('discStatusSel');
+  const status=statusEl?statusEl.value:disc.status;
+  const geminiNote=document.getElementById('discGeminiOutput')?.textContent||'';
+  const transcript=document.getElementById('discTranscriptInput')?.value||'';
+  const record={
+    aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram,
+    tlId:currentUserData.tlId||null,
+    empresa, industria:disc.currentInd||'', industriaNombre:IND_NAMES[disc.currentInd]||'',
+    tipoVenta:[...disc.activeTV], selections:disc.selections,
+    budget:disc.selections['budget']||'', decisor:disc.selections['decisor']||'',
+    timeline:disc.selections['timeline']||'', fit:disc.selections['fit']||'',
+    dolores:disc.selections['dolores']||[],
+    geminiNote, transcript, status, updatedAt:serverTimestamp(),
+  };
+  const btn=document.getElementById('discSaveBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Guardando...'; }
+  try {
+    if(disc.recordId&&db){
+      await updateDoc(doc(db,'discoveryRecords',disc.recordId),record);
+    } else if(db){
+      record.createdAt=serverTimestamp();
+      const ref=await addDoc(collection(db,'discoveryRecords'),record);
+      disc.recordId=ref.id;
+    } else {
+      // Local fallback
+      const locals=JSON.parse(localStorage.getItem('disc_local')||'[]');
+      const idx=locals.findIndex(r=>r.id===disc.recordId);
+      const localRec={...record,id:disc.recordId||Date.now().toString(),createdAt:new Date().toISOString()};
+      if(idx>=0) locals[idx]=localRec; else locals.unshift(localRec);
+      localStorage.setItem('disc_local',JSON.stringify(locals));
+      disc.recordId=localRec.id;
+    }
+    showNotif('Sesión guardada ✓','success');
+    if(btn){ btn.textContent='✓ Guardado'; btn.style.background='#15803d'; setTimeout(()=>{ btn.disabled=false; btn.textContent='💾 Guardar en historial'; btn.style.background=''; },2000); }
+  } catch(e){
+    showNotif('Error al guardar: '+e.message,'error');
+    if(btn){ btn.disabled=false; btn.textContent='💾 Guardar en historial'; }
+  }
+};
+
+// ══════════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════════
+function showScreen(name){
+  ['screen-setup','screen-login','screen-register','screen-pending','screen-app']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
+  const target=document.getElementById('screen-'+name);
+  if(target) target.style.display='flex';
+  if(name==='app'){ renderAppHeader(); showModule('home'); }
+  if(name==='pending'){ const el=document.getElementById('pendingName'); if(el&&currentUserData) el.textContent=currentUserData.name.split(' ')[0]; }
+}
+window.showScreen=showScreen;
+function renderAppHeader(){
+  const el=document.getElementById('userInfo'); if(!el||!currentUserData) return;
+  const rl={manager:'Manager',tl:'Team Leader',ae:'AE'};
+  el.innerHTML=`<div class="user-avatar">${(currentUserData.name||'?')[0]}</div><div class="user-details"><span class="user-name">${currentUserData.name}</span><span class="user-role role-${currentUserData.role}">${rl[currentUserData.role]||currentUserData.role}</span></div>`;
+  const mn=document.getElementById('nav-manager'); if(mn) mn.style.display=currentUserData.role==='manager'?'flex':'none';
+}
+function setLoading(btnId,loading){
+  const btn=document.getElementById(btnId); if(!btn) return;
+  btn.disabled=loading; btn.dataset.orig=btn.dataset.orig||btn.textContent;
+  btn.textContent=loading?'Cargando…':btn.dataset.orig;
+}
+let notifT;
+window.showNotif=function(msg,type='info'){
+  let n=document.getElementById('globalNotif');
+  if(!n){ n=document.createElement('div'); n.id='globalNotif'; document.body.appendChild(n); }
+  n.textContent=msg; n.className=`global-notif notif-${type} show`;
+  clearTimeout(notifT); notifT=setTimeout(()=>n.classList.remove('show'),3500);
+};
+
+// ══════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  loadSavedConfig();
+  const ok=tryInitFirebase();
+  if(!ok) showScreen('setup');
+});
+</script>
+</body>
+</html>
