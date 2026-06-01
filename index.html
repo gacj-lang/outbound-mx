@@ -1443,26 +1443,41 @@ function buildDiscoveryFormHTML(data){
     <!-- Summary -->
     <div class="disc-pc-card"><div class="disc-pc-title">📊 Resumen de selecciones</div><div class="disc-pc-sub">Generado automáticamente de lo capturado durante la llamada</div><div id="discSummaryContent"></div></div>
 
-    <!-- AI Analysis -->
+    <!-- RECOMENDACIONES (AI coaching) -->
     <div class="disc-pc-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div class="disc-pc-title" style="margin-bottom:0">🤖 Analizar con IA</div>
-        <span style="font-size:11px;background:#f3eef1;color:var(--purple);padding:3px 10px;border-radius:99px;font-weight:700">⚡ Claude</span>
-      </div>
-      <div class="disc-pc-sub">Pega la transcripción de Google Meet. Claude usará el historial del equipo para enriquecer el análisis.</div>
+      <div class="disc-pc-title">🎯 Recomendaciones para este cliente</div>
+      <div class="disc-pc-sub">Estrategia sugerida basada en el perfil del prospecto y el historial del equipo. No requiere transcripción.</div>
 
-      <!-- Claude info box -->
-      <div style="background:#f3eef1;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:var(--purple-dark);display:flex;align-items:flex-start;gap:8px">
-        <span>✨</span>
-        <span>Claude analiza la transcripción <strong>junto con el historial de sesiones</strong> del equipo para detectar patrones y generar notas más precisas. Configura tu Claude API key en <strong>⚙️ Configuración</strong>.</span>
+      <button class="disc-gemini-btn" id="discRecoBtn" onclick="discGenerateReco()" style="background:linear-gradient(135deg,var(--purple),var(--purple-mid))">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Generar recomendaciones
+      </button>
+      <div class="disc-gemini-loading" id="discRecoLoading"><div class="disc-spinner"></div></div>
+
+      <div id="discRecoOutputWrap" style="display:none;margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div id="discRecoLabel" style="font-size:11px;color:var(--gray-400)"></div>
+          <div style="display:flex;gap:8px">
+            <button class="disc-copy-btn" onclick="discCopyReco()">Copiar</button>
+            <button class="disc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="discGenerateReco()">Actualizar</button>
+          </div>
+        </div>
+        <div class="disc-gemini-output show" id="discRecoOutput"></div>
+        <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar recomendaciones</button>
       </div>
+    </div>
+
+    <!-- NOTA CRM -->
+    <div class="disc-pc-card">
+      <div class="disc-pc-title">📋 Nota para el CRM</div>
+      <div class="disc-pc-sub">Pega la transcripción de Google Meet para generar la nota estructurada que copiarás a Odoo CRM.</div>
 
       <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Transcripción de Google Meet</div>
       <textarea class="disc-transcript-ta" id="discTranscriptInput" placeholder="Pega aquí la transcripción completa de la llamada...&#10;&#10;(En Google Meet: Actividades → Transcribir → Ver transcripción → Copiar todo)"></textarea>
 
-      <button class="disc-gemini-btn" id="discAnalyzeBtn" onclick="discAnalyzeClaude()" style="background:linear-gradient(135deg,var(--purple),var(--purple-mid))">
+      <button class="disc-gemini-btn" id="discAnalyzeBtn" onclick="discAnalyzeClaude()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
-        Generar nota con Claude
+        Generar nota para CRM
       </button>
 
       <div class="disc-gemini-loading" id="discGeminiLoading"><div class="disc-spinner"></div></div>
@@ -1470,7 +1485,7 @@ function buildDiscoveryFormHTML(data){
       <div id="discGeminiOutputWrap" style="display:none;margin-top:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div>
-            <div style="font-size:13px;font-weight:600">Nota generada para CRM</div>
+            <div style="font-size:13px;font-weight:600">Nota para CRM</div>
             <div id="discEngineLabel" style="font-size:11px;color:var(--gray-400);margin-top:2px"></div>
           </div>
           <div style="display:flex;gap:8px">
@@ -1520,8 +1535,10 @@ function discInitForm(data){
     const ss=document.getElementById('discStatusSel'); if(ss) ss.value=disc.status;
     // Restore pills
     discRestorePills();
-    // Restore AI note if any
+    discRestoreCovered();
+    // Restore AI notes if any
     if(data.geminiNote){ const o=document.getElementById('discGeminiOutput'); const w=document.getElementById('discGeminiOutputWrap'); if(o&&w){ o.textContent=data.geminiNote; o.classList.add('show'); w.style.display='block'; } }
+    if(data.recoNote){ const o=document.getElementById('discRecoOutput'); const w=document.getElementById('discRecoOutputWrap'); if(o&&w){ o.textContent=data.recoNote; o.classList.add('show'); w.style.display='block'; const l=document.getElementById('discRecoLabel'); if(l) l.textContent='Recomendaciones guardadas'; } }
     // Restore transcript
     if(data.transcript){ const ta=document.getElementById('discTranscriptInput'); if(ta) ta.value=data.transcript; }
   }
@@ -1545,6 +1562,36 @@ function discRestorePills(){
   ['implicacion','detonante','vision'].forEach(group=>{
     const vals=Array.isArray(s[group])?s[group]:[];
     vals.forEach(v=>{ document.querySelectorAll('.disc-quick-pills .disc-qpill').forEach(p=>{ if(p.getAttribute('onclick')?.includes("'"+group+"'")&&p.textContent.trim()===v){ p.classList.add('selected-'+(p.dataset.color||'b')); } }); });
+  });
+}
+
+function discRestoreCovered(){
+  const s=disc.selections;
+  // Restore covered cards
+  (s.coveredCards||[]).forEach(cardId=>{
+    const card=document.getElementById(cardId); if(!card) return;
+    card.classList.add('covered');
+    const btn=card.querySelector('.disc-mark-btn'); if(btn) btn.textContent='✓ Cubierto';
+    const map={'dcard-situacion':'situacion','dcard-dolor':'d','dcard-budget':'b','dcard-timeline':'t'};
+    const key=map[cardId]; if(key) discSetBarDot('dbant-'+key,'dbi-'+key,true);
+  });
+  // Restore covered flujos
+  (s.coveredFlujos||[]).forEach(name=>{
+    const tab=document.getElementById('dtab-'+name); if(tab) tab.classList.add('covered-tab');
+    const fi=document.getElementById('dfi-'+name); if(fi) fi.style.display='inline-block';
+    const dm={'comercial':'dbant-comercial','operativo':'dbant-operativo','administrativo':'dbant-admin'};
+    const di={'comercial':'dbi-comercial','operativo':'dbi-operativo','administrativo':'dbi-admin'};
+    discSetBarDot(dm[name],di[name],true);
+    const panel=document.getElementById('dpanel-'+name);
+    if(panel){
+      const btn=panel.querySelector('.disc-mark-btn');
+      if(btn){
+        const lbl=name.charAt(0).toUpperCase()+name.slice(1);
+        btn.textContent='✓ '+lbl+' cubierto';
+        btn.style.borderStyle='solid'; btn.style.background='#dcfce7';
+        btn.style.color='#16a34a'; btn.style.borderColor='#86efac';
+      }
+    }
   });
 }
 
@@ -1621,12 +1668,20 @@ window.discMarkCovered=function(cardId,btn){
   btn.textContent=cov?'✓ Cubierto':'Marcar como cubierto';
   const map={'dcard-situacion':'situacion','dcard-dolor':'d','dcard-budget':'b','dcard-timeline':'t'};
   const key=map[cardId]; if(key) discSetBarDot('dbant-'+key,'dbi-'+key,cov);
+  // Persist covered state
+  if(!disc.selections.coveredCards) disc.selections.coveredCards=[];
+  if(cov){ if(!disc.selections.coveredCards.includes(cardId)) disc.selections.coveredCards.push(cardId); }
+  else disc.selections.coveredCards=disc.selections.coveredCards.filter(c=>c!==cardId);
 };
 window.discMarkFlujo=function(name,btn){
   const cov=!btn.textContent.startsWith('✓');
   const lbl=name.charAt(0).toUpperCase()+name.slice(1);
   btn.textContent=cov?'✓ '+lbl+' cubierto':'Marcar '+lbl+' como cubierto';
   btn.style.borderStyle=cov?'solid':'dashed'; btn.style.background=cov?'#dcfce7':'transparent';
+  // Persist covered state
+  if(!disc.selections.coveredFlujos) disc.selections.coveredFlujos=[];
+  if(cov){ if(!disc.selections.coveredFlujos.includes(name)) disc.selections.coveredFlujos.push(name); }
+  else disc.selections.coveredFlujos=disc.selections.coveredFlujos.filter(f=>f!==name);
   btn.style.color=cov?'#16a34a':'#9ca3af'; btn.style.borderColor=cov?'#86efac':'#d1d5db';
   const fi=document.getElementById('dfi-'+name); if(fi) fi.style.display=cov?'inline-block':'none';
   const tab=document.getElementById('dtab-'+name); if(tab) tab.classList.toggle('covered-tab',cov);
@@ -1780,6 +1835,96 @@ Escribe en español de México, tono profesional pero directo. Sé conciso y acc
 
 
 
+// ── Recomendaciones (coaching sin transcripción) ──
+window.discGenerateReco = async function(){
+  const claudeKey=localStorage.getItem('outbound_claude_key')||'';
+  if(!claudeKey){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
+  const s=disc.selections;
+  const btn=document.getElementById('discRecoBtn');
+  const loading=document.getElementById('discRecoLoading');
+  const wrap=document.getElementById('discRecoOutputWrap');
+  const output=document.getElementById('discRecoOutput');
+  const label=document.getElementById('discRecoLabel');
+  btn.disabled=true; loading.classList.add('show'); if(wrap) wrap.style.display='none';
+  // Load recent sessions for context
+  loading.insertAdjacentHTML('beforeend','<span id="discRecoMsg"> Cargando historial...</span>');
+  let recentSessions=[];
+  if(disc.currentInd) recentSessions=await discLoadRecentSessions(disc.currentInd,5);
+  const msgEl=document.getElementById('discRecoMsg'); if(msgEl) msgEl.textContent=' Analizando perfil del cliente...';
+  const apps=[]; if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>apps.push('Odoo '+a.name));
+  disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!apps.includes('Odoo '+TV_APPS[tv].name)) apps.push('Odoo '+TV_APPS[tv].name); });
+
+  const historialBlock = recentSessions.length>0 ? `
+HISTORIAL DEL EQUIPO — Últimas ${recentSessions.length} sesiones de ${IND_NAMES[disc.currentInd]||'esta industria'}:
+${recentSessions.map((r,i)=>{
+  const d=(r.selections?.dolores||r.dolores||[]).join(', ')||'nd';
+  const b=r.selections?.budget||r.budget||'nd';
+  const t=r.selections?.timeline||r.timeline||'nd';
+  const fit=r.selections?.fit||r.fit||'nd';
+  const empresa=r.empresa||'Sin nombre';
+  return `  ${i+1}. ${empresa}: Dolores=[${d}] | Budget=[${b}] | Timeline=[${t}] | Fit=[${fit}]`;
+}).join('\n')}
+` : '';
+
+  const prompt = `Eres el coach de ventas senior del equipo Outbound México de Odoo. Tu trabajo es ayudar a ${currentUserData?.name||'el AE'} a cerrar este prospecto.
+
+PERFIL DEL PROSPECTO:
+- Empresa: ${s['emp-nombre']||'no capturado'} | Industria: ${s['industria']||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
+- Empleados: ${s['emp-empleados']||'nd'} | Sistemas actuales: ${s['emp-sistemas']||'nd'}
+- Facturación: ${s['emp-facturacion']||'nd'} | Presupuesto sistemas/mes: ${s['emp-presupuesto']||'nd'}
+- Dolores detectados: ${s['dolores']?.join(', ')||'nd'}
+- Budget: ${s['budget']||'nd'} | Decisor: ${s['decisor']||'nd'} | Timeline: ${s['timeline']||'nd'}
+- Fit con Odoo: ${s['fit']||'nd'} | Visión: ${Array.isArray(s['vision'])?s['vision'].join(', '):(s['vision']||'nd')}
+- Módulos relevantes: ${apps.join(', ')||'nd'}
+${historialBlock}
+Dame recomendaciones estratégicas concretas en este formato:
+
+🎯 ESTRATEGIA DE ACERCAMIENTO
+Cómo posicionarte con este cliente específico. Tono, ángulo, qué enfatizar.
+
+⚠️ PUNTOS DE DOLOR PRIORITARIOS
+Lista ordenada (del más al menos impactante). Para cada uno: dolor → por qué importa → cómo conectarlo con Odoo.
+
+🛡️ OBJECIONES PROBABLES
+Las 2-3 objeciones más comunes en este perfil y cómo manejarlas.
+
+🚀 PRÓXIMO PASO CONCRETO
+Qué hacer exactamente en la siguiente interacción. Sé muy específico.
+
+🔴 SEÑALES DE ALERTA
+Factores de riesgo detectados en este perfil que podrían complicar el cierre.
+
+${recentSessions.length>0?`📊 VS. HISTORIAL DEL EQUIPO
+¿En qué se diferencia este prospecto de los otros ${recentSessions.length} casos similares? ¿Qué lecciones aplican aquí?`:''}
+
+Sé directo, específico y accionable. Habla de tú al AE. No repitas los datos del perfil.`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+    const text=data.content?.[0]?.text||'Sin respuesta';
+    output.textContent=text; output.classList.add('show');
+    wrap.style.display='block';
+    if(label) label.textContent=recentSessions.length>0?`Basado en ${recentSessions.length} sesiones del equipo`:'Basado en el perfil capturado';
+    wrap.scrollIntoView({behavior:'smooth',block:'start'});
+  } catch(e){
+    output.textContent='Error: '+e.message; output.classList.add('show'); wrap.style.display='block';
+  } finally {
+    btn.disabled=false; loading.classList.remove('show');
+    const m=document.getElementById('discRecoMsg'); if(m) m.remove();
+  }
+};
+window.discCopyReco=function(){
+  const text=document.getElementById('discRecoOutput').textContent;
+  navigator.clipboard.writeText(text).then(()=>showNotif('Recomendaciones copiadas ✓','success'));
+};
+
+// ── Nota CRM (con transcripción) ──
 window.discAnalyzeClaude = async function(){
   const transcript=document.getElementById('discTranscriptInput').value.trim();
   if(!transcript){ showNotif('Pega la transcripción de la llamada','error'); return; }
@@ -1830,6 +1975,7 @@ window.discSaveRecord=async function(){
   const statusEl=document.getElementById('discStatusSel');
   const status=statusEl?statusEl.value:disc.status;
   const geminiNote=document.getElementById('discGeminiOutput')?.textContent||'';
+  const recoNote=document.getElementById('discRecoOutput')?.textContent||'';
   const transcript=document.getElementById('discTranscriptInput')?.value||'';
   const record={
     aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram,
@@ -1839,7 +1985,7 @@ window.discSaveRecord=async function(){
     budget:disc.selections['budget']||'', decisor:disc.selections['decisor']||'',
     timeline:disc.selections['timeline']||'', fit:disc.selections['fit']||'',
     dolores:disc.selections['dolores']||[],
-    geminiNote, transcript, status, updatedAt:serverTimestamp(),
+    geminiNote, recoNote, transcript, status, updatedAt:serverTimestamp(),
   };
   const btn=document.getElementById('discSaveBtn');
   if(btn){ btn.disabled=true; btn.textContent='Guardando...'; }
