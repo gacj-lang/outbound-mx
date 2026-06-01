@@ -441,10 +441,278 @@ input,select,textarea{font-family:inherit;}
 .dsp-skip{display:block;width:100%;background:none;border:none;color:#4b5563;font-size:12px;cursor:pointer;margin-top:10px;padding:6px;text-align:center;}
 .dsp-skip:hover{color:#9ca3af;}
 
+/* ════════════════════════════════════════
+   CONTENIDOS MODULE — FASE 5
+════════════════════════════════════════ */
+.cont-list-wrap{max-width:1100px;}
+.cont-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.cont-list-header h2{font-size:22px;font-weight:700;}
+.cont-type-filters{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.cont-filter-btn{padding:6px 14px;border-radius:99px;border:1.5px solid var(--gray-200);font-size:13px;font-weight:500;background:white;color:var(--gray-500);cursor:pointer;transition:all .15s;}
+.cont-filter-btn.active{background:var(--purple);color:white;border-color:var(--purple);}
+.cont-record-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.cont-record-card{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:20px;cursor:pointer;transition:all .2s;box-shadow:var(--shadow);}
+.cont-record-card:hover{border-color:var(--purple);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.cont-record-tipo-icon{font-size:28px;margin-bottom:8px;}
+.cont-record-tipo-label{font-size:16px;font-weight:700;margin-bottom:4px;}
+.cont-record-meta{font-size:12px;color:var(--gray-400);margin-bottom:12px;line-height:1.5;}
+.cont-record-footer{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+.cont-status-badge{font-size:11px;padding:3px 10px;border-radius:99px;font-weight:600;}
+.status-cont-borrador{background:var(--gray-100);color:var(--gray-500);}
+.status-cont-listo{background:var(--success-light);color:var(--success);}
+.status-cont-enviado{background:#eff6ff;color:#1d4ed8;}
+/* Form bar */
+.cont-form-bar{position:sticky;top:0;z-index:100;background:white;border-bottom:1px solid #e5e7eb;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.cont-form-bar-left{display:flex;align-items:center;gap:12px;}
+.cont-steps-ind{display:flex;align-items:center;gap:6px;}
+.cont-step-dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--gray-200);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--gray-400);transition:all .2s;}
+.cont-step-dot.active{background:var(--purple);border-color:var(--purple);color:white;}
+.cont-step-dot.done{background:var(--success);border-color:var(--success);color:white;}
+.cont-step-line{width:20px;height:2px;background:var(--gray-200);border-radius:1px;}
+/* Form body */
+.cont-form-body{max-width:860px;margin:0 auto;padding:28px;}
+.cont-section-title{font-size:18px;font-weight:700;margin-bottom:6px;}
+.cont-section-sub{font-size:14px;color:var(--gray-500);margin-bottom:20px;}
+/* Type cards */
+.cont-tipo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:28px;}
+.cont-tipo-card{background:white;border:2px solid var(--gray-200);border-radius:var(--radius);padding:18px 12px;text-align:center;cursor:pointer;transition:all .2s;}
+.cont-tipo-card:hover{border-color:var(--purple-mid);box-shadow:var(--shadow-md);}
+.cont-tipo-card.selected{border-color:var(--purple);background:var(--purple-light);}
+.cont-tipo-icon{font-size:30px;margin-bottom:8px;}
+.cont-tipo-label{font-size:13px;font-weight:700;margin-bottom:3px;}
+.cont-tipo-formato{font-size:10px;color:var(--gray-400);font-weight:500;}
+.cont-tipo-desc{font-size:11px;color:var(--gray-500);margin-top:6px;line-height:1.4;}
+/* Scope cards */
+.cont-scope-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;}
+.cont-scope-card{background:white;border:2px solid var(--gray-200);border-radius:var(--radius);padding:18px;cursor:pointer;transition:all .2s;display:flex;gap:12px;align-items:flex-start;}
+.cont-scope-card:hover{border-color:var(--purple-mid);}
+.cont-scope-card.selected{border-color:var(--purple);background:var(--purple-light);}
+.cont-scope-icon{font-size:26px;flex-shrink:0;}
+.cont-scope-label{font-size:14px;font-weight:700;margin-bottom:3px;}
+.cont-scope-desc{font-size:12px;color:var(--gray-500);line-height:1.5;}
+/* Industry chips */
+.cont-ind-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border:1.5px solid #e5e7eb;border-radius:999px;font-size:13px;font-weight:500;cursor:pointer;color:#6b7280;background:#f9fafb;transition:all .15s;user-select:none;margin-right:4px;margin-bottom:6px;}
+.cont-ind-chip:hover{border-color:#9ca3af;color:#374151;}
+.cont-ind-chip.active{background:var(--purple);color:white;border-color:var(--purple);}
+/* AI button */
+.cont-ai-btn{width:100%;padding:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;background:linear-gradient(135deg,var(--purple),var(--purple-mid));color:white;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;margin-top:8px;}
+.cont-ai-btn:hover{opacity:.9;transform:translateY(-2px);box-shadow:0 6px 20px rgba(113,75,103,.35);}
+.cont-ai-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+.cont-loading{display:none;align-items:center;gap:10px;padding:16px;color:#6b7280;font-size:13px;}
+.cont-loading.show{display:flex;}
+.cont-preview-wrap{display:none;margin-top:20px;}
+.cont-preview-wrap.show{display:block;}
+.cont-preview-label{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gray-400);margin-bottom:12px;}
+.cont-preview-content{font-family:'DM Mono',monospace;font-size:13px;line-height:1.8;color:#1f2937;white-space:pre-wrap;background:#f8f9fa;border:1px solid #e5e7eb;border-radius:var(--radius);padding:20px;}
+.cont-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center;}
+/* Visual canvas previews — real dimensions, CSS-scaled for display */
+.cont-canvas-outer{display:flex;justify-content:center;overflow:hidden;}
+.cont-canvas-wa{width:1080px;height:1080px;transform:scale(.333);transform-origin:top left;background:linear-gradient(135deg,#714B67 0%,#5a3a52 100%);border-radius:32px;padding:80px;display:flex;flex-direction:column;justify-content:space-between;color:white;font-family:'DM Sans',sans-serif;position:relative;overflow:hidden;flex-shrink:0;}
+.cont-canvas-li{width:1200px;height:627px;transform:scale(.5);transform-origin:top left;background:linear-gradient(135deg,#714B67 0%,#5a3a52 100%);border-radius:24px;padding:60px 80px;display:flex;flex-direction:column;justify-content:space-between;color:white;font-family:'DM Sans',sans-serif;position:relative;overflow:hidden;flex-shrink:0;}
+.cont-canvas-em{width:600px;height:220px;transform:scale(.9);transform-origin:top left;background:var(--purple);border-radius:12px 12px 0 0;padding:40px 56px;display:flex;flex-direction:column;justify-content:center;color:white;font-family:'DM Sans',sans-serif;flex-shrink:0;}
+.cont-canvas-pdf{width:595px;background:white;border:1px solid #e5e7eb;border-radius:var(--radius);padding:40px;font-family:'DM Sans',sans-serif;color:#1f2937;}
+.cont-canvas-deco{position:absolute;border-radius:50%;background:rgba(255,255,255,.06);}
+/* PDF layouts */
+.cont-pdf-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:12px;border-bottom:2px solid #714B67;}
+.cont-pdf-logo{display:flex;align-items:center;gap:10px;}
+.cont-pdf-logo-icon{width:36px;height:36px;background:#714B67;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:white;}
+.cont-pdf-section{margin-bottom:20px;}
+.cont-pdf-section-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9b6b8a;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f3f4f6;}
+.cont-pdf-highlight{background:#f3eef1;border-left:3px solid #714B67;border-radius:0 8px 8px 0;padding:12px 16px;font-size:13px;color:#5a3a52;margin-bottom:12px;font-style:italic;line-height:1.6;}
+.cont-pdf-pain{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;font-size:13px;color:#374151;}
+.cont-pdf-pain-dot{width:7px;height:7px;border-radius:50%;background:#714B67;margin-top:4px;flex-shrink:0;}
+.cont-pdf-benefit{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;font-size:13px;color:#374151;}
+.cont-pdf-benefit-icon{flex-shrink:0;color:#714B67;}
+.cont-pdf-app-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.cont-pdf-app-item{border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;}
+.cont-pdf-app-name{font-size:11px;font-weight:700;color:#714B67;margin-bottom:2px;}
+.cont-pdf-app-val{font-size:11px;color:#6b7280;line-height:1.4;}
+.cont-pdf-app-wow{font-size:10px;color:#9b6b8a;margin-top:3px;font-style:italic;}
+.cont-pdf-dato{background:#714B67;color:white;border-radius:10px;padding:14px 18px;text-align:center;margin:14px 0;}
+.cont-pdf-cta{background:#714B67;color:white;border-radius:10px;padding:18px;text-align:center;margin-top:18px;}
+.cont-pdf-footer{margin-top:20px;padding-top:10px;border-top:1px solid #f3f4f6;font-size:10px;color:#9ca3af;text-align:center;}
+
 /* Pendientes drawer in disc */
 .disc-pendientes-btn{padding:7px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;background:white;color:#374151;border:1.5px solid #e5e7eb;border-radius:999px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;}
 .disc-pendientes-btn:hover{border-color:#f97316;color:#f97316;}
 .disc-pend-count{background:#f97316;color:white;font-size:11px;font-weight:700;padding:1px 6px;border-radius:999px;min-width:18px;text-align:center;}
+
+/* ════════════════════════════════════════
+   ODOO FRAMEWORK TOKENS (Brand 2026)
+════════════════════════════════════════ */
+:root {
+  --od-purple:#714B67; --od-purple-deep:#5B3C53;
+  --od-green:#017E84; --od-red:#FC787D;
+  --od-cyan:#1BB6F9; --od-yellow:#FBB130; --od-teal:#00CEB3;
+  --od-black:#21272B; --od-shape-gray:#F3F4F6; --od-muted:#6B7280;
+  --od-line:#E5E7EB;
+  --od-font-headline:'Caveat',cursive; --od-font-body:'Inter',sans-serif;
+  --od-r-btn:4px; --od-r-img:10px; --od-r-large:200px;
+}
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ════════════════════════════════════════
+   COMPANY PICKER
+════════════════════════════════════════ */
+.cp-wrap{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+.cp-header{padding:16px 20px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between;}
+.cp-header h4{font-size:14px;font-weight:700;}
+.cp-search-wrap{padding:12px 20px;border-bottom:1px solid var(--gray-100);}
+.cp-search{width:100%;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:14px;outline:none;}
+.cp-search:focus{border-color:var(--purple);}
+.cp-company-list{max-height:220px;overflow-y:auto;}
+.cp-company-item{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;cursor:pointer;transition:background .15s;border-bottom:1px solid var(--gray-50);}
+.cp-company-item:hover{background:var(--purple-light);}
+.cp-company-item.selected{background:var(--purple-light);border-left:3px solid var(--purple);}
+.cp-company-name{font-size:14px;font-weight:600;}
+.cp-company-meta{font-size:12px;color:var(--gray-400);}
+.cp-contact-list{padding:8px 20px 12px;background:var(--gray-50);border-top:1px solid var(--gray-100);}
+.cp-contact-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .15s;}
+.cp-contact-item:hover{background:var(--gray-100);}
+.cp-contact-item.selected{background:var(--purple-light);color:var(--purple);}
+.cp-contact-name{font-size:13px;font-weight:600;}
+.cp-contact-role{font-size:11px;color:var(--gray-400);}
+.cp-new-btn{padding:6px 14px;border-radius:99px;border:1.5px dashed var(--purple);background:transparent;color:var(--purple);font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;display:block;margin-top:8px;}
+.cp-selected-pill{display:inline-flex;align-items:center;gap:8px;background:var(--purple-light);color:var(--purple);border:1.5px solid var(--purple);border-radius:99px;padding:6px 14px;font-size:13px;font-weight:600;margin-bottom:12px;}
+.cp-selected-pill button{background:none;border:none;color:var(--purple);cursor:pointer;font-size:14px;padding:0;line-height:1;}
+
+/* ════════════════════════════════════════
+   GEN CONTENIDOS — Module shell + sub-menu
+════════════════════════════════════════ */
+.gc-layout{display:flex;min-height:calc(100vh - 60px);}
+.gc-submenu{width:220px;background:white;border-right:1px solid var(--gray-200);padding:20px 0;flex-shrink:0;position:sticky;top:0;height:calc(100vh - 60px);overflow-y:auto;}
+.gc-submenu-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray-400);padding:0 20px 8px;}
+.gc-submenu-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-size:14px;font-weight:500;color:var(--gray-700);transition:all .15s;position:relative;}
+.gc-submenu-item:hover{background:var(--gray-50);color:var(--gray-900);}
+.gc-submenu-item.active{background:var(--purple-light);color:var(--purple);font-weight:600;}
+.gc-submenu-item.active::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:var(--purple);border-radius:0 3px 3px 0;}
+.gc-submenu-icon{font-size:16px;width:20px;text-align:center;}
+.gc-content{flex:1;padding:28px;overflow-y:auto;}
+
+/* ════════════════════════════════════════
+   GEN CONTENIDOS — Form styles
+════════════════════════════════════════ */
+.gc-form-section{background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:24px;margin-bottom:20px;box-shadow:var(--shadow);}
+.gc-form-section h3{font-size:15px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.gc-selector-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.gc-selector{display:flex;flex-direction:column;gap:6px;}
+.gc-selector label{font-size:12px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;}
+.gc-select{padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:14px;color:var(--gray-900);background:white;cursor:pointer;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;}
+.gc-select:focus{border-color:var(--purple);}
+.gc-tone-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+.gc-tone-chip{padding:7px 14px;border:1.5px solid var(--gray-200);border-radius:99px;font-size:13px;font-weight:500;cursor:pointer;color:var(--gray-600);background:white;transition:all .15s;}
+.gc-tone-chip:hover{border-color:var(--purple);color:var(--purple);}
+.gc-tone-chip.active{background:var(--purple);color:white;border-color:var(--purple);}
+.gc-tone-desc{font-size:11px;color:var(--gray-400);margin-top:6px;font-style:italic;}
+.gc-format-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.gc-format-card{border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:12px 14px;cursor:pointer;transition:all .15s;}
+.gc-format-card:hover{border-color:var(--purple);}
+.gc-format-card.active{border-color:var(--purple);background:var(--purple-light);}
+.gc-format-card-title{font-size:13px;font-weight:700;margin-bottom:2px;}
+.gc-format-card-dims{font-size:11px;color:var(--gray-400);margin-bottom:4px;}
+.gc-format-card-when{font-size:11px;color:var(--gray-500);font-style:italic;}
+.gc-generate-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--purple),var(--purple-mid));color:white;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;margin-top:4px;}
+.gc-generate-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(113,75,103,.35);}
+.gc-generate-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+.gc-loading{display:none;align-items:center;gap:10px;padding:12px 0;color:var(--gray-500);font-size:13px;}
+.gc-loading.show{display:flex;}
+.gc-spinner{width:20px;height:20px;border:2px solid var(--gray-200);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite;}
+
+/* Output */
+.gc-output-wrap{display:none;}
+.gc-output-wrap.show{display:block;}
+.gc-output-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.gc-output-label{font-size:13px;font-weight:700;}
+.gc-output-actions{display:flex;gap:8px;}
+.gc-copy-btn{padding:6px 14px;border:1.5px solid var(--gray-200);border-radius:99px;font-size:12px;font-weight:600;background:white;color:var(--gray-600);cursor:pointer;transition:all .15s;}
+.gc-copy-btn:hover{border-color:var(--purple);color:var(--purple);}
+.gc-variants{display:flex;flex-direction:column;gap:16px;}
+.gc-variant-card{border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:20px;}
+.gc-variant-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.gc-variant-num{font-size:11px;font-weight:700;background:var(--purple-light);color:var(--purple);padding:3px 10px;border-radius:99px;}
+.gc-variant-text{font-size:14px;line-height:1.7;color:var(--gray-900);white-space:pre-wrap;}
+
+/* Image canvas */
+.gc-canvas-outer{display:flex;justify-content:center;overflow:hidden;margin:16px 0;}
+.gc-canvas-wa{width:1080px;height:1080px;transform-origin:top left;background:linear-gradient(135deg,#714B67,#5a3a52);border-radius:40px;padding:80px;display:flex;flex-direction:column;justify-content:space-between;color:white;font-family:'DM Sans',sans-serif;position:relative;overflow:hidden;}
+.gc-canvas-was{width:1080px;height:1920px;transform-origin:top left;}
+.gc-canvas-li{width:1200px;height:627px;transform-origin:top left;background:linear-gradient(135deg,#714B67,#5a3a52);border-radius:24px;padding:60px 80px;display:flex;flex-direction:column;justify-content:space-between;color:white;font-family:'DM Sans',sans-serif;position:relative;overflow:hidden;}
+.gc-canvas-lib{width:1584px;height:396px;transform-origin:top left;}
+.gc-canvas-em{width:600px;height:200px;transform-origin:top left;background:var(--purple);border-radius:12px 12px 0 0;padding:40px 56px;display:flex;flex-direction:column;justify-content:center;color:white;font-family:'DM Sans',sans-serif;}
+.gc-canvas-ems{width:300px;height:100px;transform-origin:top left;}
+.gc-download-btn{padding:10px 20px;background:var(--success);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;}
+
+/* ════════════════════════════════════════
+   CENTRO DE CONTROL (home panel)
+════════════════════════════════════════ */
+.cdc-panel{margin-top:32px;}
+.cdc-panel h3{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.cdc-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.cdc-card{background:white;border-radius:var(--radius);border:1px solid var(--gray-200);padding:20px;box-shadow:var(--shadow);}
+.cdc-card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin-bottom:12px;}
+.cdc-task-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-50);cursor:pointer;transition:opacity .15s;}
+.cdc-task-item:hover{opacity:.8;}
+.cdc-task-item:last-child{border-bottom:none;}
+.cdc-task-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.cdc-dot-red{background:var(--danger);}
+.cdc-dot-yellow{background:var(--warning);}
+.cdc-dot-green{background:var(--success);}
+.cdc-dot-blue{background:#1d4ed8;}
+.cdc-task-text{font-size:13px;color:var(--gray-700);flex:1;}
+.cdc-task-time{font-size:11px;color:var(--gray-400);}
+.cdc-empty{font-size:13px;color:var(--gray-400);text-align:center;padding:16px;}
+
+/* ════════════════════════════════════════
+   PROPUESTA COMERCIAL — Page renderer
+════════════════════════════════════════ */
+.prop-viewer{background:#f1f1f1;padding:32px;min-height:100vh;}
+.prop-page{width:794px;min-height:1123px;background:white;margin:0 auto 24px;box-shadow:0 4px 20px rgba(0,0,0,.12);position:relative;overflow:hidden;font-family:'DM Sans','Inter',sans-serif;}
+.prop-toolbar{position:sticky;top:0;z-index:100;background:white;border-bottom:1px solid var(--gray-200);padding:12px 20px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);}
+.prop-page-purple{background:var(--purple);}
+.prop-page-content{padding:56px;}
+.prop-headline{font-family:'Caveat',cursive;font-size:64px;font-weight:700;line-height:1;color:var(--od-black);}
+.prop-headline-white{color:white;}
+.prop-hl-red{background-image:url('https://gacj-lang.github.io/outbound-mx/assets/highlights/red_highlight_bold_01.svg');background-repeat:no-repeat;background-position:center 78%;background-size:100% .55em;padding:0 .1em;}
+.prop-eyebrow{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--od-green);}
+.prop-section-label{display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--purple);background:white;padding:8px 14px;border-radius:200px;margin-bottom:24px;}
+.prop-stat-num{font-family:'Caveat',cursive;font-size:56px;font-weight:700;line-height:1;color:var(--purple);}
+.prop-stat-label{font-size:13px;font-weight:500;color:var(--od-black);margin-top:4px;}
+.prop-beneficio{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;}
+.prop-beneficio-icon{font-size:20px;flex-shrink:0;margin-top:2px;}
+.prop-beneficio-title{font-size:15px;font-weight:700;margin-bottom:2px;}
+.prop-beneficio-desc{font-size:13px;color:var(--od-muted);line-height:1.5;}
+.prop-timeline-step{text-align:center;}
+.prop-timeline-dot{width:56px;height:56px;border-radius:50%;background:var(--purple);color:white;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;margin:0 auto 12px;border:6px solid var(--od-shape-gray);}
+.prop-app-card{display:flex;align-items:flex-start;gap:14px;padding:16px;background:white;border-radius:var(--od-r-img);border:1px solid var(--od-line);margin-bottom:10px;}
+.prop-app-icon{width:48px;height:48px;border-radius:10px;background:var(--od-yellow);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;}
+.prop-app-icon img{width:36px;height:36px;object-fit:contain;}
+.prop-app-name{font-size:15px;font-weight:700;margin-bottom:4px;}
+.prop-app-desc{font-size:13px;color:var(--od-muted);line-height:1.5;}
+.prop-pricing-table{width:100%;border-collapse:collapse;font-size:13px;}
+.prop-pricing-table th{background:var(--purple);color:white;padding:10px 14px;text-align:left;font-size:12px;font-weight:600;}
+.prop-pricing-table td{padding:10px 14px;border-bottom:1px solid var(--od-line);}
+.prop-pricing-table tr:nth-child(even) td{background:var(--od-shape-gray);}
+.prop-cta-btn{display:inline-flex;align-items:center;gap:8px;background:white;color:var(--purple);border-radius:var(--od-r-btn);padding:12px 22px;font-weight:600;font-size:15px;text-decoration:none;transition:transform .15s;}
+.prop-cta-btn:hover{transform:translateY(-2px);}
+.prop-footer{position:absolute;bottom:0;left:0;right:0;padding:16px 40px;background:var(--od-shape-gray);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--od-muted);}
+
+/* ════════════════════════════════════════
+   FRAMEWORK VISUAL MODULE
+════════════════════════════════════════ */
+.fw-wrap{max-width:1100px;}
+.fw-section{margin-bottom:48px;}
+.fw-section-title{font-size:18px;font-weight:700;color:var(--purple);margin-bottom:20px;display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:2px solid var(--purple-light);}
+.fw-color-grid{display:flex;gap:12px;flex-wrap:wrap;}
+.fw-swatch{width:80px;}
+.fw-swatch-block{width:80px;height:80px;border-radius:12px;margin-bottom:6px;}
+.fw-swatch-name{font-size:11px;font-weight:700;color:var(--gray-700);}
+.fw-swatch-hex{font-size:10px;color:var(--gray-400);font-family:'DM Mono',monospace;}
+.fw-type-sample{margin-bottom:16px;padding:16px;background:var(--gray-50);border-radius:var(--radius);}
+.fw-icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:12px;}
+.fw-icon-item{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;background:white;border-radius:var(--radius);border:1px solid var(--gray-200);}
+.fw-icon-item img{width:40px;height:40px;object-fit:contain;}
+.fw-icon-name{font-size:10px;color:var(--gray-500);text-align:center;}
+.fw-hl-demo{position:relative;display:inline-block;padding:0 .1em;font-size:18px;font-weight:700;}
 </style>
 </head>
 <body>
@@ -537,11 +805,12 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" id="nav-home" onclick="showModule('home')"><span class="nav-icon">🏠</span> Inicio</button>
       <div class="nav-section-label" style="margin-top:8px">Módulos</div>
       <button class="nav-item" id="nav-discovery" onclick="showModule('discovery')"><span class="nav-icon">🔍</span> Discovery Guide</button>
+      <button class="nav-item" id="nav-gencontenidos" onclick="showModule('gencontenidos')"><span class="nav-icon">✉️</span> Generación de contenidos</button>
       <button class="nav-item" id="nav-csv" onclick="showModule('csv')"><span class="nav-icon">📋</span> CSV Builder</button>
-      <button class="nav-item" id="nav-seguimiento" onclick="showModule('seguimiento')"><span class="nav-icon">💬</span> Seguimiento IA</button>
-      <button class="nav-item" id="nav-contenidos" onclick="showModule('contenidos')"><span class="nav-icon">🎨</span> Contenidos</button>
       <button class="nav-item" id="nav-pricing" onclick="showModule('pricing')"><span class="nav-icon">💰</span> Pricing</button>
-      <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')"><span class="nav-icon">📊</span> Analytics</button>
+      <button class="nav-item" id="nav-analytics" onclick="showModule('📊')"><span class="nav-icon">📊</span> Analytics</button>
+      <div class="nav-section-label" style="margin-top:8px">Recursos</div>
+      <button class="nav-item" id="nav-framework" onclick="showModule('framework')"><span class="nav-icon">🎨</span> Framework Visual</button>
       <div class="nav-section-label" style="margin-top:8px">Gestión</div>
       <button class="nav-item" id="nav-manager" onclick="showModule('manager')" style="display:none"><span class="nav-icon">👥</span> Manager<span class="nav-badge" id="pendingBadge"></span></button>
       <button class="nav-item" id="nav-settings" onclick="showModule('settings')"><span class="nav-icon">⚙️</span> Configuración</button>
@@ -591,13 +860,13 @@ const AE_LIST = {
 };
 const MANAGER = { gram:'gacj', name:'Geovani Ariel Jiménez Cruz', email:'gacj@odoo.com' };
 const MODULES = [
-  { id:'discovery', icon:'🔍', label:'Discovery Guide', phase:2, ready:true },
-  { id:'csv',       icon:'📋', label:'CSV Builder',    phase:3, ready:false },
-  { id:'seguimiento',icon:'💬',label:'Seguimiento IA', phase:4, ready:false },
-  { id:'contenidos',icon:'🎨', label:'Contenidos',     phase:5, ready:false },
-  { id:'pricing',   icon:'💰', label:'Pricing',        phase:6, ready:false },
-  { id:'analytics', icon:'📊', label:'Analytics',      phase:7, ready:false },
+  { id:'discovery',     icon:'🔍', label:'Discovery Guide',          phase:2, ready:true  },
+  { id:'gencontenidos', icon:'✉️', label:'Generación de contenidos', phase:5, ready:true  },
+  { id:'csv',           icon:'📋', label:'CSV Builder',              phase:3, ready:false },
+  { id:'pricing',       icon:'💰', label:'Pricing',                  phase:6, ready:false },
+  { id:'analytics',     icon:'📊', label:'Analytics',                phase:7, ready:false },
 ];
+const ASSETS = 'https://gacj-lang.github.io/outbound-mx/assets';
 
 let app, auth, db, firebaseReady=false;
 let currentUser=null, currentUserData=null;
@@ -777,20 +1046,22 @@ window.showModule = function(moduleId, skipNavHighlight=false){
   const mc=document.getElementById('mainContent');
   const tb=document.getElementById('appTopbar');
   if(disc.formActive){ disc.discardForm(); }
+  if(cont.formActive){ cont.discard(); }
   mc.classList.remove('topbar-hidden');
   tb.style.display='flex';
-  const titles={home:'Inicio',discovery:'Discovery Guide',csv:'CSV Builder',seguimiento:'Seguimiento IA',
-    contenidos:'Contenidos',pricing:'Pricing',analytics:'Analytics',manager:'Panel de Manager',settings:'Configuración'};
+  const titles={home:'Inicio',discovery:'Discovery Guide',gencontenidos:'Generación de contenidos',
+    csv:'CSV Builder',pricing:'Pricing',analytics:'Analytics',
+    manager:'Panel de Manager',settings:'Configuración',framework:'Framework Visual'};
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
   const content=document.getElementById('moduleContent');
   const map={
     home:renderHome, discovery:renderDiscoveryList,
-    csv:()=>renderComingSoon('CSV Builder','📋','Fase 3','Describe prospectos en texto libre y Claude genera el CSV listo para importar en Odoo CRM.'),
-    seguimiento:()=>renderComingSoon('Seguimiento IA','💬','Fase 4','Genera mensajes personalizados de LinkedIn, Email y WhatsApp con cadencia sugerida.'),
-    contenidos:()=>renderComingSoon('Contenidos','🎨','Fase 5','Brochures, imágenes para WhatsApp/LinkedIn/Email y propuestas comerciales.'),
+    gencontenidos:renderGenContenidos,
+    csv:()=>renderComingSoon('CSV Builder','📋','Fase 3','Describe prospectos en texto libre y genera el CSV listo para importar en Odoo CRM.'),
     pricing:()=>renderComingSoon('Pricing','💰','Fase 6','Calculadora de precios y propuestas con módulos de Odoo.'),
     analytics:()=>renderComingSoon('Analytics','📊','Fase 7','Métricas de uso por AE, TL y equipo.'),
     manager:renderManagerPanel, settings:renderSettings,
+    framework:renderFrameworkVisual,
   };
   const fn=map[moduleId]; if(fn){ content.style.padding='28px'; content.innerHTML=''; fn(); }
 };
@@ -2043,6 +2314,1548 @@ window.showNotif=function(msg,type='info'){
   n.textContent=msg; n.className=`global-notif notif-${type} show`;
   clearTimeout(notifT); notifT=setTimeout(()=>n.classList.remove('show'),3500);
 };
+
+// ══════════════════════════════════════════
+// COMPANY CRM
+// ══════════════════════════════════════════
+const INDUSTRY_MAP = {
+  'Construcción':'industry_construction','Retail':'industry_grocery_store',
+  'Restaurante':'industry_restaurant','Comercializadora':'industry_beverages_distributor',
+  'Manufactura':'industry_odoo_partner','Software/IT':'industry_it',
+  'Servicios':'industry_certification','Distribución':'industry_beverages_distributor',
+  'Ecommerce':'industry_electronic_store','Salud':'industry_pharmaceutical',
+  'Educación':'industry_certification','Otra':'industry_odoo_partner'
+};
+
+async function saveCompany(data){
+  if(!db) return null;
+  try{
+    if(data.id){
+      await updateDoc(doc(db,'companies',data.id),{...data,updatedAt:serverTimestamp()});
+      return data.id;
+    } else {
+      const ref=await addDoc(collection(db,'companies'),{...data,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+      return ref.id;
+    }
+  } catch(e){ console.error(e); return null; }
+}
+
+async function searchCompanies(term=''){
+  if(!db) return [];
+  try{
+    const snap=await getDocs(query(collection(db,'companies'),orderBy('nombre')));
+    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!term) return all;
+    const t=term.toLowerCase();
+    return all.filter(c=>(c.nombre||'').toLowerCase().includes(t)||(c.giro||'').toLowerCase().includes(t));
+  } catch(e){ return []; }
+}
+
+async function getCompany(id){
+  if(!db||!id) return null;
+  try{ const s=await getDoc(doc(db,'companies',id)); return s.exists()?{id:s.id,...s.data()}:null; }
+  catch(e){ return null; }
+}
+
+// ── Company Picker Component ──
+const cpState = { selectedCompany:null, selectedContact:null, companies:[], cb:null };
+
+async function mountCompanyPicker(containerId, callback, label='Empresa y contacto'){
+  cpState.cb=callback;
+  cpState.companies=await searchCompanies();
+  renderCompanyPicker(containerId, label);
+}
+
+function renderCompanyPicker(containerId, label='Empresa y contacto'){
+  const container=document.getElementById(containerId); if(!container) return;
+  const sel=cpState.selectedCompany;
+  const selCon=cpState.selectedContact;
+  if(sel){
+    container.innerHTML=`
+      <div class="cp-selected-pill">
+        <span>🏢 ${sel.nombre}</span>
+        ${selCon?`<span>· 👤 ${selCon.nombre} (${selCon.cargo||''})</span>`:''}
+        <button onclick="cpClear('${containerId}','${label}')">×</button>
+      </div>`;
+    return;
+  }
+  container.innerHTML=`
+    <div class="cp-wrap">
+      <div class="cp-header"><h4>🏢 ${label}</h4>
+        <button class="btn btn-sm btn-primary" onclick="cpShowNew('${containerId}','${label}')">+ Nueva empresa</button>
+      </div>
+      <div class="cp-search-wrap">
+        <input class="cp-search" id="cpSearch_${containerId}" placeholder="Buscar empresa..." oninput="cpSearch('${containerId}','${label}',this.value)">
+      </div>
+      <div class="cp-company-list" id="cpList_${containerId}">
+        ${cpState.companies.length===0?'<p class="empty-state">Sin empresas aún — crea la primera</p>':
+          cpState.companies.map(c=>`
+            <div class="cp-company-item" onclick="cpSelect('${c.id}','${containerId}','${label}')">
+              <div><div class="cp-company-name">${c.nombre}</div><div class="cp-company-meta">${c.giro||''} · ${c.tamaño||''}</div></div>
+              <span style="font-size:10px;color:var(--gray-300)">›</span>
+            </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+window.cpSearch=async function(cid,label,term){
+  cpState.companies=await searchCompanies(term);
+  const list=document.getElementById('cpList_'+cid); if(!list) return;
+  list.innerHTML=cpState.companies.length===0?'<p class="empty-state">Sin resultados</p>':
+    cpState.companies.map(c=>`<div class="cp-company-item" onclick="cpSelect('${c.id}','${cid}','${label}')"><div><div class="cp-company-name">${c.nombre}</div><div class="cp-company-meta">${c.giro||''}</div></div><span style="font-size:10px;color:var(--gray-300)">›</span></div>`).join('');
+};
+
+window.cpSelect=async function(companyId,cid,label){
+  const c=await getCompany(companyId); if(!c) return;
+  cpState.selectedCompany=c;
+  cpState.selectedContact=null;
+  const container=document.getElementById(cid); if(!container) return;
+  // Show contacts
+  const contacts=c.contacts||[];
+  container.innerHTML=`
+    <div class="cp-wrap">
+      <div class="cp-header"><h4>🏢 ${c.nombre}</h4><button onclick="cpBack('${cid}','${label}')" class="btn btn-sm btn-ghost">‹ Cambiar</button></div>
+      <div class="cp-contact-list">
+        <div style="font-size:11px;font-weight:700;color:var(--gray-400);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Selecciona un contacto</div>
+        ${contacts.map((ct,i)=>`<div class="cp-contact-item" onclick="cpSelectContact(${i},'${cid}','${label}')">
+          <div class="user-avatar sm">${ct.nombre[0]}</div>
+          <div><div class="cp-contact-name">${ct.nombre}</div><div class="cp-contact-role">${ct.cargo||''} · ${ct.email||''}</div></div>
+        </div>`).join('')}
+        <button class="cp-new-btn" onclick="cpAddContact('${cid}','${label}')">+ Agregar contacto</button>
+      </div>
+    </div>`;
+};
+
+window.cpSelectContact=function(idx,cid,label){
+  const c=cpState.selectedCompany; if(!c) return;
+  cpState.selectedContact=(c.contacts||[])[idx];
+  renderCompanyPicker(cid,label);
+  if(cpState.cb) cpState.cb(cpState.selectedCompany,cpState.selectedContact);
+};
+
+window.cpBack=function(cid,label){
+  cpState.selectedCompany=null; cpState.selectedContact=null;
+  renderCompanyPicker(cid,label);
+};
+
+window.cpClear=function(cid,label){
+  cpState.selectedCompany=null; cpState.selectedContact=null;
+  if(cpState.cb) cpState.cb(null,null);
+  renderCompanyPicker(cid,label);
+};
+
+window.cpShowNew=function(cid,label){
+  const container=document.getElementById(cid); if(!container) return;
+  container.innerHTML=`
+    <div class="cp-wrap">
+      <div class="cp-header"><h4>+ Nueva empresa</h4><button onclick="cpBack('${cid}','${label}')" class="btn btn-sm btn-ghost">‹ Cancelar</button></div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+        <div class="form-group" style="margin-bottom:0"><label>Nombre de la empresa *</label><input type="text" class="input" id="cpNewNombre" placeholder="Ej. Grupo Alfa SA de CV"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin-bottom:0"><label>Giro / Industria</label>
+            <select class="input" id="cpNewGiro">
+              <option value="">— Selecciona —</option>
+              ${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0"><label>Tamaño</label>
+            <select class="input" id="cpNewTamano">
+              <option value="">— Selecciona —</option>
+              <option>1-10 empleados</option><option>11-50 empleados</option>
+              <option>51-200 empleados</option><option>200+ empleados</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0"><label>Origen de la oportunidad</label>
+          <select class="input" id="cpNewOrigen">
+            <option value="">— Selecciona —</option>
+            <option>Outbound (prospección)</option><option>Inbound (contacto directo)</option>
+            <option>Referido</option><option>LinkedIn</option><option>Apollo / Base de datos</option><option>Evento</option>
+          </select>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;margin-top:8px">Primer contacto</div>
+        <div class="form-group" style="margin-bottom:0"><label>Nombre completo *</label><input type="text" class="input" id="cpNewCtNombre" placeholder="Nombre del contacto"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin-bottom:0"><label>Cargo / Puesto</label><input type="text" class="input" id="cpNewCtCargo" placeholder="CEO, Gerente..."></div>
+          <div class="form-group" style="margin-bottom:0"><label>Correo</label><input type="email" class="input" id="cpNewCtEmail" placeholder="correo@empresa.com"></div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="cpSaveNew('${cid}','${label}')">Guardar empresa y continuar →</button>
+      </div>
+    </div>`;
+};
+
+window.cpSaveNew=async function(cid,label){
+  const nombre=document.getElementById('cpNewNombre')?.value.trim();
+  const ctNombre=document.getElementById('cpNewCtNombre')?.value.trim();
+  if(!nombre){ showNotif('Ingresa el nombre de la empresa','error'); return; }
+  const company={
+    nombre, giro:document.getElementById('cpNewGiro')?.value||'',
+    tamaño:document.getElementById('cpNewTamano')?.value||'',
+    origen:document.getElementById('cpNewOrigen')?.value||'',
+    contacts:ctNombre?[{nombre:ctNombre,cargo:document.getElementById('cpNewCtCargo')?.value||'',email:document.getElementById('cpNewCtEmail')?.value||''}]:[]
+  };
+  const id=await saveCompany(company); if(!id){ showNotif('Error al guardar','error'); return; }
+  company.id=id;
+  cpState.selectedCompany=company;
+  cpState.selectedContact=company.contacts[0]||null;
+  cpState.companies=[...cpState.companies,company];
+  renderCompanyPicker(cid,label);
+  if(cpState.cb) cpState.cb(cpState.selectedCompany,cpState.selectedContact);
+  showNotif('Empresa creada ✓','success');
+};
+
+window.cpAddContact=function(cid,label){
+  const container=document.getElementById(cid); if(!container) return;
+  const c=cpState.selectedCompany;
+  container.innerHTML=`
+    <div class="cp-wrap">
+      <div class="cp-header"><h4>+ Nuevo contacto en ${c.nombre}</h4><button onclick="cpSelect('${c.id}','${cid}','${label}')" class="btn btn-sm btn-ghost">‹ Cancelar</button></div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+        <div class="form-group" style="margin-bottom:0"><label>Nombre completo *</label><input type="text" class="input" id="cpAcNombre"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin-bottom:0"><label>Cargo</label><input type="text" class="input" id="cpAcCargo"></div>
+          <div class="form-group" style="margin-bottom:0"><label>Correo</label><input type="email" class="input" id="cpAcEmail"></div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="cpSaveContact('${cid}','${label}')">Agregar contacto →</button>
+      </div>
+    </div>`;
+};
+
+window.cpSaveContact=async function(cid,label){
+  const nombre=document.getElementById('cpAcNombre')?.value.trim();
+  if(!nombre){ showNotif('Ingresa el nombre','error'); return; }
+  const newContact={nombre,cargo:document.getElementById('cpAcCargo')?.value||'',email:document.getElementById('cpAcEmail')?.value||''};
+  const c=cpState.selectedCompany;
+  const contacts=[...(c.contacts||[]),newContact];
+  await saveCompany({...c,contacts});
+  c.contacts=contacts;
+  cpState.selectedContact=newContact;
+  renderCompanyPicker(cid,label);
+  if(cpState.cb) cpState.cb(c,newContact);
+  showNotif('Contacto agregado ✓','success');
+};
+
+// ══════════════════════════════════════════
+// HOME — CENTRO DE CONTROL enhancement
+// ══════════════════════════════════════════
+async function loadCentroControl(){
+  const container=document.getElementById('cdcTasks'); if(!container) return;
+  const tasks=[];
+  // Pending users
+  if(currentUserData?.role==='manager'&&db){
+    try{
+      const snap=await getDocs(query(collection(db,'users'),where('status','==','pending')));
+      snap.docs.forEach(d=>tasks.push({dot:'red',text:`Aprobar cuenta: ${d.data().name}`,action:"showModule('manager')"}));
+    } catch(e){}
+  }
+  // Pending brochure approvals
+  if((currentUserData?.role==='manager'||currentUserData?.role==='tl')&&db){
+    try{
+      const snap=await getDocs(query(collection(db,'brochureApprovals'),where('status','==','pendiente_aprobacion')));
+      snap.docs.forEach(d=>tasks.push({dot:'yellow',text:`Aprobar brochure: ${d.data().empresa||'Sin nombre'}`,action:"showModule('gencontenidos')"}));
+    } catch(e){}
+  }
+  // 15-day brochure update reminder
+  const lastUpdate=localStorage.getItem('brochure_last_update');
+  if(currentUserData?.role==='manager'&&lastUpdate){
+    const days=Math.floor((Date.now()-parseInt(lastUpdate))/(1000*60*60*24));
+    if(days>=15) tasks.push({dot:'yellow',text:`Han pasado ${days} días — actualiza el contenido del Brochure`,action:"showModule('gencontenidos')"});
+  }
+  if(tasks.length===0){
+    container.innerHTML='<div class="cdc-empty">✓ Todo al día — sin tareas pendientes</div>';
+  } else {
+    container.innerHTML=tasks.map(t=>`
+      <div class="cdc-task-item" onclick="${t.action}">
+        <div class="cdc-task-dot cdc-dot-${t.dot}"></div>
+        <span class="cdc-task-text">${t.text}</span>
+        <span class="cdc-task-time">›</span>
+      </div>`).join('');
+  }
+  // Recent discovery sessions
+  const actContainer=document.getElementById('cdcActivity'); if(!actContainer) return;
+  if(db){
+    try{
+      const q=currentUserData?.role==='ae'?
+        query(collection(db,'discoveryRecords'),where('aeUid','==',currentUserData.uid),orderBy('updatedAt','desc')):
+        query(collection(db,'discoveryRecords'),orderBy('updatedAt','desc'));
+      const snap=await getDocs(q);
+      const recent=snap.docs.slice(0,4).map(d=>d.data());
+      actContainer.innerHTML=recent.length===0?'<div class="cdc-empty">Sin actividad reciente</div>':
+        recent.map(r=>`<div class="cdc-task-item" style="cursor:default">
+          <div class="cdc-task-dot cdc-dot-blue"></div>
+          <span class="cdc-task-text">Discovery: ${r.empresa||'Sin nombre'} <span style="color:var(--gray-400)">(${r.aeGram||''})</span></span>
+          <span class="cdc-task-time">${r.status||'borrador'}</span>
+        </div>`).join('');
+    } catch(e){ actContainer.innerHTML='<div class="cdc-empty">Sin actividad</div>'; }
+  }
+}
+
+// ══════════════════════════════════════════
+// GENERACIÓN DE CONTENIDOS
+// ══════════════════════════════════════════
+const cont={
+  activeSection:'brochure',
+  company:null, contact:null,
+  tone:'interesante', length:'equilibrado', format:'1200x627',
+  output:null,
+  setSection(s){ this.activeSection=s; },
+  discard(){ this.company=null; this.contact=null; this.output=null; },
+  formActive:false,
+};
+
+function renderGenContenidos(){
+  const content=document.getElementById('moduleContent');
+  content.style.padding='0';
+  content.innerHTML=`
+    <div class="gc-layout">
+      <nav class="gc-submenu">
+        <div class="gc-submenu-title">Submódulos</div>
+        ${[
+          {id:'brochure',    icon:'📄', label:'Brochure'},
+          {id:'templates-wa',icon:'💬', label:'Templates WA'},
+          {id:'templates-co',icon:'📧', label:'Templates de correo'},
+          {id:'pub-linkedin',icon:'💼', label:'Publicación LinkedIn'},
+          {id:'msg-linkedin',icon:'👤', label:'Mensaje LinkedIn'},
+          {id:'propuesta',   icon:'📋', label:'Propuesta comercial'},
+        ].map(s=>`
+          <button class="gc-submenu-item ${cont.activeSection===s.id?'active':''}"
+            id="gcsub-${s.id}" onclick="gcShowSection('${s.id}')">
+            <span class="gc-submenu-icon">${s.icon}</span>${s.label}
+          </button>`).join('')}
+      </nav>
+      <div class="gc-content" id="gcContent">
+        <div style="display:flex;align-items:center;justify-content:center;padding:60px;color:var(--gray-400);font-size:14px">Cargando...</div>
+      </div>
+    </div>`;
+  gcShowSection(cont.activeSection);
+}
+
+window.gcShowSection=function(section){
+  cont.activeSection=section;
+  document.querySelectorAll('.gc-submenu-item').forEach(el=>el.classList.remove('active'));
+  const btn=document.getElementById('gcsub-'+section); if(btn) btn.classList.add('active');
+  const c=document.getElementById('gcContent'); if(!c) return;
+  const map={
+    'brochure':renderGcBrochure,'templates-wa':renderGcTemplatesWA,
+    'templates-co':renderGcTemplatesCorreo,'pub-linkedin':renderGcPublicacionLinkedIn,
+    'msg-linkedin':renderGcMensajeLinkedIn,'propuesta':renderGcPropuesta,
+  };
+  const fn=map[section]; if(fn){ c.innerHTML=''; fn(); }
+};
+
+// ── Tone + Length helpers ──
+const TONES=[
+  {id:'formal',       label:'Formal',      icon:'👔', desc:'Directo y profesional. Ideal para primeros contactos o empresas conservadoras.'},
+  {id:'interesante',  label:'Interesante', icon:'✨', desc:'Conversacional, despierta curiosidad. Funciona en la mayoría de los casos.'},
+  {id:'misterioso',   label:'Misterioso',  icon:'🎯', desc:'Genera intriga, CTA implícito. Para prospectos difíciles o refresh de conversación.'},
+  {id:'urgente',      label:'Urgente',     icon:'⚡', desc:'Crea FOMO sutil. Usar cuando hay un trigger (cierre fiscal, fin de período).'},
+  {id:'empatico',     label:'Empático',    icon:'🤝', desc:'Entiende el dolor primero. Para prospectos en situaciones difíciles.'},
+];
+const LENGTHS=[
+  {id:'corto',       label:'Corto',      icon:'•', desc:'Máx 50 palabras. Perfecto para WhatsApp y primer contacto.'},
+  {id:'equilibrado', label:'Equilibrado',icon:'••',desc:'80-120 palabras. Ideal para email frío y mensajes de seguimiento.'},
+  {id:'largo',       label:'Largo',      icon:'•••',desc:'150-250 palabras. Para email con contexto o propuestas por mensaje.'},
+];
+
+function renderToneSelector(current,onchange){
+  return `<div class="gc-tone-grid" id="gcTones">
+    ${TONES.map(t=>`<button class="gc-tone-chip ${current===t.id?'active':''}"
+      data-tone="${t.id}" onclick="gcSetTone('${t.id}',this)">${t.icon} ${t.label}</button>`).join('')}
+  </div>
+  <div class="gc-tone-desc" id="gcToneDesc">${TONES.find(t=>t.id===current)?.desc||''}</div>`;
+}
+function renderLengthSelector(current){
+  return `<div class="gc-tone-grid" id="gcLengths">
+    ${LENGTHS.map(l=>`<button class="gc-tone-chip ${current===l.id?'active':''}"
+      data-length="${l.id}" onclick="gcSetLength('${l.id}',this)">${l.icon} ${l.label} — ${l.desc.split('.')[0]}</button>`).join('')}
+  </div>`;
+}
+window.gcSetTone=function(id,el){
+  cont.tone=id;
+  document.querySelectorAll('[data-tone]').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const desc=document.getElementById('gcToneDesc');
+  if(desc) desc.textContent=TONES.find(t=>t.id===id)?.desc||'';
+};
+window.gcSetLength=function(id,el){
+  cont.length=id;
+  document.querySelectorAll('[data-length]').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+};
+
+function gcCompanySection(subId){
+  return `<div id="gcCp_${subId}"></div>`;
+}
+function gcInitCP(subId){ mountCompanyPicker(`gcCp_${subId}`,(company,contact)=>{ cont.company=company; cont.contact=contact; },subId); }
+
+// ── Build Claude prompt context from company ──
+function gcCompanyContext(){
+  const c=cont.company, ct=cont.contact;
+  if(!c) return '';
+  return `EMPRESA: ${c.nombre} | Giro: ${c.giro||'nd'} | Tamaño: ${c.tamaño||'nd'} | Origen: ${c.origen||'nd'}
+CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.email||'nd'}`:'Sin contacto seleccionado'}`;
+}
+
+async function gcCallClaude(prompt){
+  const key=localStorage.getItem('outbound_claude_key')||'';
+  if(!key){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,messages:[{role:'user',content:prompt}]})
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  return data.content?.[0]?.text||'';
+}
+
+function gcShowLoading(id,show){
+  const el=document.getElementById(id); if(el){ el.classList.toggle('show',show); }
+}
+function gcShowOutput(wrapId,content,variants=false){
+  const wrap=document.getElementById(wrapId); if(!wrap) return;
+  wrap.classList.add('show');
+  if(variants){
+    // Parse numbered variants
+    const parts=content.split(/\n(?=VARIANTE [123]|Variante [123]|Version [123]|VERSIÓN [123])/i).filter(p=>p.trim());
+    wrap.innerHTML=`<div class="gc-output-header"><span class="gc-output-label">Variantes generadas</span>
+      <div class="gc-output-actions">
+        <button class="gc-copy-btn" onclick="navigator.clipboard.writeText(this.closest('.gc-output-wrap').querySelector('.gc-variants').textContent).then(()=>showNotif('Copiado ✓','success'))">Copiar todo</button>
+      </div></div>
+      <div class="gc-variants">${parts.map((p,i)=>`<div class="gc-variant-card">
+        <div class="gc-variant-header"><span class="gc-variant-num">Variante ${i+1}</span>
+          <button class="gc-copy-btn" onclick="navigator.clipboard.writeText(this.closest('.gc-variant-card').querySelector('.gc-variant-text').textContent).then(()=>showNotif('Copiado ✓','success'))">Copiar</button>
+        </div>
+        <div class="gc-variant-text">${p.replace(/^(VARIANTE|Variante|Version|VERSIÓN) [123]:?\s*/i,'').trim()}</div>
+      </div>`).join('')}</div>`;
+  } else {
+    wrap.innerHTML=`<div class="gc-output-header"><span class="gc-output-label">Contenido generado</span>
+      <div class="gc-output-actions">
+        <button class="gc-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('gcOutputText').textContent).then(()=>showNotif('Copiado ✓','success'))">Copiar</button>
+        <button class="gc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="gcRegenerateBtn()">Regenerar</button>
+      </div></div>
+      <div class="gc-variant-card"><div class="gc-variant-text" id="gcOutputText">${content}</div></div>`;
+  }
+}
+
+// ── 1. Templates WA ──
+function renderGcTemplatesWA(){
+  const c=document.getElementById('gcContent');
+  c.innerHTML=`
+    <div style="max-width:800px">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">💬 Templates de WhatsApp</h2>
+      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Genera mensajes personalizados para WhatsApp con el tono y longitud correctos para cada momento.</p>
+
+      <div class="gc-form-section">
+        <h3>🏢 Empresa y contacto</h3>
+        ${gcCompanySection('wa')}
+      </div>
+
+      <div class="gc-form-section">
+        <h3>🎯 Contexto adicional</h3>
+        <div class="form-group"><label>¿Qué quieres lograr con este mensaje?</label>
+          <select class="gc-select" id="gcWaObjetivo">
+            <option value="primer_contacto">Primer contacto / romper el hielo</option>
+            <option value="seguimiento">Seguimiento después de primera reunión</option>
+            <option value="reactivar">Reactivar prospecto frío</option>
+            <option value="compartir_info">Compartir información / brochure</option>
+            <option value="agendar">Agendar demo o reunión</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Contexto adicional (opcional)</label>
+          <textarea class="input" id="gcWaContexto" placeholder="Ej. Mencionaron que tienen problemas con su sistema de inventario..." style="min-height:80px;resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <div class="gc-form-section">
+        <h3>✍️ Estilo del mensaje</h3>
+        <div class="gc-selector" style="margin-bottom:16px"><label>Tono</label>${renderToneSelector(cont.tone)}</div>
+        <div class="gc-selector"><label>Longitud</label>${renderLengthSelector(cont.length)}</div>
+      </div>
+
+      <button class="gc-generate-btn" id="gcWaBtn" onclick="gcGenerateWA()">
+        <span>✨</span> Generar 3 variantes de mensaje WA
+      </button>
+      <div class="gc-loading" id="gcWaLoading"><div class="gc-spinner"></div><span>Generando variantes...</span></div>
+      <div class="gc-output-wrap" id="gcWaOutput" style="margin-top:20px"></div>
+    </div>`;
+  gcInitCP('wa');
+}
+
+window.gcGenerateWA=async function(){
+  if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
+  const obj=document.getElementById('gcWaObjetivo')?.value||'primer_contacto';
+  const ctx=document.getElementById('gcWaContexto')?.value||'';
+  const btn=document.getElementById('gcWaBtn');
+  btn.disabled=true; gcShowLoading('gcWaLoading',true);
+  document.getElementById('gcWaOutput').classList.remove('show');
+  try{
+    const text=await gcCallClaude(`Eres un experto en outbound B2B para México. Genera 3 variantes de mensaje de WhatsApp para un Account Executive de Odoo.
+
+${gcCompanyContext()}
+OBJETIVO: ${obj.replace(/_/g,' ')}
+CONTEXTO ADICIONAL: ${ctx||'ninguno'}
+TONO: ${cont.tone} | LONGITUD: ${cont.length}
+
+Reglas:
+- Escribe en español de México, tuteo informal pero profesional
+- NO menciones el nombre de Claude ni de ninguna IA
+- NO uses emojis en exceso (máx 1-2 por mensaje)
+- Cada variante debe sentirse diferente (ángulo distinto)
+- Para longitud "corto": máx 3 líneas. "equilibrado": 5-8 líneas. "largo": 10-15 líneas
+- Incluye siempre un CTA claro al final
+- Formato: "VARIANTE 1:\n[texto]\n\nVARIANTE 2:\n[texto]\n\nVARIANTE 3:\n[texto]"`);
+    gcShowOutput('gcWaOutput',text,true);
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+  btn.disabled=false; gcShowLoading('gcWaLoading',false);
+};
+
+// ── 2. Templates Correo ──
+function renderGcTemplatesCorreo(){
+  const c=document.getElementById('gcContent');
+  c.innerHTML=`
+    <div style="max-width:800px">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📧 Templates de correo</h2>
+      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Correos de outbound optimizados para mercados LATAM. Incluye asunto + cuerpo.</p>
+
+      <div class="gc-form-section">
+        <h3>🏢 Empresa y contacto</h3>
+        ${gcCompanySection('co')}
+      </div>
+
+      <div class="gc-form-section">
+        <h3>🎯 Configuración</h3>
+        <div class="gc-selector-grid">
+          <div class="gc-selector"><label>Objetivo del correo</label>
+            <select class="gc-select" id="gcCoObjetivo">
+              <option value="cold_email">Cold email — primer contacto</option>
+              <option value="follow_up_1">Follow-up 1 (post first email)</option>
+              <option value="follow_up_2">Follow-up 2 (breakup email)</option>
+              <option value="post_demo">Post-demo — próximos pasos</option>
+              <option value="compartir_recursos">Compartir brochure / recursos</option>
+              <option value="propuesta">Enviar propuesta comercial</option>
+            </select>
+          </div>
+          <div class="gc-selector"><label>Industria del prospecto</label>
+            <select class="gc-select" id="gcCoIndustria">
+              <option value="">— Autodetectar de empresa —</option>
+              ${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px"><label>Contexto o pain point principal detectado</label>
+          <textarea class="input" id="gcCoContexto" placeholder="Ej. No tienen visibilidad financiera en tiempo real..." style="min-height:80px;resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <div class="gc-form-section">
+        <h3>✍️ Estilo</h3>
+        <div class="gc-selector" style="margin-bottom:16px"><label>Tono</label>${renderToneSelector(cont.tone)}</div>
+        <div class="gc-selector"><label>Longitud</label>${renderLengthSelector(cont.length)}</div>
+      </div>
+
+      <button class="gc-generate-btn" id="gcCoBtn" onclick="gcGenerateCorreo()">
+        <span>✨</span> Generar 3 variantes de correo
+      </button>
+      <div class="gc-loading" id="gcCoLoading"><div class="gc-spinner"></div><span>Generando correos...</span></div>
+      <div class="gc-output-wrap" id="gcCoOutput" style="margin-top:20px"></div>
+    </div>`;
+  gcInitCP('co');
+}
+
+window.gcGenerateCorreo=async function(){
+  if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
+  const obj=document.getElementById('gcCoObjetivo')?.value||'cold_email';
+  const ind=document.getElementById('gcCoIndustria')?.value||cont.company?.giro||'';
+  const ctx=document.getElementById('gcCoContexto')?.value||'';
+  const btn=document.getElementById('gcCoBtn');
+  btn.disabled=true; gcShowLoading('gcCoLoading',true);
+  document.getElementById('gcCoOutput').classList.remove('show');
+  try{
+    const text=await gcCallClaude(`Eres un experto en outbound B2B y email marketing para México y LATAM. Genera 3 variantes de email de ventas para un Account Executive de Odoo.
+
+${gcCompanyContext()}
+TIPO DE EMAIL: ${obj.replace(/_/g,' ')} | INDUSTRIA: ${ind||'no especificada'}
+PAIN POINT / CONTEXTO: ${ctx||'no especificado'}
+TONO: ${cont.tone} | LONGITUD: ${cont.length}
+
+Mejores prácticas LATAM que DEBES seguir:
+- Asunto: máx 50 caracteres, sin clickbait pero sí intriga
+- Personalización real en las primeras 2 líneas
+- Pain-first approach: menciona el problema antes de la solución
+- Evita sonar como "vendedor" — sé consultor
+- CTA único y claro (no múltiples CTAs)
+- P.D. al final con un hook adicional (muy efectivo en LATAM)
+- Tuteo profesional
+
+Formato de cada variante:
+VARIANTE N:
+ASUNTO: [asunto del correo]
+---
+[cuerpo completo del email]`);
+    gcShowOutput('gcCoOutput',text,true);
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+  btn.disabled=false; gcShowLoading('gcCoLoading',false);
+};
+
+// ── 3. Mensaje LinkedIn ──
+function renderGcMensajeLinkedIn(){
+  const c=document.getElementById('gcContent');
+  c.innerHTML=`
+    <div style="max-width:800px">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">👤 Mensaje de LinkedIn</h2>
+      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Mensajes de conexión y seguimiento optimizados para LinkedIn. El límite de conexión es 300 caracteres.</p>
+
+      <div class="gc-form-section">
+        <h3>🏢 Empresa y contacto</h3>
+        ${gcCompanySection('li')}
+      </div>
+
+      <div class="gc-form-section">
+        <h3>🎯 Tipo de mensaje</h3>
+        <div class="gc-selector-grid">
+          <div class="gc-selector"><label>Objetivo</label>
+            <select class="gc-select" id="gcLiTipo">
+              <option value="conexion">Nota de conexión (máx 300 caracteres)</option>
+              <option value="primer_mensaje">Primer mensaje post-conexión</option>
+              <option value="seguimiento">Seguimiento (no respondió)</option>
+              <option value="inmail">InMail (prospecto sin conexión)</option>
+            </select>
+          </div>
+          <div class="gc-selector"><label>Encontraste algo en su perfil?</label>
+            <input type="text" class="gc-select" id="gcLiHook" placeholder="Ej. Compartiste un post sobre ERP, cambiaste trabajo...">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px"><label>Contexto adicional</label>
+          <textarea class="input" id="gcLiContexto" placeholder="¿Qué sabes de esta persona? ¿Hay algo en su perfil que puedas usar?" style="min-height:70px;resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <div class="gc-form-section">
+        <h3>✍️ Estilo</h3>
+        <div class="gc-selector"><label>Tono</label>${renderToneSelector(cont.tone)}</div>
+      </div>
+
+      <button class="gc-generate-btn" id="gcLiBtn" onclick="gcGenerateLiMsg()">
+        <span>✨</span> Generar 3 variantes de mensaje
+      </button>
+      <div class="gc-loading" id="gcLiLoading"><div class="gc-spinner"></div><span>Generando...</span></div>
+      <div class="gc-output-wrap" id="gcLiOutput" style="margin-top:20px"></div>
+    </div>`;
+  gcInitCP('li');
+}
+
+window.gcGenerateLiMsg=async function(){
+  if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
+  const tipo=document.getElementById('gcLiTipo')?.value||'conexion';
+  const hook=document.getElementById('gcLiHook')?.value||'';
+  const ctx=document.getElementById('gcLiContexto')?.value||'';
+  const btn=document.getElementById('gcLiBtn');
+  btn.disabled=true; gcShowLoading('gcLiLoading',true);
+  document.getElementById('gcLiOutput').classList.remove('show');
+  try{
+    const esConexion=tipo==='conexion';
+    const text=await gcCallClaude(`Eres un experto en social selling y outbound LinkedIn para México. Genera 3 variantes de mensaje de LinkedIn.
+
+${gcCompanyContext()}
+TIPO: ${tipo.replace(/_/g,' ')} ${esConexion?'(MÁXIMO 300 CARACTERES — este es el límite de LinkedIn, no lo excedas)':''}
+HOOK / LO QUE ENCONTRASTE: ${hook||'ninguno específico'}
+CONTEXTO: ${ctx||'ninguno'}
+TONO: ${cont.tone}
+
+Reglas de social selling LATAM:
+- NO empieces con "Hola [nombre]" directamente — usa un hook primero
+- Demuestra que investigaste a la persona (sin ser creepy)
+- No pidas nada en el primer mensaje de conexión
+- Evita frases de vendedor: "solución perfecta", "empresa líder", etc.
+- ${esConexion?'CRÍTICO: Cada variante DEBE tener máx 300 caracteres contando espacios':'Sé conversacional, no hagas pitch agresivo'}
+- Si hay hook, úsalo de forma natural
+
+Formato: VARIANTE 1:\n[texto]\n\nVARIANTE 2:\n[texto]\n\nVARIANTE 3:\n[texto]`);
+    gcShowOutput('gcLiOutput',text,true);
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+  btn.disabled=false; gcShowLoading('gcLiLoading',false);
+};
+
+// ── 4. Publicación LinkedIn ──
+const LI_FORMATS=[
+  {id:'1200x627', label:'Post con imagen',     dims:'1200 × 627 px', when:'Aparece en el feed con alta visibilidad. El más usado para contenido.'},
+  {id:'1080x1080',label:'Post cuadrado',       dims:'1080 × 1080 px',when:'Igual visibilidad, mejor para texto + imagen. Más flexible.'},
+  {id:'1584x396', label:'Banner de portada',   dims:'1584 × 396 px', when:'Actualización temporal del banner de perfil. Funciona para eventos o lanzamientos.'},
+  {id:'1080x1920',label:'Historia / Story',    dims:'1080 × 1920 px',when:'Stories de empresa. Alta visibilidad pero corta duración (24h).'},
+];
+
+function renderGcPublicacionLinkedIn(){
+  const c=document.getElementById('gcContent');
+  c.innerHTML=`
+    <div style="max-width:900px">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">💼 Publicación de LinkedIn</h2>
+      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Crea imágenes para el feed de LinkedIn con el framework visual de Odoo. Descarga en PNG.</p>
+
+      <div class="gc-form-section">
+        <h3>📐 Formato</h3>
+        <div class="gc-format-grid">
+          ${LI_FORMATS.map(f=>`
+            <div class="gc-format-card ${cont.format===f.id?'active':''}" onclick="gcSetFormat('${f.id}',this)">
+              <div class="gc-format-card-title">${f.label}</div>
+              <div class="gc-format-card-dims">${f.dims}</div>
+              <div class="gc-format-card-when">${f.when}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="gc-form-section">
+        <h3>✍️ Contenido</h3>
+        <div class="gc-selector-grid">
+          <div class="gc-selector"><label>Tema / Industria</label>
+            <select class="gc-select" id="gcPubIndustria">
+              ${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
+            </select>
+          </div>
+          <div class="gc-selector"><label>Tono</label><select class="gc-select" id="gcPubTono">
+            ${TONES.map(t=>`<option value="${t.id}" ${cont.tone===t.id?'selected':''}>${t.label}</option>`).join('')}
+          </select></div>
+        </div>
+        <div class="form-group" style="margin-top:12px"><label>Mensaje principal o tema del post</label>
+          <textarea class="input" id="gcPubMsg" placeholder="Ej. Las empresas de construcción pierden hasta 30% de su margen por falta de visibilidad en obra..." style="min-height:80px;resize:vertical"></textarea>
+        </div>
+        <div class="form-group"><label>Estadística o dato de impacto (opcional)</label>
+          <input type="text" class="input" id="gcPubStat" placeholder="Ej. +5,000 empresas · 13M usuarios · 40% reducción de costos operativos">
+        </div>
+      </div>
+
+      <button class="gc-generate-btn" id="gcPubBtn" onclick="gcGeneratePub()">
+        <span>✨</span> Generar imagen para LinkedIn
+      </button>
+      <div class="gc-loading" id="gcPubLoading"><div class="gc-spinner"></div><span>Generando contenido...</span></div>
+      <div class="gc-output-wrap" id="gcPubOutput" style="margin-top:20px"></div>
+    </div>`;
+}
+window.gcSetFormat=function(id,el){
+  cont.format=id;
+  document.querySelectorAll('.gc-format-card').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+};
+
+window.gcGeneratePub=async function(){
+  const ind=document.getElementById('gcPubIndustria')?.value||'';
+  const msg=document.getElementById('gcPubMsg')?.value.trim()||'';
+  const stat=document.getElementById('gcPubStat')?.value.trim()||'';
+  const tono=document.getElementById('gcPubTono')?.value||cont.tone;
+  if(!msg){ showNotif('Ingresa el tema del post','error'); return; }
+  const btn=document.getElementById('gcPubBtn');
+  btn.disabled=true; gcShowLoading('gcPubLoading',true);
+  document.getElementById('gcPubOutput').classList.remove('show');
+  try{
+    const copy=await gcCallClaude(`Genera el copy para una imagen de LinkedIn de Odoo México.
+INDUSTRIA TARGET: ${ind} | TONO: ${tono}
+MENSAJE PRINCIPAL: ${msg}
+ESTADÍSTICA: ${stat||'ninguna'}
+
+Responde con este JSON exacto (sin markdown):
+{
+  "headline": "Frase principal impactante (máx 8 palabras, puede ser pregunta o afirmación)",
+  "subheadline": "Frase secundaria que amplía (máx 15 palabras)",
+  "stat": "${stat||''}",
+  "cta": "Call to action corto (máx 5 palabras)",
+  "hashtags": "#odoo #erp #[industria] (3 hashtags)"
+}`);
+    let parsed;
+    try { parsed=JSON.parse(copy.replace(/```json?\n?/g,'').replace(/```/g,'').trim()); }
+    catch(e){ parsed={headline:msg.substring(0,40),subheadline:'Odoo lo hace posible.',stat:stat,cta:'Saber más',hashtags:'#odoo #erp'}; }
+    renderGcImagePreview(parsed);
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+  btn.disabled=false; gcShowLoading('gcPubLoading',false);
+};
+
+function renderGcImagePreview(data){
+  const fmt=cont.format;
+  const fmtConfig={
+    '1200x627':{w:1200,h:627,scale:.5,label:'1200×627 — Post LinkedIn'},
+    '1080x1080':{w:1080,h:1080,scale:.37,label:'1080×1080 — Post cuadrado'},
+    '1584x396':{w:1584,h:396,scale:.45,label:'1584×396 — Banner portada'},
+    '1080x1920':{w:1080,h:1920,scale:.28,label:'1080×1920 — Historia'},
+  };
+  const f=fmtConfig[fmt]||fmtConfig['1200x627'];
+  const wrap=document.getElementById('gcPubOutput');
+  wrap.classList.add('show');
+  wrap.innerHTML=`
+    <div class="gc-output-header">
+      <span class="gc-output-label">${f.label}</span>
+      <div class="gc-output-actions">
+        <button class="gc-download-btn" onclick="gcDownloadImage()">⬇ Descargar PNG</button>
+      </div>
+    </div>
+    <div class="gc-canvas-outer" style="height:${f.h*f.scale+20}px">
+      <div id="gcImageCanvas" style="width:${f.w}px;height:${f.h}px;transform:scale(${f.scale});transform-origin:top left;
+        background:linear-gradient(135deg,#714B67 0%,#5B3C53 60%,#017E84 100%);
+        border-radius:${f.w>800?'24px':'20px'};padding:${f.h>800?'80px':'48px'};
+        display:flex;flex-direction:column;justify-content:space-between;
+        color:white;font-family:'DM Sans',sans-serif;position:relative;overflow:hidden;">
+        <!-- Decorative circles -->
+        <div style="position:absolute;width:${f.w*.6}px;height:${f.w*.6}px;border-radius:50%;background:rgba(255,255,255,.04);top:-${f.w*.2}px;right:-${f.w*.15}px;"></div>
+        <div style="position:absolute;width:${f.w*.3}px;height:${f.w*.3}px;border-radius:50%;background:rgba(1,126,132,.2);bottom:-${f.w*.05}px;left:${f.w*.05}px;"></div>
+        <!-- Logo -->
+        <div style="display:flex;align-items:center;gap:12px">
+          <img src="${ASSETS}/logos/odoo_logo_white.svg" style="height:${f.h>.5*f.w?36:24}px;filter:brightness(0) invert(1)" onerror="this.style.display='none'">
+        </div>
+        <!-- Main content -->
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:${f.h>600?'40px 0':'20px 0'}">
+          <div style="font-family:'Caveat',cursive;font-weight:700;font-size:${f.h>600?Math.min(72,f.w*.06):Math.min(48,f.w*.04)}px;line-height:1.1;margin-bottom:16px">${data.headline}</div>
+          <div style="font-size:${f.h>600?22:16}px;font-weight:500;opacity:.9;line-height:1.4;max-width:80%">${data.subheadline}</div>
+          ${data.stat?`<div style="margin-top:24px;background:rgba(251,177,48,.15);border-left:3px solid #FBB130;padding:12px 16px;border-radius:0 8px 8px 0;font-size:${f.h>600?18:14}px;font-weight:700">${data.stat}</div>`:''}
+        </div>
+        <!-- CTA + hashtags -->
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="background:white;color:#714B67;padding:10px 20px;border-radius:4px;font-weight:700;font-size:${f.h>600?16:13}px">${data.cta} →</div>
+          <div style="font-size:${f.h>600?13:11}px;opacity:.7">${data.hashtags}</div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--gray-400);margin-top:8px;text-align:center">Vista previa escalada · El PNG descargado será en resolución completa</p>`;
+}
+
+window.gcDownloadImage=async function(){
+  showNotif('Generando PNG...','info');
+  const canvas=document.getElementById('gcImageCanvas');
+  if(!canvas){ showNotif('No hay imagen para descargar','error'); return; }
+  // Use html2canvas if available, otherwise show instructions
+  if(typeof html2canvas==='undefined'){
+    showNotif('Para descargar, necesitas html2canvas cargado. Agrega la librería.','warning');
+    // Fallback: open in new tab with inline styles
+    const w=window.open();
+    w.document.write('<html><body style="margin:0;background:#1a1a1a;display:flex;justify-content:center;padding:40px">'+canvas.outerHTML+'</body></html>');
+    return;
+  }
+  const orig=canvas.style.transform;
+  canvas.style.transform='none';
+  const c=await html2canvas(canvas,{scale:2,useCORS:true,allowTaint:true});
+  canvas.style.transform=orig;
+  const link=document.createElement('a');
+  link.download=`odoo-linkedin-${cont.format}.png`;
+  link.href=c.toDataURL('image/png');
+  link.click();
+  showNotif('PNG descargado ✓','success');
+};
+
+// ── 5. Brochure ──
+function renderGcBrochure(){
+  const c=document.getElementById('gcContent');
+  const isManager=currentUserData?.role==='manager';
+  c.innerHTML=`
+    <div style="max-width:800px">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📄 Brochure</h2>
+      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">
+        Genera un brochure de Odoo adaptado a la industria del prospecto.
+        ${!isManager?'<strong>Los brochures requieren aprobación del manager antes de compartirse.</strong>':''}
+      </p>
+
+      <div class="gc-form-section">
+        <h3>🏢 Empresa y contexto</h3>
+        ${gcCompanySection('br')}
+      </div>
+
+      <div class="gc-form-section">
+        <h3>📱 Apps a destacar</h3>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Selecciona las apps de Odoo más relevantes para este prospecto</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${['CRM','Ventas','Inventario','Compras','Contabilidad','Fabricación','Punto de Venta','eCommerce','Proyecto','RRHH','Suscripciones','Servicio Externo'].map(a=>`
+            <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid var(--gray-200);border-radius:99px;cursor:pointer;font-size:13px;user-select:none">
+              <input type="checkbox" name="gcBrApp" value="${a}" style="accent-color:var(--purple)"> ${a}
+            </label>`).join('')}
+        </div>
+      </div>
+
+      <div class="gc-form-section">
+        <h3>✍️ Tono y enfoque</h3>
+        ${renderToneSelector(cont.tone)}
+        <div class="form-group" style="margin-top:16px"><label>Dolores específicos del prospecto (opcional)</label>
+          <textarea class="input" id="gcBrDolores" placeholder="Ej. No tienen visibilidad de inventario, procesos manuales, facturación tardía..." style="min-height:70px;resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <button class="gc-generate-btn" id="gcBrBtn" onclick="gcGenerateBrochure()">
+        <span>📄</span> Generar brochure
+      </button>
+      <div class="gc-loading" id="gcBrLoading"><div class="gc-spinner"></div><span>Generando contenido del brochure...</span></div>
+      <div class="gc-output-wrap" id="gcBrOutput" style="margin-top:20px"></div>
+
+      ${isManager?`
+      <div class="card" style="margin-top:24px;padding:20px;background:var(--gray-50)">
+        <h4 style="font-size:14px;font-weight:700;margin-bottom:12px">📋 Aprobaciones pendientes</h4>
+        <div id="gcBrApprovals"><div class="cdc-empty">Cargando...</div></div>
+      </div>`:''}
+    </div>`;
+  gcInitCP('br');
+  if(isManager) gcLoadBrochureApprovals();
+}
+
+window.gcGenerateBrochure=async function(){
+  const apps=[...document.querySelectorAll('input[name="gcBrApp"]:checked')].map(i=>i.value);
+  const dolores=document.getElementById('gcBrDolores')?.value||'';
+  if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
+  if(apps.length===0){ showNotif('Selecciona al menos una app','error'); return; }
+  const btn=document.getElementById('gcBrBtn');
+  btn.disabled=true; gcShowLoading('gcBrLoading',true);
+  document.getElementById('gcBrOutput').classList.remove('show');
+  try{
+    const copy=await gcCallClaude(`Eres un experto en marketing B2B de Odoo México. Genera el contenido para un brochure de ventas.
+
+${gcCompanyContext()}
+APPS A DESTACAR: ${apps.join(', ')}
+DOLORES DETECTADOS: ${dolores||'no especificados'}
+TONO: ${cont.tone}
+
+Genera el contenido del brochure con estas secciones:
+1. HEADLINE PRINCIPAL (8 palabras máx, impactante, usando Caveat font style)
+2. SUBTÍTULO (15 palabras máx, complementa el headline)
+3. INTRO (2 párrafos de 2-3 líneas c/u — el problema que tienen y cómo Odoo lo resuelve)
+4. APPS DESTACADAS (para cada app: nombre | beneficio clave en 1 línea | wow effect en 1 frase)
+5. TESTIMONIAL FALSO INSPIRACIONAL (inventa uno creíble de una empresa similar mexicana)
+6. CTA FINAL (frase de cierre + llamada a acción)
+
+Responde en formato claro con los títulos de sección en mayúsculas. En español de México.`);
+    const wrap=document.getElementById('gcBrOutput');
+    wrap.classList.add('show');
+    wrap.innerHTML=`
+      <div class="gc-variant-card">
+        <div class="gc-output-header" style="margin-bottom:16px">
+          <span class="gc-output-label">Contenido generado</span>
+          <div class="gc-output-actions">
+            <button class="gc-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('gcBrText').textContent).then(()=>showNotif('Copiado ✓','success'))">Copiar</button>
+            ${currentUserData?.role!=='manager'?`<button class="gc-generate-btn" style="width:auto;padding:8px 16px;margin:0" onclick="gcSubmitBrochure()">Enviar para aprobación →</button>`:''}
+          </div>
+        </div>
+        <div class="gc-variant-text" id="gcBrText">${copy}</div>
+      </div>`;
+    window._gcBrContent=copy;
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+  btn.disabled=false; gcShowLoading('gcBrLoading',false);
+};
+
+window.gcSubmitBrochure=async function(){
+  if(!db){ showNotif('Requiere conexión a Firebase','error'); return; }
+  try{
+    await addDoc(collection(db,'brochureApprovals'),{
+      aeUid:currentUserData.uid, aeName:currentUserData.name,
+      empresa:cont.company?.nombre||'Sin nombre', companyId:cont.company?.id||null,
+      content:window._gcBrContent||'',
+      status:'pendiente_aprobacion', createdAt:serverTimestamp()
+    });
+    showNotif('Enviado para aprobación al manager ✓','success');
+    // Notify manager
+    await setDoc(doc(db,'notifications','brochure_'+Date.now()),{
+      type:'brochure_approval',targetRole:'manager',
+      aeUid:currentUserData.uid,aeName:currentUserData.name,
+      empresa:cont.company?.nombre||'Sin nombre',read:false,createdAt:serverTimestamp()
+    });
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
+async function gcLoadBrochureApprovals(){
+  const c=document.getElementById('gcBrApprovals'); if(!c||!db) return;
+  try{
+    const snap=await getDocs(query(collection(db,'brochureApprovals'),where('status','==','pendiente_aprobacion'),orderBy('createdAt','desc')));
+    if(snap.empty){ c.innerHTML='<div class="cdc-empty">Sin aprobaciones pendientes</div>'; return; }
+    c.innerHTML=snap.docs.map(d=>{
+      const r=d.data();
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+        <div><strong style="font-size:13px">${r.empresa}</strong><div style="font-size:11px;color:var(--gray-400)">${r.aeName}</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm btn-success" onclick="gcApproveBrochure('${d.id}')">✓ Aprobar</button>
+          <button class="btn btn-sm btn-ghost-danger" onclick="gcRejectBrochure('${d.id}')">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e){ c.innerHTML='<div class="cdc-empty">Error al cargar</div>'; }
+}
+window.gcApproveBrochure=async function(id){
+  await updateDoc(doc(db,'brochureApprovals',id),{status:'aprobado',approvedAt:serverTimestamp()});
+  localStorage.setItem('brochure_last_update',Date.now().toString());
+  showNotif('Brochure aprobado ✓','success');
+  gcLoadBrochureApprovals();
+};
+window.gcRejectBrochure=async function(id){
+  await updateDoc(doc(db,'brochureApprovals',id),{status:'rechazado'});
+  showNotif('Brochure rechazado','info');
+  gcLoadBrochureApprovals();
+};
+
+// ── 6. Propuesta Comercial ──
+const ODOO_APPS_CATALOG=[
+  {id:'crm',name:'CRM',icon:'🎯',desc:'Pipeline de ventas, seguimiento de oportunidades y prospectos en tiempo real.'},
+  {id:'ventas',name:'Ventas',icon:'💰',desc:'Cotizaciones, pedidos y contratos. Integrado con inventario y contabilidad.'},
+  {id:'inventario',name:'Inventario',icon:'📦',desc:'Control de stock en tiempo real, lotes, trazabilidad y reabasto automático.'},
+  {id:'compras',name:'Compras',icon:'🛒',desc:'Órdenes de compra automáticas, gestión de proveedores y aprobaciones.'},
+  {id:'contabilidad',name:'Contabilidad',icon:'📊',desc:'CFDI timbrado, conciliación bancaria automática y estados financieros en tiempo real.'},
+  {id:'manufactura',name:'Fabricación',icon:'⚙️',desc:'Órdenes de producción, BOM, costeo y trazabilidad de producto terminado.'},
+  {id:'pos',name:'Punto de Venta',icon:'🏪',desc:'POS integrado con inventario. Funciona offline y sincroniza al reconectarse.'},
+  {id:'ecommerce',name:'eCommerce',icon:'🛍️',desc:'Tienda online integrada con inventario y contabilidad. Sin plugins adicionales.'},
+  {id:'proyecto',name:'Proyecto',icon:'📋',desc:'Gestión de proyectos, tareas, tiempo y costeo por proyecto.'},
+  {id:'rrhh',name:'RRHH',icon:'👥',desc:'Nómina timbrada, vacaciones, asistencias y expediente digital.'},
+  {id:'suscripciones',name:'Suscripciones',icon:'🔄',desc:'Facturación recurrente, renovaciones automáticas y control de churn.'},
+  {id:'servicio',name:'Servicio Externo',icon:'🔧',desc:'Gestión de técnicos en campo, órdenes de trabajo y seguimiento en tiempo real.'},
+];
+
+function renderGcPropuesta(){
+  const c=document.getElementById('gcContent');
+  c.innerHTML=`
+    <div style="max-width:900px">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📋 Propuesta comercial</h2>
+      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Genera una propuesta completa de 16 páginas en PDF con el formato oficial de Odoo México.</p>
+
+      <div class="gc-form-section">
+        <h3>🏢 Datos de la empresa</h3>
+        ${gcCompanySection('prop')}
+      </div>
+
+      <div class="gc-form-section">
+        <h3>📱 Aplicaciones recomendadas</h3>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Selecciona las apps que incluirás en la propuesta</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          ${ODOO_APPS_CATALOG.map(a=>`
+            <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;transition:border-color .15s">
+              <input type="checkbox" name="gcPropApp" value="${a.id}" style="accent-color:var(--purple)">
+              <span style="font-size:13px">${a.icon} ${a.name}</span>
+            </label>`).join('')}
+        </div>
+      </div>
+
+      <div class="gc-form-section">
+        <h3>💰 Inversión (se ingresa manualmente — se conectará a Pricing en Fase 6)</h3>
+        <div style="background:var(--warning-light);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--warning);margin-bottom:16px;display:flex;gap:8px">
+          <span>⚠️</span><span>Por ahora ingresa los montos manualmente. En Fase 6 se autocompletará desde el módulo de Pricing.</span>
+        </div>
+        <div class="gc-selector-grid">
+          <div class="gc-selector"><label>Plan seleccionado</label>
+            <select class="gc-select" id="gcPropPlan">
+              <option value="custom">Odoo Custom (On-premise/Cloud)</option>
+              <option value="sh">Odoo SH (Cloud propio)</option>
+              <option value="online">Odoo Online (SaaS)</option>
+            </select>
+          </div>
+          <div class="gc-selector"><label>Número de usuarios</label>
+            <input type="number" class="gc-select" id="gcPropUsuarios" placeholder="Ej. 15" min="1">
+          </div>
+        </div>
+        <div class="gc-selector-grid" style="margin-top:12px">
+          <div class="gc-selector"><label>Suscripción mensual (MXN)</label>
+            <input type="text" class="gc-select" id="gcPropMensual" placeholder="Ej. $8,500">
+          </div>
+          <div class="gc-selector"><label>Implementación (MXN)</label>
+            <input type="text" class="gc-select" id="gcPropImpl" placeholder="Ej. $45,000">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px"><label>Descripción del alcance del proyecto</label>
+          <textarea class="input" id="gcPropAlcance" placeholder="Ej. Ecosistema Integrado 360°: CRM + Ventas + Inventario + Contabilidad" style="min-height:70px;resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <button class="gc-generate-btn" id="gcPropBtn" onclick="gcGeneratePropuesta()">
+        <span>📄</span> Generar propuesta completa
+      </button>
+      <div class="gc-loading" id="gcPropLoading"><div class="gc-spinner"></div><span>Generando propuesta...</span></div>
+      <div id="gcPropOutput" style="display:none;margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <span style="font-size:15px;font-weight:700">Vista previa de la propuesta</span>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-ghost" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
+          </div>
+        </div>
+        <div id="gcPropViewer" class="prop-viewer"></div>
+      </div>
+    </div>`;
+  gcInitCP('prop');
+}
+
+window.gcGeneratePropuesta=async function(){
+  if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
+  const apps=[...document.querySelectorAll('input[name="gcPropApp"]:checked')].map(v=>v.value);
+  if(apps.length===0){ showNotif('Selecciona al menos una aplicación','error'); return; }
+  const plan=document.getElementById('gcPropPlan')?.value||'custom';
+  const usuarios=document.getElementById('gcPropUsuarios')?.value||'—';
+  const mensual=document.getElementById('gcPropMensual')?.value||'A convenir';
+  const impl=document.getElementById('gcPropImpl')?.value||'A convenir';
+  const alcance=document.getElementById('gcPropAlcance')?.value||'Implementación personalizada de Odoo';
+  const btn=document.getElementById('gcPropBtn');
+  btn.disabled=true; gcShowLoading('gcPropLoading',true);
+  const appsData=apps.map(id=>ODOO_APPS_CATALOG.find(a=>a.id===id)).filter(Boolean);
+  // Render the propuesta HTML
+  const propHTML=buildPropuestaHTML(cont.company,cont.contact,appsData,{plan,usuarios,mensual,impl,alcance});
+  const output=document.getElementById('gcPropOutput');
+  const viewer=document.getElementById('gcPropViewer');
+  viewer.innerHTML=propHTML;
+  output.style.display='block';
+  output.scrollIntoView({behavior:'smooth',block:'start'});
+  btn.disabled=false; gcShowLoading('gcPropLoading',false);
+  showNotif('Propuesta generada. Usa Imprimir para guardar como PDF ✓','success');
+};
+
+function buildPropuestaHTML(company,contact,apps,pricing){
+  const aeName=currentUserData?.name||'Account Executive';
+  const companyName=company?.nombre||'[Empresa]';
+  const contactName=contact?.nombre||'[Nombre del cliente]';
+
+  const appsChunks=[];
+  for(let i=0;i<apps.length;i+=3) appsChunks.push(apps.slice(i,i+3));
+
+  return `
+    <!-- PÁGINA 1: Portada -->
+    <div class="prop-page" style="display:flex;flex-direction:column;justify-content:space-between;padding:56px">
+      <div>
+        <img src="${ASSETS}/logos/odoo_logo_color.svg" style="height:32px;margin-bottom:40px" onerror="this.outerHTML='<strong style=color:#714B67;font-size:20px>odoo</strong>'">
+        <div class="prop-headline" style="font-size:72px;line-height:1">Todo tu <span class="prop-hl-red">negocio</span><br>en una<br>sola plataforma.</div>
+        <div style="margin-top:24px;font-size:22px;font-weight:600;color:#6B7280;font-family:'Caveat',cursive">Propuesta para:</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end">
+        <div style="background:var(--od-shape-gray);border-radius:12px;padding:20px 28px;min-width:280px">
+          <div style="font-size:14px;font-weight:600;color:#9ca3af;margin-bottom:4px">Preparada para</div>
+          <div style="font-size:20px;font-weight:700;color:#21272B">${companyName}</div>
+          ${contactName!=='[Nombre del cliente]'?`<div style="font-size:14px;color:#6B7280;margin-top:4px">${contactName}${contact?.cargo?` · ${contact.cargo}`:''}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;color:#9ca3af">Presentada por</div>
+          <div style="font-size:16px;font-weight:700">${aeName}</div>
+          <div style="font-size:13px;color:#6B7280">Account Executive · Odoo México</div>
+          <img src="${ASSETS}/logos/odoo_logo.svg" style="height:28px;margin-top:12px" onerror="this.outerHTML='<strong style=color:#714B67>odoo</strong>'">
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA 2: ¿Quiénes somos? -->
+    <div class="prop-page prop-page-content">
+      <div class="prop-section-label">✦ Sobre Odoo</div>
+      <div class="prop-headline" style="font-size:52px;margin-bottom:8px">¿Quiénes <span style="color:var(--od-green)">somos?</span></div>
+      <p style="font-size:16px;line-height:1.7;color:#374151;margin-bottom:32px">Creemos que el software empresarial debería cubrir necesidades complejas sin la necesidad de ser complicado. Nuestra misión es ofrecer un software que sea intuitivo, que tenga todas las funciones, que sea totalmente integrado, que sea fácil de usar y que funcione sin problemas para cualquier empresa y cualquier usuario.</p>
+      <div style="font-family:'Caveat',cursive;font-size:32px;font-weight:700;color:#21272B;margin-bottom:24px">Nuestros números.</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:32px">
+        ${[{n:'+5,000',l:'empleados'},{n:'+13M',l:'millones de usuarios'},{n:'+175',l:'países'}].map(s=>`
+          <div style="background:var(--od-shape-gray);border-radius:12px;padding:24px">
+            <div class="prop-stat-num">${s.n}</div>
+            <div class="prop-stat-label">${s.l}</div>
+          </div>`).join('')}
+      </div>
+      <div style="background:var(--purple);color:white;border-radius:12px;padding:20px 28px;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-family:'Caveat',cursive;font-size:24px;font-weight:700">Sencillo, eficiente, accesible<br>y en cualquier dispositivo.</div>
+        <img src="${ASSETS}/logos/odoo_logo_white.svg" style="height:28px;opacity:.9" onerror="">
+      </div>
+    </div>
+
+    <!-- PÁGINA 3: Tu proyecto con Odoo -->
+    <div class="prop-page prop-page-content">
+      <div style="font-family:'Caveat',cursive;font-size:52px;font-weight:700;margin-bottom:24px">Tu <span style="color:var(--od-green)">proyecto</span> con Odoo ✨</div>
+      <p style="font-size:15px;line-height:1.7;color:#374151;margin-bottom:24px"><strong>Odoo: Una plataforma integral</strong> para transformar la gestión empresarial. Con Odoo tendrás acceso a un ecosistema de más de 80 aplicaciones integradas, diseñadas para escalar tu operación y centralizar el control de todas las áreas clave de tu empresa.</p>
+      <div style="font-size:15px;font-weight:700;color:#21272B;margin-bottom:16px">Así es cómo Odoo impulsa a tu empresa:</div>
+      ${[
+        {icon:'🎯',title:'Visión 360° del negocio',desc:'Una plataforma única que brinda visibilidad y control sobre tu operación, facilitando la auditoría y el cumplimiento normativo.'},
+        {icon:'📊',title:'Trazabilidad total',desc:'Seguimiento detallado de cada actividad de tu empresa, con información centralizada y en tiempo real para decisiones más ágiles.'},
+        {icon:'⚡',title:'Aumenta la eficiencia',desc:'Automatiza las tareas repetitivas, optimiza tu flujo de trabajo y te permite visualizar todas tus operaciones en tiempo real.'},
+        {icon:'💡',title:'Toma de decisiones basada en datos',desc:'Información centralizada y en tiempo real para decisiones más ágiles y acertadas.'},
+        {icon:'💰',title:'Reduce los costos',desc:'No necesitas varias softwares y optimizarás tu infraestructura de TI.'},
+      ].map(b=>`<div class="prop-beneficio"><span class="prop-beneficio-icon">${b.icon}</span><div><div class="prop-beneficio-title">${b.title}</div><div class="prop-beneficio-desc">${b.desc}</div></div></div>`).join('')}
+    </div>
+
+    <!-- PÁGINA 4: Tu camino con Odoo -->
+    <div class="prop-page prop-page-content">
+      <div style="font-family:'Caveat',cursive;font-size:52px;font-weight:700;margin-bottom:16px">Tu camino con Odoo 🚀</div>
+      <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:32px">En Odoo acompañamos al cliente de inicio a fin para asegurar una implementación exitosa. En la etapa de venta, primero entendemos sus requerimientos, realizamos una <strong>demostración</strong> y definimos con claridad el <strong>presupuesto y alcance</strong>. Después, en <strong>implementación</strong>, arrancamos con un kick-off, configuramos la solución y realizamos pruebas. En <strong>soporte</strong>, asignamos al cliente con apoyo funcional y técnico.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;position:relative;margin-bottom:32px">
+        ${[
+          {phase:'Venta',steps:['Descubrimiento','Propuesta / Demostración'],color:'#017E84'},
+          {phase:'Implementación',steps:['Kick-off','Configuración','Pruebas','Go-live'],color:'#714B67'},
+          {phase:'Soporte',steps:['Dirección de errores','Apoyo Funcional y Técnico'],color:'#1BB6F9'},
+        ].map(ph=>`
+          <div style="background:${ph.color};color:white;padding:24px;border-radius:12px;margin:0 4px">
+            <div style="font-weight:700;font-size:16px;margin-bottom:12px">${ph.phase}</div>
+            ${ph.steps.map(s=>`<div style="font-size:13px;padding:4px 0;opacity:.9">• ${s}</div>`).join('')}
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- PÁGINA 5-6: Metodología QuickStart -->
+    <div class="prop-page prop-page-content">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+        <span style="font-size:24px">🏆</span>
+        <div style="font-family:'Caveat',cursive;font-size:40px;font-weight:700">Conoce nuestra metodología: QuickStart</div>
+      </div>
+      <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:20px">La metodología QuickStart de Odoo está diseñada para que tu empresa llegue a producción de forma rápida con control de presupuesto y eficiencia en su adopción. Garantizamos una implementación ordenada calidad. Primero priorizamos entender al usuario y sus objetivos, luego de las fases, se amplía con mejoras y avances adicionales conforme el equipo ya usa el sistema y aporta retroalimentación.</p>
+      <div style="background:var(--od-shape-gray);border-radius:12px;padding:24px;margin-bottom:20px">
+        <div style="font-weight:700;font-size:15px;color:#714B67;margin-bottom:12px">Mentalidad MVP si vive</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;color:#374151">
+          <div>• Enfocas al <strong>usuario del equipo</strong><br>• Requerimientos<br>• Criterios y métricas para alcanzar</div>
+          <div>• Planes Funcionales<br>• A punto de <strong>Resolución de errores</strong><br>• Alcanzable en el futuro</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#6B7280;line-height:1.6;margin-bottom:16px">El punto de partida es entender el negocio con claridad: ustedes describen el "qué" y el "por qué" de sus procesos, y Odoo guía el "cómo hacerlo" en la solución estándar. La agilidad implica "tablero de estilos de adaptación" primero con la aproximación correcta para acelerar resultados, y solo después de revisar opciones apliques, el desarrollo es su plan 2 por impacto en tiempo, complejidad y mantenimiento.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${['Solución estándar','Requerimientos','SIG','ROI','Garantías','Implementación, no replicación'].map(item=>`
+          <div style="background:white;border:1px solid var(--od-line);border-radius:8px;padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:8px">
+            <span style="color:var(--od-green)">✓</span>${item}
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="prop-page prop-page-content">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+        <span style="font-size:24px">🏆</span>
+        <div style="font-family:'Caveat',cursive;font-size:40px;font-weight:700">Conoce nuestra metodología: QuickStart</div>
+      </div>
+      <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:20px">QuickStart también define roles y responsabilidades para asegurar el éxito: se trabaja con un GPdC (Single Point of Contact) del lado del cliente, con autoridad para decisiones, que coordina información, equipos y validaciones. Odoo aporta un consultor que analiza proceso, configura, documenta y capacita. Para que el proyecto avance con ritmo. Para este proyecto se trabajará con un Success Pack que costea tiempo de implementación de 10 horas por semana.</p>
+      <div style="background:var(--od-shape-gray);border-radius:12px;padding:20px;margin-bottom:20px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;text-align:center">
+          ${['Odoo','Equipo del proyecto','Tu empresa','Interesados'].map(r=>`
+            <div><div style="font-size:24px;margin-bottom:8px">👤</div><div style="font-size:12px;font-weight:600">${r}</div></div>`).join('')}
+        </div>
+      </div>
+      <p style="font-size:13px;color:#6B7280;line-height:1.6">Durante el proyecto, la comunicación se mantiene frecuente, calibrando, documentada y transparente; y el avance se mide por secciones, pruebas, validaciones y capacitación hasta el fin. El servicio se entrega con un Success Pack y el trabajo se registra en bloques (mínimo 15 minutos), lo que permite trazabilidad y control del consumo.</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:20px;padding:16px;background:var(--od-shape-gray);border-radius:12px">
+        <div style="font-family:'Caveat',cursive;font-size:28px;font-weight:700;color:#714B67">odoo.ly</div>
+        <div style="font-size:13px;color:#6B7280">Plataforma de gestión del proyecto — seguimiento en tiempo real</div>
+      </div>
+    </div>
+
+    <!-- PÁGINA 7: Tu proyecto específico -->
+    <div class="prop-page prop-page-content">
+      <div style="font-family:'Caveat',cursive;font-size:52px;font-weight:700;margin-bottom:24px">Tu <span style="color:var(--od-green)">proyecto</span> con Odoo ✨</div>
+      <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:20px">Esto ayuda que el equipo de ${companyName} de inicio a fin tenga toda la información que le permitirá usar toda la información que deba de estar al mismo tiempo y los módulos, tengan el apoyo que pueda fluir para correr con confianza al cliente en cualquier tema relacionado con la solución.</p>
+      <div style="background:var(--od-shape-gray);border-radius:8px;padding:16px 20px;margin-bottom:16px;font-size:13px;line-height:1.7">
+        <div style="font-weight:700;color:#714B67;margin-bottom:6px">✦ Alcance del Proyecto: ${pricing.alcance||'Ecosistema Integrado'}</div>
+        <p style="color:#374151">${apps.map(a=>a.name).join(' + ')} — Implementación completa con configuración, migración de datos, capacitación y soporte post go-live.</p>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:#21272B;margin-bottom:8px">1. Implementación y Exposición del Proceso:</div>
+        <p style="font-size:13px;color:#6B7280;line-height:1.6">Implementación profesional y consultoría especializada para maximizar el retorno de inversión. Nuestro equipo de expertos trabajará directamente con ${companyName} para garantizar una adopción exitosa y rápida del sistema.</p>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:#21272B;margin-bottom:8px">2. Marketing y Comunicación Empresarial:</div>
+        <p style="font-size:13px;color:#6B7280;line-height:1.6">Soporte estratégico en la comunicación del cambio hacia los equipos de ${companyName}, asegurando adopción sin resistencia y máximo aprovechamiento desde el día uno.</p>
+      </div>
+    </div>
+
+    <!-- PÁGINA 8: Nuestra propuesta comercial -->
+    <div class="prop-page prop-page-content">
+      <div style="font-family:'Caveat',cursive;font-size:48px;font-weight:700;margin-bottom:20px">💡 Nuestra propuesta comercial</div>
+      <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:24px">El modelo de negocio de Odoo te permite disfrutar de todas las aplicaciones estándar de Odoo. Todas nuestras licencias son por <strong>suscripción directa</strong> y el soporte está en todas las funciones y áreas. ¡Conoce la verdadera transparencia!</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+        ${[
+          {name:'Custom',icon:'⚙️',desc:'La plataforma para personalizar todo tu caso de uso único. Plan integrado con On-Premise/Cloud con $674 para gestión de instancia + el costo de la cantidad de usuarios de Odoo que añadas.',price:'$274.00/usuario al mes + IVA'},
+          {name:'Odoo SH',icon:'⚡',desc:'Es la plataforma especializada para esta caso, con repositorio de código integrado con $674 para gestión de instancia + el costo de la cantidad de usuarios añadidos.',price:'Desde $274.00/usuario al mes + IVA'},
+        ].map(p=>`
+          <div style="border:2px solid var(--od-line);border-radius:12px;padding:20px">
+            <div style="font-size:20px;margin-bottom:8px">${p.icon}</div>
+            <div style="font-weight:700;font-size:16px;color:#21272B;margin-bottom:6px">${p.name}</div>
+            <div style="font-size:12px;color:#6B7280;line-height:1.6;margin-bottom:12px">${p.desc}</div>
+            <div style="font-size:13px;font-weight:700;color:#714B67">${p.price}</div>
+          </div>`).join('')}
+      </div>
+      <div style="background:var(--od-shape-gray);border-radius:8px;padding:16px;font-size:13px;color:#374151;line-height:1.7">
+        <div style="font-weight:700;margin-bottom:6px">Adicional $3 →</div>
+        <p>Montamos la capacidad de procesamiento, se recomienda 1 nodo (5 usuarios): $30-$50/mes aproximadamente. Almacenamiento de datos (Módulo de Almacenamiento de Odoo): Se recomienda 1-5 GB de inicio a rango de datos. Precio del proceso de inicio a rango: $100-$500/mes. Aumento de la licencia se puede realizar por mes a partir de base Odoo, este agregando el costo por separado.</p>
+      </div>
+    </div>
+
+    <!-- PÁGINA 9: Paquetes de éxito -->
+    <div class="prop-page prop-page-content">
+      <div style="font-family:'Caveat',cursive;font-size:48px;font-weight:700;margin-bottom:16px">🏆 Paquetes de éxito de Odoo</div>
+      <p style="font-size:13px;color:#6B7280;margin-bottom:20px">Un equipo de consultoría asignado a tu proyecto para implementar y configurar Odoo en base a las necesidades específicas, con capacitación incluida para que tu equipo de trabajo se vuelva independiente en el uso del sistema.</p>
+      <table class="prop-pricing-table">
+        <thead><tr>
+          <th>Incluye</th><th style="background:#017E84">Inicial</th><th style="background:#714B67">Básico</th><th style="background:#5B3C53">Personalizado</th><th style="background:#21272B">Pro</th>
+        </tr></thead>
+        <tbody>
+          ${['Horas de consultoría','Kick-off del proyecto','Análisis de requerimientos','Configuración','Capacitación','Pruebas (UAT)','Go-live','Soporte post go-live'].map((row,i)=>`
+            <tr><td><strong>${row}</strong></td>
+              <td style="text-align:center">${i<4?'✓':i===4?'Básica':i===7?'1 semana':'✓'}</td>
+              <td style="text-align:center">✓</td>
+              <td style="text-align:center">✓</td>
+              <td style="text-align:center">✓</td>
+            </tr>`).join('')}
+          <tr style="background:#714B67;color:white">
+            <td><strong>Precio</strong></td>
+            <td style="text-align:center;font-weight:700">INCLUIDA</td>
+            <td style="text-align:center;font-weight:700">MÁX $5,500</td>
+            <td style="text-align:center;font-weight:700">MÁX $20,000</td>
+            <td style="text-align:center;font-weight:700">MÁX $50,000</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PÁGINA 10: Inversión -->
+    <div class="prop-page prop-page-content">
+      <div style="font-family:'Caveat',cursive;font-size:48px;font-weight:700;margin-bottom:8px">💰 Inversión Suscripción +<br>Implementación</div>
+      <p style="font-size:14px;color:#6B7280;margin-bottom:24px">Considerando ${pricing.usuarios} usuarios en plan ${pricing.plan==='custom'?'Custom + Odoo SH':pricing.plan} + las horas de consultoría necesarias, se proponen los siguientes esquemas de contratación:</p>
+      <table class="prop-pricing-table" style="margin-bottom:20px">
+        <thead><tr><th>Concepto</th><th>Mensual</th><th>Implementación</th><th>Total Año 1</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Suscripción Odoo</strong></td><td>${pricing.mensual}</td><td>—</td><td>${pricing.mensual} × 12</td></tr>
+          <tr><td><strong>Implementación</strong></td><td>—</td><td>${pricing.impl}</td><td>${pricing.impl}</td></tr>
+          <tr style="background:#714B67;color:white"><td><strong>TOTAL</strong></td><td><strong>${pricing.mensual}</strong></td><td><strong>${pricing.impl}</strong></td><td><strong>A confirmar</strong></td></tr>
+        </tbody>
+      </table>
+      <div style="background:var(--od-shape-gray);border-radius:8px;padding:14px 16px;font-size:12px;color:#6B7280;line-height:1.7">
+        <strong>Notas importantes:</strong> Los precios mostrados incluyen un descuento por PRIMERA COMPRA. Todo cuanto antes agregue posibilidades de acceso a éste Descuentos proyectados para la Implementación y los Módulos Particulares en su totalidad se van descuentos especiales y exclusivos para este proyecto de contratación. La empresa puede establecer un financiamiento por medio de pago en plazos a evaluar en caso de considerarse una modalidad específica a partir de los 2 años.
+      </div>
+    </div>
+
+    <!-- PÁGINAS 11-${10+appsChunks.length}: Aplicaciones recomendadas -->
+    ${appsChunks.map((chunk,pi)=>`
+    <div class="prop-page prop-page-content">
+      <div style="font-family:'Caveat',cursive;font-size:44px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:10px">
+        Aplicaciones <span style="color:#FBB130">recomendadas</span> ✨
+      </div>
+      <p style="font-size:13px;color:#6B7280;margin-bottom:20px">Selección personalizada para ${companyName} — Fase ${pi+1} de ${appsChunks.length}</p>
+      ${chunk.map(a=>`<div class="prop-app-card">
+        <div class="prop-app-icon">
+          <span style="font-size:28px">${a.icon}</span>
+        </div>
+        <div>
+          <div class="prop-app-name">${a.name}</div>
+          <div class="prop-app-desc">${a.desc}</div>
+        </div>
+      </div>`).join('')}
+    </div>`).join('')}
+
+    <!-- Clientes México -->
+    <div class="prop-page" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+      <div style="padding:40px 56px 24px">
+        <div class="prop-section-label">✦ Empresas que ya confían en Odoo México</div>
+        <div style="font-family:'Caveat',cursive;font-size:40px;font-weight:700;margin-bottom:4px">Clientes que ya <span style="color:var(--od-green)">transformaron</span> su negocio</div>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:0 40px 40px">
+        <img src="${ASSETS}/clientes-mexico.svg" style="width:100%;height:auto;border-radius:12px" onerror="this.outerHTML='<div style=background:var(--od-shape-gray);height:300px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#9ca3af>Clientes México</div>'">
+      </div>
+    </div>
+
+    <!-- PENÚLTIMA: CTA -->
+    <div class="prop-page prop-page-purple" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:56px;color:white">
+      <img src="${ASSETS}/logos/odoo_logo_white.svg" style="height:36px;margin-bottom:32px;opacity:.9" onerror="">
+      <div style="font-family:'Caveat',cursive;font-size:56px;font-weight:700;line-height:1.1;margin-bottom:16px">¿Estás listo para comenzar<br>a utilizar Odoo en tu negocio?</div>
+      <div style="font-size:18px;opacity:.85;margin-bottom:40px">Elige ya, consulta nuestros servicios</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+        <a href="https://www.odoo.com/blog/customer-reviews-6" target="_blank" class="prop-cta-btn">⭐ Casos de éxito</a>
+        <a href="https://www.odoo.com/documentation/user" target="_blank" class="prop-cta-btn">📚 Documentación</a>
+        <a href="https://www.odoo.com/page/tour" target="_blank" class="prop-cta-btn">🎬 Tour demo</a>
+      </div>
+      <div style="margin-top:40px;display:flex;gap:20px;font-size:12px;opacity:.5">
+        <a href="https://www.odoo.com/legal" style="color:white">Legal</a>
+        <a href="https://www.odoo.com/security" style="color:white">Seguridad</a>
+        <a href="https://www.odoo.com/privacy" style="color:white">Privacidad</a>
+      </div>
+    </div>
+
+    <!-- ÚLTIMA: Portada final -->
+    <div class="prop-page prop-page-purple" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px">
+      <img src="${ASSETS}/logos/odoo_logo_white.svg" style="height:48px;opacity:.9" onerror="">
+    </div>`;
+}
+
+// ══════════════════════════════════════════
+// FRAMEWORK VISUAL MODULE
+// ══════════════════════════════════════════
+function renderFrameworkVisual(){
+  const content=document.getElementById('moduleContent');
+  content.innerHTML=`
+    <div class="fw-wrap">
+      <div style="margin-bottom:32px">
+        <h2 style="font-size:24px;font-weight:700;margin-bottom:4px">🎨 Framework Visual — Odoo Outbound 2026</h2>
+        <p style="color:var(--gray-500);font-size:14px">Guía de marca oficial para todos los contenidos del equipo. Úsala como referencia al crear cualquier material.</p>
+      </div>
+
+      <div class="fw-section">
+        <div class="fw-section-title">🎨 Paleta de colores</div>
+        <div style="margin-bottom:20px">
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin-bottom:12px">Colores principales</div>
+          <div class="fw-color-grid">
+            ${[
+              {name:'Odoo Purple',hex:'#714B67',use:'Color principal — botones, headlines, fondos'},
+              {name:'Purple Deep',hex:'#5B3C53',use:'Sidebar, fondos oscuros'},
+              {name:'Odoo Green',hex:'#017E84',use:'Secundario — links, eyebrows, acentos'},
+            ].map(c=>`<div class="fw-swatch">
+              <div class="fw-swatch-block" style="background:${c.hex}"></div>
+              <div class="fw-swatch-name">${c.name}</div>
+              <div class="fw-swatch-hex">${c.hex}</div>
+              <div style="font-size:10px;color:var(--gray-400);margin-top:2px">${c.use}</div>
+            </div>`).join('')}
+          </div>
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin-bottom:12px;margin-top:20px">Colores adicionales (solo para highlights e iconos)</div>
+          <div class="fw-color-grid">
+            ${[
+              {name:'Odoo Red',hex:'#FC787D'},{name:'Odoo Cyan',hex:'#1BB6F9'},
+              {name:'Odoo Yellow',hex:'#FBB130'},{name:'Odoo Teal',hex:'#00CEB3'},
+            ].map(c=>`<div class="fw-swatch">
+              <div class="fw-swatch-block" style="background:${c.hex}"></div>
+              <div class="fw-swatch-name">${c.name}</div>
+              <div class="fw-swatch-hex">${c.hex}</div>
+            </div>`).join('')}
+          </div>
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin-bottom:12px;margin-top:20px">Neutros</div>
+          <div class="fw-color-grid">
+            ${[
+              {name:'Text Black',hex:'#21272B'},{name:'Shape Gray',hex:'#F3F4F6'},
+              {name:'Muted',hex:'#6B7280'},{name:'White',hex:'#FFFFFF',border:true},
+            ].map(c=>`<div class="fw-swatch">
+              <div class="fw-swatch-block" style="background:${c.hex};${c.border?'border:1px solid #e5e7eb':''}"></div>
+              <div class="fw-swatch-name">${c.name}</div>
+              <div class="fw-swatch-hex">${c.hex}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="fw-section">
+        <div class="fw-section-title">✍️ Tipografía</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="fw-type-sample">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">Headlines — Caveat Bold</div>
+            <div style="font-family:'Caveat',cursive;font-size:48px;font-weight:700;line-height:1;color:#21272B">Todo tu negocio<br>en una sola<br>plataforma.</div>
+            <div style="margin-top:8px;font-size:12px;color:var(--gray-400)">Solo en headlines. SIEMPRE Bold (700). Capitalización natural.</div>
+          </div>
+          <div class="fw-type-sample">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">Cuerpo — Inter</div>
+            <div style="font-family:'Inter',sans-serif">
+              <div style="font-size:18px;font-weight:600;margin-bottom:6px">Subtítulo Inter SemiBold 18px</div>
+              <div style="font-size:15px;color:#374151;line-height:1.6;margin-bottom:6px">Cuerpo de texto en Inter Regular 15-16px. Line height 1.6 para máxima legibilidad. Se usan keywords en <strong>Inter Bold</strong> para énfasis inline.</div>
+              <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#017E84">EYEBROW INTER 13px — UPPERCASE</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fw-section">
+        <div class="fw-section-title">✨ Highlights disponibles</div>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Los highlights se usan SOLO en 1-2 palabras de los headlines. Rotar entre variantes para no saturar.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:16px">
+          ${[
+            {name:'Yellow Bold 01',file:'yellow_highlight_bold_01.svg',text:'negocio',bg:'transparent'},
+            {name:'Cyan Bold 01',file:'blue_highlight_bold_01.svg',text:'plataforma',bg:'transparent'},
+            {name:'Red Bold 01',file:'red_highlight_bold_01.svg',text:'integrado',bg:'#714B67',color:'white'},
+            {name:'Green Bold 01',file:'green_highlight_bold_01.svg',text:'solución',bg:'transparent'},
+            {name:'Yellow Scribble',file:'yellow_highlight_scribble_01.svg',text:'flexible',bg:'transparent'},
+            {name:'Cyan Scribble',file:'blue_highlight_scribble_01.svg',text:'único',bg:'transparent'},
+          ].map(h=>`
+            <div style="background:${h.bg||'white'};border-radius:10px;padding:16px 20px;border:1px solid var(--gray-200)">
+              <div style="position:relative;display:inline-block;padding:0 .1em;font-family:'Caveat',cursive;font-size:32px;font-weight:700;color:${h.color||'#21272B'};
+                background-image:url('${ASSETS}/highlights/${h.file}');background-repeat:no-repeat;background-position:center 78%;background-size:100% .55em">
+                ${h.text}
+              </div>
+              <div style="font-size:11px;color:var(--gray-400);margin-top:6px">${h.name}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="fw-section">
+        <div class="fw-section-title">🏭 Iconos de industria</div>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">44 íconos oficiales de Odoo. Usar en propuestas, brochures y contenidos visuales.</p>
+        <div class="fw-icon-grid">
+          ${[
+            {name:'Construcción',file:'industry_construction'},
+            {name:'Retail',file:'industry_grocery_store'},
+            {name:'Restaurante',file:'industry_restaurant'},
+            {name:'Farmacia',file:'industry_pharmaceutical'},
+            {name:'IT',file:'industry_it'},
+            {name:'Moda',file:'industry_clothing'},
+            {name:'Manufactura',file:'industry_odoo_partner'},
+            {name:'Servicios',file:'industry_certification'},
+            {name:'Wellness',file:'industry_wellness_practitioner'},
+            {name:'Real Estate',file:'industry_real_estate'},
+            {name:'Fast Food',file:'industry_fast_food'},
+            {name:'Bar/Pub',file:'industry_bar_pub'},
+          ].map(i=>`
+            <div class="fw-icon-item">
+              <img src="${ASSETS}/icons/industry/${i.file}.svg" onerror="this.style.display='none'">
+              <div class="fw-icon-name">${i.name}</div>
+            </div>`).join('')}
+        </div>
+        <a href="${ASSETS}/icons/industry/" target="_blank" style="font-size:13px;color:var(--purple);margin-top:12px;display:inline-block">Ver todos los iconos →</a>
+      </div>
+
+      <div class="fw-section">
+        <div class="fw-section-title">🖼️ Logos Odoo</div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap">
+          <div style="background:white;border:1px solid var(--gray-200);border-radius:10px;padding:20px 32px;display:flex;align-items:center;gap:16px">
+            <img src="${ASSETS}/logos/odoo_logo.svg" style="height:36px" onerror="">
+            <div><div style="font-size:12px;font-weight:700">Logo color</div><div style="font-size:11px;color:var(--gray-400)">Fondos blancos/claros</div></div>
+          </div>
+          <div style="background:#714B67;border-radius:10px;padding:20px 32px;display:flex;align-items:center;gap:16px">
+            <img src="${ASSETS}/logos/odoo_logo_white.svg" style="height:36px;filter:brightness(0) invert(1)" onerror="">
+            <div><div style="font-size:12px;font-weight:700;color:white">Logo blanco</div><div style="font-size:11px;color:rgba(255,255,255,.6)">Fondos oscuros/morados</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fw-section">
+        <div class="fw-section-title">📐 Reglas de diseño</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div style="background:rgba(0,206,179,.1);border:1px solid rgba(0,126,132,.25);border-radius:10px;padding:16px 20px">
+            <div style="font-size:14px;font-weight:700;color:#017E84;margin-bottom:10px">✓ SÍ hacer</div>
+            <ul style="list-style:none;font-size:13px;line-height:2">
+              <li>✓ Caveat Bold SOLO en headlines</li>
+              <li>✓ Capitalización natural (sentence case)</li>
+              <li>✓ Máx 1-2 highlights por headline</li>
+              <li>✓ Espaciado generoso (light & airy)</li>
+              <li>✓ Rotar variantes de highlights</li>
+            </ul>
+          </div>
+          <div style="background:rgba(252,120,125,.1);border:1px solid rgba(252,120,125,.3);border-radius:10px;padding:16px 20px">
+            <div style="font-size:14px;font-weight:700;color:#e53e3e;margin-bottom:10px">✗ NO hacer</div>
+            <ul style="list-style:none;font-size:13px;line-height:2">
+              <li>✗ Caveat en body text o botones</li>
+              <li>✗ TODO EN MAYÚSCULAS en headlines</li>
+              <li>✗ Más de 2 highlights en un mismo título</li>
+              <li>✗ Efectos de sombra exagerados</li>
+              <li>✗ Usar colores adicionales como fondo</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════
+// HOME — Enhanced with Centro de Control
+// ══════════════════════════════════════════
+const _origRenderHome = renderHome;
+function renderHome(){
+  const content=document.getElementById('moduleContent');
+  const name=(currentUserData?.name||'').split(' ')[0];
+  content.innerHTML=`
+    <div class="home-wrap">
+      <div class="home-hero">
+        <div class="home-hero-text">
+          <h1>Hola, <span class="text-purple">${name}</span> 👋</h1>
+          <p>Bienvenido a <strong>Outbound México</strong> — tu centro de trabajo para el equipo de ventas de Odoo.</p>
+        </div>
+        <span class="role-pill role-${currentUserData?.role}">${currentUserData?.role?.toUpperCase()}</span>
+      </div>
+
+      <div class="modules-grid">
+        ${MODULES.map(m=>`
+          <button class="module-card${m.ready?' ready-module':''}" onclick="showModule('${m.id}')">
+            <div class="module-icon">${m.icon}</div>
+            <div class="module-label">${m.label}</div>
+            <div class="module-phase">Fase ${m.phase}</div>
+            <div class="module-status ${m.ready?'ready':'coming'}">${m.ready?'✓ Disponible':'Próximamente'}</div>
+          </button>`).join('')}
+      </div>
+
+      <!-- CENTRO DE CONTROL -->
+      <div class="cdc-panel">
+        <h3>⚡ Centro de control</h3>
+        <div class="cdc-grid">
+          <div class="cdc-card">
+            <div class="cdc-card-title">Tareas pendientes</div>
+            <div id="cdcTasks"><div class="cdc-empty">Cargando...</div></div>
+          </div>
+          <div class="cdc-card">
+            <div class="cdc-card-title">Actividad reciente</div>
+            <div id="cdcActivity"><div class="cdc-empty">Cargando...</div></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  loadCentroControl();
+}
 
 // ══════════════════════════════════════════
 // BOOT
