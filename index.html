@@ -1066,31 +1066,7 @@ window.showModule = function(moduleId, skipNavHighlight=false){
   const fn=map[moduleId]; if(fn){ content.style.padding='28px'; content.innerHTML=''; fn(); }
 };
 
-function renderHome(){
-  const content=document.getElementById('moduleContent');
-  const name=(currentUserData?.name||'').split(' ')[0];
-  content.innerHTML=`
-    <div class="home-wrap">
-      <div class="home-hero">
-        <div class="home-hero-text">
-          <h1>Hola, <span class="text-purple">${name}</span> 👋</h1>
-          <p>Bienvenido a <strong>Outbound México</strong> — tu centro de trabajo para el equipo de ventas de Odoo.</p>
-        </div>
-        <span class="role-pill role-${currentUserData?.role}">${currentUserData?.role?.toUpperCase()}</span>
-      </div>
-      <div class="modules-grid">
-        ${MODULES.map(m=>`
-          <button class="module-card${m.ready?' ready-module':''}" onclick="showModule('${m.id}')">
-            <div class="module-icon">${m.icon}</div>
-            <div class="module-label">${m.label}</div>
-            <div class="module-phase">Fase ${m.phase}</div>
-            <div class="module-status ${m.ready?'ready':'coming'}">${m.ready?'✓ Disponible':'Próximamente'}</div>
-          </button>`).join('')}
-      </div>
-      ${currentUserData?.role==='manager'?'<div class="quick-panel"><h3>Panel rápido</h3><div id="pendingAlertHome"></div></div>':''}
-    </div>`;
-  if(currentUserData?.role==='manager') loadPendingCountForHome();
-}
+// renderHome is defined later with Centro de Control
 async function loadPendingCountForHome(){
   if(!db) return;
   const snap=await getDocs(query(collection(db,'users'),where('status','==','pending')));
@@ -3815,7 +3791,6 @@ function renderFrameworkVisual(){
 // ══════════════════════════════════════════
 // HOME — Enhanced with Centro de Control
 // ══════════════════════════════════════════
-const _origRenderHome = renderHome;
 function renderHome(){
   const content=document.getElementById('moduleContent');
   const name=(currentUserData?.name||'').split(' ')[0];
