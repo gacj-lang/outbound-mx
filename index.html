@@ -4332,24 +4332,57 @@ window.empSaveCreate=async function(){
 function renderPricing(){
   const content=document.getElementById('moduleContent');
   content.style.padding='0';
+
   // Remove any previous message listener
   if(window._pricingMsgHandler) window.removeEventListener('message',window._pricingMsgHandler);
   window._pricingMsgHandler=function(e){
     if(e.data?.type!=='outbound_pricing') return;
     const d=e.data;
     const fmt=n=>n.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
-    // Store in pricingState for Propuesta
     pricingState.result={...d,mensualRef:d.mensualRef,impl:d.implPrice,subtotal:0,iva:0,total:d.total};
     pricingState.users=d.users; pricingState.planIdx=d.planIdx;
     pricingState._mensualRef='$'+fmt(d.mensualRef);
     pricingState._impl='$'+fmt(d.implPrice);
-    if(d.clientName) pricingState.clientName=d.clientName;
     showNotif('Pricing cargado — abriendo Propuesta Comercial ✓','success');
     showModule('gencontenidos');
     setTimeout(()=>gcShowSection('propuesta'),400);
   };
   window.addEventListener('message',window._pricingMsgHandler);
-  content.innerHTML=`<iframe src="https://gacj-lang.github.io/outbound-mx/pricing.html" style="width:100%;height:calc(100vh - 60px);border:none;display:block" title="Pricing Odoo México"></iframe>`;
+
+  content.innerHTML=`
+    <!-- Company picker strip -->
+    <div style="background:white;border-bottom:1px solid var(--gray-200);padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);white-space:nowrap">Empresa / Contacto</span>
+      <div id="pricingM2o" style="flex:1;min-width:300px"></div>
+    </div>
+    <!-- Pricing iframe -->
+    <iframe id="pricingFrame" src="https://gacj-lang.github.io/outbound-mx/pricing.html"
+      style="width:100%;height:calc(100vh - 60px - 65px);border:none;display:block"
+      title="Pricing Odoo México"></iframe>`;
+
+  // Mount company picker — syncs selection with iframe + pricingState
+  mountCompanyPicker('pricingM2o',(co,ct)=>{
+    pricingState.company=co; pricingState.contact=ct;
+    // Sync client name into the pricing iframe's "Cliente" field
+    const iframe=document.getElementById('pricingFrame');
+    if(iframe?.contentWindow){
+      iframe.contentWindow.postMessage({type:'set_client',name:co?co.nombre:''},'*');
+    } else {
+      // Iframe not ready yet — send once loaded
+      iframe?.addEventListener('load',()=>{
+        iframe.contentWindow?.postMessage({type:'set_client',name:co?co.nombre:''},'*');
+      },{once:true});
+    }
+    // Also pass company context via URL param for page title (optional)
+    if(co) document.getElementById('pricingFrame').title=`Pricing — ${co.nombre}`;
+  });
+
+  // Restore previous company selection if exists
+  if(pricingState.company){
+    cpState.selectedCompany=pricingState.company;
+    cpState.selectedContact=pricingState.contact||null;
+    renderM2o('pricingM2o');
+  }
 }
 
 

@@ -3420,6 +3420,17 @@
   function downloadPDF() { window.print(); }
 
   // ── OUTBOUND INTEGRATION ──────────────────────────────────────────────────
+  // Listen for company name from parent app
+  window.addEventListener('message', function(e) {
+    if (e.data?.type === 'set_client') {
+      const input = document.getElementById('client-name-input');
+      if (input) {
+        input.value = e.data.name || '';
+        syncClientName(e.data.name || '');
+      }
+    }
+  });
+
   function sendToOutbound() {
     const ed = editionBaseRates[currentEdition];
     const mensualRef = ed.rates[currentPlanIdx] * currentUsers;
