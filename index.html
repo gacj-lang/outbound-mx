@@ -3610,12 +3610,11 @@ function renderGcPropuesta(){
   // Pre-fill from pricingState if available
   if(pricingState.result){
     const r=pricingState.result;
-    const fmt=n=>n.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+    const uEl=document.getElementById('gcPropUsuarios'); if(uEl) uEl.value=r.users||pricingState.users||'';
+    const mEl=document.getElementById('gcPropMensual'); if(mEl) mEl.value=pricingState._mensualRef||'';
+    const iEl=document.getElementById('gcPropImpl'); if(iEl) iEl.value=pricingState._impl||'';
     const edEl=document.getElementById('gcPropPlan');
-    if(edEl){ const edMap={standard:'custom',personalizable:'online',sh:'sh'}; edEl.value=edMap[pricingState.edition]||'custom'; }
-    const uEl=document.getElementById('gcPropUsuarios'); if(uEl) uEl.value=r.users;
-    const mEl=document.getElementById('gcPropMensual'); if(mEl) mEl.value=`$${fmt(r.mensualRef)}`;
-    const iEl=document.getElementById('gcPropImpl'); if(iEl) iEl.value=`$${fmt(r.impl)}`;
+    if(edEl){ const edMap={'Standard':'custom','Personalizable':'online','Odoo SH':'sh'}; edEl.value=edMap[r.editionName]||'custom'; }
   }
   if(pricingState.company&&!cont.company){ cont.company=pricingState.company; cont.contact=pricingState.contact||null; cpState.selectedCompany=pricingState.company; cpState.selectedContact=pricingState.contact||null; renderM2o('gcCp_prop'); }
 }
@@ -4332,125 +4331,28 @@ window.empSaveCreate=async function(){
 // ══════════════════════════════════════════
 function renderPricing(){
   const content=document.getElementById('moduleContent');
-  const fmt=n=>n.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
-  content.innerHTML=`
-    <div style="max-width:960px;margin:0 auto;padding:24px">
-      <div class="page-header" style="margin-bottom:24px"><h2>💰 Pricing</h2><p>Calculadora oficial de precios Odoo México. Los precios solo pueden modificarse en el código.</p></div>
-      <div style="display:grid;grid-template-columns:1fr 360px;gap:24px">
-        <div>
-          <div class="card" style="padding:20px;margin-bottom:16px">
-            <h4 style="font-size:14px;font-weight:700;margin-bottom:16px">🏢 Empresa y contacto</h4>
-            <div id="pricingM2o"></div>
-          </div>
-          <div class="card" style="padding:20px;margin-bottom:16px">
-            <h4 style="font-size:14px;font-weight:700;margin-bottom:16px">📦 Edición</h4>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              ${PRICING_DATA.editions.map(ed=>`
-                <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;transition:border-color .15s">
-                  <input type="radio" name="prEdition" value="${ed.id}" onchange="prUpdate()" style="accent-color:var(--purple)">
-                  <div><div style="font-size:14px;font-weight:600">${ed.name}</div>
-                    <div style="font-size:11px;color:var(--gray-500)">$${ed.rates[1]}/usuario/mes (contrato anual) · Renovación: $${ed.ratesY2[2]}/u/mes</div>
-                  </div>
-                </label>`).join('')}
-            </div>
-          </div>
-          <div class="card" style="padding:20px;margin-bottom:16px">
-            <h4 style="font-size:14px;font-weight:700;margin-bottom:16px">👥 Usuarios y plazo</h4>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div><label style="font-size:12px;font-weight:600;color:var(--gray-600);display:block;margin-bottom:4px">Número de usuarios</label>
-                <input type="number" class="input" id="prUsers" value="5" min="1" oninput="prUpdate()"></div>
-              <div><label style="font-size:12px;font-weight:600;color:var(--gray-600);display:block;margin-bottom:4px">Plazo del contrato</label>
-                <select class="input" id="prPlan" onchange="prUpdate()">
-                  ${PRICING_DATA.planLabels.map((l,i)=>`<option value="${i}" ${i===1?'selected':''}>${l}</option>`).join('')}
-                </select></div>
-            </div>
-          </div>
-          <div class="card" style="padding:20px;margin-bottom:16px">
-            <h4 style="font-size:14px;font-weight:700;margin-bottom:12px">🛠 Implementación</h4>
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px">
-              ${PRICING_DATA.implPackages.map(p=>`
-                <label style="display:flex;flex-direction:column;align-items:center;padding:8px 4px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;font-size:11px;text-align:center;transition:border-color .15s">
-                  <input type="radio" name="prImpl" value="${p.hrs}" onchange="prUpdate()" style="accent-color:var(--purple);margin-bottom:3px">
-                  <strong>${p.hrs}h</strong><span style="color:var(--gray-500)">$${fmt(p.price)}</span>
-                </label>`).join('')}
-              <label style="display:flex;flex-direction:column;align-items:center;padding:8px 4px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;font-size:11px;text-align:center">
-                <input type="radio" name="prImpl" value="custom" onchange="prUpdate()" style="accent-color:var(--purple);margin-bottom:3px">
-                <strong>Custom</strong>
-                <input type="number" class="input" id="prCustomImpl" placeholder="$MXN" style="font-size:10px;padding:3px;text-align:center;margin-top:3px;width:80px" oninput="prUpdate()">
-              </label>
-            </div>
-          </div>
-          <div class="card" style="padding:20px;display:none" id="prShCard">
-            <h4 style="font-size:14px;font-weight:700;margin-bottom:16px">☁️ Recursos Odoo SH</h4>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-              <div><label style="font-size:11px;color:var(--gray-500)">Workers ($${fmt(PRICING_DATA.sh.worker.annual)}/año)</label>
-                <input type="number" class="input" id="prWorkers" value="1" min="1" max="8" oninput="prUpdate()" style="text-align:center"></div>
-              <div><label style="font-size:11px;color:var(--gray-500)">Staging ($${fmt(PRICING_DATA.sh.staging.annual)}/año)</label>
-                <input type="number" class="input" id="prStaging" value="0" min="0" oninput="prUpdate()" style="text-align:center"></div>
-              <div><label style="font-size:11px;color:var(--gray-500)">Storage GB ($${PRICING_DATA.sh.gb.annual}/año)</label>
-                <input type="number" class="input" id="prStorage" value="0" min="0" oninput="prUpdate()" style="text-align:center"></div>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="card" style="padding:20px;position:sticky;top:24px">
-            <h4 style="font-size:14px;font-weight:700;margin-bottom:4px">💵 Resumen de inversión</h4>
-            <div style="font-size:12px;color:var(--gray-400);margin-bottom:16px" id="prSubtitle">Configura los campos</div>
-            <div id="prBreakdown" style="margin-bottom:12px"></div>
-            <div id="prTotals"></div>
-            <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px">
-              <button class="btn btn-primary btn-full" onclick="prUsarEnPropuesta()" id="prUsarBtn" disabled>📋 Usar en Propuesta Comercial</button>
-              <div id="prEmpresaTag" style="font-size:12px;color:var(--gray-400);text-align:center"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  mountCompanyPicker('pricingM2o',(co,ct)=>{pricingState.company=co;pricingState.contact=ct;prUpdate();});
-  document.querySelector('input[name="prEdition"][value="personalizable"]').checked=true;
-  document.querySelector('input[name="prImpl"][value="50"]').checked=true;
-  pricingState.edition='personalizable'; pricingState.implHrs=50;
-  prUpdate();
+  content.style.padding='0';
+  // Remove any previous message listener
+  if(window._pricingMsgHandler) window.removeEventListener('message',window._pricingMsgHandler);
+  window._pricingMsgHandler=function(e){
+    if(e.data?.type!=='outbound_pricing') return;
+    const d=e.data;
+    const fmt=n=>n.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+    // Store in pricingState for Propuesta
+    pricingState.result={...d,mensualRef:d.mensualRef,impl:d.implPrice,subtotal:0,iva:0,total:d.total};
+    pricingState.users=d.users; pricingState.planIdx=d.planIdx;
+    pricingState._mensualRef='$'+fmt(d.mensualRef);
+    pricingState._impl='$'+fmt(d.implPrice);
+    if(d.clientName) pricingState.clientName=d.clientName;
+    showNotif('Pricing cargado — abriendo Propuesta Comercial ✓','success');
+    showModule('gencontenidos');
+    setTimeout(()=>gcShowSection('propuesta'),400);
+  };
+  window.addEventListener('message',window._pricingMsgHandler);
+  content.innerHTML=`<iframe src="https://gacj-lang.github.io/outbound-mx/pricing.html" style="width:100%;height:calc(100vh - 60px);border:none;display:block" title="Pricing Odoo México"></iframe>`;
 }
 
-window.prUpdate=function(){
-  const edVal=document.querySelector('input[name="prEdition"]:checked')?.value||'personalizable';
-  const planIdx=parseInt(document.getElementById('prPlan')?.value||'1');
-  const users=Math.max(1,parseInt(document.getElementById('prUsers')?.value||'5')||1);
-  const implVal=document.querySelector('input[name="prImpl"]:checked')?.value||'50';
-  const customImpl=implVal==='custom'?parseFloat(document.getElementById('prCustomImpl')?.value)||null:null;
-  pricingState.edition=edVal; pricingState.planIdx=planIdx; pricingState.users=users;
-  pricingState.implHrs=implVal==='custom'?null:parseInt(implVal); pricingState.customImpl=customImpl;
-  pricingState.shWorkers=parseInt(document.getElementById('prWorkers')?.value||'1')||1;
-  pricingState.shStaging=parseInt(document.getElementById('prStaging')?.value||'0')||0;
-  pricingState.shStorage=parseInt(document.getElementById('prStorage')?.value||'0')||0;
-  const shCard=document.getElementById('prShCard'); if(shCard) shCard.style.display=edVal==='sh'?'block':'none';
-  const r=calcPricing(); pricingState.result=r;
-  const fmt=n=>n.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
-  const bd=document.getElementById('prBreakdown'), tot=document.getElementById('prTotals'), sub=document.getElementById('prSubtitle');
-  if(!bd||!tot) return;
-  if(sub) sub.textContent=`${r.ed.name} · ${r.users} usuarios · ${PRICING_DATA.planLabels[r.planIdx]}`;
-  const rows=[
-    {label:`Licencias año 1 (${r.users}u × $${fmt(r.rate)}/mes × ${Math.min(r.months,12)}m)`,val:r.licY1},
-    ...(r.licY2plus>0?[{label:`Licencias año 2+ (${r.users}u × $${fmt(r.rateY2)}/mes × ${r.months-12}m)`,val:r.licY2plus}]:[]),
-    ...(r.shCost>0?[{label:'Recursos Odoo SH',val:r.shCost}]:[]),
-    {label:`Implementación (${implVal==='custom'?'custom':implVal+' horas'})`,val:r.impl},
-  ];
-  bd.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px">${rows.map(row=>`<div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--gray-600)">${row.label}</span><span style="font-weight:600">$${fmt(row.val)}</span></div>`).join('')}<hr style="border:none;border-top:1px solid var(--gray-200);margin:4px 0"></div>`;
-  tot.innerHTML=`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--gray-600)">Subtotal</span><span style="font-weight:600">$${fmt(r.subtotal)}</span></div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:12px"><span style="color:var(--gray-600)">IVA (16%)</span><span style="font-weight:600">$${fmt(r.iva)}</span></div><div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;padding:12px;background:var(--purple-light);border-radius:var(--radius-sm)"><span style="color:var(--purple)">Total</span><span style="color:var(--purple)">$${fmt(r.total)} MXN</span></div><div style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:6px">Precio lista · IVA incluido</div>`;
-  const btn=document.getElementById('prUsarBtn'); if(btn) btn.disabled=false;
-  const etag=document.getElementById('prEmpresaTag'); if(etag) etag.textContent=pricingState.company?`Para: ${pricingState.company.nombre}`:'';
-};
 
-window.prUsarEnPropuesta=function(){
-  if(!pricingState.result){ showNotif('Configura el pricing primero','error'); return; }
-  if(pricingState.company){ cont.company=pricingState.company; cont.contact=pricingState.contact||null; }
-  showNotif('Pricing cargado → abriendo Propuesta Comercial ✓','success');
-  showModule('gencontenidos');
-  setTimeout(()=>gcShowSection('propuesta'),400);
-};
-
-// ══════════════════════════════════════════
 // CSV BUILDER
 // ══════════════════════════════════════════
 const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Email','phone','Tags_id','user_id','state_id','country_id'];
