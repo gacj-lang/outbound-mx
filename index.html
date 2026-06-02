@@ -1057,34 +1057,70 @@ function loadSavedConfig(){
 // ══════════════════════════════════════════
 // MODULE ROUTING
 // ══════════════════════════════════════════
+// ── Unsaved work tracking ──
+function getUnsavedWarning(targetModule){
+  if(disc.formActive) return {msg:'Tienes una sesión de Discovery abierta con información sin guardar.',detail:'Si sales ahora perderás los datos capturados en esta llamada.'};
+  if(csvRows.length>0) return {msg:`Tienes ${csvRows.length} prospectos procesados en el CSV Builder sin descargar ni guardar.`,detail:'Si sales ahora perderás los datos.'};
+  return null;
+}
+
 window.showModule = function(moduleId, skipNavHighlight=false){
+  // Warn before leaving if there's unsaved work
+  const warn=getUnsavedWarning(moduleId);
+  if(warn && moduleId!==cont.activeSection){
+    showNavWarning(warn, ()=>_doShowModule(moduleId, skipNavHighlight));
+    return;
+  }
+  _doShowModule(moduleId, skipNavHighlight);
+};
+
+window.showNavWarning=function(warn, onConfirm){
+  const existing=document.getElementById('navWarnPopup'); if(existing) existing.remove();
+  const overlay=document.createElement('div');
+  overlay.className='disc-popup-overlay'; overlay.id='navWarnPopup';
+  overlay.style.zIndex='9999';
+  overlay.innerHTML=`
+    <div style="background:white;border-radius:16px;width:100%;max-width:420px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+      <div style="font-size:40px;text-align:center;margin-bottom:12px">⚠️</div>
+      <h3 style="font-size:17px;font-weight:700;text-align:center;margin-bottom:8px">¿Salir sin guardar?</h3>
+      <p style="font-size:14px;color:var(--gray-600);text-align:center;margin-bottom:6px">${warn.msg}</p>
+      <p style="font-size:12px;color:var(--gray-400);text-align:center;margin-bottom:24px">${warn.detail}</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-ghost-danger btn-full" id="navWarnConfirm">Salir sin guardar</button>
+        <button class="btn btn-primary btn-full" id="navWarnCancel">Quedarme y guardar</button>
+      </div>
+    </div>`;
+  document.getElementById('navWarnConfirm').onclick=()=>{ overlay.remove(); onConfirm(); };
+  document.getElementById('navWarnCancel').onclick=()=>overlay.remove();
+  document.body.appendChild(overlay);
+};
+
+function _doShowModule(moduleId, skipNavHighlight=false){
   if(!skipNavHighlight){
     document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
     const n=document.getElementById('nav-'+moduleId); if(n) n.classList.add('active');
   }
-  // Show topbar unless discovery form
   const mc=document.getElementById('mainContent');
   const tb=document.getElementById('appTopbar');
   if(disc.formActive){ disc.discardForm(); }
   if(cont.formActive){ cont.discard(); }
   mc.classList.remove('topbar-hidden');
   tb.style.display='flex';
-  const titles={home:'Inicio',discovery:'Discovery Guide',gencontenidos:'Generación de contenidos',
+  const titles={home:'Inicio',empresas:'Empresas',discovery:'Discovery Guide',gencontenidos:'Generación de contenidos',
     csv:'CSV Builder',pricing:'Pricing',analytics:'Analytics',
     manager:'Panel de Manager',settings:'Configuración',framework:'Framework Visual'};
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
   const content=document.getElementById('moduleContent');
   const map={
-    home:renderHome, empresas:renderEmpresas, discovery:renderDiscoveryList, pricing:renderPricing, csv:renderCsvBuilder,
+    home:renderHome, empresas:renderEmpresas, discovery:renderDiscoveryList,
+    pricing:renderPricing, csv:renderCsvBuilder,
     gencontenidos:renderGenContenidos,
-    csv:()=>renderComingSoon('CSV Builder','📋','Fase 3','Describe prospectos en texto libre y genera el CSV listo para importar en Odoo CRM.'),
-    pricing:()=>renderComingSoon('Pricing','💰','Fase 6','Calculadora de precios y propuestas con módulos de Odoo.'),
     analytics:()=>renderComingSoon('Analytics','📊','Fase 7','Métricas de uso por AE, TL y equipo.'),
     manager:renderManagerPanel, settings:renderSettings,
     framework:renderFrameworkVisual,
   };
   const fn=map[moduleId]; if(fn){ content.style.padding='28px'; content.innerHTML=''; fn(); }
-};
+}
 
 // renderHome is defined later with Centro de Control
 async function loadPendingCountForHome(){
@@ -2872,13 +2908,27 @@ function gcCompanyContext(){
 CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.email||'nd'}${ct.linkedin?` | LinkedIn: ${ct.linkedin}`:''}${ct.origen?` | Origen: ${ct.origen}`:''}`: 'Sin contacto seleccionado'}${odooInd?`\nCONTEXTO INDUSTRIA (${c.giro}): ${odooInd}`:''}`;
 }
 
-async function gcCallClaude(prompt){
+async function gcCallClaude(prompt, fileAttachment=null){
   const key=localStorage.getItem('outbound_claude_key')||'';
   if(!key){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
+  let content;
+  if(fileAttachment){
+    content=[];
+    if(fileAttachment.type==='image'){
+      content.push({type:'image',source:{type:'base64',media_type:fileAttachment.mediaType,data:fileAttachment.data}});
+    } else if(fileAttachment.type==='document'){
+      content.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:fileAttachment.data}});
+    }
+    content.push({type:'text',text:prompt});
+  } else {
+    content=prompt;
+  }
+  const headers={'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'};
+  if(fileAttachment?.type==='document') headers['anthropic-beta']='pdfs-2024-09-25';
   const res=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
-    headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,messages:[{role:'user',content:prompt}]})
+    headers,
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:4000,messages:[{role:'user',content}]})
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
@@ -4427,9 +4477,24 @@ function renderCsvBuilder(){
       </div>
       <div class="card" style="padding:24px;margin-bottom:20px">
         <h4 style="font-size:15px;font-weight:700;margin-bottom:8px">📥 Datos de prospectos</h4>
-        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Pega texto libre: Apollo, LinkedIn, Excel, lo que sea. Claude extrae y estructura todo.</p>
-        <textarea class="input" id="csvRawData" style="min-height:180px;resize:vertical;font-family:'DM Mono',monospace;font-size:12px"
-          placeholder="Pega aquí los datos — cualquier formato:&#10;&#10;Empresa: DGL LATAM&#10;Contacto: Gustavo Ramos&#10;Cargo: Senior Manager Ecommerce&#10;Email: gustavo.ramos@digicellmx.com&#10;Tel: +55 55 2122-8660&#10;Web: https://dgllatam.com&#10;Ciudad: CDMX&#10;---"></textarea>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Pega texto libre o carga un archivo — Claude extrae y estructura todo automáticamente.</p>
+
+        <!-- File upload zone -->
+        <div id="csvDropZone" style="border:2px dashed var(--gray-200);border-radius:var(--radius);padding:16px;text-align:center;margin-bottom:12px;transition:border-color .15s;cursor:pointer;background:var(--gray-50)"
+          onclick="document.getElementById('csvFileInput').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--purple)'"
+          ondragleave="this.style.borderColor='var(--gray-200)'"
+          ondrop="event.preventDefault();this.style.borderColor='var(--gray-200)';csvHandleFileDrop(event.dataTransfer.files[0])">
+          <input type="file" id="csvFileInput" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.csv,.txt,.xls,.xlsx" onchange="csvHandleFile(this.files[0])">
+          <div style="font-size:24px;margin-bottom:4px">📎</div>
+          <div style="font-size:13px;font-weight:600;color:var(--gray-700)">Arrastra un archivo o haz clic para seleccionar</div>
+          <div style="font-size:11px;color:var(--gray-400);margin-top:2px">PDF · Imagen (JPG/PNG) · CSV · TXT</div>
+        </div>
+        <div id="csvFileStatus" style="display:none;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:10px"></div>
+
+        <div style="text-align:center;font-size:12px;color:var(--gray-400);margin-bottom:8px">— o escribe/pega los datos directamente —</div>
+        <textarea class="input" id="csvRawData" style="min-height:120px;resize:vertical;font-family:'DM Mono',monospace;font-size:12px"
+          placeholder="Empresa: DGL LATAM&#10;Contacto: Gustavo Ramos&#10;Cargo: Senior Manager Ecommerce&#10;Email: gustavo.ramos@digicellmx.com&#10;Tel: +55 55 2122-8660&#10;Web: https://dgllatam.com&#10;Ciudad: CDMX&#10;---"></textarea>
         <button class="gc-generate-btn" style="margin-top:12px" id="csvProcessBtn" onclick="csvProcess()"><span>🤖</span> Procesar con Claude</button>
         <div class="gc-loading" id="csvLoading"><div class="gc-spinner"></div><span>Procesando prospectos...</span></div>
       </div>
@@ -4462,7 +4527,7 @@ function renderCsvBuilder(){
       <div style="margin-top:32px"><h4 style="font-size:15px;font-weight:700;margin-bottom:12px">📁 CSV creados</h4>
         <div id="csvHistory"><div class="cdc-empty">Cargando...</div></div></div>
     </div>`;
-  csvRows=[]; csvLoadHistory();
+  csvRows=[]; _csvFileAttachment=null; csvLoadHistory();
 }
 
 window.csvProcess=async function(){
@@ -4471,15 +4536,17 @@ window.csvProcess=async function(){
   const tags=document.getElementById('csvTags')?.value.trim();
   const ae=document.getElementById('csvAE')?.value.trim();
   if(!fuente){ showNotif('Indica la fuente del lead','error'); return; }
-  if(!rawData){ showNotif('Pega los datos de los prospectos','error'); return; }
+  if(!rawData&&!_csvFileAttachment){ showNotif('Pega datos o carga un archivo','error'); return; }
   const btn=document.getElementById('csvProcessBtn'); btn.disabled=true; gcShowLoading('csvLoading',true);
   const tagsStr='Outbound-MX'+(tags?','+tags.replace(/\s*,\s*/g,','):'');
   try{
+    const dataSection=_csvFileAttachment
+      ? `[ARCHIVO: ${_csvFileAttachment.name} — extrae todos los contactos/prospectos que encuentres en el archivo]`
+      : `DATOS:\n${rawData}`;
     const result=await gcCallClaude(`Eres un extractor de datos de prospectos para Odoo CRM México.
 Analiza los siguientes datos y extrae cada prospecto como un objeto JSON.
 FUENTE: "${fuente}" | AE: "${ae}" | TAGS: "${tagsStr}"
-DATOS:
-${rawData}
+${dataSection}
 
 Para cada prospecto devuelve estos campos:
 - contact_name: nombre completo del contacto
@@ -4491,7 +4558,7 @@ Para cada prospecto devuelve estos campos:
 - state_id: estado de México EXACTAMENTE de esta lista: ${MX_STATES.join(', ')}. Si no puedes determinar: dejar ""
 - notes: cualquier dato adicional (teléfonos extra, empleados, industria, LinkedIn, redes, etc.)
 
-Devuelve SOLO el array JSON sin texto extra: [{...},...]`);
+Devuelve SOLO el array JSON sin texto extra: [{...},...]`, _csvFileAttachment||null);
     const jsonMatch=result.match(/\[[\s\S]*\]/);
     if(!jsonMatch) throw new Error('Respuesta no parseable — intenta de nuevo');
     const extracted=JSON.parse(jsonMatch[0]);
@@ -4577,6 +4644,74 @@ window.csvReloadSession=async function(id){
   document.getElementById('csvFuente').value=data.fuente||'';
   csvRenderTable(); document.getElementById('csvPreviewSection').style.display='block';
   showNotif('Sesión recargada ✓','success');
+};
+
+// ── CSV file handling ──
+let _csvFileAttachment=null;
+
+function csvSetFileStatus(msg, type='info'){
+  const el=document.getElementById('csvFileStatus'); if(!el) return;
+  const colors={info:'var(--accent-light)',success:'var(--success-light)',error:'var(--danger-light)',warn:'var(--warning-light)'};
+  const textColors={info:'var(--accent)',success:'var(--success)',error:'var(--danger)',warn:'var(--warning)'};
+  el.style.display='block';
+  el.style.background=colors[type]||colors.info;
+  el.style.color=textColors[type]||textColors.info;
+  el.textContent=msg;
+}
+
+window.csvHandleFileDrop=function(file){ if(file) csvHandleFile(file); };
+window.csvHandleFile=async function(file){
+  if(!file) return;
+  _csvFileAttachment=null;
+  const name=file.name, size=(file.size/1024).toFixed(0), ext=name.split('.').pop().toLowerCase();
+  const SUPPORTED_IMG=['jpg','jpeg','png'];
+  const SUPPORTED_DOC=['pdf'];
+  const SUPPORTED_TEXT=['csv','txt'];
+  const UNSUPPORTED=['xls','xlsx','docx','doc','ppt','pptx'];
+
+  // Unsupported formats
+  if(UNSUPPORTED.includes(ext)){
+    csvSetFileStatus(`⚠️ El formato .${ext} no es compatible directamente. Por favor guarda el archivo como CSV o PDF e inténtalo de nuevo.`,'warn');
+    return;
+  }
+
+  // Check size (Claude max ~5MB base64)
+  if(file.size>4.5*1024*1024){
+    csvSetFileStatus(`⚠️ El archivo es muy grande (${size}KB). Claude solo puede procesar imágenes/PDFs menores a 4.5MB.`,'warn');
+    return;
+  }
+
+  csvSetFileStatus(`⏳ Cargando ${name} (${size}KB)...`,'info');
+
+  try{
+    const base64=await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=e=>resolve(e.target.result.split(',')[1]);
+      reader.onerror=reject;
+      reader.readAsDataURL(file);
+    });
+
+    if(SUPPORTED_IMG.includes(ext)){
+      const mediaType=ext==='jpg'||ext==='jpeg'?'image/jpeg':'image/png';
+      _csvFileAttachment={type:'image',mediaType,data:base64,name};
+      csvSetFileStatus(`✅ Imagen cargada: ${name} — Claude leerá el contenido visualmente.`,'success');
+    } else if(SUPPORTED_DOC.includes(ext)){
+      _csvFileAttachment={type:'document',mediaType:'application/pdf',data:base64,name};
+      csvSetFileStatus(`✅ PDF cargado: ${name} (${size}KB) — Claude extraerá el texto.`,'success');
+    } else if(SUPPORTED_TEXT.includes(ext)){
+      // Read as text
+      const text=await new Promise((resolve,reject)=>{
+        const r=new FileReader(); r.onload=e=>resolve(e.target.result); r.onerror=reject; r.readAsText(file,'UTF-8');
+      });
+      if(!text.trim()){ csvSetFileStatus(`⚠️ El archivo ${name} está vacío o no tiene texto legible.`,'warn'); return; }
+      const ta=document.getElementById('csvRawData'); if(ta) ta.value=text;
+      csvSetFileStatus(`✅ ${name} cargado — datos pegados en el área de texto.`,'success');
+      _csvFileAttachment=null;
+    }
+  } catch(e){
+    csvSetFileStatus(`❌ No se pudo leer el archivo: ${e.message}. Verifica que no esté dañado.`,'error');
+    _csvFileAttachment=null;
+  }
 };
 
 // ══════════════════════════════════════════
