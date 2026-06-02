@@ -826,7 +826,7 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" id="nav-gencontenidos" onclick="showModule('gencontenidos')"><span class="nav-icon">✉️</span> Generación de contenidos</button>
       <button class="nav-item" id="nav-csv" onclick="showModule('csv')"><span class="nav-icon">📋</span> CSV Builder</button>
       <button class="nav-item" id="nav-pricing" onclick="showModule('pricing')"><span class="nav-icon">💰</span> Pricing</button>
-      <button class="nav-item" id="nav-analytics" onclick="showModule('📊')"><span class="nav-icon">📊</span> Analytics</button>
+      <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')"><span class="nav-icon">📊</span> Analytics</button>
       <div class="nav-section-label" style="margin-top:8px">Recursos</div>
       <button class="nav-item" id="nav-framework" onclick="showModule('framework')"><span class="nav-icon">🎨</span> Framework Visual</button>
       <div class="nav-section-label" style="margin-top:8px">Gestión</div>
@@ -880,8 +880,8 @@ const MANAGER = { gram:'gacj', name:'Geovani Ariel Jiménez Cruz', email:'gacj@o
 const MODULES = [
   { id:'discovery',     icon:'🔍', label:'Discovery Guide',          phase:2, ready:true  },
   { id:'gencontenidos', icon:'✉️', label:'Generación de contenidos', phase:5, ready:true  },
-  { id:'csv',           icon:'📋', label:'CSV Builder',              phase:3, ready:false },
-  { id:'pricing',       icon:'💰', label:'Pricing',                  phase:6, ready:false },
+  { id:'csv',           icon:'📋', label:'CSV Builder',              phase:3, ready:true  },
+  { id:'pricing',       icon:'💰', label:'Pricing',                  phase:6, ready:true  },
   { id:'analytics',     icon:'📊', label:'Analytics',                phase:7, ready:false },
 ];
 const ASSETS = 'https://gacj-lang.github.io/outbound-mx/assets';
@@ -1075,7 +1075,7 @@ window.showModule = function(moduleId, skipNavHighlight=false){
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
   const content=document.getElementById('moduleContent');
   const map={
-    home:renderHome, empresas:renderEmpresas, discovery:renderDiscoveryList,
+    home:renderHome, empresas:renderEmpresas, discovery:renderDiscoveryList, pricing:renderPricing, csv:renderCsvBuilder,
     gencontenidos:renderGenContenidos,
     csv:()=>renderComingSoon('CSV Builder','📋','Fase 3','Describe prospectos en texto libre y genera el CSV listo para importar en Odoo CRM.'),
     pricing:()=>renderComingSoon('Pricing','💰','Fase 6','Calculadora de precios y propuestas con módulos de Odoo.'),
@@ -1309,9 +1309,12 @@ function renderDiscSessions(sessions){
       </div>
       ${dolores.length?`<div class="disc-dolores-tags">${dolores.map(d=>`<span class="disc-dolor-tag">${d}</span>`).join('')}</div>`:''}
       ${bant.length?`<div class="disc-bant-row">${bant.map(b=>`<span class="disc-bant-chip disc-bant-${bColor(b.v)}">${b.l}</span>`).join('')}</div>`:''}
-      <div class="disc-session-footer">
-        <span class="disc-status-badge status-${s.status||'borrador'}">${statusLabel[s.status||'borrador']}</span>
-        ${s.geminiNote?'<span class="disc-ai-indicator">✨ Nota Claude</span>':''}
+      <div class="disc-session-footer" style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="disc-status-badge status-${s.status||'borrador'}">${statusLabel[s.status||'borrador']}</span>
+          ${s.geminiNote?'<span class="disc-ai-indicator">✨ Nota Claude</span>':''}
+        </div>
+        ${currentUserData?.role==='manager'?`<button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px" onclick="event.stopPropagation();deleteRecord('discoveryRecords','${s.id}',renderDiscoveryList)" title="Eliminar">🗑</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -2395,6 +2398,58 @@ const ODOO_INDUSTRIES = {
   'Otra':'Odoo se adapta a cualquier industria con su plataforma modular de más de 50 apps integradas.'
 };
 
+// ── Pricing data (source: fullpricing-odoo.netlify.app) ──
+const PRICING_DATA = {
+  planMonths:[1,12,24,36,48,60],
+  planLabels:['Mensual','1 año','2 años','3 años','4 años','5 años'],
+  editions:[
+    {id:'standard',       name:'Standard',      rates:[225,180,180,180,180,180], ratesY2:[285,285,228,228,228,228]},
+    {id:'personalizable', name:'Personalizable', rates:[342,274,274,274,274,274], ratesY2:[425,425,340,340,340,340]},
+    {id:'sh',             name:'Odoo SH',        rates:[342,274,274,274,274,274], ratesY2:[425,425,340,340,340,340]},
+  ],
+  implPackages:[
+    {hrs:12,  label:'12 horas',  price:12000},
+    {hrs:25,  label:'25 horas',  price:23000},
+    {hrs:50,  label:'50 horas',  price:44800},
+    {hrs:75,  label:'75 horas',  price:67800},
+    {hrs:100, label:'100 horas', price:80000},
+    {hrs:125, label:'125 horas', price:103000},
+    {hrs:150, label:'150 horas', price:124800},
+    {hrs:175, label:'175 horas', price:147800},
+    {hrs:200, label:'200 horas', price:160000},
+  ],
+  sh:{worker:{monthly:1440,annual:13824},staging:{monthly:360,annual:3456},gb:{monthly:5,annual:48}},
+  iva:0.16,
+};
+const pricingState = {company:null,contact:null,edition:null,planIdx:1,users:5,implHrs:50,customImpl:null,shWorkers:1,shStaging:0,shStorage:0,result:null};
+
+function calcPricing(){
+  const ed=PRICING_DATA.editions.find(e=>e.id===pricingState.edition)||PRICING_DATA.editions[1];
+  const planIdx=pricingState.planIdx;
+  const months=PRICING_DATA.planMonths[planIdx];
+  const users=pricingState.users||1;
+  const rate=ed.rates[planIdx];
+  const rateY2=ed.ratesY2[planIdx];
+  const isMultiyear=months>12;
+  const licY1=rate*users*(Math.min(months,12));
+  const licY2plus=isMultiyear?rateY2*users*(months-12):0;
+  const licTotal=licY1+licY2plus;
+  const impl=pricingState.customImpl||(PRICING_DATA.implPackages.find(p=>p.hrs===pricingState.implHrs)||PRICING_DATA.implPackages[2]).price;
+  let shCost=0;
+  if(pricingState.edition==='sh'){
+    const isMonthly=months===1;
+    const yrs=Math.max(1,months/12);
+    shCost=(isMonthly?PRICING_DATA.sh.worker.monthly*months:PRICING_DATA.sh.worker.annual*yrs)*pricingState.shWorkers
+           +(isMonthly?PRICING_DATA.sh.staging.monthly*months:PRICING_DATA.sh.staging.annual*yrs)*pricingState.shStaging
+           +(isMonthly?PRICING_DATA.sh.gb.monthly*months:PRICING_DATA.sh.gb.annual*yrs)*pricingState.shStorage;
+  }
+  const subtotal=licTotal+impl+shCost;
+  const iva=subtotal*PRICING_DATA.iva;
+  const total=subtotal+iva;
+  const mensualRef=rate*users;
+  return {licY1,licY2plus,licTotal,impl,shCost,subtotal,iva,total,mensualRef,rate,rateY2,months,users,ed,planIdx};
+}
+
 async function saveCompany(data){
   if(!db) return null;
   try{
@@ -3460,10 +3515,8 @@ function renderGcPropuesta(){
       </div>
 
       <div class="gc-form-section">
-        <h3>💰 Inversión (se ingresa manualmente — se conectará a Pricing en Fase 6)</h3>
-        <div style="background:var(--warning-light);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--warning);margin-bottom:16px;display:flex;gap:8px">
-          <span>⚠️</span><span>Por ahora ingresa los montos manualmente. En Fase 6 se autocompletará desde el módulo de Pricing.</span>
-        </div>
+        <h3>💰 Inversión</h3>
+        ${pricingState.result?`<div style="background:var(--success-light);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--success);margin-bottom:16px;display:flex;gap:8px;align-items:center"><span>✅</span><span>Pricing cargado desde el módulo de Pricing — puedes editar los valores</span></div>`:`<div style="background:var(--accent-light);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--accent);margin-bottom:16px;display:flex;gap:8px;align-items:center"><span>💡</span><span>Configura el pricing en el <button onclick="showModule('pricing')" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline;padding:0">módulo Pricing</button> para que se autocomplete.</span></div>`}
         <div class="gc-selector-grid">
           <div class="gc-selector"><label>Plan seleccionado</label>
             <select class="gc-select" id="gcPropPlan">
@@ -3504,6 +3557,17 @@ function renderGcPropuesta(){
       </div>
     </div>`;
   gcInitCP('prop');
+  // Pre-fill from pricingState if available
+  if(pricingState.result){
+    const r=pricingState.result;
+    const fmt=n=>n.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+    const edEl=document.getElementById('gcPropPlan');
+    if(edEl){ const edMap={standard:'custom',personalizable:'online',sh:'sh'}; edEl.value=edMap[pricingState.edition]||'custom'; }
+    const uEl=document.getElementById('gcPropUsuarios'); if(uEl) uEl.value=r.users;
+    const mEl=document.getElementById('gcPropMensual'); if(mEl) mEl.value=`$${fmt(r.mensualRef)}`;
+    const iEl=document.getElementById('gcPropImpl'); if(iEl) iEl.value=`$${fmt(r.impl)}`;
+  }
+  if(pricingState.company&&!cont.company){ cont.company=pricingState.company; cont.contact=pricingState.contact||null; cpState.selectedCompany=pricingState.company; cpState.selectedContact=pricingState.contact||null; renderM2o('gcCp_prop'); }
 }
 
 window.gcGeneratePropuesta=async function(){
@@ -4025,9 +4089,9 @@ async function renderEmpresas(){
   const content=document.getElementById('moduleContent');
   content.innerHTML=`
     <div style="max-width:1100px;margin:0 auto;padding:24px">
-      <div class="page-header" style="margin-bottom:20px">
-        <h2>🏢 Empresas</h2>
-        <p>Directorio de empresas con sus documentos y actividad relacionada.</p>
+      <div class="page-header" style="margin-bottom:20px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div><h2>🏢 Empresas</h2><p>Directorio de empresas con sus documentos y actividad relacionada.</p></div>
+        <button class="btn btn-primary" onclick="empShowCreate()">+ Nueva empresa</button>
       </div>
       <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
         <input type="text" id="empSearch" class="input" placeholder="🔍 Buscar empresa..." style="max-width:280px" oninput="empFilter()">
@@ -4081,9 +4145,15 @@ function empRender(companies){
           </div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${docTags||'<span style="font-size:11px;color:var(--gray-400)">Sin documentos aún</span>'}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${co.website?`<a href="${co.website}" target="_blank" style="font-size:12px;color:var(--accent)" onclick="event.stopPropagation()">🌐 Web</a>`:''}
-          ${co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank" style="font-size:12px;color:var(--purple)" onclick="event.stopPropagation()">💼 LinkedIn</a>`:''}
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${co.website?`<a href="${co.website}" target="_blank" style="font-size:12px;color:var(--accent)" onclick="event.stopPropagation()">🌐 Web</a>`:''}
+            ${co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank" style="font-size:12px;color:var(--purple)" onclick="event.stopPropagation()">💼 LinkedIn</a>`:''}
+          </div>
+          <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+            <button class="btn btn-ghost btn-sm" onclick="empEdit('${co.id}')">✏️ Editar</button>
+            ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteCompany('${co.id}')">🗑</button>`:''}
+          </div>
         </div>
       </div>`;
     }).join('')}</div>`;
@@ -4096,9 +4166,441 @@ window.empFilter=function(){
   if(ind) filtered=filtered.filter(c=>(c.giro||'').toLowerCase()===ind.toLowerCase());
   empRender(filtered);
 };
-window.empOpenDetail=function(id){
-  // Navigate to company detail (future expansion)
-  showNotif('Próximamente: detalle de empresa con todos los documentos vinculados','info');
+window.empOpenDetail=async function(id){
+  const co=_allEmpresas.find(c=>c.id===id); if(!co) return;
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='empDetailPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:760px">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title">🏢 ${co.nombre}</div>
+      <div class="disc-popup-actions">
+        <button class="btn btn-ghost btn-sm" onclick="empEdit('${id}');document.getElementById('empDetailPopup').remove()">✏️ Editar</button>
+        ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteCompany('${id}');document.getElementById('empDetailPopup').remove()">🗑 Eliminar</button>`:''}
+        <button class="disc-copy-btn" onclick="document.getElementById('empDetailPopup').remove()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div class="disc-popup-body" style="font-family:'DM Sans',sans-serif">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--gray-200)">
+        ${[['Industria',co.giro],['Tamaño',co.tamaño],['Origen',co.origen],['Sitio web',co.website?`<a href="${co.website}" target="_blank">${co.website}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank">${co.linkedin}</a>`:'—']].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
+      </div>
+      <div id="empDetailDocs"><div class="cdc-empty">Cargando documentos...</div></div>
+    </div>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+  // Load related docs
+  const docsEl=document.getElementById('empDetailDocs');
+  if(db){
+    try{
+      const [disc,broch,csv]=await Promise.all([
+        getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',id),orderBy('createdAt','desc'))),
+        getDocs(query(collection(db,'brochureApprovals'),where('companyId','==',id),orderBy('createdAt','desc'))),
+        getDocs(query(collection(db,'csvSessions'),where('companyId','==',id),orderBy('createdAt','desc'))),
+      ]);
+      const sections=[];
+      if(!disc.empty) sections.push(`<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">🔍 Discovery (${disc.size})</div>${disc.docs.map(d=>{const r=d.data();return `<div style="padding:8px 12px;background:var(--gray-50);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:13px;font-weight:600">${r.empresa||'Sin nombre'}</div><div style="font-size:11px;color:var(--gray-400)">${r.aeName||''} · ${r.industriaNombre||''} · ${r.status||''}</div></div>${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))">🗑</button>`:''}`;}).join('</div>')}</div>`);
+      if(!broch.empty) sections.push(`<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">📄 Brochures (${broch.size})</div>${broch.docs.map(d=>{const r=d.data();return `<div style="padding:8px 12px;background:var(--gray-50);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:13px;font-weight:600">${r.empresa||'Sin nombre'}</div><div style="font-size:11px;color:var(--gray-400)">${r.aeName||''} · ${r.status||''}</div></div>${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('brochureApprovals','${d.id}',()=>empOpenDetail('${id}'))">🗑</button>`:''}`;}).join('</div>')}</div>`);
+      if(!csv.empty) sections.push(`<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">📋 CSV Sessions (${csv.size})</div>${csv.docs.map(d=>{const r=d.data();return `<div style="padding:8px 12px;background:var(--gray-50);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px">${r.fuente||'Sin nombre'} — ${r.rowCount||0} prospectos</div>${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('csvSessions','${d.id}',()=>empOpenDetail('${id}'))">🗑</button>`:''}`;}).join('</div>')}</div>`);
+      docsEl.innerHTML=sections.length?sections.join(''):'<div class="cdc-empty">Sin documentos vinculados aún</div>';
+    } catch(e){ docsEl.innerHTML='<div class="cdc-empty">Error al cargar documentos</div>'; }
+  }
+};
+
+window.empEdit=async function(id){
+  const co=_allEmpresas.find(c=>c.id===id)||await getCompany(id); if(!co) return;
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='empEditPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:560px">
+    <div class="disc-popup-header"><div class="disc-popup-title">✏️ Editar empresa</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('empEditPopup').remove()">✕</button>
+    </div>
+    <div class="disc-popup-body" style="font-family:'DM Sans',sans-serif">
+      <div class="form-group"><label>Nombre *</label><input class="input" id="empEditNombre" value="${co.nombre||''}"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label>Giro / Industria</label>
+          <select class="input" id="empEditGiro"><option value="">—</option>${Object.keys(INDUSTRY_MAP).map(k=>`<option ${co.giro===k?'selected':''}>${k}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Tamaño</label>
+          <select class="input" id="empEditTam"><option value="">—</option>${['1-10 empleados','11-50 empleados','51-200 empleados','200+ empleados'].map(v=>`<option ${co.tamaño===v?'selected':''}>${v}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Origen</label>
+          <select class="input" id="empEditOrig"><option value="">—</option>${['Ferias comerciales','Networking','Lusha','Apollo','LinkedIn','Bases de datos','Google','Otro'].map(v=>`<option ${co.origen===v?'selected':''}>${v}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Sitio web</label><input class="input" id="empEditWeb" value="${co.website||''}"></div>
+        <div class="form-group" style="grid-column:span 2"><label>LinkedIn empresa</label><input class="input" id="empEditLi" value="${co.linkedin||''}"></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="empSaveEdit('${id}')">Guardar cambios</button>
+    </div>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+};
+
+window.empSaveEdit=async function(id){
+  const nombre=document.getElementById('empEditNombre')?.value.trim();
+  if(!nombre){ showNotif('El nombre es obligatorio','error'); return; }
+  const updated={nombre,giro:document.getElementById('empEditGiro')?.value||'',tamaño:document.getElementById('empEditTam')?.value||'',origen:document.getElementById('empEditOrig')?.value||'',website:document.getElementById('empEditWeb')?.value||'',linkedin:document.getElementById('empEditLi')?.value||''};
+  const saved=await saveCompany({id,...updated}); if(!saved) return;
+  const idx=_allEmpresas.findIndex(c=>c.id===id);
+  if(idx>=0) _allEmpresas[idx]={..._allEmpresas[idx],...updated};
+  document.getElementById('empEditPopup')?.remove();
+  showNotif('Empresa actualizada ✓','success'); empRender(_allEmpresas);
+};
+
+window.empShowCreate=function(){
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='empCreatePopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:560px">
+    <div class="disc-popup-header"><div class="disc-popup-title">🏢 Nueva empresa</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('empCreatePopup').remove()">✕</button>
+    </div>
+    <div class="disc-popup-body" style="font-family:'DM Sans',sans-serif">
+      <div class="form-group"><label>Nombre *</label><input class="input" id="empCreateNombre" placeholder="Nombre de la empresa"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label>Giro / Industria</label>
+          <select class="input" id="empCreateGiro"><option value="">—</option>${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Tamaño</label>
+          <select class="input" id="empCreateTam"><option value="">—</option>${['1-10 empleados','11-50 empleados','51-200 empleados','200+ empleados'].map(v=>`<option>${v}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Origen</label>
+          <select class="input" id="empCreateOrig"><option value="">—</option>${['Ferias comerciales','Networking','Lusha','Apollo','LinkedIn','Bases de datos','Google','Otro'].map(v=>`<option>${v}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Sitio web</label><input class="input" id="empCreateWeb" placeholder="https://"></div>
+        <div class="form-group" style="grid-column:span 2"><label>LinkedIn empresa</label><input class="input" id="empCreateLi" placeholder="linkedin.com/company/..."></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="empSaveCreate()">Crear empresa</button>
+    </div>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+};
+
+window.empSaveCreate=async function(){
+  const nombre=document.getElementById('empCreateNombre')?.value.trim();
+  if(!nombre){ showNotif('El nombre es obligatorio','error'); return; }
+  const company={nombre,giro:document.getElementById('empCreateGiro')?.value||'',tamaño:document.getElementById('empCreateTam')?.value||'',origen:document.getElementById('empCreateOrig')?.value||'',website:document.getElementById('empCreateWeb')?.value||'',linkedin:document.getElementById('empCreateLi')?.value||'',contacts:[]};
+  const id=await saveCompany(company); if(!id) return;
+  document.getElementById('empCreatePopup')?.remove();
+  showNotif('Empresa creada ✓','success');
+  await empLoad(); empRender(_allEmpresas);
+};
+
+// ══════════════════════════════════════════
+// PRICING MODULE
+// ══════════════════════════════════════════
+function renderPricing(){
+  const content=document.getElementById('moduleContent');
+  const fmt=n=>n.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+  content.innerHTML=`
+    <div style="max-width:960px;margin:0 auto;padding:24px">
+      <div class="page-header" style="margin-bottom:24px"><h2>💰 Pricing</h2><p>Calculadora oficial de precios Odoo México. Los precios solo pueden modificarse en el código.</p></div>
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:24px">
+        <div>
+          <div class="card" style="padding:20px;margin-bottom:16px">
+            <h4 style="font-size:14px;font-weight:700;margin-bottom:16px">🏢 Empresa y contacto</h4>
+            <div id="pricingM2o"></div>
+          </div>
+          <div class="card" style="padding:20px;margin-bottom:16px">
+            <h4 style="font-size:14px;font-weight:700;margin-bottom:16px">📦 Edición</h4>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${PRICING_DATA.editions.map(ed=>`
+                <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;transition:border-color .15s">
+                  <input type="radio" name="prEdition" value="${ed.id}" onchange="prUpdate()" style="accent-color:var(--purple)">
+                  <div><div style="font-size:14px;font-weight:600">${ed.name}</div>
+                    <div style="font-size:11px;color:var(--gray-500)">$${ed.rates[1]}/usuario/mes (contrato anual) · Renovación: $${ed.ratesY2[2]}/u/mes</div>
+                  </div>
+                </label>`).join('')}
+            </div>
+          </div>
+          <div class="card" style="padding:20px;margin-bottom:16px">
+            <h4 style="font-size:14px;font-weight:700;margin-bottom:16px">👥 Usuarios y plazo</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div><label style="font-size:12px;font-weight:600;color:var(--gray-600);display:block;margin-bottom:4px">Número de usuarios</label>
+                <input type="number" class="input" id="prUsers" value="5" min="1" oninput="prUpdate()"></div>
+              <div><label style="font-size:12px;font-weight:600;color:var(--gray-600);display:block;margin-bottom:4px">Plazo del contrato</label>
+                <select class="input" id="prPlan" onchange="prUpdate()">
+                  ${PRICING_DATA.planLabels.map((l,i)=>`<option value="${i}" ${i===1?'selected':''}>${l}</option>`).join('')}
+                </select></div>
+            </div>
+          </div>
+          <div class="card" style="padding:20px;margin-bottom:16px">
+            <h4 style="font-size:14px;font-weight:700;margin-bottom:12px">🛠 Implementación</h4>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px">
+              ${PRICING_DATA.implPackages.map(p=>`
+                <label style="display:flex;flex-direction:column;align-items:center;padding:8px 4px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;font-size:11px;text-align:center;transition:border-color .15s">
+                  <input type="radio" name="prImpl" value="${p.hrs}" onchange="prUpdate()" style="accent-color:var(--purple);margin-bottom:3px">
+                  <strong>${p.hrs}h</strong><span style="color:var(--gray-500)">$${fmt(p.price)}</span>
+                </label>`).join('')}
+              <label style="display:flex;flex-direction:column;align-items:center;padding:8px 4px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;font-size:11px;text-align:center">
+                <input type="radio" name="prImpl" value="custom" onchange="prUpdate()" style="accent-color:var(--purple);margin-bottom:3px">
+                <strong>Custom</strong>
+                <input type="number" class="input" id="prCustomImpl" placeholder="$MXN" style="font-size:10px;padding:3px;text-align:center;margin-top:3px;width:80px" oninput="prUpdate()">
+              </label>
+            </div>
+          </div>
+          <div class="card" style="padding:20px;display:none" id="prShCard">
+            <h4 style="font-size:14px;font-weight:700;margin-bottom:16px">☁️ Recursos Odoo SH</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+              <div><label style="font-size:11px;color:var(--gray-500)">Workers ($${fmt(PRICING_DATA.sh.worker.annual)}/año)</label>
+                <input type="number" class="input" id="prWorkers" value="1" min="1" max="8" oninput="prUpdate()" style="text-align:center"></div>
+              <div><label style="font-size:11px;color:var(--gray-500)">Staging ($${fmt(PRICING_DATA.sh.staging.annual)}/año)</label>
+                <input type="number" class="input" id="prStaging" value="0" min="0" oninput="prUpdate()" style="text-align:center"></div>
+              <div><label style="font-size:11px;color:var(--gray-500)">Storage GB ($${PRICING_DATA.sh.gb.annual}/año)</label>
+                <input type="number" class="input" id="prStorage" value="0" min="0" oninput="prUpdate()" style="text-align:center"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="padding:20px;position:sticky;top:24px">
+            <h4 style="font-size:14px;font-weight:700;margin-bottom:4px">💵 Resumen de inversión</h4>
+            <div style="font-size:12px;color:var(--gray-400);margin-bottom:16px" id="prSubtitle">Configura los campos</div>
+            <div id="prBreakdown" style="margin-bottom:12px"></div>
+            <div id="prTotals"></div>
+            <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px">
+              <button class="btn btn-primary btn-full" onclick="prUsarEnPropuesta()" id="prUsarBtn" disabled>📋 Usar en Propuesta Comercial</button>
+              <div id="prEmpresaTag" style="font-size:12px;color:var(--gray-400);text-align:center"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  mountCompanyPicker('pricingM2o',(co,ct)=>{pricingState.company=co;pricingState.contact=ct;prUpdate();});
+  document.querySelector('input[name="prEdition"][value="personalizable"]').checked=true;
+  document.querySelector('input[name="prImpl"][value="50"]').checked=true;
+  pricingState.edition='personalizable'; pricingState.implHrs=50;
+  prUpdate();
+}
+
+window.prUpdate=function(){
+  const edVal=document.querySelector('input[name="prEdition"]:checked')?.value||'personalizable';
+  const planIdx=parseInt(document.getElementById('prPlan')?.value||'1');
+  const users=Math.max(1,parseInt(document.getElementById('prUsers')?.value||'5')||1);
+  const implVal=document.querySelector('input[name="prImpl"]:checked')?.value||'50';
+  const customImpl=implVal==='custom'?parseFloat(document.getElementById('prCustomImpl')?.value)||null:null;
+  pricingState.edition=edVal; pricingState.planIdx=planIdx; pricingState.users=users;
+  pricingState.implHrs=implVal==='custom'?null:parseInt(implVal); pricingState.customImpl=customImpl;
+  pricingState.shWorkers=parseInt(document.getElementById('prWorkers')?.value||'1')||1;
+  pricingState.shStaging=parseInt(document.getElementById('prStaging')?.value||'0')||0;
+  pricingState.shStorage=parseInt(document.getElementById('prStorage')?.value||'0')||0;
+  const shCard=document.getElementById('prShCard'); if(shCard) shCard.style.display=edVal==='sh'?'block':'none';
+  const r=calcPricing(); pricingState.result=r;
+  const fmt=n=>n.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const bd=document.getElementById('prBreakdown'), tot=document.getElementById('prTotals'), sub=document.getElementById('prSubtitle');
+  if(!bd||!tot) return;
+  if(sub) sub.textContent=`${r.ed.name} · ${r.users} usuarios · ${PRICING_DATA.planLabels[r.planIdx]}`;
+  const rows=[
+    {label:`Licencias año 1 (${r.users}u × $${fmt(r.rate)}/mes × ${Math.min(r.months,12)}m)`,val:r.licY1},
+    ...(r.licY2plus>0?[{label:`Licencias año 2+ (${r.users}u × $${fmt(r.rateY2)}/mes × ${r.months-12}m)`,val:r.licY2plus}]:[]),
+    ...(r.shCost>0?[{label:'Recursos Odoo SH',val:r.shCost}]:[]),
+    {label:`Implementación (${implVal==='custom'?'custom':implVal+' horas'})`,val:r.impl},
+  ];
+  bd.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px">${rows.map(row=>`<div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--gray-600)">${row.label}</span><span style="font-weight:600">$${fmt(row.val)}</span></div>`).join('')}<hr style="border:none;border-top:1px solid var(--gray-200);margin:4px 0"></div>`;
+  tot.innerHTML=`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span style="color:var(--gray-600)">Subtotal</span><span style="font-weight:600">$${fmt(r.subtotal)}</span></div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:12px"><span style="color:var(--gray-600)">IVA (16%)</span><span style="font-weight:600">$${fmt(r.iva)}</span></div><div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700;padding:12px;background:var(--purple-light);border-radius:var(--radius-sm)"><span style="color:var(--purple)">Total</span><span style="color:var(--purple)">$${fmt(r.total)} MXN</span></div><div style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:6px">Precio lista · IVA incluido</div>`;
+  const btn=document.getElementById('prUsarBtn'); if(btn) btn.disabled=false;
+  const etag=document.getElementById('prEmpresaTag'); if(etag) etag.textContent=pricingState.company?`Para: ${pricingState.company.nombre}`:'';
+};
+
+window.prUsarEnPropuesta=function(){
+  if(!pricingState.result){ showNotif('Configura el pricing primero','error'); return; }
+  if(pricingState.company){ cont.company=pricingState.company; cont.contact=pricingState.contact||null; }
+  showNotif('Pricing cargado → abriendo Propuesta Comercial ✓','success');
+  showModule('gencontenidos');
+  setTimeout(()=>gcShowSection('propuesta'),400);
+};
+
+// ══════════════════════════════════════════
+// CSV BUILDER
+// ══════════════════════════════════════════
+const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Email','phone','Tags_id','user_id','state_id','country_id'];
+const MX_STATES=['Aguascalientes (MX)','Baja California (MX)','Baja California Sur (MX)','Campeche (MX)','Chihuahua (MX)','Chiapas (MX)','Ciudad de México (MX)','Coahuila (MX)','Colima (MX)','Durango (MX)','Estado de Mexico (MX)','Guerrero (MX)','Guanajuato (MX)','Hidalgo (MX)','Jalisco (MX)','Michoacán (MX)','Morelos (MX)','Nayarit (MX)','Nuevo León (MX)','Oaxaca (MX)','Puebla (MX)','Querétaro (MX)','Quintana Roo (MX)','Sinaloa (MX)','San Luis Potosí (MX)','Sonora (MX)','Tabasco (MX)','Tamaulipas (MX)','Tlaxcala (MX)','Veracruz (MX)','Yucatán (MX)','Zacatecas (MX)'];
+let csvRows=[];
+function renderCsvBuilder(){
+  const content=document.getElementById('moduleContent');
+  const gram=currentUserData?.gram||'';
+  const fullName=gram===MANAGER.gram?MANAGER.name:(AE_LIST[gram]||currentUserData?.name||'');
+  const userId=fullName?`${fullName} (${gram})`:'';
+  content.innerHTML=`
+    <div style="max-width:900px;margin:0 auto;padding:24px">
+      <div class="page-header" style="margin-bottom:24px"><h2>📋 CSV Builder</h2><p>Convierte cualquier fuente de prospectos en un CSV listo para importar al CRM de Odoo.</p></div>
+      <div class="card" style="padding:24px;margin-bottom:20px">
+        <h4 style="font-size:15px;font-weight:700;margin-bottom:16px">⚙️ Configuración</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div class="form-group" style="margin:0"><label>Fuente del lead *</label>
+            <input type="text" class="input" id="csvFuente" placeholder="Ej. Apollo Ecommerce, Base LinkedIn..."></div>
+          <div class="form-group" style="margin:0"><label>Tags adicionales (opcional)</label>
+            <input type="text" class="input" id="csvTags" placeholder="Ej. Ecommerce,CDMX (sin espacios)"></div>
+        </div>
+        <div class="form-group" style="margin:0"><label>Account Executive</label>
+          <input type="text" class="input" id="csvAE" value="${userId}" readonly style="background:var(--gray-50)"></div>
+      </div>
+      <div class="card" style="padding:24px;margin-bottom:20px">
+        <h4 style="font-size:15px;font-weight:700;margin-bottom:8px">📥 Datos de prospectos</h4>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Pega texto libre: Apollo, LinkedIn, Excel, lo que sea. Claude extrae y estructura todo.</p>
+        <textarea class="input" id="csvRawData" style="min-height:180px;resize:vertical;font-family:'DM Mono',monospace;font-size:12px"
+          placeholder="Pega aquí los datos — cualquier formato:&#10;&#10;Empresa: DGL LATAM&#10;Contacto: Gustavo Ramos&#10;Cargo: Senior Manager Ecommerce&#10;Email: gustavo.ramos@digicellmx.com&#10;Tel: +55 55 2122-8660&#10;Web: https://dgllatam.com&#10;Ciudad: CDMX&#10;---"></textarea>
+        <button class="gc-generate-btn" style="margin-top:12px" id="csvProcessBtn" onclick="csvProcess()"><span>🤖</span> Procesar con Claude</button>
+        <div class="gc-loading" id="csvLoading"><div class="gc-spinner"></div><span>Procesando prospectos...</span></div>
+      </div>
+      <div id="csvPreviewSection" style="display:none">
+        <div class="card" style="padding:24px;margin-bottom:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h4 style="font-size:15px;font-weight:700">👁 Preview <span id="csvRowCount" style="color:var(--gray-400);font-weight:400;font-size:13px"></span></h4>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" onclick="csvAddRow()">+ Fila</button>
+              <button class="btn btn-primary btn-sm" onclick="csvDownload()">⬇ Descargar CSV</button>
+            </div>
+          </div>
+          <div id="csvWarnings" style="margin-bottom:12px"></div>
+          <div style="overflow-x:auto">
+            <table id="csvTable" style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr style="background:var(--purple-light)">
+                ${CSV_COLUMNS.map(c=>`<th style="padding:8px 10px;text-align:left;white-space:nowrap;font-size:11px;font-weight:700;color:var(--purple)">${c}</th>`).join('')}
+                <th style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--purple)">Notes</th>
+                <th style="padding:8px;font-size:11px;color:var(--danger)">✕</th>
+              </tr></thead>
+              <tbody id="csvTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="csvDownload()">⬇ Descargar CSV</button>
+          <button class="btn btn-ghost" onclick="csvSaveSession()">💾 Guardar sesión</button>
+        </div>
+      </div>
+      <div style="margin-top:32px"><h4 style="font-size:15px;font-weight:700;margin-bottom:12px">📁 CSV creados</h4>
+        <div id="csvHistory"><div class="cdc-empty">Cargando...</div></div></div>
+    </div>`;
+  csvRows=[]; csvLoadHistory();
+}
+
+window.csvProcess=async function(){
+  const fuente=document.getElementById('csvFuente')?.value.trim();
+  const rawData=document.getElementById('csvRawData')?.value.trim();
+  const tags=document.getElementById('csvTags')?.value.trim();
+  const ae=document.getElementById('csvAE')?.value.trim();
+  if(!fuente){ showNotif('Indica la fuente del lead','error'); return; }
+  if(!rawData){ showNotif('Pega los datos de los prospectos','error'); return; }
+  const btn=document.getElementById('csvProcessBtn'); btn.disabled=true; gcShowLoading('csvLoading',true);
+  const tagsStr='Outbound-MX'+(tags?','+tags.replace(/\s*,\s*/g,','):'');
+  try{
+    const result=await gcCallClaude(`Eres un extractor de datos de prospectos para Odoo CRM México.
+Analiza los siguientes datos y extrae cada prospecto como un objeto JSON.
+FUENTE: "${fuente}" | AE: "${ae}" | TAGS: "${tagsStr}"
+DATOS:
+${rawData}
+
+Para cada prospecto devuelve estos campos:
+- contact_name: nombre completo del contacto
+- function: cargo/puesto
+- partner_name: nombre de la empresa
+- Website: URL del sitio web (agrega https:// si falta)
+- Email: correo del contacto
+- phone: teléfono principal
+- state_id: estado de México EXACTAMENTE de esta lista: ${MX_STATES.join(', ')}. Si no puedes determinar: dejar ""
+- notes: cualquier dato adicional (teléfonos extra, empleados, industria, LinkedIn, redes, etc.)
+
+Devuelve SOLO el array JSON sin texto extra: [{...},...]`);
+    const jsonMatch=result.match(/\[[\s\S]*\]/);
+    if(!jsonMatch) throw new Error('Respuesta no parseable — intenta de nuevo');
+    const extracted=JSON.parse(jsonMatch[0]);
+    csvRows=extracted.map(row=>({
+      name:`${fuente} - ${row.partner_name||''} - ${row.contact_name||''}`,
+      contact_name:row.contact_name||'', function:row.function||'',
+      partner_name:row.partner_name||'', Website:row.Website||'',
+      Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
+      state_id:row.state_id||'', country_id:'Mexico', notes:row.notes||'',
+    }));
+    csvRenderTable();
+    document.getElementById('csvPreviewSection').style.display='block';
+    document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+  btn.disabled=false; gcShowLoading('csvLoading',false);
+};
+
+function csvRenderTable(){
+  const tbody=document.getElementById('csvTableBody'); if(!tbody) return;
+  document.getElementById('csvRowCount').textContent=`(${csvRows.length} prospectos)`;
+  tbody.innerHTML=csvRows.map((row,i)=>`<tr style="border-bottom:1px solid var(--gray-100)">
+    ${CSV_COLUMNS.map(col=>`<td style="padding:4px 6px;max-width:130px"><input type="text" value="${(row[col]||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvRows[${i}]['${col}']=this.value" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>`).join('')}
+    <td style="padding:4px 6px;max-width:160px"><input type="text" value="${(row.notes||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvRows[${i}].notes=this.value" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>
+    <td style="padding:4px"><button onclick="csvDeleteRow(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px">✕</button></td>
+  </tr>`).join('');
+  const emptyStates=csvRows.map((r,i)=>r.state_id?null:i+1).filter(Boolean);
+  const warn=document.getElementById('csvWarnings');
+  if(warn) warn.innerHTML=emptyStates.length>0?`<div style="background:var(--warning-light);color:var(--warning);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px">⚠️ Filas sin estado: ${emptyStates.join(', ')} — revisa manualmente</div>`:'';
+}
+window.csvDeleteRow=function(i){ csvRows.splice(i,1); csvRenderTable(); };
+window.csvAddRow=function(){
+  const fuente=document.getElementById('csvFuente')?.value.trim()||'';
+  const tags=document.getElementById('csvTags')?.value.trim();
+  const ae=document.getElementById('csvAE')?.value.trim()||'';
+  csvRows.push({name:fuente+' -  - ',contact_name:'',function:'',partner_name:'',Website:'',Email:'',phone:'',Tags_id:'Outbound-MX'+(tags?','+tags:''),user_id:ae,state_id:'',country_id:'Mexico',notes:''});
+  csvRenderTable();
+};
+window.csvDownload=function(){
+  if(!csvRows.length){ showNotif('Sin filas para descargar','error'); return; }
+  const headers=[...CSV_COLUMNS,'Notes'];
+  const esc=v=>'"'+(v||'').replace(/"/g,'""')+'"';
+  const lines=[headers.join(','),...csvRows.map(r=>[...CSV_COLUMNS.map(c=>esc(r[c]||'')),esc(r.notes||'')].join(','))];
+  const blob=new Blob([lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;
+  a.download=`odoo-leads-${(document.getElementById('csvFuente')?.value||'csv').replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url); showNotif('CSV descargado ✓','success');
+};
+window.csvSaveSession=async function(){
+  if(!db){ showNotif('Requiere Firebase','error'); return; }
+  if(!csvRows.length){ showNotif('Sin datos para guardar','error'); return; }
+  try{
+    await addDoc(collection(db,'csvSessions'),{
+      aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram,
+      fuente:document.getElementById('csvFuente')?.value||'', rowCount:csvRows.length, rows:csvRows,
+      createdAt:serverTimestamp(),
+    });
+    showNotif('Sesión guardada ✓','success'); csvLoadHistory();
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+async function csvLoadHistory(){
+  const el=document.getElementById('csvHistory'); if(!el||!db) return;
+  try{
+    const role=currentUserData?.role;
+    const q=(role==='manager'||role==='tl')?query(collection(db,'csvSessions'),orderBy('createdAt','desc')):query(collection(db,'csvSessions'),where('aeUid','==',currentUserData.uid),orderBy('createdAt','desc'));
+    const snap=await getDocs(q);
+    if(snap.empty){ el.innerHTML='<div class="cdc-empty">Sin sesiones guardadas aún</div>'; return; }
+    el.innerHTML=`<div style="display:flex;flex-direction:column;gap:8px">${snap.docs.map(d=>{
+      const r=d.data(), date=r.createdAt?.toDate?.()?.toLocaleDateString('es-MX')||'';
+      return `<div class="card" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+        <div><div style="font-weight:600;font-size:14px">${r.fuente||'Sin nombre'}</div>
+          <div style="font-size:12px;color:var(--gray-400)">${r.rowCount||0} prospectos · ${r.aeName} · ${date}</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="csvReloadSession('${d.id}')">↻ Recargar</button>
+          ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('csvSessions','${d.id}',csvLoadHistory)">🗑</button>`:''}
+        </div>
+      </div>`;}).join('')}</div>`;
+  } catch(e){ el.innerHTML='<div class="cdc-empty">Error al cargar</div>'; }
+}
+window.csvReloadSession=async function(id){
+  if(!db) return;
+  const snap=await getDoc(doc(db,'csvSessions',id)); if(!snap.exists()) return;
+  const data=snap.data(); csvRows=data.rows||[];
+  document.getElementById('csvFuente').value=data.fuente||'';
+  csvRenderTable(); document.getElementById('csvPreviewSection').style.display='block';
+  showNotif('Sesión recargada ✓','success');
+};
+
+// ══════════════════════════════════════════
+// DELETE RECORD (manager only)
+// ══════════════════════════════════════════
+window.deleteRecord=async function(collectionName,id,onSuccess){
+  if(currentUserData?.role!=='manager'){ showNotif('Solo el manager puede eliminar','error'); return; }
+  if(!confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
+  try{
+    await deleteDoc(doc(db,collectionName,id));
+    showNotif('Eliminado ✓','success'); if(onSuccess) onSuccess();
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+window.deleteCompany=async function(id){
+  if(currentUserData?.role!=='manager'){ showNotif('Solo el manager puede eliminar','error'); return; }
+  if(!confirm('¿Eliminar empresa y todos sus documentos relacionados?\n\nEsto eliminará Discovery sessions, brochures y CSV vinculados. No se puede deshacer.')) return;
+  try{
+    for(const c of ['discoveryRecords','brochureApprovals','csvSessions']){
+      const snap=await getDocs(query(collection(db,c),where('companyId','==',id)));
+      for(const d of snap.docs) await deleteDoc(d.ref);
+    }
+    await deleteDoc(doc(db,'companies',id));
+    showNotif('Empresa y documentos eliminados ✓','success'); renderEmpresas();
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
 };
 
 // ══════════════════════════════════════════
