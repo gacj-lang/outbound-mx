@@ -2405,7 +2405,7 @@ async function saveCompany(data){
       const ref=await addDoc(collection(db,'companies'),{...data,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
       return ref.id;
     }
-  } catch(e){ console.error(e); return null; }
+  } catch(e){ console.error(e); showNotif('Error al guardar empresa: '+e.message,'error'); return null; }
 }
 
 async function searchCompanies(term=''){
@@ -2537,7 +2537,7 @@ window.m2oStartCreateCo=function(cid,name){
         <div><label style="font-size:11px;color:var(--gray-500)">Origen</label>
           <select class="m2o-mini-input" id="m2oCoOrig_${cid}">
             <option value="">— —</option>
-            <option>Outbound</option><option>Inbound</option><option>Referido</option><option>LinkedIn</option><option>Apollo</option><option>Evento</option>
+            <option>Ferias comerciales</option><option>Networking</option><option>Lusha</option><option>Apollo</option><option>LinkedIn</option><option>Bases de datos</option><option>Google</option><option>Otro</option>
           </select></div>
         <div><label style="font-size:11px;color:var(--gray-500)">Sitio web</label>
           <input class="m2o-mini-input" id="m2oCoWeb_${cid}" placeholder="https://..."></div>
@@ -2618,11 +2618,6 @@ window.m2oStartCreateCt=function(cid,name){
         <div><label style="font-size:11px;color:var(--gray-500)">Cargo</label><input class="m2o-mini-input" id="m2oCtCargo_${cid}" placeholder="CEO, Gerente..."></div>
         <div><label style="font-size:11px;color:var(--gray-500)">Correo</label><input class="m2o-mini-input" id="m2oCtEmail_${cid}" placeholder="correo@..."></div>
         <div><label style="font-size:11px;color:var(--gray-500)">LinkedIn</label><input class="m2o-mini-input" id="m2oCtLi_${cid}" placeholder="linkedin.com/in/..."></div>
-        <div><label style="font-size:11px;color:var(--gray-500)">Origen del contacto</label>
-          <select class="m2o-mini-input" id="m2oCtOrigen_${cid}">
-            <option value="">— —</option>
-            <option>Ferias comerciales</option><option>Networking</option><option>Lusha</option><option>Apollo</option><option>LinkedIn</option><option>Bases de datos</option><option>Google</option><option>Otro</option>
-          </select></div>
         <div style="display:flex;align-items:flex-end">
           <div class="m2o-create-actions" style="margin:0">
             <button class="btn btn-primary btn-sm" onclick="m2oSaveCt('${cid}')">Crear</button>
@@ -2635,7 +2630,7 @@ window.m2oStartCreateCt=function(cid,name){
 window.m2oSaveCt=async function(cid){
   const nombre=document.getElementById('m2oCtNombre_'+cid)?.value.trim();
   if(!nombre){ showNotif('Ingresa el nombre','error'); return; }
-  const ct={nombre,cargo:document.getElementById('m2oCtCargo_'+cid)?.value||'',email:document.getElementById('m2oCtEmail_'+cid)?.value||'',linkedin:document.getElementById('m2oCtLi_'+cid)?.value||'',origen:document.getElementById('m2oCtOrigen_'+cid)?.value||''};
+  const ct={nombre,cargo:document.getElementById('m2oCtCargo_'+cid)?.value||'',email:document.getElementById('m2oCtEmail_'+cid)?.value||'',linkedin:document.getElementById('m2oCtLi_'+cid)?.value||''};
   const co=cpState.selectedCompany;
   const contacts=[...(co.contacts||[]),ct];
   await saveCompany({...co,contacts}); co.contacts=contacts;
