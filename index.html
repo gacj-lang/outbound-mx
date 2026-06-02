@@ -408,8 +408,17 @@ input,select,textarea{font-family:inherit;}
 .disc-gemini-btn{width:100%;padding:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;background:linear-gradient(135deg,var(--purple),var(--purple-mid));color:white;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;margin-top:12px;}
 .disc-gemini-btn:hover{opacity:.9;transform:translateY(-2px);box-shadow:0 6px 20px rgba(113,75,103,.35);}
 .disc-gemini-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
-.disc-gemini-output{background:#f8f9fa;border:1px solid #e5e7eb;border-radius:10px;padding:20px;font-family:'DM Mono',monospace;font-size:12.5px;line-height:1.8;color:#1f2937;white-space:pre-wrap;min-height:200px;margin-top:12px;display:none;}
+.disc-gemini-output{background:#f8f9fa;border:1px solid #e5e7eb;border-radius:10px;padding:20px;font-family:'DM Mono',monospace;font-size:12.5px;line-height:1.8;color:#1f2937;white-space:pre-wrap;min-height:80px;margin-top:12px;display:none;}
 .disc-gemini-output.show{display:block;}
+.disc-output-compact{max-height:120px;overflow:hidden;position:relative;}
+.disc-output-compact::after{content:'';position:absolute;bottom:0;left:0;right:0;height:32px;background:linear-gradient(transparent,#f8f9fa);pointer-events:none;}
+/* ── TEXT POPUP ── */
+.disc-popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:24px;}
+.disc-popup-box{background:white;border-radius:16px;width:100%;max-width:680px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.disc-popup-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--gray-200);}
+.disc-popup-title{font-size:15px;font-weight:700;}
+.disc-popup-actions{display:flex;gap:8px;align-items:center;}
+.disc-popup-body{padding:24px;overflow-y:auto;flex:1;font-family:'DM Mono',monospace;font-size:12.5px;line-height:1.8;white-space:pre-wrap;color:#1f2937;}
 .disc-gemini-loading{display:none;align-items:center;gap:10px;padding:16px;color:#6b7280;font-size:13px;}
 .disc-gemini-loading.show{display:flex;}
 .disc-spinner{width:20px;height:20px;border:2px solid #e5e7eb;border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite;}
@@ -811,6 +820,7 @@ input,select,textarea{font-family:inherit;}
     <nav class="sidebar-nav">
       <div class="nav-section-label">Principal</div>
       <button class="nav-item" id="nav-home" onclick="showModule('home')"><span class="nav-icon">🏠</span> Inicio</button>
+      <button class="nav-item" id="nav-empresas" onclick="showModule('empresas')"><span class="nav-icon">🏢</span> Empresas</button>
       <div class="nav-section-label" style="margin-top:8px">Módulos</div>
       <button class="nav-item" id="nav-discovery" onclick="showModule('discovery')"><span class="nav-icon">🔍</span> Discovery Guide</button>
       <button class="nav-item" id="nav-gencontenidos" onclick="showModule('gencontenidos')"><span class="nav-icon">✉️</span> Generación de contenidos</button>
@@ -1005,7 +1015,9 @@ function renderTeamList(users){
   const c=document.getElementById('teamList'); if(!c) return;
   if(users.length===0){ c.innerHTML='<p class="empty-state">No hay usuarios activos todavía</p>'; return; }
   const tls=users.filter(u=>u.role==='tl'), aes=users.filter(u=>u.role==='ae');
-  const tlOpts='<option value="">Sin TL</option>'+tls.map(t=>`<option value="${t.uid}">${t.name}</option>`).join('');
+  const mgr=users.find(u=>u.email===MANAGER.email);
+  const tlForDropdown=[...(mgr&&mgr.role==='manager'?[{...mgr,name:mgr.name+' (Manager)'}]:[]),...tls];
+  const tlOpts='<option value="">Sin TL</option>'+tlForDropdown.map(t=>`<option value="${t.uid}">${t.name}</option>`).join('');
   const row=(u)=>`<div class="user-card">
     <div class="user-card-info"><div class="user-avatar sm">${u.name[0]}</div><div><strong>${u.name}</strong><div class="user-meta">${u.gram}</div></div></div>
     <div class="user-card-actions">
@@ -1063,7 +1075,7 @@ window.showModule = function(moduleId, skipNavHighlight=false){
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
   const content=document.getElementById('moduleContent');
   const map={
-    home:renderHome, discovery:renderDiscoveryList,
+    home:renderHome, empresas:renderEmpresas, discovery:renderDiscoveryList,
     gencontenidos:renderGenContenidos,
     csv:()=>renderComingSoon('CSV Builder','📋','Fase 3','Describe prospectos en texto libre y genera el CSV listo para importar en Odoo CRM.'),
     pricing:()=>renderComingSoon('Pricing','💰','Fase 6','Calculadora de precios y propuestas con módulos de Odoo.'),
@@ -1151,7 +1163,7 @@ window.saveClaudeKey=function(){
 // ══════════════════════════════════════════
 // DISCOVERY MODULE
 // ══════════════════════════════════════════
-const IND_NAMES={ construccion:'Construcción',retail:'Retail',restaurante:'Restaurante',comercializadora:'Comercializadora',otra:'Otra' };
+const IND_NAMES={ construccion:'Construcción',retail:'Retail',restaurante:'Restaurante',comercializadora:'Comercializadora',manufactura:'Manufactura',software:'Software/IT',servicios:'Servicios',distribucion:'Distribución',ecommerce:'Ecommerce',salud:'Salud',educacion:'Educación',inmobiliaria:'Inmobiliaria',logistica:'Logística',agricultura:'Agricultura',turismo:'Turismo',otra:'Otra' };
 const TV_NAMES={ cotizacion:'Cotización',suscripcion:'Suscripción',alquiler:'Alquiler',ecommerce:'Ecommerce',pos:'Punto de venta' };
 
 const APPS_DB={
@@ -1210,7 +1222,8 @@ const disc = {
   currentInd: null,
   activeTV: new Set(),
   selections: {},
-  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; }
+  companyId: null,
+  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; }
 };
 // Expose disc setters for inline HTML handlers
 window.discSetStatus = (v) => { disc.status = v; };
@@ -1317,6 +1330,19 @@ window.openDiscoveryForm = async function(recordId){
   document.getElementById('moduleContent').style.padding='0';
   document.getElementById('moduleContent').innerHTML=buildDiscoveryFormHTML(existingData);
   discInitForm(existingData);
+  // Mount company picker for discovery
+  mountCompanyPicker('discM2oWrap',(co,ct)=>{
+    disc.selections['emp-nombre']=co?.nombre||'';
+    disc.companyId=co?.id||null;
+    const nb=document.getElementById('discEmpresaBadge');
+    const ni=document.getElementById('d-emp-nombre');
+    if(nb){ nb.textContent=co?'📄 '+co.nombre:''; nb.style.display=co?'inline-block':'none'; }
+    if(ni) ni.value=co?.nombre||'';
+  }).then(()=>{
+    if(existingData?.companyId){
+      getCompany(existingData.companyId).then(co=>{ if(co){ cpState.selectedCompany=co; renderM2o('discM2oWrap'); } });
+    }
+  });
   // Show start popup only for NEW sessions
   if(!recordId) discShowStartPopup();
 };
@@ -1425,6 +1451,16 @@ function buildDiscoveryFormHTML(data){
         <span class="disc-chip" onclick="discSelectInd('retail',this)">🏪 Retail</span>
         <span class="disc-chip" onclick="discSelectInd('restaurante',this)">🍽 Restaurante</span>
         <span class="disc-chip" onclick="discSelectInd('comercializadora',this)">📦 Comercializadora</span>
+        <span class="disc-chip" onclick="discSelectInd('manufactura',this)">🏭 Manufactura</span>
+        <span class="disc-chip" onclick="discSelectInd('software',this)">💻 Software/IT</span>
+        <span class="disc-chip" onclick="discSelectInd('servicios',this)">🤝 Servicios</span>
+        <span class="disc-chip" onclick="discSelectInd('distribucion',this)">🚚 Distribución</span>
+        <span class="disc-chip" onclick="discSelectInd('ecommerce',this)">🛒 Ecommerce</span>
+        <span class="disc-chip" onclick="discSelectInd('salud',this)">⚕️ Salud</span>
+        <span class="disc-chip" onclick="discSelectInd('educacion',this)">📚 Educación</span>
+        <span class="disc-chip" onclick="discSelectInd('inmobiliaria',this)">🏘 Inmobiliaria</span>
+        <span class="disc-chip" onclick="discSelectInd('logistica',this)">📦 Logística</span>
+        <span class="disc-chip" onclick="discSelectInd('turismo',this)">✈️ Turismo</span>
         <span class="disc-chip" onclick="discSelectInd('otra',this)">✏️ Otra</span>
       </div>
     </div>
@@ -1453,7 +1489,8 @@ function buildDiscoveryFormHTML(data){
       <div class="disc-topic-question">"Para entender bien cómo podríamos ayudarles, cuéntame sobre la empresa — ¿a qué se dedican y cómo está estructurada la operación?"</div>
       <div class="disc-emp-fields">
         <div class="disc-emp-fields-label">Datos de la empresa</div>
-        <div class="disc-emp-field"><label>Nombre de la empresa</label><input class="disc-emp-input" id="d-emp-nombre" type="text" placeholder="Ej. Grupo Constructora Norte SA de CV" oninput="discSaveEmpresa()"></div>
+        <div class="disc-emp-field" style="margin-bottom:10px"><div id="discM2oWrap"></div></div>
+        <div class="disc-emp-field" style="display:none"><label>Nombre</label><input class="disc-emp-input" id="d-emp-nombre" type="text" oninput="discSaveEmpresa()"></div>
         <div class="disc-emp-row">
           <div class="disc-emp-field"><label>Razones sociales</label><input class="disc-emp-input" id="d-emp-razones" type="number" min="1" placeholder="# de razones" oninput="discSaveEmpresa()"></div>
           <div class="disc-emp-field"><label>Empleados totales</label><input class="disc-emp-input" id="d-emp-empleados" type="number" min="1" placeholder="# de empleados" oninput="discSaveEmpresa()"></div>
@@ -1706,37 +1743,13 @@ function buildDiscoveryFormHTML(data){
     <!-- Summary -->
     <div class="disc-pc-card"><div class="disc-pc-title">📊 Resumen de selecciones</div><div class="disc-pc-sub">Generado automáticamente de lo capturado durante la llamada</div><div id="discSummaryContent"></div></div>
 
-    <!-- RECOMENDACIONES (AI coaching) -->
-    <div class="disc-pc-card">
-      <div class="disc-pc-title">🎯 Recomendaciones para este cliente</div>
-      <div class="disc-pc-sub">Estrategia sugerida basada en el perfil del prospecto y el historial del equipo. No requiere transcripción.</div>
-
-      <button class="disc-gemini-btn" id="discRecoBtn" onclick="discGenerateReco()" style="background:linear-gradient(135deg,var(--purple),var(--purple-mid))">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Generar recomendaciones
-      </button>
-      <div class="disc-gemini-loading" id="discRecoLoading"><div class="disc-spinner"></div></div>
-
-      <div id="discRecoOutputWrap" style="display:none;margin-top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div id="discRecoLabel" style="font-size:11px;color:var(--gray-400)"></div>
-          <div style="display:flex;gap:8px">
-            <button class="disc-copy-btn" onclick="discCopyReco()">Copiar</button>
-            <button class="disc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="discGenerateReco()">Actualizar</button>
-          </div>
-        </div>
-        <div class="disc-gemini-output show" id="discRecoOutput"></div>
-        <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar recomendaciones</button>
-      </div>
-    </div>
-
-    <!-- NOTA CRM -->
+    <!-- NOTA CRM (moved up) -->
     <div class="disc-pc-card">
       <div class="disc-pc-title">📋 Nota para el CRM</div>
       <div class="disc-pc-sub">Pega la transcripción de Google Meet para generar la nota estructurada que copiarás a Odoo CRM.</div>
 
       <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Transcripción de Google Meet</div>
-      <textarea class="disc-transcript-ta" id="discTranscriptInput" placeholder="Pega aquí la transcripción completa de la llamada...&#10;&#10;(En Google Meet: Actividades → Transcribir → Ver transcripción → Copiar todo)"></textarea>
+      <textarea class="disc-transcript-ta" id="discTranscriptInput" placeholder="Pega aquí la transcripción completa de la llamada...&#10;&#10;(En Google Meet: Actividades → Transcribir → Ver transcripción → Copiar todo)" style="min-height:80px;max-height:120px;resize:vertical"></textarea>
 
       <button class="disc-gemini-btn" id="discAnalyzeBtn" onclick="discAnalyzeClaude()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
@@ -1752,17 +1765,43 @@ function buildDiscoveryFormHTML(data){
             <div id="discEngineLabel" style="font-size:11px;color:var(--gray-400);margin-top:2px"></div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="disc-copy-btn" onclick="discCopyOutput()">Copiar</button>
-            <button class="disc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="discAnalyzeClaude()">Regenerar</button>
+            <button class="disc-copy-btn" onclick="discCopyOutput()">📋 Copiar</button>
+            <button class="disc-copy-btn" style="border-color:var(--accent);color:var(--accent)" onclick="discShowPopup('discGeminiOutput','Nota para CRM')">↗ Ver todo</button>
+            <button class="disc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="discAnalyzeClaude()">↺ Regenerar</button>
           </div>
         </div>
-        <div class="disc-gemini-output show" id="discGeminiOutput"></div>
+        <div class="disc-gemini-output show disc-output-compact" id="discGeminiOutput"></div>
         <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar nota en historial</button>
       </div>
     </div>
 
-    <!-- Apps -->
+    <!-- Apps (moved up) -->
     <div class="disc-pc-card"><div class="disc-pc-title">📱 Apps de Odoo recomendadas</div><div class="disc-pc-sub">Basadas en industria y tipo de venta seleccionados</div><div id="discAppsContainer"><div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div></div></div>
+
+    <!-- RECOMENDACIONES (moved to end) -->
+    <div class="disc-pc-card">
+      <div class="disc-pc-title">🎯 Recomendaciones para este cliente</div>
+      <div class="disc-pc-sub">Estrategia sugerida basada en el perfil del prospecto y el historial del equipo. No requiere transcripción.</div>
+
+      <button class="disc-gemini-btn" id="discRecoBtn" onclick="discGenerateReco()" style="background:linear-gradient(135deg,var(--purple),var(--purple-mid))">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Generar recomendaciones con IA
+      </button>
+      <div class="disc-gemini-loading" id="discRecoLoading"><div class="disc-spinner"></div></div>
+
+      <div id="discRecoOutputWrap" style="display:none;margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div id="discRecoLabel" style="font-size:11px;color:var(--gray-400)"></div>
+          <div style="display:flex;gap:8px">
+            <button class="disc-copy-btn" onclick="discCopyReco()">📋 Copiar</button>
+            <button class="disc-copy-btn" style="border-color:var(--accent);color:var(--accent)" onclick="discShowPopup('discRecoOutput','Recomendaciones IA')">↗ Ver todo</button>
+            <button class="disc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="discGenerateReco()">↺ Actualizar</button>
+          </div>
+        </div>
+        <div class="disc-gemini-output show disc-output-compact" id="discRecoOutput"></div>
+        <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar recomendaciones</button>
+      </div>
+    </div>
 
   </div><!-- end postcall -->
   </div><!-- end disc-wrap -->`;
@@ -1774,6 +1813,7 @@ function discInitForm(data){
     disc.recordId=data.id;
     disc.status=data.status||'borrador';
     disc.currentInd=data.industria||null;
+    disc.companyId=data.companyId||null;
     disc.activeTV=new Set(Array.isArray(data.tipoVenta)?data.tipoVenta:[]);
     disc.selections=Object.assign({},data.selections||{});
     // Restore empresa fields
@@ -2243,7 +2283,7 @@ window.discSaveRecord=async function(){
   const record={
     aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram,
     tlId:currentUserData.tlId||null,
-    empresa, industria:disc.currentInd||'', industriaNombre:IND_NAMES[disc.currentInd]||'',
+    empresa, companyId:disc.companyId||null, industria:disc.currentInd||'', industriaNombre:IND_NAMES[disc.currentInd]||'',
     tipoVenta:[...disc.activeTV], selections:disc.selections,
     budget:disc.selections['budget']||'', decisor:disc.selections['decisor']||'',
     timeline:disc.selections['timeline']||'', fit:disc.selections['fit']||'',
@@ -2316,7 +2356,43 @@ const INDUSTRY_MAP = {
   'Manufactura':'industry_odoo_partner','Software/IT':'industry_it',
   'Servicios':'industry_certification','Distribución':'industry_beverages_distributor',
   'Ecommerce':'industry_electronic_store','Salud':'industry_pharmaceutical',
-  'Educación':'industry_certification','Otra':'industry_odoo_partner'
+  'Educación':'industry_certification','Inmobiliaria':'industry_real_estate',
+  'Logística':'industry_beverages_distributor','Agricultura':'industry_agricultural_store',
+  'Turismo':'industry_hotel','Otra':'industry_odoo_partner'
+};
+
+// ── Odoo Apps catálogo completo (odoo.com/es/page/all-apps) ──
+const ODOO_APPS = {
+  'Finanzas':['Contabilidad','Facturación','Gastos','Hoja de cálculo (BI)','Documentos','Firma electrónica'],
+  'Ventas':['CRM','Ventas','PdV para tiendas','PdV para restaurantes','Suscripciones','Alquiler'],
+  'Sitios Web':['Creador de sitios web','Comercio electrónico','Blog','Foro','Chat en vivo','eLearning'],
+  'Cadena de suministro':['Inventario','Manufactura','PLM','Compras','Mantenimiento','Calidad'],
+  'Recursos humanos':['Empleados','Reclutamiento','Vacaciones','Evaluaciones','Referencias','Flotilla'],
+  'Marketing':['Redes sociales','Marketing por correo','Marketing por SMS','Eventos','Automatización de marketing','Encuestas'],
+  'Servicios':['Proyectos','Registro de horas','Servicio externo','Soporte al cliente','Planeación','Citas'],
+  'Productividad':['Conversaciones','Inteligencia artificial','IoT','VoIP','Artículos','WhatsApp'],
+  'Personalización':['Studio de Odoo']
+};
+const ODOO_APPS_FLAT=Object.values(ODOO_APPS).flat();
+
+// ── Contexto de industrias Odoo (odoo.com/es/all-industries) ──
+const ODOO_INDUSTRIES = {
+  'Construcción':'Para constructores, contratistas generales y desarrolladores: gestión de proyectos de obra, costeo, compras de materiales, facturación por estimaciones, nómina de trabajadores eventuales. Apps clave: Proyecto, Compras, Inventario, Contabilidad, RRHH.',
+  'Retail':'Para tiendas físicas, cadenas y franquicias: punto de venta integrado con inventario, gestión de múltiples tiendas, fidelización, ecommerce. Apps clave: PdV para tiendas, Inventario, Ventas, Comercio electrónico, Contabilidad.',
+  'Restaurante':'Para restaurantes, bares, cadenas de food service: POS especializado para mesas/comandas, menú digital, delivery, facturación. Apps clave: PdV para restaurantes, Inventario, Compras, Contabilidad.',
+  'Comercializadora':'Para distribuidores y comercializadoras: gestión de pedidos, control de inventario multi-almacén, logística, facturación masiva. Apps clave: Inventario, Ventas, Compras, Contabilidad, Facturación.',
+  'Manufactura':'Para plantas de producción y fábricas: órdenes de fabricación, lista de materiales, control de calidad, mantenimiento de equipos, costeo de producto. Apps clave: Manufactura, Inventario, Compras, Calidad, Mantenimiento, PLM.',
+  'Software/IT':'Para empresas de tecnología y SaaS: CRM, proyectos ágiles, facturación recurrente, soporte al cliente, helpdesk. Apps clave: CRM, Proyectos, Suscripciones, Soporte al cliente, Registro de horas.',
+  'Servicios':'Para consultoras, despachos y empresas de servicios profesionales: proyectos, horas facturables, CRM, servicio externo. Apps clave: Proyectos, Registro de horas, CRM, Ventas, Contabilidad.',
+  'Distribución':'Para distribuidoras y logística: rutas de entrega, gestión de flotilla, inventario multi-almacén, facturación por volumen. Apps clave: Inventario, Flotilla, Compras, Ventas, Contabilidad.',
+  'Ecommerce':'Para tiendas en línea y marketplaces: catálogo de productos, carrito de compras, pasarela de pago, gestión de pedidos. Apps clave: Comercio electrónico, Inventario, Contabilidad, Marketing por correo.',
+  'Salud':'Para clínicas, hospitales y farmacias: citas, expediente de pacientes, facturación de servicios médicos. Apps clave: Citas, Proyectos, Contabilidad, Empleados.',
+  'Educación':'Para escuelas, universidades y plataformas eLearning: inscripciones, cursos en línea, evaluaciones. Apps clave: eLearning, Encuestas, Contabilidad, Eventos.',
+  'Inmobiliaria':'Para desarrolladores y agencias inmobiliarias: pipeline de propiedades, CRM, gestión de contratos. Apps clave: CRM, Ventas, Documentos, Contabilidad.',
+  'Logística':'Para transportistas y operadores logísticos: rutas, flotilla, entregas, facturación. Apps clave: Inventario, Flotilla, Compras, Contabilidad.',
+  'Turismo':'Para hoteles, agencias de viaje y turismo: reservaciones, gestión de habitaciones, servicios. Apps clave: Ventas, CRM, Contabilidad, Eventos.',
+  'Agricultura':'Para agronegocios: gestión de cultivos, compras de insumos, distribución. Apps clave: Inventario, Compras, Manufactura, Contabilidad.',
+  'Otra':'Odoo se adapta a cualquier industria con su plataforma modular de más de 50 apps integradas.'
 };
 
 async function saveCompany(data){
@@ -2449,7 +2525,7 @@ window.m2oStartCreateCo=function(cid,name){
       <div class="form-group" style="margin-bottom:8px"><label style="font-size:12px;font-weight:600;color:var(--gray-600)">Nombre *</label>
         <input class="m2o-mini-input" id="m2oCoNombre_${cid}" value="${name}" style="width:100%"></div>
       <div class="m2o-create-grid">
-        <div><label style="font-size:11px;color:var(--gray-500)">Giro</label>
+        <div><label style="font-size:11px;color:var(--gray-500)">Giro / Industria</label>
           <select class="m2o-mini-input" id="m2oCoGiro_${cid}">
             <option value="">— —</option>${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
           </select></div>
@@ -2463,6 +2539,10 @@ window.m2oStartCreateCo=function(cid,name){
             <option value="">— —</option>
             <option>Outbound</option><option>Inbound</option><option>Referido</option><option>LinkedIn</option><option>Apollo</option><option>Evento</option>
           </select></div>
+        <div><label style="font-size:11px;color:var(--gray-500)">Sitio web</label>
+          <input class="m2o-mini-input" id="m2oCoWeb_${cid}" placeholder="https://..."></div>
+        <div><label style="font-size:11px;color:var(--gray-500)">LinkedIn empresa</label>
+          <input class="m2o-mini-input" id="m2oCoLi_${cid}" placeholder="linkedin.com/company/..."></div>
         <div style="display:flex;align-items:flex-end">
           <div class="m2o-create-actions" style="margin:0">
             <button class="btn btn-primary btn-sm" onclick="m2oSaveCo('${cid}')">Crear</button>
@@ -2477,7 +2557,9 @@ window.m2oSaveCo=async function(cid){
   if(!nombre){ showNotif('Ingresa el nombre','error'); return; }
   const company={nombre,giro:document.getElementById('m2oCoGiro_'+cid)?.value||'',
     tamaño:document.getElementById('m2oCoTam_'+cid)?.value||'',
-    origen:document.getElementById('m2oCoOrig_'+cid)?.value||'',contacts:[]};
+    origen:document.getElementById('m2oCoOrig_'+cid)?.value||'',
+    website:document.getElementById('m2oCoWeb_'+cid)?.value||'',
+    linkedin:document.getElementById('m2oCoLi_'+cid)?.value||'',contacts:[]};
   const id=await saveCompany(company); if(!id) return;
   company.id=id;
   cpState.companies=[company,...cpState.companies];
@@ -2535,6 +2617,12 @@ window.m2oStartCreateCt=function(cid,name){
       <div class="m2o-create-grid">
         <div><label style="font-size:11px;color:var(--gray-500)">Cargo</label><input class="m2o-mini-input" id="m2oCtCargo_${cid}" placeholder="CEO, Gerente..."></div>
         <div><label style="font-size:11px;color:var(--gray-500)">Correo</label><input class="m2o-mini-input" id="m2oCtEmail_${cid}" placeholder="correo@..."></div>
+        <div><label style="font-size:11px;color:var(--gray-500)">LinkedIn</label><input class="m2o-mini-input" id="m2oCtLi_${cid}" placeholder="linkedin.com/in/..."></div>
+        <div><label style="font-size:11px;color:var(--gray-500)">Origen del contacto</label>
+          <select class="m2o-mini-input" id="m2oCtOrigen_${cid}">
+            <option value="">— —</option>
+            <option>Ferias comerciales</option><option>Networking</option><option>Lusha</option><option>Apollo</option><option>LinkedIn</option><option>Bases de datos</option><option>Google</option><option>Otro</option>
+          </select></div>
         <div style="display:flex;align-items:flex-end">
           <div class="m2o-create-actions" style="margin:0">
             <button class="btn btn-primary btn-sm" onclick="m2oSaveCt('${cid}')">Crear</button>
@@ -2547,7 +2635,7 @@ window.m2oStartCreateCt=function(cid,name){
 window.m2oSaveCt=async function(cid){
   const nombre=document.getElementById('m2oCtNombre_'+cid)?.value.trim();
   if(!nombre){ showNotif('Ingresa el nombre','error'); return; }
-  const ct={nombre,cargo:document.getElementById('m2oCtCargo_'+cid)?.value||'',email:document.getElementById('m2oCtEmail_'+cid)?.value||''};
+  const ct={nombre,cargo:document.getElementById('m2oCtCargo_'+cid)?.value||'',email:document.getElementById('m2oCtEmail_'+cid)?.value||'',linkedin:document.getElementById('m2oCtLi_'+cid)?.value||'',origen:document.getElementById('m2oCtOrigen_'+cid)?.value||''};
   const co=cpState.selectedCompany;
   const contacts=[...(co.contacts||[]),ct];
   await saveCompany({...co,contacts}); co.contacts=contacts;
@@ -2706,16 +2794,32 @@ window.gcSetLength=function(id,el){
 };
 
 function gcCompanySection(subId){
-  return `<div id="gcCp_${subId}"></div>`;
+  return `<div id="gcCp_${subId}"></div><div id="gcIndDisplay_${subId}" style="display:none;margin-top:8px;padding:6px 12px;background:var(--accent-light);border-radius:var(--radius-sm);font-size:13px;color:var(--accent)"></div>`;
 }
-function gcInitCP(subId){ mountCompanyPicker(`gcCp_${subId}`,(company,contact)=>{ cont.company=company; cont.contact=contact; }); }
+async function gcInitCP(subId){
+  // Restore previously selected company/contact across section switches
+  const prevCo=cont.company, prevCt=cont.contact;
+  await mountCompanyPicker(`gcCp_${subId}`,(company,contact)=>{
+    cont.company=company; cont.contact=contact;
+    gcUpdateIndDisplay(subId);
+  });
+  if(prevCo){ cpState.selectedCompany=prevCo; cpState.selectedContact=prevCt||null; renderM2o(`gcCp_${subId}`); gcUpdateIndDisplay(subId); }
+}
+function gcUpdateIndDisplay(subId){
+  const el=document.getElementById('gcIndDisplay_'+subId); if(!el) return;
+  const g=cont.company?.giro||'';
+  if(g){ el.style.display='block'; el.innerHTML=`🏭 Industria detectada: <strong>${g}</strong>`; }
+  else { el.style.display='none'; }
+}
 
 // ── Build Claude prompt context from company ──
 function gcCompanyContext(){
   const c=cont.company, ct=cont.contact;
   if(!c) return '';
-  return `EMPRESA: ${c.nombre} | Giro: ${c.giro||'nd'} | Tamaño: ${c.tamaño||'nd'} | Origen: ${c.origen||'nd'}
-CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.email||'nd'}`:'Sin contacto seleccionado'}`;
+  const indKey=Object.keys(INDUSTRY_MAP).find(k=>k.toLowerCase()===( c.giro||'').toLowerCase());
+  const odooInd=indKey?ODOO_INDUSTRIES[indKey]||'':'';
+  return `EMPRESA: ${c.nombre} | Giro: ${c.giro||'nd'} | Tamaño: ${c.tamaño||'nd'} | Origen: ${c.origen||'nd'}${c.website?` | Web: ${c.website}`:''}${c.linkedin?` | LinkedIn empresa: ${c.linkedin}`:''}
+CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.email||'nd'}${ct.linkedin?` | LinkedIn: ${ct.linkedin}`:''}${ct.origen?` | Origen: ${ct.origen}`:''}`: 'Sin contacto seleccionado'}${odooInd?`\nCONTEXTO INDUSTRIA (${c.giro}): ${odooInd}`:''}`;
 }
 
 async function gcCallClaude(prompt){
@@ -3168,38 +3272,41 @@ function renderGcBrochure(){
     <div style="max-width:800px">
       <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📄 Brochure</h2>
       <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">
-        Genera un brochure de Odoo adaptado a la industria del prospecto.
+        Genera un brochure consultivo de Odoo adaptado a la industria y dolores específicos del prospecto.
         ${!isManager?'<strong>Los brochures requieren aprobación del manager antes de compartirse.</strong>':''}
       </p>
 
       <div class="gc-form-section">
-        <h3>🏢 Empresa y contexto</h3>
+        <h3>🏢 Empresa y contacto</h3>
         ${gcCompanySection('br')}
       </div>
 
       <div class="gc-form-section">
         <h3>📱 Apps a destacar</h3>
-        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Selecciona las apps de Odoo más relevantes para este prospecto</p>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">
-          ${['CRM','Ventas','Inventario','Compras','Contabilidad','Fabricación','Punto de Venta','eCommerce','Proyecto','RRHH','Suscripciones','Servicio Externo'].map(a=>`
-            <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid var(--gray-200);border-radius:99px;cursor:pointer;font-size:13px;user-select:none">
-              <input type="checkbox" name="gcBrApp" value="${a}" style="accent-color:var(--purple)"> ${a}
-            </label>`).join('')}
-        </div>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Selecciona las apps más relevantes — se organizan por categoría</p>
+        ${Object.entries(ODOO_APPS).map(([cat,apps])=>`
+          <div style="margin-bottom:12px">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin-bottom:6px">${cat}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              ${apps.map(a=>`<label style="display:flex;align-items:center;gap:5px;padding:5px 10px;border:1.5px solid var(--gray-200);border-radius:99px;cursor:pointer;font-size:12px;user-select:none">
+                <input type="checkbox" name="gcBrApp" value="${a}" style="accent-color:var(--purple)"> ${a}
+              </label>`).join('')}
+            </div>
+          </div>`).join('')}
+        <button class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="gcBrSelectRecommended()">✨ Seleccionar recomendadas por industria</button>
       </div>
 
       <div class="gc-form-section">
-        <h3>✍️ Tono y enfoque</h3>
-        ${renderToneSelector(cont.tone)}
-        <div class="form-group" style="margin-top:16px"><label>Dolores específicos del prospecto (opcional)</label>
+        <h3>🎯 Dolores y contexto</h3>
+        <div class="form-group"><label>Dolores específicos detectados (opcional)</label>
           <textarea class="input" id="gcBrDolores" placeholder="Ej. No tienen visibilidad de inventario, procesos manuales, facturación tardía..." style="min-height:70px;resize:vertical"></textarea>
         </div>
       </div>
 
       <button class="gc-generate-btn" id="gcBrBtn" onclick="gcGenerateBrochure()">
-        <span>📄</span> Generar brochure
+        <span>📄</span> Generar brochure consultivo
       </button>
-      <div class="gc-loading" id="gcBrLoading"><div class="gc-spinner"></div><span>Generando contenido del brochure...</span></div>
+      <div class="gc-loading" id="gcBrLoading"><div class="gc-spinner"></div><span>Generando brochure con contexto de industria...</span></div>
       <div class="gc-output-wrap" id="gcBrOutput" style="margin-top:20px"></div>
 
       ${isManager?`
@@ -3212,6 +3319,18 @@ function renderGcBrochure(){
   if(isManager) gcLoadBrochureApprovals();
 }
 
+// Auto-select recommended apps based on company industry
+window.gcBrSelectRecommended=function(){
+  const giro=cont.company?.giro||'';
+  const indApps=APPS_DB[Object.keys(IND_NAMES).find(k=>IND_NAMES[k]===giro)||'']||[];
+  const recommended=indApps.map(a=>a.name);
+  document.querySelectorAll('input[name="gcBrApp"]').forEach(cb=>{
+    cb.checked=recommended.some(r=>cb.value.toLowerCase().includes(r.toLowerCase())||r.toLowerCase().includes(cb.value.toLowerCase()));
+  });
+  if(recommended.length) showNotif(`${recommended.length} apps recomendadas para ${giro||'esta industria'} ✓`,'success');
+  else showNotif('Selecciona una empresa con industria primero','error');
+};
+
 window.gcGenerateBrochure=async function(){
   const apps=[...document.querySelectorAll('input[name="gcBrApp"]:checked')].map(i=>i.value);
   const dolores=document.getElementById('gcBrDolores')?.value||'';
@@ -3221,22 +3340,24 @@ window.gcGenerateBrochure=async function(){
   btn.disabled=true; gcShowLoading('gcBrLoading',true);
   document.getElementById('gcBrOutput').classList.remove('show');
   try{
-    const copy=await gcCallClaude(`Eres un experto en marketing B2B de Odoo México. Genera el contenido para un brochure de ventas.
+    const indCtx=ODOO_INDUSTRIES[cont.company?.giro]||'';
+    const copy=await gcCallClaude(`Eres un consultor senior de Odoo México especializado en ventas B2B. Genera contenido para un brochure consultivo — tono siempre profesional, resolutivo de pain points, nunca genérico.
 
 ${gcCompanyContext()}
 APPS A DESTACAR: ${apps.join(', ')}
 DOLORES DETECTADOS: ${dolores||'no especificados'}
-TONO: ${cont.tone}
+${indCtx?`CONTEXTO DE INDUSTRIA: ${indCtx}`:''}
 
 Genera el contenido del brochure con estas secciones:
-1. HEADLINE PRINCIPAL (8 palabras máx, impactante, usando Caveat font style)
-2. SUBTÍTULO (15 palabras máx, complementa el headline)
-3. INTRO (2 párrafos de 2-3 líneas c/u — el problema que tienen y cómo Odoo lo resuelve)
-4. APPS DESTACADAS (para cada app: nombre | beneficio clave en 1 línea | wow effect en 1 frase)
-5. TESTIMONIAL FALSO INSPIRACIONAL (inventa uno creíble de una empresa similar mexicana)
-6. CTA FINAL (frase de cierre + llamada a acción)
+1. HEADLINE PRINCIPAL (8 palabras máx, impactante, directo al pain point principal de la industria)
+2. SUBTÍTULO (15 palabras máx, complementa el headline con la solución)
+3. INTRO (2 párrafos de 2-3 líneas c/u — describe el problema real de esta industria y cómo Odoo lo resuelve)
+4. APPS DESTACADAS (para cada app: Nombre | Beneficio clave específico para esta industria en 1 línea | Impacto cuantificable en 1 frase)
+5. DIFERENCIADORES ODOO (3 puntos de por qué Odoo vs. alternativas en esta industria)
+6. TESTIMONIAL INSPIRACIONAL (inventa uno creíble de una empresa mexicana similar, con nombre ficticio pero realista)
+7. CTA FINAL (frase de cierre consultiva + llamada a acción específica)
 
-Responde en formato claro con los títulos de sección en mayúsculas. En español de México.`);
+Responde con los títulos de sección en MAYÚSCULAS. En español de México. Sé específico a la industria, evita frases genéricas.`);
     const wrap=document.getElementById('gcBrOutput');
     wrap.classList.add('show');
     wrap.innerHTML=`
@@ -3877,6 +3998,113 @@ function renderHome(){
     </div>`;
   loadCentroControl();
 }
+
+// ══════════════════════════════════════════
+// TEXT POPUP
+// ══════════════════════════════════════════
+window.discShowPopup=function(sourceId,title){
+  const src=document.getElementById(sourceId); if(!src) return;
+  const text=src.textContent||src.innerText||'';
+  const overlay=document.createElement('div');
+  overlay.className='disc-popup-overlay';
+  overlay.id='discTextPopup';
+  overlay.innerHTML=`
+    <div class="disc-popup-box">
+      <div class="disc-popup-header">
+        <div class="disc-popup-title">${title}</div>
+        <div class="disc-popup-actions">
+          <button class="disc-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('discPopupText').textContent).then(()=>showNotif('Copiado ✓','success'))">📋 Copiar</button>
+          <button class="disc-copy-btn" onclick="document.getElementById('discTextPopup').remove()">✕ Cerrar</button>
+        </div>
+      </div>
+      <div class="disc-popup-body" id="discPopupText">${text}</div>
+    </div>`;
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+};
+
+// ══════════════════════════════════════════
+// MÓDULO EMPRESAS
+// ══════════════════════════════════════════
+async function renderEmpresas(){
+  const content=document.getElementById('moduleContent');
+  content.innerHTML=`
+    <div style="max-width:1100px;margin:0 auto;padding:24px">
+      <div class="page-header" style="margin-bottom:20px">
+        <h2>🏢 Empresas</h2>
+        <p>Directorio de empresas con sus documentos y actividad relacionada.</p>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+        <input type="text" id="empSearch" class="input" placeholder="🔍 Buscar empresa..." style="max-width:280px" oninput="empFilter()">
+        <select id="empIndFilter" class="input" style="max-width:200px" onchange="empFilter()">
+          <option value="">Todas las industrias</option>
+          ${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
+        </select>
+      </div>
+      <div id="empresasList"><div class="cdc-empty">Cargando empresas...</div></div>
+    </div>`;
+  await empLoad();
+}
+
+let _allEmpresas=[];
+async function empLoad(){
+  const list=document.getElementById('empresasList'); if(!list) return;
+  _allEmpresas=await searchCompanies();
+  // Enrich with document counts
+  for(const co of _allEmpresas){
+    co._docs={discovery:0,brochures:0,contenidos:0};
+    if(db){
+      try{
+        const [d,b]=await Promise.all([
+          getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',co.id))),
+          getDocs(query(collection(db,'brochureApprovals'),where('companyId','==',co.id)))
+        ]);
+        co._docs.discovery=d.size; co._docs.brochures=b.size;
+      } catch(e){}
+    }
+  }
+  empRender(_allEmpresas);
+}
+function empRender(companies){
+  const list=document.getElementById('empresasList'); if(!list) return;
+  if(!companies.length){ list.innerHTML='<div class="cdc-empty">No hay empresas registradas todavía.</div>'; return; }
+  list.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+    ${companies.map(co=>{
+      const icon=INDUSTRY_MAP[co.giro]||'industry_odoo_partner';
+      const docs=co._docs||{};
+      const docTags=[
+        docs.discovery>0?`<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:99px;font-size:11px">🔍 ${docs.discovery} Discovery</span>`:'',
+        docs.brochures>0?`<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:99px;font-size:11px">📄 ${docs.brochures} Brochure</span>`:'',
+      ].filter(Boolean).join(' ');
+      return `<div class="card" style="cursor:pointer;transition:box-shadow .15s" onclick="empOpenDetail('${co.id}')"
+        onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow=''">
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
+          <div style="width:40px;height:40px;background:var(--purple-light);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🏢</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:700;color:var(--gray-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${co.nombre}</div>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${[co.giro,co.tamaño].filter(Boolean).join(' · ')||'Sin industria'}</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${docTags||'<span style="font-size:11px;color:var(--gray-400)">Sin documentos aún</span>'}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${co.website?`<a href="${co.website}" target="_blank" style="font-size:12px;color:var(--accent)" onclick="event.stopPropagation()">🌐 Web</a>`:''}
+          ${co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank" style="font-size:12px;color:var(--purple)" onclick="event.stopPropagation()">💼 LinkedIn</a>`:''}
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+}
+window.empFilter=function(){
+  const search=(document.getElementById('empSearch')?.value||'').toLowerCase();
+  const ind=document.getElementById('empIndFilter')?.value||'';
+  let filtered=_allEmpresas;
+  if(search) filtered=filtered.filter(c=>(c.nombre||'').toLowerCase().includes(search)||(c.giro||'').toLowerCase().includes(search));
+  if(ind) filtered=filtered.filter(c=>(c.giro||'').toLowerCase()===ind.toLowerCase());
+  empRender(filtered);
+};
+window.empOpenDetail=function(id){
+  // Navigate to company detail (future expansion)
+  showNotif('Próximamente: detalle de empresa con todos los documentos vinculados','info');
+};
 
 // ══════════════════════════════════════════
 // BOOT
