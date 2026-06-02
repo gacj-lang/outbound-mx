@@ -552,27 +552,35 @@ input,select,textarea{font-family:inherit;}
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ════════════════════════════════════════
-   COMPANY PICKER
+   MANY2ONE — Company/Contact picker (estilo Odoo)
 ════════════════════════════════════════ */
-.cp-wrap{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
-.cp-header{padding:16px 20px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between;}
-.cp-header h4{font-size:14px;font-weight:700;}
-.cp-search-wrap{padding:12px 20px;border-bottom:1px solid var(--gray-100);}
-.cp-search{width:100%;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:14px;outline:none;}
-.cp-search:focus{border-color:var(--purple);}
-.cp-company-list{max-height:220px;overflow-y:auto;}
-.cp-company-item{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;cursor:pointer;transition:background .15s;border-bottom:1px solid var(--gray-50);}
-.cp-company-item:hover{background:var(--purple-light);}
-.cp-company-item.selected{background:var(--purple-light);border-left:3px solid var(--purple);}
-.cp-company-name{font-size:14px;font-weight:600;}
-.cp-company-meta{font-size:12px;color:var(--gray-400);}
-.cp-contact-list{padding:8px 20px 12px;background:var(--gray-50);border-top:1px solid var(--gray-100);}
-.cp-contact-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;transition:background .15s;}
-.cp-contact-item:hover{background:var(--gray-100);}
-.cp-contact-item.selected{background:var(--purple-light);color:var(--purple);}
-.cp-contact-name{font-size:13px;font-weight:600;}
-.cp-contact-role{font-size:11px;color:var(--gray-400);}
-.cp-new-btn{padding:6px 14px;border-radius:99px;border:1.5px dashed var(--purple);background:transparent;color:var(--purple);font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;display:block;margin-top:8px;}
+.m2o-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+.m2o-field{display:flex;flex-direction:column;gap:4px;position:relative;}
+.m2o-field label{font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.4px;}
+.m2o-input-wrap{position:relative;}
+.m2o-input{width:100%;padding:9px 32px 9px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:14px;color:var(--gray-900);background:white;outline:none;transition:border-color .15s;}
+.m2o-input:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(113,75,103,.08);}
+.m2o-input.has-value{border-color:var(--purple);background:var(--purple-light);font-weight:600;color:var(--purple);}
+.m2o-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px;border-radius:4px;}
+.m2o-clear:hover{color:var(--gray-700);background:var(--gray-100);}
+.m2o-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);box-shadow:var(--shadow-lg);z-index:200;max-height:220px;overflow-y:auto;display:none;}
+.m2o-dropdown.open{display:block;}
+.m2o-option{padding:9px 14px;cursor:pointer;font-size:14px;display:flex;flex-direction:column;gap:2px;border-bottom:1px solid var(--gray-50);}
+.m2o-option:last-child{border-bottom:none;}
+.m2o-option:hover,.m2o-option.focused{background:var(--purple-light);}
+.m2o-option-name{font-weight:600;color:var(--gray-900);}
+.m2o-option-meta{font-size:11px;color:var(--gray-400);}
+.m2o-create{padding:9px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--purple);border-top:1px solid var(--gray-100);display:flex;align-items:center;gap:6px;}
+.m2o-create:hover{background:var(--purple-light);}
+.m2o-empty{padding:9px 14px;font-size:13px;color:var(--gray-400);font-style:italic;}
+/* Inline create form */
+.m2o-create-form{border:1.5px solid var(--purple);border-radius:var(--radius);padding:16px;margin-top:8px;background:var(--purple-light);}
+.m2o-create-form-title{font-size:13px;font-weight:700;color:var(--purple);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.m2o-create-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.m2o-mini-input{padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;width:100%;outline:none;background:white;}
+.m2o-mini-input:focus{border-color:var(--purple);}
+.m2o-create-actions{display:flex;gap:8px;margin-top:8px;}
+/* Legacy cp- classes kept for compat */
 .cp-selected-pill{display:inline-flex;align-items:center;gap:8px;background:var(--purple-light);color:var(--purple);border:1.5px solid var(--purple);border-radius:99px;padding:6px 14px;font-size:13px;font-weight:600;margin-bottom:12px;}
 .cp-selected-pill button{background:none;border:none;color:var(--purple);cursor:pointer;font-size:14px;padding:0;line-height:1;}
 
@@ -1274,12 +1282,17 @@ function renderDiscSessions(sessions){
     const ts=s.createdAt?.toDate?.()??new Date();
     const fecha=ts.toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'});
     return `<div class="disc-session-card" onclick="openDiscoveryForm('${s.id}')">
-      <div class="disc-session-empresa">${s.empresa||'Sin nombre'}</div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <div class="disc-session-empresa">${s.empresa||'Sin nombre'}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${(s.aeName||s.aeGram||'?')[0].toUpperCase()}</div>
+          <span style="font-size:12px;font-weight:600;color:var(--purple)">${s.aeName?.split(' ')[0]||s.aeGram||''}</span>
+        </div>
+      </div>
       <div class="disc-session-meta">
         <span>${IND_NAMES[s.industria]||'Sin industria'}</span>
         ${s.tipoVenta?.length?`<span class="sep">·</span><span>${s.tipoVenta.map(t=>TV_NAMES[t]||t).join(', ')}</span>`:''}
         <span class="sep">·</span><span>${fecha}</span>
-        ${s.aeGram&&s.aeGram!==currentUserData?.gram?`<span class="sep">·</span><span style="font-weight:600;color:var(--purple)">${s.aeGram}</span>`:''}
       </div>
       ${dolores.length?`<div class="disc-dolores-tags">${dolores.map(d=>`<span class="disc-dolor-tag">${d}</span>`).join('')}</div>`:''}
       ${bant.length?`<div class="disc-bant-row">${bant.map(b=>`<span class="disc-bant-chip disc-bant-${bColor(b.v)}">${b.l}</span>`).join('')}</div>`:''}
@@ -2336,182 +2349,212 @@ async function getCompany(id){
   catch(e){ return null; }
 }
 
-// ── Company Picker Component ──
-const cpState = { selectedCompany:null, selectedContact:null, companies:[], cb:null };
+// ── Many2one (Company + Contact picker) — estilo Odoo ──
+const cpState = { selectedCompany:null, selectedContact:null, companies:[], cb:null, activeId:null };
 
-async function mountCompanyPicker(containerId, callback, label='Empresa y contacto'){
-  cpState.cb=callback;
+async function mountCompanyPicker(containerId, callback){
+  cpState.cb=callback; cpState.activeId=containerId;
   cpState.companies=await searchCompanies();
-  renderCompanyPicker(containerId, label);
+  renderM2o(containerId);
 }
 
-function renderCompanyPicker(containerId, label='Empresa y contacto'){
-  const container=document.getElementById(containerId); if(!container) return;
-  const sel=cpState.selectedCompany;
-  const selCon=cpState.selectedContact;
-  if(sel){
-    container.innerHTML=`
-      <div class="cp-selected-pill">
-        <span>🏢 ${sel.nombre}</span>
-        ${selCon?`<span>· 👤 ${selCon.nombre} (${selCon.cargo||''})</span>`:''}
-        <button onclick="cpClear('${containerId}','${label}')">×</button>
-      </div>`;
-    return;
-  }
+function renderM2o(cid){
+  const container=document.getElementById(cid); if(!container) return;
+  const co=cpState.selectedCompany, ct=cpState.selectedContact;
+  const contacts=co?.contacts||[];
   container.innerHTML=`
-    <div class="cp-wrap">
-      <div class="cp-header"><h4>🏢 ${label}</h4>
-        <button class="btn btn-sm btn-primary" onclick="cpShowNew('${containerId}','${label}')">+ Nueva empresa</button>
+    <div class="m2o-row">
+      <!-- Empresa -->
+      <div class="m2o-field">
+        <label>🏢 Empresa</label>
+        <div class="m2o-input-wrap">
+          <input type="text" class="m2o-input ${co?'has-value':''}" id="m2oEmp_${cid}"
+            value="${co?co.nombre:''}"
+            placeholder="Buscar o crear empresa..."
+            autocomplete="off"
+            onfocus="m2oEmpFocus('${cid}')"
+            oninput="m2oEmpInput('${cid}',this.value)"
+            onblur="setTimeout(()=>m2oEmpBlur('${cid}'),180)">
+          ${co?`<button class="m2o-clear" onclick="m2oClearCo('${cid}')" tabindex="-1">×</button>`:''}
+          <div class="m2o-dropdown" id="m2oEmpDrop_${cid}"></div>
+        </div>
+        ${co&&!contacts.length?`<div style="font-size:11px;color:var(--gray-400);margin-top:4px">Sin contactos — agrega uno desde el campo de contacto</div>`:''}
       </div>
-      <div class="cp-search-wrap">
-        <input class="cp-search" id="cpSearch_${containerId}" placeholder="Buscar empresa..." oninput="cpSearch('${containerId}','${label}',this.value)">
+      <!-- Contacto -->
+      <div class="m2o-field">
+        <label>👤 Contacto</label>
+        <div class="m2o-input-wrap">
+          <input type="text" class="m2o-input ${ct?'has-value':''}" id="m2oCt_${cid}"
+            value="${ct?ct.nombre:''}"
+            placeholder="${co?'Buscar o crear contacto...':'Primero selecciona una empresa'}"
+            autocomplete="off"
+            ${!co?'disabled':''}"
+            onfocus="m2oCtFocus('${cid}')"
+            oninput="m2oCtInput('${cid}',this.value)"
+            onblur="setTimeout(()=>m2oCtBlur('${cid}'),180)">
+          ${ct?`<button class="m2o-clear" onclick="m2oClearCt('${cid}')" tabindex="-1">×</button>`:''}
+          <div class="m2o-dropdown" id="m2oCtDrop_${cid}"></div>
+        </div>
       </div>
-      <div class="cp-company-list" id="cpList_${containerId}">
-        ${cpState.companies.length===0?'<p class="empty-state">Sin empresas aún — crea la primera</p>':
-          cpState.companies.map(c=>`
-            <div class="cp-company-item" onclick="cpSelect('${c.id}','${containerId}','${label}')">
-              <div><div class="cp-company-name">${c.nombre}</div><div class="cp-company-meta">${c.giro||''} · ${c.tamaño||''}</div></div>
-              <span style="font-size:10px;color:var(--gray-300)">›</span>
-            </div>`).join('')}
-      </div>
-    </div>`;
+    </div>
+    <!-- Inline create forms (hidden by default) -->
+    <div id="m2oCreateCoForm_${cid}" style="display:none"></div>
+    <div id="m2oCreateCtForm_${cid}" style="display:none"></div>`;
 }
 
-window.cpSearch=async function(cid,label,term){
-  cpState.companies=await searchCompanies(term);
-  const list=document.getElementById('cpList_'+cid); if(!list) return;
-  list.innerHTML=cpState.companies.length===0?'<p class="empty-state">Sin resultados</p>':
-    cpState.companies.map(c=>`<div class="cp-company-item" onclick="cpSelect('${c.id}','${cid}','${label}')"><div><div class="cp-company-name">${c.nombre}</div><div class="cp-company-meta">${c.giro||''}</div></div><span style="font-size:10px;color:var(--gray-300)">›</span></div>`).join('');
+// ── Empresa dropdown ──
+window.m2oEmpFocus=function(cid){ m2oShowEmpDrop(cid,''); };
+window.m2oEmpInput=function(cid,val){
+  cpState.selectedCompany=null; cpState.selectedContact=null;
+  m2oShowEmpDrop(cid,val);
+  document.getElementById('m2oEmpDrop_'+cid)?.classList.add('open');
 };
-
-window.cpSelect=async function(companyId,cid,label){
-  const c=await getCompany(companyId); if(!c) return;
-  cpState.selectedCompany=c;
-  cpState.selectedContact=null;
-  const container=document.getElementById(cid); if(!container) return;
-  // Show contacts
-  const contacts=c.contacts||[];
-  container.innerHTML=`
-    <div class="cp-wrap">
-      <div class="cp-header"><h4>🏢 ${c.nombre}</h4><button onclick="cpBack('${cid}','${label}')" class="btn btn-sm btn-ghost">‹ Cambiar</button></div>
-      <div class="cp-contact-list">
-        <div style="font-size:11px;font-weight:700;color:var(--gray-400);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Selecciona un contacto</div>
-        ${contacts.map((ct,i)=>`<div class="cp-contact-item" onclick="cpSelectContact(${i},'${cid}','${label}')">
-          <div class="user-avatar sm">${ct.nombre[0]}</div>
-          <div><div class="cp-contact-name">${ct.nombre}</div><div class="cp-contact-role">${ct.cargo||''} · ${ct.email||''}</div></div>
-        </div>`).join('')}
-        <button class="cp-new-btn" onclick="cpAddContact('${cid}','${label}')">+ Agregar contacto</button>
+window.m2oEmpBlur=function(cid){
+  const drop=document.getElementById('m2oEmpDrop_'+cid);
+  if(drop) drop.classList.remove('open');
+  const input=document.getElementById('m2oEmp_'+cid);
+  if(input&&!cpState.selectedCompany) input.value='';
+};
+async function m2oShowEmpDrop(cid,term){
+  const drop=document.getElementById('m2oEmpDrop_'+cid); if(!drop) return;
+  const filtered=term?cpState.companies.filter(c=>(c.nombre||'').toLowerCase().includes(term.toLowerCase())):cpState.companies;
+  drop.innerHTML=(filtered.length>0?filtered.map(c=>`
+    <div class="m2o-option" onmousedown="m2oSelectCo('${c.id}','${cid}')">
+      <span class="m2o-option-name">${c.nombre}</span>
+      <span class="m2o-option-meta">${[c.giro,c.tamaño].filter(Boolean).join(' · ')}</span>
+    </div>`).join(''):'<div class="m2o-empty">Sin resultados</div>')+
+    `<div class="m2o-create" onmousedown="m2oStartCreateCo('${cid}','${term||''}')">
+      <span>＋</span> Crear "${term||'nueva empresa'}"
+    </div>`;
+  drop.classList.add('open');
+}
+window.m2oSelectCo=async function(id,cid){
+  const c=await getCompany(id)||cpState.companies.find(x=>x.id===id);
+  if(!c) return;
+  cpState.selectedCompany=c; cpState.selectedContact=null;
+  renderM2o(cid);
+  if(cpState.cb) cpState.cb(c,null);
+};
+window.m2oClearCo=function(cid){
+  cpState.selectedCompany=null; cpState.selectedContact=null;
+  renderM2o(cid); if(cpState.cb) cpState.cb(null,null);
+};
+window.m2oStartCreateCo=function(cid,name){
+  document.getElementById('m2oEmpDrop_'+cid)?.classList.remove('open');
+  const form=document.getElementById('m2oCreateCoForm_'+cid); if(!form) return;
+  form.style.display='block';
+  form.innerHTML=`
+    <div class="m2o-create-form">
+      <div class="m2o-create-form-title">🏢 Crear empresa</div>
+      <div class="form-group" style="margin-bottom:8px"><label style="font-size:12px;font-weight:600;color:var(--gray-600)">Nombre *</label>
+        <input class="m2o-mini-input" id="m2oCoNombre_${cid}" value="${name}" style="width:100%"></div>
+      <div class="m2o-create-grid">
+        <div><label style="font-size:11px;color:var(--gray-500)">Giro</label>
+          <select class="m2o-mini-input" id="m2oCoGiro_${cid}">
+            <option value="">— —</option>${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
+          </select></div>
+        <div><label style="font-size:11px;color:var(--gray-500)">Tamaño</label>
+          <select class="m2o-mini-input" id="m2oCoTam_${cid}">
+            <option value="">— —</option>
+            <option>1-10 empleados</option><option>11-50 empleados</option><option>51-200 empleados</option><option>200+ empleados</option>
+          </select></div>
+        <div><label style="font-size:11px;color:var(--gray-500)">Origen</label>
+          <select class="m2o-mini-input" id="m2oCoOrig_${cid}">
+            <option value="">— —</option>
+            <option>Outbound</option><option>Inbound</option><option>Referido</option><option>LinkedIn</option><option>Apollo</option><option>Evento</option>
+          </select></div>
+        <div style="display:flex;align-items:flex-end">
+          <div class="m2o-create-actions" style="margin:0">
+            <button class="btn btn-primary btn-sm" onclick="m2oSaveCo('${cid}')">Crear</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('m2oCreateCoForm_${cid}').style.display='none'">✕</button>
+          </div>
+        </div>
       </div>
     </div>`;
 };
-
-window.cpSelectContact=function(idx,cid,label){
-  const c=cpState.selectedCompany; if(!c) return;
-  cpState.selectedContact=(c.contacts||[])[idx];
-  renderCompanyPicker(cid,label);
-  if(cpState.cb) cpState.cb(cpState.selectedCompany,cpState.selectedContact);
-};
-
-window.cpBack=function(cid,label){
-  cpState.selectedCompany=null; cpState.selectedContact=null;
-  renderCompanyPicker(cid,label);
-};
-
-window.cpClear=function(cid,label){
-  cpState.selectedCompany=null; cpState.selectedContact=null;
-  if(cpState.cb) cpState.cb(null,null);
-  renderCompanyPicker(cid,label);
-};
-
-window.cpShowNew=function(cid,label){
-  const container=document.getElementById(cid); if(!container) return;
-  container.innerHTML=`
-    <div class="cp-wrap">
-      <div class="cp-header"><h4>+ Nueva empresa</h4><button onclick="cpBack('${cid}','${label}')" class="btn btn-sm btn-ghost">‹ Cancelar</button></div>
-      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
-        <div class="form-group" style="margin-bottom:0"><label>Nombre de la empresa *</label><input type="text" class="input" id="cpNewNombre" placeholder="Ej. Grupo Alfa SA de CV"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div class="form-group" style="margin-bottom:0"><label>Giro / Industria</label>
-            <select class="input" id="cpNewGiro">
-              <option value="">— Selecciona —</option>
-              ${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group" style="margin-bottom:0"><label>Tamaño</label>
-            <select class="input" id="cpNewTamano">
-              <option value="">— Selecciona —</option>
-              <option>1-10 empleados</option><option>11-50 empleados</option>
-              <option>51-200 empleados</option><option>200+ empleados</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:0"><label>Origen de la oportunidad</label>
-          <select class="input" id="cpNewOrigen">
-            <option value="">— Selecciona —</option>
-            <option>Outbound (prospección)</option><option>Inbound (contacto directo)</option>
-            <option>Referido</option><option>LinkedIn</option><option>Apollo / Base de datos</option><option>Evento</option>
-          </select>
-        </div>
-        <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;margin-top:8px">Primer contacto</div>
-        <div class="form-group" style="margin-bottom:0"><label>Nombre completo *</label><input type="text" class="input" id="cpNewCtNombre" placeholder="Nombre del contacto"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div class="form-group" style="margin-bottom:0"><label>Cargo / Puesto</label><input type="text" class="input" id="cpNewCtCargo" placeholder="CEO, Gerente..."></div>
-          <div class="form-group" style="margin-bottom:0"><label>Correo</label><input type="email" class="input" id="cpNewCtEmail" placeholder="correo@empresa.com"></div>
-        </div>
-        <button class="btn btn-primary btn-full" onclick="cpSaveNew('${cid}','${label}')">Guardar empresa y continuar →</button>
-      </div>
-    </div>`;
-};
-
-window.cpSaveNew=async function(cid,label){
-  const nombre=document.getElementById('cpNewNombre')?.value.trim();
-  const ctNombre=document.getElementById('cpNewCtNombre')?.value.trim();
-  if(!nombre){ showNotif('Ingresa el nombre de la empresa','error'); return; }
-  const company={
-    nombre, giro:document.getElementById('cpNewGiro')?.value||'',
-    tamaño:document.getElementById('cpNewTamano')?.value||'',
-    origen:document.getElementById('cpNewOrigen')?.value||'',
-    contacts:ctNombre?[{nombre:ctNombre,cargo:document.getElementById('cpNewCtCargo')?.value||'',email:document.getElementById('cpNewCtEmail')?.value||''}]:[]
-  };
-  const id=await saveCompany(company); if(!id){ showNotif('Error al guardar','error'); return; }
+window.m2oSaveCo=async function(cid){
+  const nombre=document.getElementById('m2oCoNombre_'+cid)?.value.trim();
+  if(!nombre){ showNotif('Ingresa el nombre','error'); return; }
+  const company={nombre,giro:document.getElementById('m2oCoGiro_'+cid)?.value||'',
+    tamaño:document.getElementById('m2oCoTam_'+cid)?.value||'',
+    origen:document.getElementById('m2oCoOrig_'+cid)?.value||'',contacts:[]};
+  const id=await saveCompany(company); if(!id) return;
   company.id=id;
-  cpState.selectedCompany=company;
-  cpState.selectedContact=company.contacts[0]||null;
-  cpState.companies=[...cpState.companies,company];
-  renderCompanyPicker(cid,label);
-  if(cpState.cb) cpState.cb(cpState.selectedCompany,cpState.selectedContact);
+  cpState.companies=[company,...cpState.companies];
+  cpState.selectedCompany=company; cpState.selectedContact=null;
+  renderM2o(cid);
+  if(cpState.cb) cpState.cb(company,null);
   showNotif('Empresa creada ✓','success');
 };
 
-window.cpAddContact=function(cid,label){
-  const container=document.getElementById(cid); if(!container) return;
-  const c=cpState.selectedCompany;
-  container.innerHTML=`
-    <div class="cp-wrap">
-      <div class="cp-header"><h4>+ Nuevo contacto en ${c.nombre}</h4><button onclick="cpSelect('${c.id}','${cid}','${label}')" class="btn btn-sm btn-ghost">‹ Cancelar</button></div>
-      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
-        <div class="form-group" style="margin-bottom:0"><label>Nombre completo *</label><input type="text" class="input" id="cpAcNombre"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div class="form-group" style="margin-bottom:0"><label>Cargo</label><input type="text" class="input" id="cpAcCargo"></div>
-          <div class="form-group" style="margin-bottom:0"><label>Correo</label><input type="email" class="input" id="cpAcEmail"></div>
+// ── Contacto dropdown ──
+window.m2oCtFocus=function(cid){ m2oShowCtDrop(cid,''); };
+window.m2oCtInput=function(cid,val){
+  cpState.selectedContact=null; m2oShowCtDrop(cid,val);
+};
+window.m2oCtBlur=function(cid){
+  const drop=document.getElementById('m2oCtDrop_'+cid);
+  if(drop) drop.classList.remove('open');
+  const input=document.getElementById('m2oCt_'+cid);
+  if(input&&!cpState.selectedContact) input.value='';
+};
+function m2oShowCtDrop(cid,term){
+  const co=cpState.selectedCompany; if(!co) return;
+  const drop=document.getElementById('m2oCtDrop_'+cid); if(!drop) return;
+  const contacts=co.contacts||[];
+  const filtered=term?contacts.filter(c=>(c.nombre||'').toLowerCase().includes(term.toLowerCase())):contacts;
+  drop.innerHTML=(filtered.length>0?filtered.map((ct,i)=>`
+    <div class="m2o-option" onmousedown="m2oSelectCt(${i},'${cid}')">
+      <span class="m2o-option-name">${ct.nombre}</span>
+      <span class="m2o-option-meta">${[ct.cargo,ct.email].filter(Boolean).join(' · ')}</span>
+    </div>`).join(''):'<div class="m2o-empty">Sin contactos en esta empresa</div>')+
+    `<div class="m2o-create" onmousedown="m2oStartCreateCt('${cid}','${term||''}')">
+      <span>＋</span> Crear "${term||'nuevo contacto'}"
+    </div>`;
+  drop.classList.add('open');
+}
+window.m2oSelectCt=function(idx,cid){
+  const co=cpState.selectedCompany; if(!co) return;
+  cpState.selectedContact=(co.contacts||[])[idx];
+  renderM2o(cid);
+  if(cpState.cb) cpState.cb(co,cpState.selectedContact);
+};
+window.m2oClearCt=function(cid){
+  cpState.selectedContact=null; renderM2o(cid);
+  if(cpState.cb) cpState.cb(cpState.selectedCompany,null);
+};
+window.m2oStartCreateCt=function(cid,name){
+  document.getElementById('m2oCtDrop_'+cid)?.classList.remove('open');
+  const form=document.getElementById('m2oCreateCtForm_'+cid); if(!form) return;
+  form.style.display='block';
+  form.innerHTML=`
+    <div class="m2o-create-form">
+      <div class="m2o-create-form-title">👤 Nuevo contacto en ${cpState.selectedCompany?.nombre||''}</div>
+      <div class="form-group" style="margin-bottom:8px"><label style="font-size:12px;font-weight:600;color:var(--gray-600)">Nombre *</label>
+        <input class="m2o-mini-input" id="m2oCtNombre_${cid}" value="${name}" style="width:100%"></div>
+      <div class="m2o-create-grid">
+        <div><label style="font-size:11px;color:var(--gray-500)">Cargo</label><input class="m2o-mini-input" id="m2oCtCargo_${cid}" placeholder="CEO, Gerente..."></div>
+        <div><label style="font-size:11px;color:var(--gray-500)">Correo</label><input class="m2o-mini-input" id="m2oCtEmail_${cid}" placeholder="correo@..."></div>
+        <div style="display:flex;align-items:flex-end">
+          <div class="m2o-create-actions" style="margin:0">
+            <button class="btn btn-primary btn-sm" onclick="m2oSaveCt('${cid}')">Crear</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('m2oCreateCtForm_${cid}').style.display='none'">✕</button>
+          </div>
         </div>
-        <button class="btn btn-primary btn-full" onclick="cpSaveContact('${cid}','${label}')">Agregar contacto →</button>
       </div>
     </div>`;
 };
-
-window.cpSaveContact=async function(cid,label){
-  const nombre=document.getElementById('cpAcNombre')?.value.trim();
+window.m2oSaveCt=async function(cid){
+  const nombre=document.getElementById('m2oCtNombre_'+cid)?.value.trim();
   if(!nombre){ showNotif('Ingresa el nombre','error'); return; }
-  const newContact={nombre,cargo:document.getElementById('cpAcCargo')?.value||'',email:document.getElementById('cpAcEmail')?.value||''};
-  const c=cpState.selectedCompany;
-  const contacts=[...(c.contacts||[]),newContact];
-  await saveCompany({...c,contacts});
-  c.contacts=contacts;
-  cpState.selectedContact=newContact;
-  renderCompanyPicker(cid,label);
-  if(cpState.cb) cpState.cb(c,newContact);
-  showNotif('Contacto agregado ✓','success');
+  const ct={nombre,cargo:document.getElementById('m2oCtCargo_'+cid)?.value||'',email:document.getElementById('m2oCtEmail_'+cid)?.value||''};
+  const co=cpState.selectedCompany;
+  const contacts=[...(co.contacts||[]),ct];
+  await saveCompany({...co,contacts}); co.contacts=contacts;
+  cpState.selectedContact=ct;
+  renderM2o(cid);
+  if(cpState.cb) cpState.cb(co,ct);
+  showNotif('Contacto creado ✓','success');
 };
 
 // ══════════════════════════════════════════
@@ -2665,7 +2708,7 @@ window.gcSetLength=function(id,el){
 function gcCompanySection(subId){
   return `<div id="gcCp_${subId}"></div>`;
 }
-function gcInitCP(subId){ mountCompanyPicker(`gcCp_${subId}`,(company,contact)=>{ cont.company=company; cont.contact=contact; },subId); }
+function gcInitCP(subId){ mountCompanyPicker(`gcCp_${subId}`,(company,contact)=>{ cont.company=company; cont.contact=contact; }); }
 
 // ── Build Claude prompt context from company ──
 function gcCompanyContext(){
