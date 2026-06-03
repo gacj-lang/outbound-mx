@@ -890,7 +890,7 @@ const MODULES = [
   { id:'analytics',     icon:'📊', label:'Analytics',                phase:7, ready:false },
 ];
 const ASSETS = 'https://gacj-lang.github.io/outbound-mx/assets';
-const CLAUDE_KEY_DEFAULT = 'sk-ant-api03-[REDACTED-CLAUDE-KEY]'; // sk-ant-api03-...
+let CLAUDE_KEY_DEFAULT = ''; // Cargado desde Firestore — no guardar en código fuente
 
 let app, auth, db, firebaseReady=false;
 let currentUser=null, currentUserData=null;
@@ -924,8 +924,20 @@ function startAuthListener(){
 function routeByStatus(){
   if(!currentUserData){ showScreen('login'); return; }
   if(currentUserData.status==='pending'){ showScreen('pending'); return; }
-  if(currentUserData.status==='active'){ showScreen('app'); return; }
+  if(currentUserData.status==='active'){ loadAppConfig().then(()=>showScreen('app')); return; }
   showScreen('login');
+}
+
+// Carga configuración compartida desde Firestore (Claude key, etc.)
+async function loadAppConfig(){
+  if(!db) return;
+  try{
+    const snap=await getDoc(doc(db,'config','app'));
+    if(snap.exists()){
+      const d=snap.data();
+      if(d.claudeKey) CLAUDE_KEY_DEFAULT=d.claudeKey;
+    }
+  } catch(e){ console.warn('loadAppConfig:',e); }
 }
 
 // ══════════════════════════════════════════
@@ -2254,7 +2266,7 @@ Escribe en español de México, tono profesional pero directo. Sé conciso y acc
 // ── Recomendaciones (coaching sin transcripción) ──
 window.discGenerateReco = async function(){
   const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
-  if(!claudeKey||claudeKey==='sk-ant-api03-[REDACTED-CLAUDE-KEY]'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
+  if(!claudeKey||claudeKey==='CLAUDE_KEY_DEFAULT'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
   const s=disc.selections;
   const btn=document.getElementById('discRecoBtn');
   const loading=document.getElementById('discRecoLoading');
@@ -2986,7 +2998,7 @@ CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.email||'nd
 
 async function gcCallClaude(prompt, fileAttachment=null){
   const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
-  if(!key||key==='sk-ant-api03-[REDACTED-CLAUDE-KEY]'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
+  if(!key||key==='CLAUDE_KEY_DEFAULT'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
   let content;
   if(fileAttachment){
     content=[];
