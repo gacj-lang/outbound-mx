@@ -890,7 +890,7 @@ const MODULES = [
   { id:'analytics',     icon:'📊', label:'Analytics',                phase:7, ready:false },
 ];
 const ASSETS = 'https://gacj-lang.github.io/outbound-mx/assets';
-const CLAUDE_KEY_DEFAULT = 'REPLACE_WITH_YOUR_CLAUDE_KEY'; // sk-ant-api03-...
+const CLAUDE_KEY_DEFAULT = 'sk-ant-api03-TU_KEY_AQUI'; // sk-ant-api03-...
 
 let app, auth, db, firebaseReady=false;
 let currentUser=null, currentUserData=null;
@@ -2254,7 +2254,7 @@ Escribe en español de México, tono profesional pero directo. Sé conciso y acc
 // ── Recomendaciones (coaching sin transcripción) ──
 window.discGenerateReco = async function(){
   const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
-  if(!claudeKey||claudeKey==='REPLACE_WITH_YOUR_CLAUDE_KEY'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
+  if(!claudeKey||claudeKey==='sk-ant-api03-TU_KEY_AQUI'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
   const s=disc.selections;
   const btn=document.getElementById('discRecoBtn');
   const loading=document.getElementById('discRecoLoading');
@@ -2986,7 +2986,7 @@ CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.email||'nd
 
 async function gcCallClaude(prompt, fileAttachment=null){
   const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
-  if(!key||key==='REPLACE_WITH_YOUR_CLAUDE_KEY'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
+  if(!key||key==='sk-ant-api03-TU_KEY_AQUI'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
   let content;
   if(fileAttachment){
     content=[];
