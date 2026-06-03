@@ -2453,6 +2453,26 @@ window.discSaveRecord=async function(){
     }
     showNotif('Sesión guardada ✓','success');
     if(btn){ btn.textContent='✓ Guardado'; btn.style.background='#15803d'; setTimeout(()=>{ btn.disabled=false; btn.textContent='💾 Guardar en historial'; btn.style.background=''; },2000); }
+    // ── Actualizar memoria de la empresa ──
+    if(disc.companyId){
+      const s=disc.selections||{};
+      await updateCompanyMemory(disc.companyId,'discovery',{
+        discovery:{
+          dolores:s.dolores||[],
+          budget:s.budget||'',
+          timeline:s.timeline||'',
+          fit:s.fit||'',
+          decisor:s.decisor||'',
+          sistemasActuales:s['emp-sistemas']||'',
+          empleados:s['emp-empleados']||'',
+          facturacion:s['emp-facturacion']||'',
+          tipoEmpresa:s['tipo-empresa']||'',
+          vision:Array.isArray(s.vision)?s.vision:[s.vision].filter(Boolean),
+          nota:geminiNote||'',
+        },
+        touchpoint:{type:'discovery',summary:`Discovery ${status} · ${empresa}`, dolores:(s.dolores||[]).slice(0,3).join(', ')||'—'}
+      });
+    }
   } catch(e){
     showNotif('Error al guardar: '+e.message,'error');
     if(btn){ btn.disabled=false; btn.textContent='💾 Guardar en historial'; }
@@ -2601,6 +2621,84 @@ async function saveCompany(data){
       return ref.id;
     }
   } catch(e){ console.error(e); showNotif('Error al guardar empresa: '+e.message,'error'); return null; }
+}
+
+// ══════════════════════════════════════════
+// COMPANY MEMORY — contexto acumulado por empresa
+// Se guarda en companies/{id}.memory y se inyecta en TODOS los prompts de Claude
+// ══════════════════════════════════════════
+async function updateCompanyMemory(companyId, type, data){
+  if(!db||!companyId) return;
+  try{
+    const ref=doc(db,'companies',companyId);
+    const snap=await getDoc(ref);
+    if(!snap.exists()) return;
+    const existing=snap.data().memory||{};
+
+    // Touchpoints log (máx 30 entradas)
+    const touchpoints=[...(existing.touchpoints||[])];
+    const newTouch={type, date:new Date().toISOString(), aeName:currentUserData?.name||'', aeGram:currentUserData?.gram||'', ...data.touchpoint};
+    touchpoints.unshift(newTouch);
+    if(touchpoints.length>30) touchpoints.length=30;
+
+    // Merge por tipo
+    const updated={
+      ...existing,
+      touchpoints,
+      lastUpdated:new Date().toISOString(),
+    };
+    if(type==='discovery')  updated.discovery ={...existing.discovery||{},...data.discovery};
+    if(type==='pricing')    updated.pricing   ={...existing.pricing||{},...data.pricing};
+    if(type==='contenido')  updated.contenidos={...existing.contenidos||{},
+      recent:[{...data.contenido,date:new Date().toISOString()},...(existing.contenidos?.recent||[])].slice(0,10)};
+    if(type==='propuesta')  updated.propuesta ={...existing.propuesta||{},...data.propuesta};
+
+    await updateDoc(ref,{'memory':updated,'updatedAt':serverTimestamp()});
+
+    // Actualizar caché local en cpState y cont si coincide
+    if(cpState.selectedCompany?.id===companyId) cpState.selectedCompany.memory=updated;
+    if(cont.company?.id===companyId) cont.company.memory=updated;
+    if(pricingState.company?.id===companyId) pricingState.company.memory=updated;
+  } catch(e){ console.warn('updateCompanyMemory:',e); }
+}
+
+function buildMemoryContext(company){
+  if(!company) return '';
+  const m=company.memory||{};
+  const parts=[];
+
+  // Discovery acumulado
+  const disc=m.discovery||{};
+  if(disc.dolores?.length) parts.push(`DOLORES DETECTADOS: ${Array.isArray(disc.dolores)?disc.dolores.join(', '):disc.dolores}`);
+  if(disc.budget)          parts.push(`BUDGET: ${disc.budget}`);
+  if(disc.timeline)        parts.push(`TIMELINE: ${disc.timeline}`);
+  if(disc.fit)             parts.push(`FIT CON ODOO: ${disc.fit}`);
+  if(disc.decisor)         parts.push(`DECISOR: ${disc.decisor}`);
+  if(disc.sistemasActuales)parts.push(`SISTEMAS ACTUALES: ${disc.sistemasActuales}`);
+  if(disc.empleados)       parts.push(`EMPLEADOS: ${disc.empleados}`);
+  if(disc.facturacion)     parts.push(`FACTURACIÓN MENSUAL: ${disc.facturacion}`);
+  if(disc.vision?.length)  parts.push(`VISIÓN DEL CLIENTE: ${Array.isArray(disc.vision)?disc.vision.join(', '):disc.vision}`);
+  if(disc.nota)            parts.push(`NOTA CRM MÁS RECIENTE:\n${disc.nota}`);
+
+  // Pricing acumulado
+  const pr=m.pricing||{};
+  if(pr.edition)           parts.push(`PRICING PRESENTADO: ${pr.edition} · ${pr.users||0} usuarios · ${pr.planLabel||''} · Total $${(pr.total||0).toLocaleString('es-MX')} MXN`);
+  if(pr.selectedApps?.length) parts.push(`APPS PARA IMPLEMENTACIÓN: ${pr.selectedApps.join(', ')}`);
+  if(pr.implNotes)         parts.push(`NOTAS DE IMPLEMENTACIÓN: ${pr.implNotes}`);
+
+  // Contenidos recientes
+  const ct=m.contenidos?.recent||[];
+  if(ct.length){
+    const tipos=ct.map(c=>c.tipo||c.type).filter(Boolean);
+    parts.push(`CONTENIDOS GENERADOS PREVIOS: ${[...new Set(tipos)].join(', ')} (${ct.length} interacciones)`);
+    if(ct[0]?.topic) parts.push(`Último tema abordado: ${ct[0].topic}`);
+  }
+
+  // Touchpoints
+  const tp=m.touchpoints||[];
+  if(tp.length) parts.push(`HISTORIAL DE TOQUES: ${tp.length} interacciones registradas (${tp.slice(0,3).map(t=>t.type).join(', ')}...)`);
+
+  return parts.length ? `\n--- MEMORIA ACUMULADA DE LA EMPRESA ---\n${parts.join('\n')}\n---` : '';
 }
 
 async function searchCompanies(term=''){
@@ -3005,13 +3103,15 @@ function gcUpdateIndDisplay(subId){
 }
 
 // ── Build Claude prompt context from company ──
-function gcCompanyContext(){
-  const c=cont.company, ct=cont.contact;
+function gcCompanyContext(overrideCompany=null){
+  const c=overrideCompany||cont.company;
+  const ct=overrideCompany?null:cont.contact;
   if(!c) return '';
-  const indKey=Object.keys(INDUSTRY_MAP).find(k=>k.toLowerCase()===( c.giro||'').toLowerCase());
+  const indKey=Object.keys(INDUSTRY_MAP).find(k=>k.toLowerCase()===(c.giro||'').toLowerCase());
   const odooInd=indKey?ODOO_INDUSTRIES[indKey]||'':'';
+  const memCtx=buildMemoryContext(c);
   return `EMPRESA: ${c.nombre} | Giro: ${c.giro||'nd'} | Tamaño: ${c.tamaño||'nd'} | Origen: ${c.origen||'nd'}${c.website?` | Web: ${c.website}`:''}${c.linkedin?` | LinkedIn empresa: ${c.linkedin}`:''}
-CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.email||'nd'}${ct.linkedin?` | LinkedIn: ${ct.linkedin}`:''}${ct.origen?` | Origen: ${ct.origen}`:''}`: 'Sin contacto seleccionado'}${odooInd?`\nCONTEXTO INDUSTRIA (${c.giro}): ${odooInd}`:''}`;
+CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.correo||ct.email||'nd'}${ct.linkedin?` | LinkedIn: ${ct.linkedin}`:''}`: 'Sin contacto seleccionado'}${odooInd?`\nCONTEXTO INDUSTRIA (${c.giro}): ${odooInd}`:''}${memCtx}`;
 }
 
 async function gcCallClaude(prompt, fileAttachment=null){
@@ -3141,6 +3241,10 @@ Reglas:
 - El mensaje debe estar firmado o referenciado con el nombre "${aeNombre}" donde sea natural
 - Formato: "VARIANTE 1:\n[texto]\n\nVARIANTE 2:\n[texto]\n\nVARIANTE 3:\n[texto]"`);
     gcShowOutput('gcWaOutput',text,true);
+    if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
+      contenido:{tipo:'whatsapp',topic:msg,objetivo:obj},
+      touchpoint:{type:'whatsapp',summary:`WA generado · ${obj.replace(/_/g,' ')}`}
+    });
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcWaLoading',false);
 };
@@ -3231,6 +3335,10 @@ ASUNTO: [asunto del correo]
 ---
 [cuerpo completo del email]`);
     gcShowOutput('gcCoOutput',text,true);
+    if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
+      contenido:{tipo:'correo',topic:obj.replace(/_/g,' '),industria:ind},
+      touchpoint:{type:'correo',summary:`Email generado · ${obj.replace(/_/g,' ')}`}
+    });
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcCoLoading',false);
 };
@@ -3312,6 +3420,10 @@ Reglas de social selling LATAM:
 
 Formato: VARIANTE 1:\n[texto]\n\nVARIANTE 2:\n[texto]\n\nVARIANTE 3:\n[texto]`);
     gcShowOutput('gcLiOutput',text,true);
+    if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
+      contenido:{tipo:'linkedin_mensaje',topic:tipo.replace(/_/g,' ')},
+      touchpoint:{type:'linkedin_mensaje',summary:`LinkedIn ${tipo.replace(/_/g,' ')} generado`}
+    });
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcLiLoading',false);
 };
@@ -3620,6 +3732,10 @@ Responde con los títulos de sección en MAYÚSCULAS. En español de México. S�
         </div>
       </div>`;
     window._gcBrContent=copy;
+    if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
+      contenido:{tipo:'brochure',apps:apps.slice(0,5).join(', ')},
+      touchpoint:{type:'brochure',summary:`Brochure generado · ${apps.slice(0,3).join(', ')}`}
+    });
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcBrLoading',false);
 };
@@ -4677,10 +4793,29 @@ function pricingShowModuleSelector(){
   document.body.appendChild(overlay);
 }
 
-window.pricingSaveModsAndPDF=function(){
+window.pricingSaveModsAndPDF=async function(){
   pricingState.selectedModules=[...document.querySelectorAll('input[name="pricingMod"]:checked')].map(i=>i.value);
   document.getElementById('pricingModSel')?.remove();
   showNotif('Pricing guardado ✓','success');
+  // ── Guardar en memoria de empresa ──
+  const ps=pricingState, r=ps.result||{};
+  if(ps.company?.id){
+    const modNames=PRICING_MODULE_LIST.filter(m=>pricingState.selectedModules.includes(m.key)).map(m=>m.name);
+    await updateCompanyMemory(ps.company.id,'pricing',{
+      pricing:{
+        edition:r.editionName||'',
+        users:r.users||ps.users||0,
+        planLabel:PRICING_DATA.planLabels[r.planIdx??ps.planIdx??1]||'',
+        implHrs:r.implHrs||0,
+        implNotes:ps.implNotes||'',
+        selectedApps:modNames,
+        total:r.total||0,
+        rateY1:ps.rateY1||0,
+        rateY2:ps.rateY2||0,
+      },
+      touchpoint:{type:'pricing',summary:`Pricing ${r.editionName||''} · ${r.users||0} usuarios · $${(r.total||0).toLocaleString('es-MX')} MXN`}
+    });
+  }
   pricingGeneratePDF();
 };
 
