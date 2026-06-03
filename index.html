@@ -1328,7 +1328,8 @@ const disc = {
   activeTV: new Set(),
   selections: {},
   companyId: null,
-  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; }
+  callEnded: false,
+  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; }
 };
 // Expose disc setters for inline HTML handlers
 window.discSetStatus = (v) => { disc.status = v; };
@@ -1970,7 +1971,16 @@ function discInitForm(data){
     // Restore transcript
     if(data.transcript){ const ta=document.getElementById('discTranscriptInput'); if(ta) ta.value=data.transcript; }
   }
-  discSetMode('escucha');
+  // Restaurar modo y estado del botón según si la llamada ya fue finalizada
+  if(data?.callEnded){
+    disc.callEnded=true;
+    discSetMode('postcall');
+    const btn=document.getElementById('discEndBtn');
+    if(btn){ btn.textContent='✓ Llamada finalizada'; btn.style.background='#16a34a'; btn.style.cursor='default'; btn.onclick=null; }
+  } else {
+    disc.callEnded=false;
+    discSetMode('escucha');
+  }
 }
 
 function discRestorePills(){
@@ -2038,8 +2048,15 @@ window.discSetMode=function(mode){
   if(mode==='postcall'){ discGenerateSummary(); discUpdateApps(); }
 };
 window.discEndCall=function(){
+  disc.callEnded=true;
   const btn=document.getElementById('discEndBtn');
-  if(btn){ btn.textContent='✓ Llamada finalizada'; btn.style.background='#16a34a'; setTimeout(()=>discSetMode('postcall'),800); }
+  if(btn){
+    btn.textContent='✓ Llamada finalizada';
+    btn.style.background='#16a34a';
+    btn.style.cursor='default';
+    btn.onclick=null; // ya no se puede volver a presionar
+    setTimeout(()=>discSetMode('postcall'),800);
+  }
 };
 window.discSelectInd=function(id,el){
   disc.currentInd=id;
@@ -2413,7 +2430,7 @@ window.discSaveRecord=async function(){
     budget:disc.selections['budget']||'', decisor:disc.selections['decisor']||'',
     timeline:disc.selections['timeline']||'', fit:disc.selections['fit']||'',
     dolores:disc.selections['dolores']||[],
-    geminiNote, recoNote, transcript, status, updatedAt:serverTimestamp(),
+    geminiNote, recoNote, transcript, status, callEnded:disc.callEnded||false, updatedAt:serverTimestamp(),
   };
   const btn=document.getElementById('discSaveBtn');
   if(btn){ btn.disabled=true; btn.textContent='Guardando...'; }
