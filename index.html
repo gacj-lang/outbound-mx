@@ -972,12 +972,12 @@ window.handleRegister = async function(){
   if(pass!==pass2){ showNotif('Las contraseñas no coinciden','error'); return; }
   const gram=email.replace('@odoo.com','');
   const isManager=gram===MANAGER.gram;
-  const isKnown=AE_LIST[gram]!==undefined;
-  if(!isManager&&!isKnown){ showNotif('Tu correo no está en la lista del equipo','error'); return; }
+  // Cualquier correo @odoo.com puede registrarse — si está en AE_LIST usa ese nombre, si no usa el que escribió
+  const resolvedName=isManager?MANAGER.name:(AE_LIST[gram]||name);
   setLoading('regBtn',true);
   try {
     const cred=await createUserWithEmailAndPassword(auth,email,pass);
-    const ud={ uid:cred.user.uid, name:isManager?MANAGER.name:(AE_LIST[gram]||name), email, gram,
+    const ud={ uid:cred.user.uid, name:resolvedName, email, gram,
       phone:phone||'', nombreTemplate:isManager?'Geovani':nombreTemplate,
       role:isManager?'manager':'ae', status:isManager?'active':'pending', tlId:null,
       createdAt:serverTimestamp(), approvedAt:isManager?serverTimestamp():null };
