@@ -3434,18 +3434,30 @@
     const mensualRef = ed.rates[currentPlanIdx] * currentUsers;
     const total = getCurrentTotalRaw();
     const clientName = document.getElementById('client-name-input')?.value?.trim() || '';
+    // Notas de implementación
+    const implNotes = document.getElementById('impl-notes-text')?.value?.trim() || '';
+    // Términos de pago
+    const payTermIdx  = parseInt(document.getElementById('pt-select')?.value ?? '-1');
+    const payStartDate = document.getElementById('pt-start-date')?.value || '';
+    // Variables SH (si aplica)
+    const isSH = currentEdition === 'sh';
+    const shWorkers = parseInt(document.getElementById('sh-workers')?.value || '1');
+    const shStaging = parseInt(document.getElementById('sh-staging')?.value || '0');
+    const shStorage = parseInt(document.getElementById('sh-storage')?.value || '0');
+    const shCost = isSH ? getSHCost(currentPlanIdx) : 0;
+    // Tarifas por año para el documento
+    const rateY1 = ed.rates[currentPlanIdx];
+    const rateY2 = ed.ratesY2 ? ed.ratesY2[currentPlanIdx] : rateY1;
     window.parent.postMessage({
       type: 'outbound_pricing',
-      total,
-      users: currentUsers,
-      editionName: ed.name,
-      editionIdx: currentEdition,
-      planIdx: currentPlanIdx,
-      planLabel: plans[currentPlanIdx]?.label || '',
-      implHrs: currentImplHrs,
-      implPrice: currentImplPrice,
-      mensualRef,
-      clientName,
+      total, users: currentUsers,
+      editionName: ed.name, editionIdx: currentEdition,
+      planIdx: currentPlanIdx, planLabel: plans[currentPlanIdx]?.label || '',
+      implHrs: currentImplHrs, implPrice: currentImplPrice,
+      mensualRef, clientName,
+      implNotes, payTermIdx, payStartDate,
+      isSH, shWorkers, shStaging, shStorage, shCost,
+      rateY1, rateY2,
     }, '*');
   }
 

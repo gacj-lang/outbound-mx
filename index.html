@@ -4550,6 +4550,17 @@ function renderPricing(){
     pricingState.users=d.users; pricingState.planIdx=d.planIdx;
     pricingState._mensualRef='$'+fmt(d.mensualRef);
     pricingState._impl='$'+fmt(d.implPrice);
+    // Capture all new fields
+    pricingState.implNotes=d.implNotes||'';
+    pricingState.payTermIdx=d.payTermIdx??-1;
+    pricingState.payStartDate=d.payStartDate||'';
+    pricingState.isSH=d.isSH||false;
+    pricingState.shWorkers=d.shWorkers||1;
+    pricingState.shStaging=d.shStaging||0;
+    pricingState.shStorage=d.shStorage||0;
+    pricingState.shCost=d.shCost||0;
+    pricingState.rateY1=d.rateY1||0;
+    pricingState.rateY2=d.rateY2||0;
     // Save record to Firestore
     if(db) try{
       await addDoc(collection(db,'pricingRecords'),{
@@ -4557,16 +4568,327 @@ function renderPricing(){
         companyId:pricingState.company?.id||null, companyName:pricingState.company?.nombre||d.clientName||'',
         edition:d.editionName, users:d.users, planIdx:d.planIdx,
         mensualRef:d.mensualRef, implHrs:d.implHrs, implPrice:d.implPrice, total:d.total,
+        isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0,
         createdAt:serverTimestamp()
       });
     } catch(e2){}
-    showNotif('Pricing guardado — abriendo Propuesta Comercial ✓','success');
-    showModule('gencontenidos');
-    setTimeout(()=>gcShowSection('propuesta'),400);
+    // Instead of going to propuesta, show PDF popup so AE selects modules first
+    pricingShowModuleSelector();
   };
   window.addEventListener('message',window._pricingMsgHandler);
   renderPricingHome();
 }
+
+// ── Módulos selector popup (after pricing is received) ──
+const PRICING_MODULE_LIST=[
+  {key:'crm',icon:'💼',name:'CRM',desc:'Pipeline, cotizaciones, portal del cliente'},
+  {key:'ventas',icon:'🛍️',name:'Ventas',desc:'Pedidos, listas de precio, portal'},
+  {key:'inventario',icon:'📦',name:'Inventario',desc:'Stock, reabasto automático, trazabilidad'},
+  {key:'compras',icon:'🛒',name:'Compras',desc:'Órdenes de compra, portal de proveedores'},
+  {key:'contabilidad',icon:'📊',name:'Contabilidad',desc:'CFDI 4.0, conciliación bancaria'},
+  {key:'facturacion',icon:'🧾',name:'Facturación',desc:'Timbrado automático, notas de crédito'},
+  {key:'rrhh',icon:'👥',name:'Recursos Humanos',desc:'Nómina timbrada, asistencias, vacaciones'},
+  {key:'manufactura',icon:'🏭',name:'Manufactura',desc:'Órdenes de producción, MRP, BOM'},
+  {key:'proyectos',icon:'📋',name:'Proyectos',desc:'Tareas, Gantt, seguimiento de horas'},
+  {key:'helpdesk',icon:'🎧',name:'Helpdesk',desc:'Tickets, SLA, portal de soporte'},
+  {key:'ecommerce',icon:'🌐',name:'E-commerce',desc:'Tienda online integrada al ERP'},
+  {key:'pos',icon:'🏪',name:'Punto de Venta',desc:'POS táctil, offline, con inventario'},
+  {key:'marketing',icon:'📣',name:'Marketing',desc:'Email, automatizaciones, segmentos'},
+  {key:'flota',icon:'🚗',name:'Flota',desc:'Gestión de vehículos y mantenimiento'},
+  {key:'firma',icon:'✍️',name:'Firma Electrónica',desc:'Aprobaciones y documentos firmados'},
+  {key:'gastos',icon:'💳',name:'Gastos',desc:'Reporte y aprobación de gastos'},
+];
+
+function pricingShowModuleSelector(){
+  const existing=document.getElementById('pricingModSel'); if(existing) existing.remove();
+  const prev=pricingState.selectedModules||['crm','inventario','contabilidad','facturacion','compras','rrhh'];
+  const overlay=document.createElement('div');
+  overlay.className='disc-popup-overlay'; overlay.id='pricingModSel';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:680px">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title">📱 Módulos en el alcance de implementación</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('pricingModSel').remove()">✕</button>
+    </div>
+    <div class="disc-popup-body" style="font-family:'DM Sans',sans-serif">
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Selecciona los módulos que recomiendas e incluyes en las ${pricingState.result?.implHrs||50} horas de implementación. Aparecerán en la propuesta comercial.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:20px">
+        ${PRICING_MODULE_LIST.map(m=>`
+          <label style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;transition:all .15s;${prev.includes(m.key)?'border-color:var(--purple);background:var(--purple-light);':''}"
+            onmouseover="this.style.borderColor='var(--purple)'" onmouseout="if(!this.querySelector('input').checked){this.style.borderColor='var(--gray-200)';this.style.background='white';}">
+            <input type="checkbox" name="pricingMod" value="${m.key}" ${prev.includes(m.key)?'checked':''} style="margin-top:2px;accent-color:var(--purple)"
+              onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--gray-200)';this.closest('label').style.background=this.checked?'var(--purple-light)':'white'">
+            <div>
+              <div style="font-size:13px;font-weight:700">${m.icon} ${m.name}</div>
+              <div style="font-size:11px;color:var(--gray-500);margin-top:1px">${m.desc}</div>
+            </div>
+          </label>`).join('')}
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="showModule('gencontenidos');setTimeout(()=>gcShowSection('propuesta'),400);document.getElementById('pricingModSel').remove()">Ir a propuesta →</button>
+        <button class="btn btn-primary" onclick="pricingSaveModsAndPDF()">📄 Generar propuesta PDF</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+window.pricingSaveModsAndPDF=function(){
+  pricingState.selectedModules=[...document.querySelectorAll('input[name="pricingMod"]:checked')].map(i=>i.value);
+  document.getElementById('pricingModSel')?.remove();
+  showNotif('Pricing guardado ✓','success');
+  pricingGeneratePDF();
+};
+
+window.pricingGeneratePDF=function(){
+  const ps=pricingState;
+  const r=ps.result||{};
+  const co=ps.company;
+  const fmtN=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0}):'—';
+  const fmt2=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+  const today=new Date().toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  const validity=new Date(Date.now()+30*864e5).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  const folio='OD-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*9000+1000));
+  const aeN=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'AE';
+  const aeFullN=currentUserData?.name||'Account Executive'; const aeEmail=currentUserData?.email||'';
+
+  // Plan data
+  const PD=PRICING_DATA;
+  const edIdx=r.editionIdx??1;
+  const ed=PD.editions[edIdx]||PD.editions[1];
+  const users=r.users||ps.users||1;
+  const planIdx=r.planIdx??ps.planIdx??1;
+  const rateY1=ps.rateY1||ed.rates[planIdx]||0;
+  const rateY2=ps.rateY2||ed.ratesY2?.[planIdx]||rateY1;
+  const planMonths=PD.planMonths[planIdx]||12;
+  const planLabel=PD.planLabels[planIdx]||'1 año';
+  const licY1=rateY1*users*Math.min(planMonths,12);
+  const licY2=planMonths>12?rateY2*users*(planMonths-12):0;
+  const licTotal=licY1+licY2;
+  const implPrice=r.implPrice||ps._impl||0;
+  const implPriceN=typeof implPrice==='string'?parseFloat(implPrice.replace(/[^0-9.]/g,'')):implPrice;
+  const subtotal=licTotal+(ps.shCost||0)+implPriceN;
+  const iva=subtotal*0.16;
+  const total=subtotal+iva;
+
+  // Payment schedule
+  const payTermDefs=[
+    {name:'50% Now · 50% NET45', splits:[{lbl:'50% — Ahora',pct:.5,days:0},{lbl:'50% — NET45',pct:.5,days:45}]},
+    {name:'50% Now · 50% NET30', splits:[{lbl:'50% — Ahora',pct:.5,days:0},{lbl:'50% — NET30',pct:.5,days:30}]},
+    {name:'25% · NET30 · NET60 · NET90', splits:[{lbl:'25% — Ahora',pct:.25,days:0},{lbl:'25% — NET30',pct:.25,days:30},{lbl:'25% — NET60',pct:.25,days:60},{lbl:'25% — NET90',pct:.25,days:90}]},
+    {name:'40% · NET30 · NET60', splits:[{lbl:'40% — Ahora',pct:.4,days:0},{lbl:'30% — NET30',pct:.3,days:30},{lbl:'30% — NET60',pct:.3,days:60}]},
+  ];
+  const addDays=(d,n)=>{ const r=new Date(d); r.setDate(r.getDate()+n); return r; };
+  const fmtDate=d=>d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
+  const payTerm=payTermDefs[ps.payTermIdx]||null;
+  const baseDate=ps.payStartDate?new Date(ps.payStartDate+'T12:00:00'):new Date();
+  const payRows=payTerm?payTerm.splits.map(s=>`
+    <tr><td>${s.lbl}</td><td>${s.days===0?fmtDate(baseDate):fmtDate(addDays(baseDate,s.days))}</td><td style="font-weight:700;color:#017E84">${fmt2(total*s.pct)}</td></tr>`).join(''):'';
+
+  // Comparativa rows
+  const compRows=PD.planLabels.map((pl,i)=>{
+    const r1=ed.rates[i], r2=(ed.ratesY2||[])[i]||r1;
+    const months=PD.planMonths[i];
+    const licT=i===0?r1*users:(r1*users*Math.min(months,12))+(r2*users*Math.max(0,months-12));
+    const implT=i===0?0:implPriceN;
+    const tot=licT+implT;
+    const saving=i>0?licT-(r1*users*months):0;
+    const isSel=i===planIdx;
+    return `<tr style="${isSel?'background:#f0f9f9;font-weight:700;color:#017E84':''}">
+      <td style="text-align:left;${isSel?'color:#017E84;font-weight:700':''}">
+        ${pl}${i===0?'<span style="font-size:9px;background:#f0f0f0;color:#999;padding:1px 5px;border-radius:3px;margin-left:4px">Base</span>':''}
+        ${isSel?'<span style="font-size:9px;background:#017E84;color:white;padding:1px 6px;border-radius:3px;margin-left:5px">✓ Esta propuesta</span>':''}
+      </td>
+      <td style="font-family:monospace">${fmtN(r1)}</td>
+      <td style="font-family:monospace">${i===0?'—':fmtN(r2)}</td>
+      <td style="font-family:monospace">${fmtN(licT)}${saving>0?`<br><span style="font-size:9px;color:#16a34a">Ahorro ${fmtN(saving)}</span>`:''}</td>
+      <td style="font-family:monospace">${i===0?'—':fmtN(implPriceN)}</td>
+      <td style="font-family:monospace;font-weight:700">${fmtN(tot)}</td>
+    </tr>`;
+  }).join('');
+
+  // Modules
+  const selMods=(ps.selectedModules||[]);
+  const modCards=PRICING_MODULE_LIST.filter(m=>selMods.includes(m.key)).map(m=>`
+    <div style="border:1.5px solid #714B67;background:#fdf8fc;border-radius:8px;padding:10px 11px">
+      <div style="font-size:16px;margin-bottom:4px">${m.icon}</div>
+      <div style="font-size:11.5px;font-weight:700;color:#714B67">${m.name}</div>
+      <div style="font-size:10px;color:#aaa;margin-top:2px;line-height:1.35">${m.desc}</div>
+    </div>`).join('');
+
+  // SH section
+  const shSection=ps.isSH?`
+    <div style="break-inside:avoid;margin-bottom:18px">
+      <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#bbb;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        Recursos Odoo SH <span style="flex:1;height:1px;background:#efefef;display:inline-block"></span></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div style="border:1px solid #ffe0c8;border-radius:8px;padding:13px 15px;background:#fff8f5">
+          <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#f97316;margin-bottom:5px">Workers</div>
+          <div style="font-size:22px;font-weight:700;font-family:monospace;color:#ea6c00">${ps.shWorkers||1}</div>
+          <div style="font-size:10px;color:#aaa;margin-top:3px">Procesos simultáneos</div>
+        </div>
+        <div style="border:1px solid #ffe0c8;border-radius:8px;padding:13px 15px;background:#fff8f5">
+          <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#f97316;margin-bottom:5px">Entornos staging</div>
+          <div style="font-size:22px;font-weight:700;font-family:monospace;color:#ea6c00">${ps.shStaging||0}</div>
+          <div style="font-size:10px;color:#aaa;margin-top:3px">Ambientes de prueba</div>
+        </div>
+        <div style="border:1px solid #ffe0c8;border-radius:8px;padding:13px 15px;background:#fff8f5">
+          <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#f97316;margin-bottom:5px">Almacenamiento</div>
+          <div style="font-size:22px;font-weight:700;font-family:monospace;color:#ea6c00">${ps.shStorage||0} GB</div>
+          <div style="font-size:10px;color:#aaa;margin-top:3px">Almacenamiento adicional</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:#aaa;margin-top:6px">Costo total Odoo SH: ${fmtN(ps.shCost)} MXN · incluido en el total de inversión.</div>
+    </div>`:'';
+
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;} body{font-family:'DM Sans',sans-serif;color:#1a1a1a;background:white;}
+.page{width:210mm;min-height:297mm;padding:18mm 22mm;page-break-after:always;position:relative;}
+.page:last-child{page-break-after:auto;}
+.sec{margin-bottom:18px;break-inside:avoid;}
+.sec-ttl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#bbb;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.sec-ttl::after{content:'';flex:1;height:1px;background:#efefef;}
+table{border-collapse:collapse;width:100%;}
+th{padding:7px 9px;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;background:#f7f7f7;text-align:right;border-bottom:1.5px solid #e8e8e8;}
+th:first-child{text-align:left;}
+td{padding:8px 9px;border-bottom:1px solid #f4f4f4;font-size:11px;text-align:right;color:#555;}
+td:first-child{text-align:left;color:#1a1a1a;font-weight:600;}
+.footer{position:absolute;bottom:14mm;left:22mm;right:22mm;display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid #efefef;}
+@media print{@page{size:A4;margin:0;}}
+</style></head><body>
+
+<!-- PÁGINA 1 -->
+<div class="page">
+  <!-- Header -->
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:16px;margin-bottom:18px;border-bottom:3px solid #714B67">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:38px;height:38px;background:#714B67;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:white">O</div>
+      <div><div style="font-size:16px;font-weight:700;letter-spacing:-.02em">Odoo México</div><div style="font-size:9.5px;color:#aaa;text-transform:uppercase;letter-spacing:.05em">Propuesta Comercial</div></div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:9px;color:#bbb;font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Folio <span style="font-family:'DM Mono',monospace;color:#888">${folio}</span></div>
+      <div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Preparada para</div>
+      <div style="font-size:17px;font-weight:700;color:#714B67;letter-spacing:-.02em">${co?.nombre||'Cliente'}</div>
+      <div style="font-size:10px;color:#bbb;margin-top:2px">${today} · Vigencia 30 días</div>
+    </div>
+  </div>
+
+  <!-- Configuración -->
+  <div class="sec">
+    <div class="sec-ttl">Configuración de la propuesta</div>
+    <table><tbody>
+      <tr style="background:#fdf8fc"><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa;width:34%">Edición</td><td style="text-align:left"><span style="background:#714B67;color:white;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:4px">${r.editionName||ed.name}</span></td></tr>
+      <tr><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa">Usuarios activos</td><td style="text-align:left;font-size:12px">${users} usuarios</td></tr>
+      <tr style="background:#fdf8fc"><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa">Plan de contrato</td><td style="text-align:left"><span style="background:#017E84;color:white;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:4px">${planLabel}</span><span style="font-size:8.5px;font-weight:700;text-transform:uppercase;background:#FBB130;color:#7a5200;padding:1px 6px;border-radius:3px;margin-left:6px">Recomendado</span></td></tr>
+      <tr><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa">Tarifa año 1</td><td style="text-align:left">${fmtN(rateY1)} MXN / usuario / mes</td></tr>
+      ${planMonths>12?`<tr><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa">Tarifa año 2+</td><td style="text-align:left">${fmtN(rateY2)} MXN / usuario / mes <span style="font-size:9.5px;color:#bbb">(incluido en el contrato)</span></td></tr>`:''}
+      <tr><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa">Implementación</td><td style="text-align:left">Paquete ${r.implHrs||50} horas — ${fmtN(implPriceN)} MXN</td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- Comparativa -->
+  <div class="sec">
+    <div class="sec-ttl">Comparativa de planes · ${users} usuarios · ${r.editionName||ed.name}</div>
+    <table><thead><tr>
+      <th style="text-align:left">Contrato</th><th>Tarifa año 1/usr</th><th>Tarifa año 2+/usr</th><th>Total licencias</th><th>Implementación</th><th>Total lic.+impl.</th>
+    </tr></thead><tbody>${compRows}</tbody></table>
+    <div style="font-size:8.5px;color:#ccc;margin-top:5px">Precios en MXN sin IVA. Ahorros vs. plan mensual equivalente. Implementación: inversión única.</div>
+  </div>
+
+  <!-- Resumen inversión -->
+  <div class="sec" style="margin-bottom:0">
+    <div class="sec-ttl">Resumen de inversión · ${planLabel}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border:1px solid #efefef;border-radius:8px;overflow:hidden">
+      <div style="padding:14px 16px;border-right:1px solid #efefef">
+        <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#bbb;margin-bottom:4px">Licencias · ${planMonths} meses</div>
+        <div style="font-size:19px;font-weight:700;font-family:'DM Mono',monospace;color:#1a1a1a">${fmtN(licTotal)}</div>
+        <div style="font-size:9.5px;color:#aaa;margin-top:3px;line-height:1.4">${planMonths>12?`Año 1: ${fmtN(rateY1)}/usr/mes<br>Año 2+: ${fmtN(rateY2)}/usr/mes`:`${fmtN(rateY1)}/usr/mes`}</div>
+      </div>
+      <div style="padding:14px 16px;border-right:1px solid #efefef">
+        <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#bbb;margin-bottom:4px">Implementación</div>
+        <div style="font-size:19px;font-weight:700;font-family:'DM Mono',monospace;color:#1a1a1a">${fmtN(implPriceN)}</div>
+        <div style="font-size:9.5px;color:#aaa;margin-top:3px">${r.implHrs||50} hrs de consultoría<br>Inversión única</div>
+      </div>
+      <div style="padding:14px 16px;background:#714B67">
+        <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.5);margin-bottom:4px">Total con IVA (16%)</div>
+        <div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:white">${fmtN(total)}</div>
+        <div style="font-size:9.5px;color:rgba(255,255,255,.45);margin-top:3px">Subtotal ${fmtN(subtotal)}<br>IVA ${fmtN(iva)}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="width:28px;height:28px;background:#714B67;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">${aeN[0]}</div>
+      <div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#aaa">${aeEmail} · Account Executive · Odoo México</div></div>
+    </div>
+    <div style="font-size:9px;color:#ccc">Página 1 de 2</div>
+  </div>
+</div>
+
+<!-- PÁGINA 2 -->
+<div class="page">
+  <!-- Mini header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;margin-bottom:16px;border-bottom:1.5px solid #714B67">
+    <div style="display:flex;align-items:center;gap:7px">
+      <div style="width:26px;height:26px;background:#714B67;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white">O</div>
+      <div style="font-size:12px;font-weight:700;color:#714B67">Odoo México · Propuesta Comercial</div>
+    </div>
+    <div style="font-size:9.5px;color:#bbb">${co?.nombre||'Cliente'} · <span style="font-family:'DM Mono',monospace">${folio}</span></div>
+  </div>
+
+  ${shSection}
+
+  <!-- Términos de pago -->
+  <div class="sec">
+    <div class="sec-ttl">Términos de pago</div>
+    ${payTerm?`
+    <table><thead><tr>
+      <th style="text-align:left">Concepto</th><th style="text-align:left">Fecha</th><th>Importe</th>
+    </tr></thead><tbody>
+    ${payRows}
+    <tr style="background:#f0f9f9"><td style="color:#017E84;font-weight:700">Total</td><td></td><td style="font-weight:700;font-size:13px;color:#714B67">${fmt2(total)}</td></tr>
+    </tbody></table>
+    <div style="font-size:9px;color:#bbb;margin-top:5px">Importes con IVA incluido. Pagos mediante SPEI / Cheque nominativo. CFDI emitido el mismo día del pago.</div>`
+    :'<div style="font-size:12px;color:#bbb;padding:14px;background:#fafafa;border-radius:7px;border:1px solid #efefef">No se seleccionó un esquema de pago.</div>'}
+  </div>
+
+  <!-- Módulos -->
+  ${selMods.length?`
+  <div class="sec">
+    <div class="sec-ttl">Módulos de Odoo considerados en el alcance</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${modCards}</div>
+    <div style="font-size:8.5px;color:#bbb;margin-top:6px">Módulos con borde morado incluidos en las ${r.implHrs||50} horas de consultoría.</div>
+  </div>`:''}
+
+  <!-- Notas de implementación -->
+  <div class="sec">
+    <div class="sec-ttl">Notas de implementación</div>
+    ${ps.implNotes?`<div style="border:1.5px solid #efefef;border-radius:8px;padding:14px 16px;background:#fafafa;font-size:11.5px;color:#555;line-height:1.6;white-space:pre-wrap">${ps.implNotes}</div>`
+    :'<div style="border:1.5px solid #efefef;border-radius:8px;padding:14px 16px;background:#fafafa;font-size:11.5px;color:#bbb;font-style:italic">Sin notas adicionales.</div>'}
+  </div>
+
+  <div class="footer">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="width:28px;height:28px;background:#714B67;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">${aeN[0]}</div>
+      <div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#aaa">${aeEmail} · Account Executive · Odoo México</div></div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:10px;font-weight:600;color:#d97706;background:#fffbeb;padding:3px 8px;border-radius:4px;border:1px solid #fde68a;display:inline-block">Vigente hasta: ${validity}</div>
+      <div style="font-size:9px;color:#ccc;margin-top:3px;font-family:'DM Mono',monospace">Página 2 de 2 · ${folio}</div>
+    </div>
+  </div>
+</div>
+
+</body></html>`;
+
+  // Abrir en nueva ventana para imprimir/guardar como PDF
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),800);
+};
 
 window.renderPricingHome=function renderPricingHome(){
   const content=document.getElementById('moduleContent');
