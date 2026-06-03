@@ -890,6 +890,7 @@ const MODULES = [
   { id:'analytics',     icon:'📊', label:'Analytics',                phase:7, ready:false },
 ];
 const ASSETS = 'https://gacj-lang.github.io/outbound-mx/assets';
+const CLAUDE_KEY_DEFAULT = 'REPLACE_WITH_YOUR_CLAUDE_KEY'; // sk-ant-api03-...
 
 let app, auth, db, firebaseReady=false;
 let currentUser=null, currentUserData=null;
@@ -2252,8 +2253,8 @@ Escribe en español de México, tono profesional pero directo. Sé conciso y acc
 
 // ── Recomendaciones (coaching sin transcripción) ──
 window.discGenerateReco = async function(){
-  const claudeKey=localStorage.getItem('outbound_claude_key')||'';
-  if(!claudeKey){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
+  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
+  if(!claudeKey||claudeKey==='REPLACE_WITH_YOUR_CLAUDE_KEY'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
   const s=disc.selections;
   const btn=document.getElementById('discRecoBtn');
   const loading=document.getElementById('discRecoLoading');
@@ -2343,7 +2344,7 @@ window.discCopyReco=function(){
 window.discAnalyzeClaude = async function(){
   const transcript=document.getElementById('discTranscriptInput').value.trim();
   if(!transcript){ showNotif('Pega la transcripción de la llamada','error'); return; }
-  const claudeKey=localStorage.getItem('outbound_claude_key')||'';
+  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   if(!claudeKey){ showNotif('Configura tu Claude API key en ⚙️ Configuración','error'); return; }
   const btn=document.getElementById('discAnalyzeBtn');
   const loading=document.getElementById('discGeminiLoading');
@@ -2984,8 +2985,8 @@ CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.email||'nd
 }
 
 async function gcCallClaude(prompt, fileAttachment=null){
-  const key=localStorage.getItem('outbound_claude_key')||'';
-  if(!key){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
+  const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
+  if(!key||key==='REPLACE_WITH_YOUR_CLAUDE_KEY'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
   let content;
   if(fileAttachment){
     content=[];
