@@ -1107,7 +1107,7 @@ window.showNavWarning=function(warn, onConfirm, onSave){
     document.getElementById('navWarnSave').onclick=async()=>{
       overlay.remove();
       if(typeof onSave==='function'){ await onSave(); }
-      else if(disc.formActive){ await disc.saveRecord(); }
+      else if(disc.formActive){ await window.discSaveRecord(); }
       onConfirm();
     };
   }
@@ -1232,40 +1232,77 @@ const TV_APPS={ cotizacion:{name:'Ventas',reason:'Cotizaciones multi-línea, con
 
 const WOW_DB={
   comercial:[
-    {type:'gen',title:'Portal del cliente',desc:'El cliente aprueba cotizaciones, ve pedidos y facturas en línea.',wow:'✦ Firma electrónica sin salir del portal — cero ida y vuelta por correo'},
-    {type:'gen',title:'Email tracking en tiempo real',desc:'Odoo avisa cuando el cliente abre tu cotización.',wow:'✦ "El cliente acaba de abrir tu propuesta" — llámalo ahora'},
-    {type:'gen',title:'WhatsApp + CRM integrado',desc:'Mensajes de WhatsApp visibles dentro de la oportunidad.',wow:'✦ Todo el historial en un solo lugar, no en el teléfono del vendedor'},
-    {type:'gen',title:'Pipeline con IA',desc:'Odoo predice la probabilidad de cierre de cada oportunidad.',wow:'✦ El sistema te dice en cuáles oportunidades enfocarte esta semana'},
-    {type:'ind',ind:'construccion',title:'Presupuesto de obra versionable',desc:'Crea múltiples versiones; el cliente aprueba en línea.',wow:'✦ El cliente firma el presupuesto desde su celular'},
-    {type:'ind',ind:'retail',title:'Programa de lealtad integrado al POS',desc:'Puntos y recompensas configurables, aplicados en caja.',wow:'✦ Sin tarjetas físicas: se identifica con teléfono o email'},
-    {type:'ind',ind:'restaurante',title:'QR en mesa para ordenar',desc:'El cliente escanea, ve el menú y ordena directamente.',wow:'✦ La orden llega a cocina en segundos — sin mesero'},
-    {type:'ind',ind:'comercializadora',title:'Lista de precios por cliente/volumen',desc:'Precios automáticos según tipo de cliente o canal.',wow:'✦ El vendedor no necesita preguntar al gerente'},
-    {type:'tv',tv:'suscripcion',title:'Renovación y cargo automático',desc:'Renueva contratos y genera facturas recurrentes sin intervención.',wow:'✦ El ingreso llega aunque el vendedor esté de vacaciones'},
-    {type:'tv',tv:'pos',title:'POS sin internet (modo offline)',desc:'El POS sigue funcionando sin red y sincroniza al reconectarse.',wow:'✦ Nunca pierdes una venta por problemas de red'},
+    // GENERALES
+    {type:'gen',title:'Portal del cliente self-service',desc:'El cliente aprueba cotizaciones, ve pedidos, descarga facturas y sigue entregas — sin llamarte.',wow:'✦ "¿Puedes mandarme la factura?" → el cliente la descarga solo. Siempre.'},
+    {type:'gen',title:'Email tracking en tiempo real',desc:'Odoo notifica en el instante que el cliente abre tu cotización o propuesta.',wow:'✦ Llama 2 minutos después de que abrió el correo — siempre te cae en el momento exacto'},
+    {type:'gen',title:'WhatsApp + CRM en una sola vista',desc:'Los mensajes de WhatsApp del cliente aparecen dentro de la oportunidad en el CRM.',wow:'✦ Cuando el vendedor se va, todo el historial queda. El cliente nunca vuelve a empezar de cero'},
+    {type:'gen',title:'IA de probabilidad de cierre',desc:'Odoo analiza el historial del pipeline y predice el % de cierre de cada oportunidad.',wow:'✦ Cada lunes el sistema te entrega una lista de las 3 oportunidades con mayor probabilidad de cerrar esta semana'},
+    {type:'gen',title:'Cotización en 3 clics desde el móvil',desc:'Crea y envía una cotización profesional desde el teléfono, sin abrir la computadora.',wow:'✦ El vendedor en campo cierra en el momento — no "te mando la cotización mañana"'},
+    {type:'gen',title:'Vínculo proveedor–cliente automatizado',desc:'Si un cliente compra producto que no tienes, Odoo genera la OC al proveedor automáticamente.',wow:'✦ Vendes sin tener stock — el sistema hace el pedido solo'},
+    {type:'gen',title:'Preventa y reserva de inventario',desc:'Al confirmar una cotización, el inventario se reserva para ese cliente de inmediato.',wow:'✦ Se acabaron los "le vendí el mismo producto a dos clientes"'},
+    {type:'ind',ind:'construccion',title:'Presupuesto de obra versionable con firma',desc:'Crea versiones de presupuesto; el cliente compara y aprueba digitalmente con firma.',wow:'✦ El contratista firma desde su celular en la obra — el contrato queda sellado al instante'},
+    {type:'ind',ind:'construccion',title:'Estimaciones de avance con CFDI automático',desc:'Factura por porcentaje de avance. Al marcar el avance, se genera y timbra el CFDI.',wow:'✦ ¿Cuánto has cobrado de la Obra 7? → el sistema te dice en 5 segundos'},
+    {type:'ind',ind:'retail',title:'Programa de lealtad en caja',desc:'Acumula y canjea puntos en cualquier sucursal. El cliente se identifica por teléfono.',wow:'✦ Sin tarjetas físicas, sin apps extra — solo el número de teléfono en la caja'},
+    {type:'ind',ind:'retail',title:'Venta multicanal unificada',desc:'Tienda física, e-commerce y WhatsApp conectados. El cliente ve el mismo inventario.',wow:'✦ El cliente pregunta por WhatsApp → el vendedor confirma stock real → cierra en 2 minutos'},
+    {type:'ind',ind:'restaurante',title:'Orden desde el QR de la mesa',desc:'El cliente escanea el QR, ve el menú con fotos y ordena. La orden llega a cocina.',wow:'✦ Sin mesero tomando la orden: la cocina recibe el pedido en 10 segundos'},
+    {type:'ind',ind:'restaurante',title:'Cierre de mesa y pago dividido',desc:'El mesero cierra la cuenta desde el celular; el cliente puede pagar su parte.',wow:'✦ "¿Me puedes cobrar solo lo mío?" → dividido automáticamente por persona'},
+    {type:'ind',ind:'manufactura',title:'Confirmación de entrega con foto',desc:'El repartidor sube la foto de la entrega desde el celular. Queda vinculada al pedido.',wow:'✦ "¿Recibiste el pedido?" → adjunta la foto firmada al instante'},
+    {type:'ind',ind:'servicios',title:'Cotización basada en tiempo y materiales',desc:'El vendedor genera cotizaciones con horas estimadas × tarifa + materiales.',wow:'✦ En 5 minutos tienes una propuesta detallada con rentabilidad calculada'},
+    {type:'ind',ind:'software',title:'Suscripción con portal de cliente',desc:'El cliente ve sus contratos activos, facturas y puede escalar tickets sin llamarte.',wow:'✦ El cliente gestiona su cuenta 100% solo — reduce hasta 60% las llamadas de soporte'},
+    {type:'ind',ind:'comercializadora',title:'Lista de precios por cliente y volumen',desc:'Precios automáticos según tipo de cliente, canal o volumen de compra.',wow:'✦ El vendedor no necesita preguntar al gerente — el precio correcto aparece solo'},
+    {type:'ind',ind:'distribucion',title:'Pedido mínimo y bloqueo automático',desc:'Configura pedido mínimo por cliente o zona. El sistema bloquea pedidos que no aplican.',wow:'✦ El ruteador no puede procesar un pedido que no cumple las condiciones del contrato'},
+    {type:'tv',tv:'suscripcion',title:'Renovación automática sin intervención',desc:'El contrato se renueva y la factura se genera, timbra y envía sola al vencer.',wow:'✦ El ingreso recurrente llega aunque el AE esté de vacaciones. Siempre.'},
+    {type:'tv',tv:'suscripcion',title:'Alerta de churn antes de que pase',desc:'Odoo detecta clientes sin actividad o con facturas vencidas y activa una tarea al AE.',wow:'✦ Sabes que un cliente está en riesgo antes de que cancele — no después'},
+    {type:'tv',tv:'cotizacion',title:'Aprobación interna de cotizaciones',desc:'Cotizaciones con descuento especial requieren aprobación del gerente antes de enviarse.',wow:'✦ El gerente aprueba desde el celular — el cliente recibe su cotización en minutos'},
+    {type:'tv',tv:'ecommerce',title:'Checkout en 1 clic con portal',desc:'Clientes recurrentes reordenan con un clic. Sin formularios.',wow:'✦ Tu cliente B2B recicla su último pedido — sin llamadas, sin emails, sin esperas'},
+    {type:'tv',tv:'pos',title:'POS sin internet modo offline',desc:'El POS sigue vendiendo sin conexión y sincroniza al reconectarse.',wow:'✦ La caída del internet no detiene la caja — ni se pierde ninguna venta'},
+    {type:'tv',tv:'alquiler',title:'Calendario de disponibilidad en tiempo real',desc:'Vista de disponibilidad de activos por fecha, cliente y ubicación.',wow:'✦ "¿Tienes disponible el equipo para el 15?" → respuesta en 3 segundos'},
   ],
   operativo:[
-    {type:'gen',title:'Reabasto automático por mínimos',desc:'Cuando el inventario baja del mínimo, Odoo genera la OC.',wow:'✦ Cero quiebres de stock sin que nadie revise el inventario'},
-    {type:'gen',title:'Trazabilidad lote/serie completa',desc:'Rastrear cualquier producto desde proveedor hasta cliente.',wow:'✦ En un recall, en 30 segundos sabes a quién le vendiste ese lote'},
-    {type:'gen',title:'App de almacén en celular',desc:'Operadores escanean y mueven inventario desde su celular.',wow:'✦ El picking se hace con el teléfono — el sistema guía paso a paso'},
-    {type:'ind',ind:'construccion',title:'Lista de materiales por obra (BOM)',desc:'Define materiales, MO y subcontratos; el costo se actualiza en tiempo real.',wow:'✦ En cualquier momento ves si la obra está dentro de presupuesto'},
-    {type:'ind',ind:'retail',title:'Alertas automáticas de quiebre',desc:'Notifica cuando un artículo crítico está por agotarse.',wow:'✦ El gerente recibe el WhatsApp antes de que el cliente no encuentre el producto'},
-    {type:'ind',ind:'restaurante',title:'Descuento automático de receta',desc:'Al vender un platillo, los ingredientes se descuentan automáticamente.',wow:'✦ Siempre sabes cuántos ingredientes tienes — sin inventario físico constante'},
-    {type:'ind',ind:'comercializadora',title:'Rutas de entrega en mapa',desc:'Optimización de rutas con geolocalización de clientes.',wow:'✦ El repartidor recibe su ruta optimizada — menos km, más entregas'},
-    {type:'tv',tv:'alquiler',title:'Estado de activo en tiempo real',desc:'Dashboard: disponible / en uso / en mantenimiento.',wow:'✦ Nunca rentes algo que ya está rentado — el sistema bloquea'},
-    {type:'tv',tv:'ecommerce',title:'Inventario multi-bodega sincronizado',desc:'La tienda online siempre muestra el stock real.',wow:'✦ Cero ventas de productos que ya no tienes'},
-    {type:'tv',tv:'pos',title:'Inventario actualizado al vender',desc:'Cada venta en POS descuenta automáticamente del inventario.',wow:'✦ Al cerrar el día, el inventario ya está cuadrado'},
+    // GENERALES
+    {type:'gen',title:'Reabasto automático por reglas de mínimos',desc:'Cuando el stock llega al mínimo, Odoo genera la orden de compra al proveedor correcto.',wow:'✦ El almacén nunca queda vacío — sin que nadie tenga que revisar el inventario'},
+    {type:'gen',title:'App de almacén con escáner en celular',desc:'Operadores reciben, mueven y hacen picking desde el teléfono. Sin papel.',wow:'✦ El picking guía al operador paso a paso — la tasa de error baja a casi cero'},
+    {type:'gen',title:'Trazabilidad completa lote y número de serie',desc:'Sigue un producto desde que entró del proveedor hasta que llegó al cliente final.',wow:'✦ En un recall o disputa: "¿a quién le vendimos este lote?" → 30 segundos, no 3 días'},
+    {type:'gen',title:'Gestión de calidad integrada',desc:'Puntos de control de calidad en recepción y producción. Rechaza lotes sin salir del sistema.',wow:'✦ El cliente reclama un defecto → tienes el proveedor, lote y fecha en 1 clic'},
+    {type:'gen',title:'Rutas y operaciones de almacén configurables',desc:'Define reglas FIFO, FEFO, LIFO. El sistema decide qué producto tomar automáticamente.',wow:'✦ Cero decisiones manuales en el almacén — el sistema siempre sabe qué sacar primero'},
+    {type:'ind',ind:'construccion',title:'Lista de materiales por proyecto (BOM)',desc:'Define materiales y mano de obra. El costo real se actualiza conforme avanza la obra.',wow:'✦ "¿Estamos dentro de presupuesto?" → respuesta exacta en cualquier momento de la obra'},
+    {type:'ind',ind:'construccion',title:'Asignación de cuadrillas a actividades',desc:'Planifica qué cuadrilla hace qué actividad y en qué fecha. Control en tiempo real.',wow:'✦ Si una cuadrilla termina antes, el sistema sugiere la siguiente actividad disponible'},
+    {type:'ind',ind:'retail',title:'Alerta de quiebre de stock multi-sucursal',desc:'Cuando un artículo crítico está bajo en una sucursal, el sistema notifica al encargado.',wow:'✦ El gerente recibe el WhatsApp antes de que el cliente no encuentre el producto'},
+    {type:'ind',ind:'retail',title:'Traspaso entre sucursales automático',desc:'Si una sucursal pide lo que otra tiene en exceso, Odoo genera el traspaso.',wow:'✦ El inventario se balancea solo entre tiendas — sin emails entre gerentes'},
+    {type:'ind',ind:'restaurante',title:'Descuento automático de receta al vender',desc:'Cada venta descuenta exactamente los ingredientes de la receta del inventario.',wow:'✦ Siempre sabes cuántos ingredientes tienes — sin inventario físico constante'},
+    {type:'ind',ind:'restaurante',title:'Control de mermas y rendimientos',desc:'Registra mermas al preparar. El costo real del platillo incluye merma.',wow:'✦ Por fin sabes si el pollo rinde lo que prometió el proveedor — con datos reales'},
+    {type:'ind',ind:'manufactura',title:'Órdenes de producción con MRP',desc:'El sistema calcula qué fabricar, cuándo y con qué materiales según la demanda.',wow:'✦ La planta produce exactamente lo que se va a vender — cero sobreproducción'},
+    {type:'ind',ind:'manufactura',title:'Control de trabajo (Work Centers)',desc:'Cada operador registra inicio y fin de su etapa. El costo real de MO se calcula solo.',wow:'✦ "¿Cuánto cuesta fabricar esta pieza?" → costo real con MO y materiales, al minuto'},
+    {type:'ind',ind:'comercializadora',title:'Rutas de entrega optimizadas',desc:'El sistema agrupa pedidos por zona y genera la ruta óptima para cada repartidor.',wow:'✦ El repartidor recibe su ruta en el celular — menos kilómetros, más entregas al día'},
+    {type:'ind',ind:'comercializadora',title:'Control de fechas de caducidad (FEFO)',desc:'Los productos con fecha de caducidad más próxima salen primero automáticamente.',wow:'✦ Cero merma por caducidad — el sistema decide el orden correcto'},
+    {type:'ind',ind:'distribucion',title:'Entrega parcial y seguimiento de faltantes',desc:'Entrega lo que tienes. Los faltantes quedan pendientes y se notifican al cliente.',wow:'✦ El cliente sabe exactamente qué le falta y cuándo llega — sin llamadas'},
+    {type:'ind',ind:'logistica',title:'Integración con transportistas (API)',desc:'Conecta con paqueterías. La guía se genera y se comparte con el cliente automáticamente.',wow:'✦ El cliente recibe su número de rastreo en el mismo correo de confirmación de pedido'},
+    {type:'tv',tv:'alquiler',title:'Estado de activo en tiempo real',desc:'Dashboard: disponible / en renta / en mantenimiento / por vencer.',wow:'✦ Nunca más rentarás algo que ya está rentado — el sistema bloquea automáticamente'},
+    {type:'tv',tv:'alquiler',title:'Mantenimiento preventivo programado',desc:'Al volver un activo, el sistema revisa si le toca mantenimiento antes de rentarlo.',wow:'✦ El activo sale siempre en condiciones — el cliente nunca recibe algo descompuesto'},
+    {type:'tv',tv:'ecommerce',title:'Inventario multi-bodega sincronizado online',desc:'La tienda online muestra el stock real de todas las bodegas, en tiempo real.',wow:'✦ Cero ventas de productos que ya no tienes — el cliente no puede comprar lo que no existe'},
+    {type:'tv',tv:'pos',title:'Inventario actualizado en cada venta',desc:'Cada ticket POS descuenta del inventario al instante — sin fin de día.',wow:'✦ Al cerrar el día, el inventario ya está cuadrado. Sin conteo nocturno.'},
   ],
   administrativo:[
-    {type:'gen',title:'Conciliación bancaria automática',desc:'Odoo importa movimientos del banco y concilia con facturas.',wow:'✦ Lo que tomaba días ahora tarda minutos'},
-    {type:'gen',title:'Dashboard financiero en tiempo real',desc:'Estado de resultados, flujo de caja y cartera al minuto.',wow:'✦ El dueño ve cuánto ganó este mes desde su celular'},
-    {type:'gen',title:'CFDI automático al facturar',desc:'La factura CFDI se genera y timbra automáticamente.',wow:'✦ Cero captura manual en el portal del SAT'},
-    {type:'gen',title:'Nómina timbrada desde Odoo',desc:'Cálculo, timbrado CFDI y dispersión desde un solo sistema.',wow:'✦ El contador calcula, el dueño aprueba, los empleados reciben'},
-    {type:'ind',ind:'construccion',title:'Costeo por proyecto con CFDI',desc:'Ingresos y egresos de cada obra con facturación por estimación.',wow:'✦ El cliente recibe su CFDI automáticamente por el avance'},
-    {type:'ind',ind:'retail',title:'Comisiones de vendedores automáticas',desc:'Calcula comisiones según reglas (por producto, monto, margen).',wow:'✦ Los vendedores ven sus comisiones en tiempo real'},
-    {type:'ind',ind:'restaurante',title:'Costo real por platillo',desc:'Cruza precios de insumos con la receta y calcula margen.',wow:'✦ Sabes exactamente cuánto ganas en cada taco'},
-    {type:'ind',ind:'comercializadora',title:'Límite de crédito con alerta automática',desc:'Bloquea o avisa cuando un cliente supera su límite.',wow:'✦ El vendedor no puede vender a crédito a quien ya no puede pagar'},
-    {type:'tv',tv:'suscripcion',title:'Facturación recurrente automática',desc:'Las facturas se generan, timbran y envían solas cada período.',wow:'✦ El ingreso del mes ya está facturado antes de que empiece'},
-    {type:'tv',tv:'ecommerce',title:'Contabilidad e-commerce automática',desc:'Cada venta online genera su asiento contable y factura.',wow:'✦ Miles de transacciones contabilizadas sin captura manual'},
+    // GENERALES
+    {type:'gen',title:'Conciliación bancaria en 1 clic',desc:'Odoo importa los movimientos del banco y los cruza con facturas automáticamente.',wow:'✦ Lo que al contador le tomaba 3 días ahora son 20 minutos. Y sin errores.'},
+    {type:'gen',title:'Dashboard CFO en tiempo real',desc:'Estado de resultados, flujo de caja, cartera vencida y utilidad — en una pantalla.',wow:'✦ El dueño llega el lunes y en 30 segundos sabe si la empresa está ganando o perdiendo'},
+    {type:'gen',title:'CFDI 4.0 automático al facturar',desc:'La factura se genera, valida y timbra ante el SAT en el momento de confirmar.',wow:'✦ Cero captura en el portal del SAT. Cero errores de captura. Cero multas por timbrado tardío.'},
+    {type:'gen',title:'Nómina timbrada desde Odoo',desc:'Cálculo de nómina ordinaria y extraordinaria, timbrado CFDI y comprobante al empleado.',wow:'✦ El contador calcula, el dueño aprueba desde el celular, los empleados reciben su recibo'},
+    {type:'gen',title:'Cartera vencida con cobranza automatizada',desc:'Odoo envía recordatorios automáticos de pago según la antigüedad de la deuda.',wow:'✦ El sistema cobra por ti — sin que el AE tenga que perseguir al cliente'},
+    {type:'gen',title:'Multimoneda y multi-empresa en un solo sistema',desc:'Consolida múltiples razones sociales o divisas en una sola instancia de Odoo.',wow:'✦ Una sola pantalla para ver toda la operación — no 4 sistemas distintos'},
+    {type:'ind',ind:'construccion',title:'Costeo analítico por proyecto',desc:'Cada compra, nómina y gasto se asigna a un proyecto. El margen se calcula en tiempo real.',wow:'✦ "¿Estamos ganando en la Obra Santander?" → el dueño lo ve desde su celular en segundos'},
+    {type:'ind',ind:'construccion',title:'Facturación por estimación de avance',desc:'Al registrar el avance físico, se genera automáticamente la factura de estimación.',wow:'✦ Se acabó esperar al fin de mes para facturar. El flujo de caja ya no depende de acordarte.'},
+    {type:'ind',ind:'retail',title:'Comisiones calculadas automáticamente',desc:'Define reglas: % por producto, por meta, por margen. El vendedor ve sus comisiones en tiempo real.',wow:'✦ El vendedor sabe cuánto gana hoy — no al fin de mes. Eso motiva diferente.'},
+    {type:'ind',ind:'retail',title:'Cierre de caja por sucursal',desc:'Cada sucursal hace su cierre. El gerente ve la consolidación en el momento.',wow:'✦ El contador no espera los reportes de cada tienda — llegan solos al cerrar caja'},
+    {type:'ind',ind:'restaurante',title:'Costo real por platillo con margen automático',desc:'Cruza el precio de los insumos con la receta. El margen por platillo es siempre actualizado.',wow:'✦ "¿En qué platillo ganamos más?" → la respuesta con datos exactos, no intuición'},
+    {type:'ind',ind:'manufactura',title:'Costeo de producción vs. estándar',desc:'Compara el costo real de la orden vs. el costo estándar. Detecta desviaciones al instante.',wow:'✦ Sabes si estás perdiendo margen en producción antes de que sea demasiado tarde'},
+    {type:'ind',ind:'comercializadora',title:'Control de crédito y límites por cliente',desc:'El sistema bloquea o avisa cuando un cliente supera su límite de crédito.',wow:'✦ El vendedor no puede vender a crédito a quien ya no puede pagar — el sistema lo bloquea'},
+    {type:'ind',ind:'comercializadora',title:'Análisis de rentabilidad por cliente',desc:'Ve qué clientes te generan más margen y cuáles te cuestan más de atender.',wow:'✦ Descubres que el 20% de tus clientes genera el 80% de tu margen — y puedes actuar'},
+    {type:'ind',ind:'servicios',title:'Facturación por horas trabajadas',desc:'Los empleados registran horas por proyecto. Odoo genera la factura al cliente automáticamente.',wow:'✦ Cero horas no facturadas — el sistema captura todo lo que el equipo trabaja'},
+    {type:'ind',ind:'software',title:'Reconocimiento de ingreso diferido',desc:'Para proyectos o suscripciones, el ingreso se reconoce en el período correcto automáticamente.',wow:'✦ La contabilidad queda correcta sin ajustes manuales — cumple con NIIF desde el día 1'},
+    {type:'tv',tv:'suscripcion',title:'Facturación recurrente automática',desc:'Las facturas se generan, timbran y envían solas al vencer cada período.',wow:'✦ El ingreso del mes ya está facturado antes de que empiece el mes. Siempre.'},
+    {type:'tv',tv:'ecommerce',title:'Contabilidad e-commerce en tiempo real',desc:'Cada venta online genera su asiento contable y factura CFDI sin intervención.',wow:'✦ 500 ventas en un día → 500 asientos contables y 500 CFDIs generados solos'},
+    {type:'tv',tv:'cotizacion',title:'Rentabilidad por proyecto en tiempo real',desc:'Cada cotización tiene su margen calculado. Al ejecutarse, compara lo estimado vs. real.',wow:'✦ Por fin sabes si el proyecto que vendiste realmente dejó dinero — no 3 meses después'},
   ]
 };
 
@@ -1496,6 +1533,7 @@ function buildDiscoveryFormHTML(data){
         <button class="disc-mode-btn active" id="dmbEscucha" onclick="discSetMode('escucha')">🎧 En llamada</button>
         <button class="disc-mode-btn" id="dmbPostcall" onclick="discSetMode('postcall')">📋 Post-call</button>
       </div>
+      <button class="btn btn-ghost btn-sm" id="discQuickSave" onclick="discSaveRecord()" style="font-size:12px;padding:6px 14px;border-color:var(--success);color:var(--success)">💾 Guardar</button>
       <button class="disc-end-btn" id="discEndBtn" onclick="discEndCall()">⏹ Finalizar llamada</button>
     </div>
   </div>
@@ -1601,16 +1639,18 @@ function buildDiscoveryFormHTML(data){
         </div>
         <!-- COMERCIAL -->
         <div class="disc-flujos-panel active" id="dpanel-comercial">
-          <div class="disc-topic-question">"¿Cómo consiguen a sus clientes hoy — y una vez que llega un prospecto, cómo es el proceso hasta que cierran la venta?"</div>
+          <div class="disc-topic-question">"Cuéntame cómo consiguen clientes y cómo es el proceso desde que llega un prospecto hasta que firman — ¿cómo lo tienen hoy?"</div>
           <div class="disc-flujos-inner">
             <div>
-              <div class="disc-flujos-col-title">Genérico — siempre escuchar</div>
+              <div class="disc-flujos-col-title">Preguntas clave de posicionamiento</div>
               <div class="disc-listen-items">
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿De dónde vienen sus clientes?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo cotizan y cuánto les toma?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cuántas ventas al mes y ticket promedio?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Tienen CRM o lo llevan en Excel/WhatsApp?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Qué pasa después de vender?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cuánto tiempo tarda hacer una cotización?</strong> <span style="font-size:11px;color:#9ca3af">(hook: Odoo = 3 minutos desde el celular)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cómo saben si un cliente abrió su propuesta?</strong> <span style="font-size:11px;color:#9ca3af">(hook: tracking en tiempo real)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Dónde queda el historial cuando un vendedor sale?</strong> <span style="font-size:11px;color:#9ca3af">(hook: todo en el CRM, nada en el teléfono)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Sus clientes pueden ver el estado de su pedido?</strong> <span style="font-size:11px;color:#9ca3af">(hook: portal de cliente self-service)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cuántas oportunidades tienen activas y cuál es el % de cierre?</strong> <span style="font-size:11px;color:#9ca3af">(hook: IA de pipeline)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿De dónde vienen la mayoría de sus clientes?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Ticket promedio y cuántas ventas al mes?</div>
               </div>
             </div>
             <div>
@@ -1637,16 +1677,18 @@ function buildDiscoveryFormHTML(data){
         </div>
         <!-- OPERATIVO -->
         <div class="disc-flujos-panel" id="dpanel-operativo">
-          <div class="disc-topic-question">"¿Cómo funciona la operación del día a día — desde que compran o producen hasta que entregan al cliente?"</div>
+          <div class="disc-topic-question">"Cuéntame cómo es el día a día operativo — desde que compran o producen hasta que le llega algo al cliente."</div>
           <div class="disc-flujos-inner">
             <div>
-              <div class="disc-flujos-col-title">Genérico — siempre escuchar</div>
+              <div class="disc-flujos-col-title">Preguntas clave de posicionamiento</div>
               <div class="disc-listen-items">
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo controlan su inventario hoy?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Fabrican o solo compran para revender?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Tienen órdenes de compra formales?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo hacen las entregas?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Qué pasa con devoluciones?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Les ha pasado quedarse sin stock y perder una venta?</strong> <span style="font-size:11px;color:#9ca3af">(hook: reabasto automático)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cuánto tiempo dedican al conteo físico de inventario?</strong> <span style="font-size:11px;color:#9ca3af">(hook: app de almacén en celular)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>Si hay un problema con un producto, ¿pueden saber de qué lote vino?</strong> <span style="font-size:11px;color:#9ca3af">(hook: trazabilidad completa)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Sus operadores trabajan con papel o sistema?</strong> <span style="font-size:11px;color:#9ca3af">(hook: digitalización del almacén)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cómo saben qué comprar y cuándo?</strong> <span style="font-size:11px;color:#9ca3af">(hook: MRP / reabasto por mínimos)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Fabrican, compran para revender, o ambos?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo manejan devoluciones?</div>
               </div>
             </div>
             <div>
@@ -1671,16 +1713,16 @@ function buildDiscoveryFormHTML(data){
         </div>
         <!-- ADMINISTRATIVO -->
         <div class="disc-flujos-panel" id="dpanel-administrativo">
-          <div class="disc-topic-question">"En el lado administrativo — ¿cómo llevan la contabilidad y la parte de personal?"</div>
+          <div class="disc-topic-question">"En el lado administrativo — ¿cómo está la contabilidad, el manejo de nómina y qué visibilidad financiera tienen hoy?"</div>
           <div class="disc-flujos-inner">
             <div>
-              <div class="disc-flujos-col-title">Contabilidad y Finanzas</div>
+              <div class="disc-flujos-col-title">Preguntas clave — Finanzas</div>
               <div class="disc-listen-items">
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Contador interno, externo o despacho?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Pueden ver hoy mismo cuánto ganaron este mes?</strong> <span style="font-size:11px;color:#9ca3af">(hook: dashboard financiero en tiempo real)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cuánto le toma a su contador conciliar el banco?</strong> <span style="font-size:11px;color:#9ca3af">(hook: conciliación automática)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Tienen clientes que se atrasan en pagar? ¿Cómo les cobran?</strong> <span style="font-size:11px;color:#9ca3af">(hook: cobranza automatizada)</span></div>
                 <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Emiten CFDI internamente o subcontratan?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Visibilidad del flujo de caja en tiempo real?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo concilian bancos?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Pueden ver la utilidad real en cualquier momento?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Contador interno, externo o despacho?</div>
                 <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Costeo por proyecto o contabilidad global?</div>
                 <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Concilian ventas por caja al cierre del día?</div>
                 <div class="disc-listen-item disc-ind-listen disc-ind-restaurante" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Conocen el costo real de cada platillo?</div>
@@ -1688,11 +1730,11 @@ function buildDiscoveryFormHTML(data){
               </div>
             </div>
             <div>
-              <div class="disc-flujos-col-title">Recursos Humanos</div>
+              <div class="disc-flujos-col-title">Preguntas clave — RH</div>
               <div class="disc-listen-items">
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo procesan la nómina hoy?</div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cuánto tiempo les toma hacer la nómina cada quincena?</strong> <span style="font-size:11px;color:#9ca3af">(hook: nómina timbrada en Odoo)</span></div>
+                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Tienen mucha rotación? ¿Cuánto les cuesta un alta/baja?</strong> <span style="font-size:11px;color:#9ca3af">(hook: onboarding digital)</span></div>
                 <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Controlan asistencias y horas extra?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Mucha rotación? ¿Cuánto cuesta gestionar altas/bajas?</div>
                 <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Vacaciones y permisos centralizados?</div>
                 <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Controlan horas por obra y cuadrilla?</div>
                 <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Turnos rotativos por tienda?</div>
@@ -4235,7 +4277,10 @@ async function renderEmpresas(){
     <div style="max-width:1100px;margin:0 auto;padding:24px">
       <div class="page-header" style="margin-bottom:20px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
         <div><h2>🏢 Empresas</h2><p>Directorio de empresas con sus documentos y actividad relacionada.</p></div>
-        <button class="btn btn-primary" onclick="empShowCreate()">+ Nueva empresa</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="empShowCreateContact()">👤 Nuevo contacto</button>
+          <button class="btn btn-primary" onclick="empShowCreate()">+ Nueva empresa</button>
+        </div>
       </div>
       <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
         <input type="text" id="empSearch" class="input" placeholder="🔍 Buscar empresa..." style="max-width:280px" oninput="empFilter()">
@@ -4354,9 +4399,20 @@ window.empOpenDetail=async function(id){
         getDocs(query(collection(db,'csvSessions'),where('companyId','==',id))).catch(()=>({empty:true,docs:[]})),
       ]);
       const sections=[];
-      if(!disc.empty) sections.push(`<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">🔍 Discovery (${disc.size})</div>${disc.docs.map(d=>{const r=d.data();return `<div style="padding:8px 12px;background:var(--gray-50);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:13px;font-weight:600">${r.empresa||'Sin nombre'}</div><div style="font-size:11px;color:var(--gray-400)">${r.aeName||''} · ${r.industriaNombre||''} · ${r.status||''}</div></div>${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))">🗑</button>`:''}`;}).join('</div>')}</div>`);
-      if(!broch.empty) sections.push(`<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">📄 Brochures (${broch.size})</div>${broch.docs.map(d=>{const r=d.data();return `<div style="padding:8px 12px;background:var(--gray-50);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:13px;font-weight:600">${r.empresa||'Sin nombre'}</div><div style="font-size:11px;color:var(--gray-400)">${r.aeName||''} · ${r.status||''}</div></div>${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('brochureApprovals','${d.id}',()=>empOpenDetail('${id}'))">🗑</button>`:''}`;}).join('</div>')}</div>`);
-      if(!csv.empty) sections.push(`<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">📋 CSV Sessions (${csv.size})</div>${csv.docs.map(d=>{const r=d.data();return `<div style="padding:8px 12px;background:var(--gray-50);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div style="font-size:13px">${r.fuente||'Sin nombre'} — ${r.rowCount||0} prospectos</div>${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('csvSessions','${d.id}',()=>empOpenDetail('${id}'))">🗑</button>`:''}`;}).join('</div>')}</div>`);
+      const fmtDate=ts=>ts?.toDate?.()?ts.toDate().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'—';
+      const docRow=(label,sub,date,onClick,onDel)=>`<div style="padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--purple-light)'" onmouseout="this.style.background='var(--gray-50)'" onclick="${onClick}">
+        <div><div style="font-size:13px;font-weight:600">${label}</div><div style="font-size:11px;color:var(--gray-500)">${sub}</div></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--gray-400)">${date}</span>${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();${onDel}">🗑</button>`:''}</div>
+      </div>`;
+      if(!disc.empty) sections.push(`<div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:8px">🔍 Discovery (${disc.size})</div>
+        ${disc.docs.map(d=>{const r=d.data();return docRow(r.empresa||'Sin nombre',`${r.aeName||''} · ${r.industriaNombre||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();openDiscoveryForm('${d.id}')`,`deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+      if(!broch.empty) sections.push(`<div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:8px">📄 Brochures (${broch.size})</div>
+        ${broch.docs.map(d=>{const r=d.data();return docRow(r.empresa||'Sin nombre',`${r.aeName||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),``,`deleteRecord('brochureApprovals','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+      if(!csv.empty) sections.push(`<div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:8px">📋 CSV Sessions (${csv.size})</div>
+        ${csv.docs.map(d=>{const r=d.data();return docRow(`${r.fuente||'Sin fuente'} — ${r.rowCount||0} prospectos`,r.aeName||'',fmtDate(r.createdAt),``,`deleteRecord('csvSessions','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
       docsEl.innerHTML=sections.length?sections.join(''):'<div class="cdc-empty">Sin documentos vinculados aún</div>';
     } catch(e){ docsEl.innerHTML='<div class="cdc-empty">Error al cargar documentos</div>'; }
   }
@@ -4434,6 +4490,50 @@ window.empSaveCreate=async function(){
   await empLoad(); empRender(_allEmpresas);
 };
 
+window.empShowCreateContact=function(){
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='empNewCtPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:520px">
+    <div class="disc-popup-header"><div class="disc-popup-title">👤 Nuevo contacto</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('empNewCtPopup').remove()">✕</button>
+    </div>
+    <div class="disc-popup-body" style="font-family:'DM Sans',sans-serif">
+      <div class="form-group"><label>Empresa *</label>
+        <select class="input" id="empCtEmpresa">
+          <option value="">— Selecciona empresa —</option>
+          ${_allEmpresas.map(e=>`<option value="${e.id}">${e.nombre}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>Nombre del contacto *</label><input class="input" id="empCtNombre" placeholder="Nombre completo"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label>Cargo / Puesto</label><input class="input" id="empCtCargo" placeholder="CEO, Director Operativo..."></div>
+        <div class="form-group"><label>Correo</label><input class="input" id="empCtEmail" placeholder="correo@empresa.com"></div>
+        <div class="form-group"><label>Teléfono / WhatsApp</label><input class="input" id="empCtPhone" placeholder="+52 55 0000 0000"></div>
+        <div class="form-group" style="grid-column:span 2"><label>LinkedIn</label><input class="input" id="empCtLi" placeholder="linkedin.com/in/..."></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="empSaveNewContact()">Guardar contacto</button>
+    </div>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+};
+
+window.empSaveNewContact=async function(){
+  const empId=document.getElementById('empCtEmpresa')?.value;
+  const nombre=document.getElementById('empCtNombre')?.value.trim();
+  if(!empId){ showNotif('Selecciona una empresa','error'); return; }
+  if(!nombre){ showNotif('El nombre es obligatorio','error'); return; }
+  const contact={nombre,cargo:document.getElementById('empCtCargo')?.value||'',correo:document.getElementById('empCtEmail')?.value||'',phone:document.getElementById('empCtPhone')?.value||'',linkedin:document.getElementById('empCtLi')?.value||''};
+  const co=_allEmpresas.find(e=>e.id===empId);
+  if(!co){ showNotif('Empresa no encontrada','error'); return; }
+  const contacts=[...(co.contacts||[]),contact];
+  const saved=await saveCompany({...co,contacts}); if(!saved) return;
+  const idx=_allEmpresas.findIndex(e=>e.id===empId);
+  if(idx>=0) _allEmpresas[idx]={..._allEmpresas[idx],contacts};
+  document.getElementById('empNewCtPopup')?.remove();
+  showNotif(`Contacto "${nombre}" agregado a ${co.nombre} ✓`,'success');
+  empRender(_allEmpresas);
+};
+
 // ══════════════════════════════════════════
 // PRICING MODULE
 // ══════════════════════════════════════════
@@ -4468,7 +4568,7 @@ function renderPricing(){
   renderPricingHome();
 }
 
-function renderPricingHome(){
+window.renderPricingHome=function renderPricingHome(){
   const content=document.getElementById('moduleContent');
   content.style.padding='28px';
   const fmt=n=>n?'$'+n.toLocaleString('es-MX',{minimumFractionDigits:0}):'';
@@ -4533,7 +4633,7 @@ function renderPricingHome(){
         <p style="font-size:11px;color:var(--gray-400);margin-top:10px">Precios en MXN sin IVA. El año 2 en adelante aplica solo para planes multianualidad de 2+ años.</p>
       </div>
     </div>`;
-}
+};
 
 window.showImplPopup=function(){
   const existing=document.getElementById('implPopup'); if(existing) existing.remove();
@@ -4579,15 +4679,15 @@ window.renderPricingIframe=function(){
   const content=document.getElementById('moduleContent');
   content.style.padding='0';
   content.innerHTML=`
-    <div style="background:white;border-bottom:1px solid var(--gray-200);padding:10px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div id="pricingStrip" style="background:white;border-bottom:1px solid var(--gray-200);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:50">
       <button class="btn btn-ghost btn-sm" onclick="renderPricingHome()" style="flex-shrink:0">← Inicio</button>
-      <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);white-space:nowrap">Empresa / Contacto</span>
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);white-space:nowrap">Empresa</span>
       <div id="pricingM2o" style="flex:1;min-width:260px"></div>
-      <button class="btn btn-ghost btn-sm" onclick="showImplPopup()" style="flex-shrink:0">📐 Metodología Impl.</button>
-      <button class="btn btn-ghost btn-sm" onclick="pricingEnterFullscreen()" style="flex-shrink:0;gap:4px">⛶ Presentar</button>
+      <button class="btn btn-ghost btn-sm" onclick="showImplPopup()" style="flex-shrink:0">📐 Impl.</button>
+      <button class="btn btn-ghost btn-sm" onclick="pricingEnterFullscreen()" style="flex-shrink:0">⛶ Presentar</button>
     </div>
     <iframe id="pricingFrame" src="https://gacj-lang.github.io/outbound-mx/pricing.html"
-      style="width:100%;height:calc(100vh - 60px - 57px);border:none;display:block"
+      style="width:100%;height:calc(100vh - 60px - 53px);border:none;display:block"
       title="Pricing Odoo México"></iframe>`;
   mountCompanyPicker('pricingM2o',(co,ct)=>{
     pricingState.company=co; pricingState.contact=ct;

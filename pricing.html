@@ -1026,11 +1026,9 @@
   </nav>
 
 
-  <!-- NOMBRE DEL CLIENTE -->
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
-    <label for="client-name-input" style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink);letter-spacing:1px;text-transform:uppercase;white-space:nowrap;">Cliente</label>
-    <input id="client-name-input" type="text" placeholder="Nombre del cliente" oninput="syncClientName(this.value)"
-      style="font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink);background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:8px 14px;width:320px;outline:none;box-shadow:0 1px 4px rgba(0,0,0,.06);" />
+  <!-- NOMBRE DEL CLIENTE (oculto — se sincroniza desde la app principal) -->
+  <div style="display:none">
+    <input id="client-name-input" type="text" placeholder="Nombre del cliente" oninput="syncClientName(this.value)"/>
   </div>
 
   <!-- PASO 1: CONFIGURA LA PROPUESTA -->
