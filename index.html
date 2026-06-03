@@ -1349,14 +1349,26 @@ async function loadDiscoverySessions(){
   if(!db){ renderDiscSessionsOffline(); return; }
   const role=currentUserData?.role;
   let q;
+  // Manager: solo orderBy (índice simple, auto-creado)
+  // AE / TL: where sin orderBy (evita necesidad de índice compuesto), se ordena en cliente
   if(role==='manager') q=query(collection(db,'discoveryRecords'),orderBy('createdAt','desc'));
-  else if(role==='tl')  q=query(collection(db,'discoveryRecords'),where('tlId','==',currentUserData.uid),orderBy('createdAt','desc'));
-  else                  q=query(collection(db,'discoveryRecords'),where('aeUid','==',currentUserData.uid),orderBy('createdAt','desc'));
+  else if(role==='tl')  q=query(collection(db,'discoveryRecords'),where('tlId','==',currentUserData.uid));
+  else                  q=query(collection(db,'discoveryRecords'),where('aeUid','==',currentUserData.uid));
   try {
     const snap=await getDocs(q);
     discSessionsAll=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Ordenar por fecha descendente en cliente
+    discSessionsAll.sort((a,b)=>{
+      const ta=a.createdAt?.toMillis?.()??a.createdAt?.seconds??0;
+      const tb=b.createdAt?.toMillis?.()??b.createdAt?.seconds??0;
+      return tb-ta;
+    });
     renderDiscSessions(discSessionsAll);
-  } catch(e){ console.error(e); renderDiscSessionsOffline(); }
+  } catch(e){
+    console.error('Discovery load error:',e);
+    const g=document.getElementById('discSessionsGrid'); if(!g) return;
+    g.innerHTML=`<div class="disc-empty"><div class="disc-empty-icon">⚠️</div><h3>Error al cargar sesiones</h3><p style="font-size:13px;color:var(--gray-500)">${e.message||'Error de conexión'}</p><button class="btn btn-primary" style="margin-top:16px" onclick="loadDiscoverySessions()">Reintentar</button></div>`;
+  }
 }
 
 function renderDiscSessionsOffline(){
@@ -2833,10 +2845,12 @@ async function loadCentroControl(){
   if(db){
     try{
       const q=currentUserData?.role==='ae'?
-        query(collection(db,'discoveryRecords'),where('aeUid','==',currentUserData.uid),orderBy('updatedAt','desc')):
+        query(collection(db,'discoveryRecords'),where('aeUid','==',currentUserData.uid)):
         query(collection(db,'discoveryRecords'),orderBy('updatedAt','desc'));
       const snap=await getDocs(q);
-      const recent=snap.docs.slice(0,4).map(d=>d.data());
+      const allDocs=snap.docs.map(d=>d.data());
+      if(currentUserData?.role==='ae') allDocs.sort((a,b)=>(b.updatedAt?.seconds||0)-(a.updatedAt?.seconds||0));
+      const recent=allDocs.slice(0,4);
       actContainer.innerHTML=recent.length===0?'<div class="cdc-empty">Sin actividad reciente</div>':
         recent.map(r=>`<div class="cdc-task-item" style="cursor:default">
           <div class="cdc-task-dot cdc-dot-blue"></div>
@@ -5071,7 +5085,7 @@ window.renderPricingRecords=async function(){
     const role=currentUserData?.role;
     const q=(role==='manager'||role==='tl')
       ?query(collection(db,'pricingRecords'),orderBy('createdAt','desc'))
-      :query(collection(db,'pricingRecords'),where('aeUid','==',currentUserData.uid),orderBy('createdAt','desc'));
+      :query(collection(db,'pricingRecords'),where('aeUid','==',currentUserData.uid));
     const snap=await getDocs(q);
     const el=document.getElementById('pricingRecordsList');
     if(snap.empty){ el.innerHTML='<div class="cdc-empty">Sin registros todavía</div>'; return; }
@@ -5267,8 +5281,11 @@ async function csvLoadHistory(){
   const el=document.getElementById('csvHistory'); if(!el||!db) return;
   try{
     const role=currentUserData?.role;
-    const q=(role==='manager'||role==='tl')?query(collection(db,'csvSessions'),orderBy('createdAt','desc')):query(collection(db,'csvSessions'),where('aeUid','==',currentUserData.uid),orderBy('createdAt','desc'));
+    const q=(role==='manager'||role==='tl')
+      ?query(collection(db,'csvSessions'),orderBy('createdAt','desc'))
+      :query(collection(db,'csvSessions'),where('aeUid','==',currentUserData.uid));
     const snap=await getDocs(q);
+    if(role==='ae') snap.docs.sort((a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0));
     if(snap.empty){ el.innerHTML='<div class="cdc-empty">Sin sesiones guardadas aún</div>'; return; }
     el.innerHTML=`<div style="display:flex;flex-direction:column;gap:8px">${snap.docs.map(d=>{
       const r=d.data(), date=r.createdAt?.toDate?.()?.toLocaleDateString('es-MX')||'';
