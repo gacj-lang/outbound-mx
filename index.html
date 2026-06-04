@@ -894,6 +894,33 @@ const MODULES = [
   { id:'analytics',     icon:'📊', label:'Analytics',                phase:7, ready:false },
 ];
 const ASSETS = 'https://gacj-lang.github.io/outbound-mx/assets';
+
+// ── Asset helpers ────────────────────────────────────────
+// Iconos de apps Odoo (nombre del archivo sin .svg)
+const ODOO_APP_ICONS = {
+  crm:'crm', ventas:'sale', inventario:'stock', compras:'purchase',
+  contabilidad:'account', facturacion:'account', rrhh:'hr',
+  manufactura:'mrp', proyectos:'project', helpdesk:'helpdesk',
+  ecommerce:'website', pos:'point_of_sale', marketing:'mass_mailing',
+  flota:'fleet', firma:'sign', gastos:'expenses',
+  suscripciones:'subscription', calendario:'calendar',
+};
+// Iconos de industria (nombre del archivo sin .svg)
+const ODOO_INDUSTRY_ICONS = {
+  construccion:'industry_construction', retail:'industry_grocery_store',
+  restaurante:'industry_fast_food', comercializadora:'industry_beverages_distributor',
+  manufactura:'industry_hardware', software:'industry_it',
+  servicios:'industry_headhunter', distribucion:'industry_logistics',
+  ecommerce:'industry_electronic_store', salud:'industry_health_care',
+  educacion:'industry_elearning', inmobiliaria:'industry_real_estate',
+  logistica:'industry_logistics', agricultura:'industry_agriculture',
+  turismo:'industry_hotel', otra:'industry_it',
+};
+// Helper para obtener URL de asset
+function assetUrl(type, name){ return `${ASSETS}/icons/${type}/${name}.svg`; }
+function appIconUrl(key){ return `${ASSETS}/icons/apps/${ODOO_APP_ICONS[key]||key}.svg`; }
+function industryIconUrl(giro){ const k=Object.keys(ODOO_INDUSTRY_ICONS).find(k=>k===giro?.toLowerCase()); return k?`${ASSETS}/icons/industry/${ODOO_INDUSTRY_ICONS[k]}.svg`:`${ASSETS}/icons/industry/industry_it.svg`; }
+function highlightUrl(n=1,bold=false){ return `${ASSETS}/highlights/${bold?'blue_highlight_bold':'blue_highlight'}_0${n}.svg`; }
 let CLAUDE_KEY_DEFAULT = ''; // Cargado desde Firestore — no guardar en código fuente
 
 let app, auth, db, firebaseReady=false;
@@ -4977,23 +5004,28 @@ function renderPricing(){
 
 // ── Módulos selector popup (after pricing is received) ──
 const PRICING_MODULE_LIST=[
-  {key:'crm',icon:'💼',name:'CRM',desc:'Pipeline, cotizaciones, portal del cliente'},
-  {key:'ventas',icon:'🛍️',name:'Ventas',desc:'Pedidos, listas de precio, portal'},
-  {key:'inventario',icon:'📦',name:'Inventario',desc:'Stock, reabasto automático, trazabilidad'},
-  {key:'compras',icon:'🛒',name:'Compras',desc:'Órdenes de compra, portal de proveedores'},
-  {key:'contabilidad',icon:'📊',name:'Contabilidad',desc:'CFDI 4.0, conciliación bancaria'},
-  {key:'facturacion',icon:'🧾',name:'Facturación',desc:'Timbrado automático, notas de crédito'},
-  {key:'rrhh',icon:'👥',name:'Recursos Humanos',desc:'Nómina timbrada, asistencias, vacaciones'},
-  {key:'manufactura',icon:'🏭',name:'Manufactura',desc:'Órdenes de producción, MRP, BOM'},
-  {key:'proyectos',icon:'📋',name:'Proyectos',desc:'Tareas, Gantt, seguimiento de horas'},
-  {key:'helpdesk',icon:'🎧',name:'Helpdesk',desc:'Tickets, SLA, portal de soporte'},
-  {key:'ecommerce',icon:'🌐',name:'E-commerce',desc:'Tienda online integrada al ERP'},
-  {key:'pos',icon:'🏪',name:'Punto de Venta',desc:'POS táctil, offline, con inventario'},
-  {key:'marketing',icon:'📣',name:'Marketing',desc:'Email, automatizaciones, segmentos'},
-  {key:'flota',icon:'🚗',name:'Flota',desc:'Gestión de vehículos y mantenimiento'},
-  {key:'firma',icon:'✍️',name:'Firma Electrónica',desc:'Aprobaciones y documentos firmados'},
-  {key:'gastos',icon:'💳',name:'Gastos',desc:'Reporte y aprobación de gastos'},
+  {key:'crm',       svgFile:'crm',          emoji:'💼',name:'CRM',           desc:'Pipeline, cotizaciones, portal del cliente'},
+  {key:'ventas',    svgFile:'sale',          emoji:'🛍️',name:'Ventas',         desc:'Pedidos, listas de precio, portal'},
+  {key:'inventario',svgFile:'stock',         emoji:'📦',name:'Inventario',     desc:'Stock, reabasto automático, trazabilidad'},
+  {key:'compras',   svgFile:'purchase',      emoji:'🛒',name:'Compras',        desc:'Órdenes de compra, portal de proveedores'},
+  {key:'contabilidad',svgFile:'account',     emoji:'📊',name:'Contabilidad',   desc:'CFDI 4.0, conciliación bancaria'},
+  {key:'facturacion', svgFile:'account',     emoji:'🧾',name:'Facturación',    desc:'Timbrado automático, notas de crédito'},
+  {key:'rrhh',      svgFile:'hr',            emoji:'👥',name:'Recursos Humanos',desc:'Nómina timbrada, asistencias, vacaciones'},
+  {key:'manufactura',svgFile:'mrp',          emoji:'🏭',name:'Manufactura',    desc:'Órdenes de producción, MRP, BOM'},
+  {key:'proyectos', svgFile:'project',       emoji:'📋',name:'Proyectos',      desc:'Tareas, Gantt, seguimiento de horas'},
+  {key:'helpdesk',  svgFile:'helpdesk',      emoji:'🎧',name:'Helpdesk',       desc:'Tickets, SLA, portal de soporte'},
+  {key:'ecommerce', svgFile:'website',       emoji:'🌐',name:'E-commerce',     desc:'Tienda online integrada al ERP'},
+  {key:'pos',       svgFile:'point_of_sale', emoji:'🏪',name:'Punto de Venta', desc:'POS táctil, offline, con inventario'},
+  {key:'marketing', svgFile:'mass_mailing',  emoji:'📣',name:'Marketing',      desc:'Email, automatizaciones, segmentos'},
+  {key:'flota',     svgFile:'fleet',         emoji:'🚗',name:'Flota',          desc:'Gestión de vehículos y mantenimiento'},
+  {key:'firma',     svgFile:'sign',          emoji:'✍️',name:'Firma Electrónica',desc:'Aprobaciones y documentos firmados'},
+  {key:'gastos',    svgFile:'expenses',      emoji:'💳',name:'Gastos',         desc:'Reporte y aprobación de gastos'},
 ];
+// Helper to render module icon (SVG real si disponible, fallback emoji)
+function modIcon(m,size=20){
+  if(!m.svgFile) return `<span style="font-size:${size}px">${m.emoji}</span>`;
+  return `<img src="${ASSETS}/icons/apps/${m.svgFile}.svg" style="width:${size}px;height:${size}px;object-fit:contain" onerror="this.outerHTML='<span style=font-size:${size}px>${m.emoji}</span>'">`;
+}
 
 window.pricingShowModuleSelector=function pricingShowModuleSelector(){
   const existing=document.getElementById('pricingModSel'); if(existing) existing.remove();
@@ -5014,7 +5046,7 @@ window.pricingShowModuleSelector=function pricingShowModuleSelector(){
             <input type="checkbox" name="pricingMod" value="${m.key}" ${prev.includes(m.key)?'checked':''} style="margin-top:2px;accent-color:var(--purple)"
               onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--gray-200)';this.closest('label').style.background=this.checked?'var(--purple-light)':'white'">
             <div>
-              <div style="font-size:13px;font-weight:700">${m.icon} ${m.name}</div>
+              <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">${modIcon(m,16)} ${m.name}</div>
               <div style="font-size:11px;color:var(--gray-500);margin-top:1px">${m.desc}</div>
             </div>
           </label>`).join('')}
@@ -5438,7 +5470,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
     <div class="mod-grid">
       ${PRICING_MODULE_LIST.filter(m=>selMods.includes(m.key)).map(m=>`
         <div class="mod-card sel">
-          <div style="font-size:18px;margin-bottom:5px">${m.icon}</div>
+          <div style="margin-bottom:5px">${modIcon(m,22)}</div>
           <div style="font-size:11.5px;font-weight:700;color:#714B67">${m.name}</div>
           <div style="font-size:9.5px;color:#9ca3af;margin-top:2px;line-height:1.35">${m.desc}</div>
         </div>`).join('')}
@@ -5542,7 +5574,7 @@ function renderPropuestaComercial(){
             return `<label style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border:1.5px solid ${sel?'var(--purple)':'var(--gray-200)'};border-radius:8px;cursor:pointer;background:${sel?'var(--purple-light)':'white'}">
               <input type="checkbox" name="propMod" value="${m.key}" ${sel?'checked':''} style="margin-top:2px;accent-color:var(--purple)"
                 onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--gray-200)';this.closest('label').style.background=this.checked?'var(--purple-light)':'white'">
-              <div><div style="font-size:13px;font-weight:700">${m.icon} ${m.name}</div><div style="font-size:11px;color:var(--gray-500)">${m.desc}</div></div>
+              <div><div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">${modIcon(m,16)} ${m.name}</div><div style="font-size:11px;color:var(--gray-500)">${m.desc}</div></div>
             </label>`;
           }).join('')}
         </div>
