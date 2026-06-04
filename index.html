@@ -4739,7 +4739,7 @@ const PRICING_MODULE_LIST=[
 // Helper to render module icon (SVG real si disponible, fallback emoji)
 function modIcon(m,size=20){
   if(!m.svgFile) return `<span style="font-size:${size}px">${m.emoji}</span>`;
-  return `<img src="${ASSETS}/icons/apps/${m.svgFile}.svg" style="width:${size}px;height:${size}px;object-fit:contain" onerror="this.outerHTML='<span style=font-size:${size}px>${m.emoji}</span>'">`;
+  return `<img src="${ASSETS}/icons/apps/${m.svgFile}.svg" crossorigin="anonymous" style="width:${size}px;height:${size}px;object-fit:contain" onerror="this.outerHTML='<span style=font-size:${size}px>${m.emoji}</span>'">`;
 }
 
 window.pricingShowModuleSelector=function pricingShowModuleSelector(){
@@ -5240,12 +5240,44 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 
 </body></html>`;
 
-  // Abrir en nueva ventana para imprimir/guardar como PDF
-  const w=window.open('','_blank');
-  if(!w){ showNotif('Permite ventanas emergentes en tu navegador','error'); return; }
-  w.document.write(html);
-  w.document.close();
-  setTimeout(()=>w.print(),1200);
+  // ── Generar PDF descargable REAL (html2canvas + jsPDF) ──
+  // Renderiza en un iframe OCULTO y captura solo las páginas → nunca incluye Lusha ni la pantalla.
+  const fileName=`Propuesta-Odoo-${(co.nombre||'cliente').replace(/[^a-zA-Z0-9]/g,'-')}.pdf`;
+  (async()=>{
+    showNotif('Generando PDF…','info');
+    const iframe=document.createElement('iframe');
+    iframe.style.cssText='position:fixed;left:-99999px;top:0;width:794px;height:1123px;border:0;background:white';
+    document.body.appendChild(iframe);
+    try{
+      const idoc=iframe.contentWindow.document;
+      idoc.open(); idoc.write(html); idoc.close();
+      // Esperar carga + fuentes + imágenes
+      await new Promise(res=>{ if(idoc.readyState==='complete') res(); else iframe.onload=res; setTimeout(res,1800); });
+      try{ await idoc.fonts.ready; }catch(e){}
+      // Esperar a que las imágenes (iconos/logos) carguen
+      const imgs=[...idoc.images];
+      await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r;setTimeout(r,1200);})));
+      await new Promise(r=>setTimeout(r,300));
+
+      const pages=[...idoc.querySelectorAll('.page')];
+      const {jsPDF}=window.jspdf;
+      const pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4',compress:true});
+      const W=210, H=297;
+      for(let i=0;i<pages.length;i++){
+        const canvas=await html2canvas(pages[i],{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false,width:794,height:1123,windowWidth:794,windowHeight:1123});
+        const img=canvas.toDataURL('image/jpeg',0.92);
+        if(i>0) pdf.addPage();
+        pdf.addImage(img,'JPEG',0,0,W,H,undefined,'FAST');
+      }
+      pdf.save(fileName);
+      showNotif('PDF generado ✓','success');
+    } catch(err){
+      console.error('PDF error:',err);
+      showNotif('Error al generar PDF: '+err.message,'error');
+    } finally {
+      setTimeout(()=>iframe.remove(),500);
+    }
+  })();
 };
 
 // ══════════════════════════════════════════
