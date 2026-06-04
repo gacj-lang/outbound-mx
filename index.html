@@ -677,6 +677,9 @@ input,select,textarea{font-family:inherit;}
 .gc-variant-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .gc-variant-num{font-size:11px;font-weight:700;background:var(--purple-light);color:var(--purple);padding:3px 10px;border-radius:99px;}
 .gc-variant-text{font-size:14px;line-height:1.7;color:var(--gray-900);white-space:pre-wrap;}
+.gc-channel-btn:hover{border-color:var(--purple)!important;}
+.gc-expand-btn:hover{text-decoration:underline;}
+.disc-popup-box .emp-saved-text:hover{background:var(--gray-100);border-radius:6px;}
 
 /* Image canvas */
 .gc-canvas-outer{display:flex;justify-content:center;overflow:hidden;margin:16px 0;}
@@ -3168,9 +3171,10 @@ async function loadCentroControl(){
 // GENERACIÓN DE CONTENIDOS
 // ══════════════════════════════════════════
 const cont={
-  activeSection:'brochure',
+  activeSection:'pub-linkedin',
   company:null, contact:null,
   tone:'interesante', length:'equilibrado', format:'1200x627',
+  channel:'whatsapp', // canal activo del template de mensaje
   output:null,
   setSection(s){ this.activeSection=s; },
   discard(){ this.company=null; this.contact=null; this.output=null; },
@@ -3187,10 +3191,8 @@ function renderGenContenidos(){
         ${[
           {id:'pub-linkedin', icon:'💼', label:'Publicación LinkedIn'},
           {id:'brochure',     icon:'📄', label:'Brochure'},
-          {id:'templates-co', icon:'📧', label:'Template de correo'},
-          {id:'templates-wa', icon:'💬', label:'Template WhatsApp'},
-          {id:'msg-linkedin', icon:'👤', label:'Mensaje LinkedIn'},
           {id:'cold-calling', icon:'📞', label:'Apertura Cold Calling'},
+          {id:'templates',    icon:'✉️', label:'Template de mensaje'},
         ].map(s=>`
           <button class="gc-submenu-item ${cont.activeSection===s.id?'active':''}"
             id="gcsub-${s.id}" onclick="gcShowSection('${s.id}')">
@@ -3210,10 +3212,10 @@ window.gcShowSection=function(section){
   const btn=document.getElementById('gcsub-'+section); if(btn) btn.classList.add('active');
   const c=document.getElementById('gcContent'); if(!c) return;
   const map={
-    'brochure':renderGcBrochure,'templates-wa':renderGcTemplatesWA,
-    'templates-co':renderGcTemplatesCorreo,'pub-linkedin':renderGcPublicacionLinkedIn,
-    'msg-linkedin':renderGcMensajeLinkedIn,'cold-calling':renderGcColdCalling,
-    'propuesta':renderGcPropuesta,
+    'brochure':renderGcBrochure,
+    'pub-linkedin':renderGcPublicacionLinkedIn,
+    'cold-calling':renderGcColdCalling,
+    'templates':renderGcTemplates,
   };
   const fn=map[section]; if(fn){ c.innerHTML=''; fn(); }
 };
@@ -3320,309 +3322,242 @@ async function gcCallClaude(prompt, fileAttachment=null){
 function gcShowLoading(id,show){
   const el=document.getElementById(id); if(el){ el.classList.toggle('show',show); }
 }
-function gcShowOutput(wrapId,content,variants=false){
+// Almacén temporal de variantes para guardar/copiar
+let _gcVariants=[];
+const _esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function gcShowOutput(wrapId,content,variants=false,saveCtx=null){
   const wrap=document.getElementById(wrapId); if(!wrap) return;
   wrap.classList.add('show');
   if(variants){
-    // Parse numbered variants
-    const parts=content.split(/\n(?=VARIANTE [123]|Variante [123]|Version [123]|VERSIÓN [123])/i).filter(p=>p.trim());
-    wrap.innerHTML=`<div class="gc-output-header"><span class="gc-output-label">Variantes generadas</span>
-      <div class="gc-output-actions">
-        <button class="gc-copy-btn" onclick="navigator.clipboard.writeText(this.closest('.gc-output-wrap').querySelector('.gc-variants').textContent).then(()=>showNotif('Copiado ✓','success'))">Copiar todo</button>
-      </div></div>
-      <div class="gc-variants">${parts.map((p,i)=>`<div class="gc-variant-card">
-        <div class="gc-variant-header"><span class="gc-variant-num">Variante ${i+1}</span>
-          <button class="gc-copy-btn" onclick="navigator.clipboard.writeText(this.closest('.gc-variant-card').querySelector('.gc-variant-text').textContent).then(()=>showNotif('Copiado ✓','success'))">Copiar</button>
-        </div>
-        <div class="gc-variant-text">${p.replace(/^(VARIANTE|Variante|Version|VERSIÓN) [123]:?\s*/i,'').trim()}</div>
-      </div>`).join('')}</div>`;
+    const parts=content.split(/\n(?=VARIANTE [123]|Variante [123]|Version [123]|VERSIÓN [123])/i)
+      .filter(p=>p.trim())
+      .map(p=>p.replace(/^(VARIANTE|Variante|Version|VERSIÓN) [123]:?\s*/i,'').trim());
+    _gcVariants=parts;
+    window._gcSaveCtx=saveCtx||{tipo:'mensaje'};
+    const LIMIT=180;
+    wrap.innerHTML=`
+      <div class="gc-output-header"><span class="gc-output-label">${parts.length} variantes generadas</span></div>
+      <div class="gc-variants" style="display:flex;flex-direction:column;gap:14px">
+      ${parts.map((p,i)=>{
+        const long=p.length>LIMIT;
+        const preview=long?_esc(p.slice(0,LIMIT))+'…':_esc(p);
+        return `<div class="gc-variant-card" id="gcVar${i}" style="border:1.5px solid var(--gray-200);border-radius:12px;padding:16px;background:white">
+          <div class="gc-variant-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span class="gc-variant-num" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--purple);background:var(--purple-light);padding:3px 10px;border-radius:99px">Variante ${i+1}</span>
+            <div style="display:flex;gap:6px">
+              <button class="gc-copy-btn" onclick="gcCopyVariant(${i})">📋 Copiar</button>
+              <button class="gc-copy-btn" style="border-color:var(--success);color:var(--success)" onclick="gcSaveVariant(${i},this)">💾 Guardar en empresa</button>
+            </div>
+          </div>
+          <div class="gc-variant-text" id="gcVarText${i}" data-full="${_esc(p)}" data-expanded="0" style="font-size:13.5px;line-height:1.7;color:var(--gray-700);white-space:pre-wrap">${preview}</div>
+          ${long?`<button class="gc-expand-btn" onclick="gcToggleVariant(${i})" style="margin-top:8px;background:none;border:none;color:var(--purple);font-size:12.5px;font-weight:600;cursor:pointer;padding:0">Ver más ▾</button>`:''}
+        </div>`;
+      }).join('')}
+      </div>`;
   } else {
     wrap.innerHTML=`<div class="gc-output-header"><span class="gc-output-label">Contenido generado</span>
       <div class="gc-output-actions">
-        <button class="gc-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('gcOutputText').textContent).then(()=>showNotif('Copiado ✓','success'))">Copiar</button>
-        <button class="gc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="gcRegenerateBtn()">Regenerar</button>
+        <button class="gc-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('gcOutputText').textContent).then(()=>showNotif('Copiado ✓','success'))">📋 Copiar</button>
       </div></div>
-      <div class="gc-variant-card"><div class="gc-variant-text" id="gcOutputText">${content}</div></div>`;
+      <div class="gc-variant-card"><div class="gc-variant-text" id="gcOutputText" style="white-space:pre-wrap">${_esc(content)}</div></div>`;
   }
 }
+window.gcToggleVariant=function(i){
+  const el=document.getElementById('gcVarText'+i); if(!el) return;
+  const full=el.dataset.full, expanded=el.dataset.expanded==='1';
+  const btn=el.parentElement.querySelector('.gc-expand-btn');
+  if(expanded){
+    el.textContent=full.slice(0,180)+'…'; el.dataset.expanded='0';
+    if(btn) btn.innerHTML='Ver más ▾';
+  } else {
+    el.textContent=full; el.dataset.expanded='1';
+    if(btn) btn.innerHTML='Ver menos ▴';
+  }
+};
+window.gcCopyVariant=function(i){
+  navigator.clipboard.writeText(_gcVariants[i]||'').then(()=>showNotif('Copiado ✓','success'));
+};
+window.gcSaveVariant=async function(i,btn){
+  const text=_gcVariants[i]; if(!text) return;
+  if(!cont.company?.id){ showNotif('Selecciona una empresa primero','error'); return; }
+  const ctx=window._gcSaveCtx||{tipo:'mensaje'};
+  if(btn){ btn.disabled=true; btn.textContent='Guardando...'; }
+  try{
+    await gcSaveContentToCompany(cont.company.id,{
+      tipo:ctx.tipo||'mensaje',
+      momento:ctx.momento||'',
+      momLabel:ctx.momLabel||'',
+      contacto:cont.contact?.nombre||'',
+      texto:text,
+      variante:i+1,
+    });
+    if(btn){ btn.textContent='✓ Guardado'; btn.style.background='var(--success)'; btn.style.color='white'; }
+    showNotif('Variante guardada en la empresa ✓','success');
+  } catch(e){
+    showNotif('Error al guardar: '+e.message,'error');
+    if(btn){ btn.disabled=false; btn.textContent='💾 Guardar en empresa'; }
+  }
+};
 
-// ── 1. Templates WA ──
-function renderGcTemplatesWA(){
+// Guarda contenido seleccionado en la memoria de la empresa (companies/{id}.memory.contenidos.saved[])
+async function gcSaveContentToCompany(companyId,entry){
+  if(!db||!companyId) throw new Error('Sin conexión');
+  const ref=doc(db,'companies',companyId);
+  const snap=await getDoc(ref);
+  if(!snap.exists()) throw new Error('Empresa no encontrada');
+  const mem=snap.data().memory||{};
+  const cont0=mem.contenidos||{};
+  const saved=[{...entry,aeName:currentUserData?.name||'',aeGram:currentUserData?.gram||'',date:new Date().toISOString()},...(cont0.saved||[])].slice(0,50);
+  const updated={...mem,contenidos:{...cont0,saved},lastUpdated:new Date().toISOString()};
+  await updateDoc(ref,{'memory':updated,'updatedAt':serverTimestamp()});
+  if(cpState.selectedCompany?.id===companyId) cpState.selectedCompany.memory=updated;
+  if(cont.company?.id===companyId) cont.company.memory=updated;
+  const idx=_allEmpresas.findIndex(e=>e.id===companyId);
+  if(idx>=0) _allEmpresas[idx]={..._allEmpresas[idx],memory:updated};
+}
+
+// ── Template de mensaje (unificado: WhatsApp / Correo / LinkedIn) ──
+const GC_CHANNELS=[
+  {id:'whatsapp',icon:'💬',label:'WhatsApp'},
+  {id:'correo',  icon:'📧',label:'Correo'},
+  {id:'linkedin',icon:'👤',label:'LinkedIn'},
+];
+const GC_MOMENTOS=[
+  {id:'primer_toque',label:'1er toque — Cold (primer contacto)'},
+  {id:'segundo_toque',label:'2do toque — Seguimiento frío'},
+  {id:'tercer_toque',label:'3er toque — Reactivación'},
+  {id:'cuarto_toque',label:'4to toque — Último intento antes de pausa'},
+  {id:'post_demo',label:'Post-demo — Próximos pasos'},
+  {id:'compartir_recurso',label:'Compartir brochure / recurso'},
+  {id:'toque_final',label:'Toque final — Cierre o pausa'},
+  {id:'evento_especial',label:'Evento especial'},
+];
+
+function renderGcTemplates(){
   const c=document.getElementById('gcContent');
   c.innerHTML=`
-    <div style="max-width:800px">
-      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">💬 Templates de WhatsApp</h2>
-      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Genera mensajes personalizados para WhatsApp con el tono y longitud correctos para cada momento.</p>
+    <div style="max-width:820px">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">✉️ Template de mensaje</h2>
+      <p style="color:var(--gray-500);font-size:14px;margin-bottom:20px">Genera mensajes personalizados según el canal y el momento del toque. Cada variante se puede guardar en la empresa.</p>
 
-      <div class="gc-form-section">
-        <h3>🏢 Empresa y contacto</h3>
-        ${gcCompanySection('wa')}
+      <!-- Selector de canal -->
+      <div style="display:flex;gap:8px;margin-bottom:20px">
+        ${GC_CHANNELS.map(ch=>`
+          <button class="gc-channel-btn ${cont.channel===ch.id?'active':''}" data-channel="${ch.id}" onclick="gcSetChannel('${ch.id}')"
+            style="flex:1;padding:12px;border:1.5px solid ${cont.channel===ch.id?'var(--purple)':'var(--gray-200)'};background:${cont.channel===ch.id?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;color:${cont.channel===ch.id?'var(--purple)':'var(--gray-700)'};transition:all .15s">
+            ${ch.icon} ${ch.label}
+          </button>`).join('')}
       </div>
 
       <div class="gc-form-section">
-        <h3>🎯 Contexto adicional</h3>
-        <div class="form-group"><label>Momento del toque</label>
-          <select class="gc-select" id="gcWaObjetivo">
-            <option value="primer_toque">1er toque — Cold (primer contacto)</option>
-            <option value="segundo_toque">2do toque — Seguimiento frío</option>
-            <option value="tercer_toque">3er toque — Reactivación</option>
-            <option value="cuarto_toque">4to toque — Último intento antes de pausa</option>
-            <option value="post_demo">Post-demo — Próximos pasos</option>
-            <option value="compartir_recurso">Compartir brochure / recurso</option>
-            <option value="toque_final">Toque final — Cierre o pausa</option>
-            <option value="evento_especial">Evento especial</option>
+        <h3>🏢 Empresa y contacto</h3>
+        ${gcCompanySection('tpl')}
+      </div>
+
+      <div class="gc-form-section">
+        <h3>🎯 Momento del toque</h3>
+        <div class="form-group">
+          <select class="gc-select" id="gcTplMomento" onchange="gcTplToggleEvento()">
+            ${GC_MOMENTOS.map(m=>`<option value="${m.id}">${m.label}</option>`).join('')}
           </select>
         </div>
-        <div id="gcWaEventoLinkWrap" style="display:none">
-          <div class="form-group"><label>Link del evento</label><input type="text" class="input" id="gcWaEventoLink" placeholder="https://..."></div>
+        <div id="gcTplEventoWrap" style="display:none">
+          <div class="form-group"><label>Link del evento</label><input type="text" class="input" id="gcTplEventoLink" placeholder="https://..."></div>
         </div>
-        <div class="form-group"><label>Contexto adicional (opcional)</label>
-          <textarea class="input" id="gcWaContexto" placeholder="Ej. Mencionaron que tienen problemas con su sistema de inventario..." style="min-height:80px;resize:vertical"></textarea>
+        <div class="form-group" style="margin-top:4px"><label>Contexto o pain point detectado (opcional)</label>
+          <textarea class="input" id="gcTplContexto" placeholder="Ej. Mencionaron problemas con su inventario, vienen referidos de..." style="min-height:70px;resize:vertical"></textarea>
         </div>
       </div>
 
       <div class="gc-form-section">
-        <h3>✍️ Estilo del mensaje</h3>
+        <h3>✍️ Estilo</h3>
         <div class="gc-selector" style="margin-bottom:16px"><label>Tono</label>${renderToneSelector(cont.tone)}</div>
         <div class="gc-selector"><label>Longitud</label>${renderLengthSelector(cont.length)}</div>
       </div>
 
-      <button class="gc-generate-btn" id="gcWaBtn" onclick="gcGenerateWA()">
-        <span>✨</span> Generar 3 variantes de mensaje WA
+      <button class="gc-generate-btn" id="gcTplBtn" onclick="gcGenerateTemplate()">
+        <span>✨</span> Generar 3 variantes
       </button>
-      <div class="gc-loading" id="gcWaLoading"><div class="gc-spinner"></div><span>Generando variantes...</span></div>
-      <div class="gc-output-wrap" id="gcWaOutput" style="margin-top:20px"></div>
+      <div class="gc-loading" id="gcTplLoading"><div class="gc-spinner"></div><span>Generando variantes...</span></div>
+      <div class="gc-output-wrap" id="gcTplOutput" style="margin-top:20px"></div>
     </div>`;
-  gcInitCP('wa');
-  // Show/hide event link
-  setTimeout(()=>{
-    const sel=document.getElementById('gcWaObjetivo');
-    if(sel) sel.addEventListener('change',()=>{
-      const wrap=document.getElementById('gcWaEventoLinkWrap');
-      if(wrap) wrap.style.display=sel.value==='evento_especial'?'block':'none';
-    });
-  },100);
+  gcInitCP('tpl');
 }
 
-window.gcGenerateWA=async function(){
+window.gcSetChannel=function(ch){
+  cont.channel=ch;
+  document.querySelectorAll('.gc-channel-btn').forEach(b=>{
+    const active=b.dataset.channel===ch;
+    b.classList.toggle('active',active);
+    b.style.borderColor=active?'var(--purple)':'var(--gray-200)';
+    b.style.background=active?'var(--purple-light)':'white';
+    b.style.color=active?'var(--purple)':'var(--gray-700)';
+  });
+};
+window.gcTplToggleEvento=function(){
+  const v=document.getElementById('gcTplMomento')?.value;
+  const wrap=document.getElementById('gcTplEventoWrap');
+  if(wrap) wrap.style.display=v==='evento_especial'?'block':'none';
+};
+
+window.gcGenerateTemplate=async function(){
   if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
-  const obj=document.getElementById('gcWaObjetivo')?.value||'primer_toque';
-  const ctx=document.getElementById('gcWaContexto')?.value||'';
-  const eventoLink=document.getElementById('gcWaEventoLink')?.value||'';
+  const channel=cont.channel||'whatsapp';
+  const momento=document.getElementById('gcTplMomento')?.value||'primer_toque';
+  const ctx=document.getElementById('gcTplContexto')?.value||'';
+  const eventoLink=document.getElementById('gcTplEventoLink')?.value||'';
   const aeNombre=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'el AE';
   const apptLink=currentUserData?.appointmentLink||'';
-  const btn=document.getElementById('gcWaBtn');
-  btn.disabled=true; gcShowLoading('gcWaLoading',true);
-  document.getElementById('gcWaOutput').classList.remove('show');
+  const momLabel=GC_MOMENTOS.find(m=>m.id===momento)?.label||momento;
+  const btn=document.getElementById('gcTplBtn');
+  btn.disabled=true; gcShowLoading('gcTplLoading',true);
+  document.getElementById('gcTplOutput').classList.remove('show');
+
+  const channelRules={
+    whatsapp:`CANAL: WhatsApp
+- Tuteo informal pero profesional, español de México
+- Máx 1-2 emojis por mensaje
+- "corto": máx 3 líneas · "equilibrado": 5-8 líneas · "largo": 10-15 líneas
+- CTA claro al final, firmado con "${aeNombre}" de forma natural`,
+    correo:`CANAL: Correo electrónico
+- Cada variante incluye ASUNTO (máx 50 caracteres, con intriga sin clickbait) + cuerpo
+- Personalización real en las primeras 2 líneas
+- Pain-first: menciona el problema antes de la solución
+- CTA único y claro · P.D. al final con hook adicional (efectivo en LATAM)
+- Formato: "ASUNTO: [asunto]\\n---\\n[cuerpo]" dentro de cada variante`,
+    linkedin:`CANAL: LinkedIn
+- ${momento==='primer_toque'?'NOTA DE CONEXIÓN: MÁXIMO 300 caracteres contando espacios — no excedas':'Mensaje post-conexión conversacional'}
+- NO empieces con "Hola [nombre]" directo — usa un hook primero
+- Demuestra que investigaste a la persona (sin ser invasivo)
+- Evita frases de vendedor ("solución perfecta", "empresa líder")`,
+  }[channel];
+
   try{
-    const objLabel={primer_toque:'1er toque — cold',segundo_toque:'2do toque — seguimiento',tercer_toque:'3er toque — reactivación',cuarto_toque:'4to toque — último intento',post_demo:'post-demo próximos pasos',compartir_recurso:'compartir brochure/recurso',toque_final:'toque final — cierre o pausa',evento_especial:'evento especial'}[obj]||obj;
-    const text=await gcCallClaude(`Eres un experto en outbound B2B para México. Genera 3 variantes de mensaje de WhatsApp para un Account Executive de Odoo.
+    const text=await gcCallClaude(`Eres un experto en outbound B2B para México y LATAM. Genera 3 variantes de mensaje para un Account Executive de Odoo.
 
 ${gcCompanyContext()}
-NOMBRE DEL AE (quien envía el mensaje): ${aeNombre}
-MOMENTO DEL TOQUE: ${objLabel}
+NOMBRE DEL AE (remitente): ${aeNombre}
+MOMENTO DEL TOQUE: ${momLabel}
 CONTEXTO ADICIONAL: ${ctx||'ninguno'}
 ${eventoLink?`LINK DEL EVENTO: ${eventoLink}`:''}
-${apptLink?`LINK DE AGENDADO DEL AE: ${apptLink} — incluye este link como CTA cuando sea apropiado`:''}
+${apptLink?`LINK DE AGENDADO DEL AE: ${apptLink} — inclúyelo como CTA cuando sea apropiado`:''}
 TONO: ${cont.tone} | LONGITUD: ${cont.length}
 
-Reglas:
-- Escribe en español de México, tuteo informal pero profesional
-- NO menciones el nombre de Claude ni de ninguna IA
-- NO uses emojis en exceso (máx 1-2 por mensaje)
-- Cada variante debe sentirse diferente (ángulo distinto)
-- Para "corto": máx 3 líneas. "equilibrado": 5-8 líneas. "largo": 10-15 líneas
-- Incluye siempre un CTA claro al final
-- Firmado con "${aeNombre}" donde sea natural
-- Formato: "VARIANTE 1:\n[texto]\n\nVARIANTE 2:\n[texto]\n\nVARIANTE 3:\n[texto]"`);
-    gcShowOutput('gcWaOutput',text,true);
+${channelRules}
+
+Reglas generales:
+- NO menciones a Claude ni a ninguna IA
+- Cada variante con un ángulo claramente distinto
+- Español de México natural
+- Formato EXACTO: "VARIANTE 1:\\n[texto]\\n\\nVARIANTE 2:\\n[texto]\\n\\nVARIANTE 3:\\n[texto]"`);
+    gcShowOutput('gcTplOutput',text,true,{tipo:channel,momento,momLabel});
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
-      contenido:{tipo:'whatsapp',topic:ctx||objLabel,objetivo:obj,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
-      touchpoint:{type:'whatsapp',summary:`WA ${objLabel} · ${cont.contact?.nombre||cont.company?.nombre||''}`}
+      contenido:{tipo:channel,topic:ctx||momLabel,momento,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
+      touchpoint:{type:channel,summary:`${GC_CHANNELS.find(c=>c.id===channel)?.label||channel} · ${momLabel} · ${cont.contact?.nombre||cont.company?.nombre||''}`}
     });
   } catch(e){ showNotif('Error: '+e.message,'error'); }
-  btn.disabled=false; gcShowLoading('gcWaLoading',false);
-};
-
-// ── 2. Templates Correo ──
-function renderGcTemplatesCorreo(){
-  const c=document.getElementById('gcContent');
-  c.innerHTML=`
-    <div style="max-width:800px">
-      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📧 Templates de correo</h2>
-      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Correos de outbound optimizados para mercados LATAM. Incluye asunto + cuerpo.</p>
-
-      <div class="gc-form-section">
-        <h3>🏢 Empresa y contacto</h3>
-        ${gcCompanySection('co')}
-      </div>
-
-      <div class="gc-form-section">
-        <h3>🎯 Configuración</h3>
-        <div class="gc-selector-grid">
-          <div class="gc-selector"><label>Momento del toque</label>
-            <select class="gc-select" id="gcCoObjetivo">
-              <option value="primer_toque">1er toque — Cold email</option>
-              <option value="segundo_toque">2do toque — Seguimiento frío</option>
-              <option value="tercer_toque">3er toque — Reactivación</option>
-              <option value="cuarto_toque">4to toque — Último intento</option>
-              <option value="post_demo">Post-demo — Próximos pasos</option>
-              <option value="compartir_recurso">Compartir brochure / recurso</option>
-              <option value="toque_final">Toque final — Cierre o pausa</option>
-              <option value="evento_especial">Evento especial</option>
-            </select>
-          </div>
-          <div class="gc-selector"><label>Industria del prospecto</label>
-            <select class="gc-select" id="gcCoIndustria">
-              <option value="">— Autodetectar de empresa —</option>
-              ${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-        <div class="form-group" style="margin-top:12px"><label>Contexto o pain point principal detectado</label>
-          <textarea class="input" id="gcCoContexto" placeholder="Ej. No tienen visibilidad financiera en tiempo real..." style="min-height:80px;resize:vertical"></textarea>
-        </div>
-      </div>
-
-      <div class="gc-form-section">
-        <h3>✍️ Estilo</h3>
-        <div class="gc-selector" style="margin-bottom:16px"><label>Tono</label>${renderToneSelector(cont.tone)}</div>
-        <div class="gc-selector"><label>Longitud</label>${renderLengthSelector(cont.length)}</div>
-      </div>
-
-      <button class="gc-generate-btn" id="gcCoBtn" onclick="gcGenerateCorreo()">
-        <span>✨</span> Generar 3 variantes de correo
-      </button>
-      <div class="gc-loading" id="gcCoLoading"><div class="gc-spinner"></div><span>Generando correos...</span></div>
-      <div class="gc-output-wrap" id="gcCoOutput" style="margin-top:20px"></div>
-    </div>`;
-  gcInitCP('co');
-}
-
-window.gcGenerateCorreo=async function(){
-  if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
-  const obj=document.getElementById('gcCoObjetivo')?.value||'cold_email';
-  const ind=document.getElementById('gcCoIndustria')?.value||cont.company?.giro||'';
-  const ctx=document.getElementById('gcCoContexto')?.value||'';
-  const aeNombre=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'el AE';
-  const btn=document.getElementById('gcCoBtn');
-  btn.disabled=true; gcShowLoading('gcCoLoading',true);
-  document.getElementById('gcCoOutput').classList.remove('show');
-  try{
-    const text=await gcCallClaude(`Eres un experto en outbound B2B y email marketing para México y LATAM. Genera 3 variantes de email de ventas para un Account Executive de Odoo.
-
-${gcCompanyContext()}
-NOMBRE DEL AE (remitente del correo): ${aeNombre}
-TIPO DE EMAIL: ${obj.replace(/_/g,' ')} | INDUSTRIA: ${ind||'no especificada'}
-PAIN POINT / CONTEXTO: ${ctx||'no especificado'}
-TONO: ${cont.tone} | LONGITUD: ${cont.length}
-
-Mejores prácticas LATAM que DEBES seguir:
-- Asunto: máx 50 caracteres, sin clickbait pero sí intriga
-- Personalización real en las primeras 2 líneas
-- Pain-first approach: menciona el problema antes de la solución
-- Evita sonar como "vendedor" — sé consultor
-- CTA único y claro (no múltiples CTAs)
-- P.D. al final con un hook adicional (muy efectivo en LATAM)
-- Tuteo profesional
-
-Formato de cada variante:
-VARIANTE N:
-ASUNTO: [asunto del correo]
----
-[cuerpo completo del email]`);
-    gcShowOutput('gcCoOutput',text,true);
-    if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
-      contenido:{tipo:'correo',topic:obj.replace(/_/g,' '),industria:ind},
-      touchpoint:{type:'correo',summary:`Email generado · ${obj.replace(/_/g,' ')}`}
-    });
-  } catch(e){ showNotif('Error: '+e.message,'error'); }
-  btn.disabled=false; gcShowLoading('gcCoLoading',false);
-};
-
-// ── 3. Mensaje LinkedIn ──
-function renderGcMensajeLinkedIn(){
-  const c=document.getElementById('gcContent');
-  c.innerHTML=`
-    <div style="max-width:800px">
-      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">👤 Mensaje de LinkedIn</h2>
-      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Mensajes de conexión y seguimiento optimizados para LinkedIn. El límite de conexión es 300 caracteres.</p>
-
-      <div class="gc-form-section">
-        <h3>🏢 Empresa y contacto</h3>
-        ${gcCompanySection('li')}
-      </div>
-
-      <div class="gc-form-section">
-        <h3>🎯 Tipo de mensaje</h3>
-        <div class="gc-selector-grid">
-          <div class="gc-selector"><label>Objetivo</label>
-            <select class="gc-select" id="gcLiTipo">
-              <option value="conexion">Nota de conexión (máx 300 caracteres)</option>
-              <option value="primer_mensaje">Primer mensaje post-conexión</option>
-              <option value="seguimiento">Seguimiento (no respondió)</option>
-              <option value="inmail">InMail (prospecto sin conexión)</option>
-            </select>
-          </div>
-          <div class="gc-selector"><label>Encontraste algo en su perfil?</label>
-            <input type="text" class="gc-select" id="gcLiHook" placeholder="Ej. Compartiste un post sobre ERP, cambiaste trabajo...">
-          </div>
-        </div>
-        <div class="form-group" style="margin-top:12px"><label>Contexto adicional</label>
-          <textarea class="input" id="gcLiContexto" placeholder="¿Qué sabes de esta persona? ¿Hay algo en su perfil que puedas usar?" style="min-height:70px;resize:vertical"></textarea>
-        </div>
-      </div>
-
-      <div class="gc-form-section">
-        <h3>✍️ Estilo</h3>
-        <div class="gc-selector"><label>Tono</label>${renderToneSelector(cont.tone)}</div>
-      </div>
-
-      <button class="gc-generate-btn" id="gcLiBtn" onclick="gcGenerateLiMsg()">
-        <span>✨</span> Generar 3 variantes de mensaje
-      </button>
-      <div class="gc-loading" id="gcLiLoading"><div class="gc-spinner"></div><span>Generando...</span></div>
-      <div class="gc-output-wrap" id="gcLiOutput" style="margin-top:20px"></div>
-    </div>`;
-  gcInitCP('li');
-}
-
-window.gcGenerateLiMsg=async function(){
-  if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
-  const tipo=document.getElementById('gcLiTipo')?.value||'conexion';
-  const hook=document.getElementById('gcLiHook')?.value||'';
-  const ctx=document.getElementById('gcLiContexto')?.value||'';
-  const aeNombre=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'el AE';
-  const btn=document.getElementById('gcLiBtn');
-  btn.disabled=true; gcShowLoading('gcLiLoading',true);
-  document.getElementById('gcLiOutput').classList.remove('show');
-  try{
-    const esConexion=tipo==='conexion';
-    const text=await gcCallClaude(`Eres un experto en social selling y outbound LinkedIn para México. Genera 3 variantes de mensaje de LinkedIn.
-
-${gcCompanyContext()}
-NOMBRE DEL AE (quien envía el mensaje): ${aeNombre}
-TIPO: ${tipo.replace(/_/g,' ')} ${esConexion?'(MÁXIMO 300 CARACTERES — este es el límite de LinkedIn, no lo excedas)':''}
-HOOK / LO QUE ENCONTRASTE: ${hook||'ninguno específico'}
-CONTEXTO: ${ctx||'ninguno'}
-TONO: ${cont.tone}
-
-Reglas de social selling LATAM:
-- NO empieces con "Hola [nombre]" directamente — usa un hook primero
-- Demuestra que investigaste a la persona (sin ser creepy)
-- No pidas nada en el primer mensaje de conexión
-- Evita frases de vendedor: "solución perfecta", "empresa líder", etc.
-- ${esConexion?'CRÍTICO: Cada variante DEBE tener máx 300 caracteres contando espacios':'Sé conversacional, no hagas pitch agresivo'}
-- Si hay hook, úsalo de forma natural
-
-Formato: VARIANTE 1:\n[texto]\n\nVARIANTE 2:\n[texto]\n\nVARIANTE 3:\n[texto]`);
-    gcShowOutput('gcLiOutput',text,true);
-    if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
-      contenido:{tipo:'linkedin_mensaje',topic:tipo.replace(/_/g,' ')},
-      touchpoint:{type:'linkedin_mensaje',summary:`LinkedIn ${tipo.replace(/_/g,' ')} generado`}
-    });
-  } catch(e){ showNotif('Error: '+e.message,'error'); }
-  btn.disabled=false; gcShowLoading('gcLiLoading',false);
+  btn.disabled=false; gcShowLoading('gcTplLoading',false);
 };
 
 // ── 4. Publicación LinkedIn ──
@@ -3956,6 +3891,32 @@ window.gcBrSelectRecommended=function(){
   else showNotif('Selecciona una empresa con industria primero','error');
 };
 
+// Mapea nombre de app (ODOO_APPS) a archivo de icono SVG real
+function brAppIcon(name){
+  const n=(name||'').toLowerCase();
+  const map={crm:'crm',ventas:'sale',venta:'sale',inventario:'stock',compras:'purchase',compra:'purchase',
+    contabilidad:'account',facturación:'account',facturacion:'account',rrhh:'hr','recursos humanos':'hr',nómina:'hr',nomina:'hr',
+    fabricación:'mrp',fabricacion:'mrp',manufactura:'mrp',producción:'mrp',produccion:'mrp',proyecto:'project',proyectos:'project',
+    helpdesk:'helpdesk',ecommerce:'website','e-commerce':'website',sitio:'website',website:'website','punto de venta':'point_of_sale',pos:'point_of_sale',
+    marketing:'mass_mailing',email:'mass_mailing',flota:'fleet','firma':'sign',firma:'sign',gastos:'expenses',suscripción:'subscription',suscripciones:'subscription',
+    alquiler:'rental','servicio externo':'industry_fsm',campo:'industry_fsm'};
+  for(const k in map){ if(n.includes(k)) return map[k]; }
+  return 'apps';
+}
+function brIconImg(name,size=28){
+  const f=brAppIcon(name);
+  return `<img src="${ASSETS}/icons/apps/${f}.svg" style="width:${size}px;height:${size}px;object-fit:contain" crossorigin="anonymous" onerror="this.style.display='none'">`;
+}
+
+function _parseJSON(raw){
+  let s=String(raw).trim();
+  const fence=s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if(fence) s=fence[1].trim();
+  const a=s.indexOf('{'), b=s.lastIndexOf('}');
+  if(a>=0&&b>a) s=s.slice(a,b+1);
+  return JSON.parse(s);
+}
+
 window.gcGenerateBrochure=async function(){
   const apps=[...document.querySelectorAll('input[name="gcBrApp"]:checked')].map(i=>i.value);
   const dolores=document.getElementById('gcBrDolores')?.value||'';
@@ -3967,7 +3928,7 @@ window.gcGenerateBrochure=async function(){
   try{
     const indCtx=ODOO_INDUSTRIES[cont.company?.giro]||'';
     const aeNombreBr=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'';
-    const copy=await gcCallClaude(`Eres un consultor senior de Odoo México especializado en ventas B2B. Genera contenido para un brochure consultivo — tono siempre profesional, resolutivo de pain points, nunca genérico.
+    const raw=await gcCallClaude(`Eres un consultor senior de Odoo México especializado en ventas B2B. Genera el contenido de un brochure consultivo, específico a la industria, resolutivo de pain points, nunca genérico.
 
 ${gcCompanyContext()}
 ACCOUNT EXECUTIVE: ${aeNombreBr||'AE Odoo México'}
@@ -3975,55 +3936,113 @@ APPS A DESTACAR: ${apps.join(', ')}
 DOLORES DETECTADOS: ${dolores||'no especificados'}
 ${indCtx?`CONTEXTO DE INDUSTRIA: ${indCtx}`:''}
 
-Genera el contenido del brochure con estas secciones:
-1. HEADLINE PRINCIPAL (8 palabras máx, impactante, directo al pain point principal de la industria)
-2. SUBTÍTULO (15 palabras máx, complementa el headline con la solución)
-3. INTRO (2 párrafos de 2-3 líneas c/u — describe el problema real de esta industria y cómo Odoo lo resuelve)
-4. APPS DESTACADAS (para cada app: Nombre | Beneficio clave específico para esta industria en 1 línea | Impacto cuantificable en 1 frase)
-5. DIFERENCIADORES ODOO (3 puntos de por qué Odoo vs. alternativas en esta industria)
-6. TESTIMONIAL INSPIRACIONAL (inventa uno creíble de una empresa mexicana similar, con nombre ficticio pero realista)
-7. CTA FINAL (frase de cierre consultiva + llamada a acción específica)
+Responde ÚNICAMENTE con un objeto JSON válido (sin texto adicional, sin markdown) con esta estructura EXACTA:
+{
+  "headline": "string — máx 7 palabras, impactante, al pain point principal",
+  "headline_highlight": "string — 1-2 palabras DEL headline que se resaltarán (deben aparecer literalmente en headline)",
+  "subtitulo": "string — máx 16 palabras, complementa con la solución",
+  "intro": "string — 1 párrafo de 3-4 líneas sobre el problema de esta industria y cómo Odoo lo resuelve",
+  "apps": [ { "nombre": "string (uno de: ${apps.join(', ')})", "beneficio": "string — beneficio clave específico para esta industria en 1 línea", "impacto": "string — impacto cuantificable en 1 frase corta" } ],
+  "diferenciadores": [ "string", "string", "string" ],
+  "testimonial": { "cita": "string — testimonio creíble en 1-2 oraciones", "autor": "string — nombre ficticio realista", "empresa": "string — empresa mexicana ficticia del mismo giro" },
+  "cta": "string — frase de cierre consultiva + llamada a acción"
+}
+Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de México. JSON válido, comillas dobles, sin comas finales.`);
+    let data;
+    try{ data=_parseJSON(raw); }
+    catch(err){ showNotif('La IA no devolvió un formato válido, reintenta','error'); btn.disabled=false; gcShowLoading('gcBrLoading',false); return; }
 
-Responde con los títulos de sección en MAYÚSCULAS. En español de México. Sé específico a la industria, evita frases genéricas.`);
+    const giro=cont.company?.giro||'';
+    const indIcon=industryIconUrl(giro);
+    const aeNombre=aeNombreBr;
+    const hl=data.headline_highlight||'';
+    const headlineHTML=hl&&data.headline?.includes(hl)
+      ? data.headline.replace(hl,`<span style="position:relative;white-space:nowrap"><span style="position:relative;z-index:1">${hl}</span><span style="position:absolute;left:-2px;right:-2px;bottom:2px;height:42%;background:#FBB130;opacity:.55;border-radius:3px;z-index:0"></span></span>`)
+      : (data.headline||'');
+
     const wrap=document.getElementById('gcBrOutput');
     wrap.classList.add('show');
-    const aeNombre=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'';
     wrap.innerHTML=`
-      <div class="gc-variant-card">
-        <div class="gc-output-header" style="margin-bottom:16px">
+      <div class="gc-variant-card" style="border:none;padding:0;background:transparent">
+        <div class="gc-output-header" style="margin-bottom:14px">
           <span class="gc-output-label">Brochure generado</span>
           <div class="gc-output-actions" style="flex-wrap:wrap;gap:6px">
-            <button class="gc-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('gcBrText').textContent).then(()=>showNotif('Copiado ✓','success'))">📋 Copiar texto</button>
             <button class="gc-copy-btn" onclick="gcExportBrochure('pdf')">⬇ PDF</button>
             <button class="gc-copy-btn" onclick="gcExportBrochure('imagen')">🖼 Imagen</button>
+            <button class="gc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="gcGenerateBrochure()">↺ Regenerar</button>
             ${currentUserData?.role!=='manager'?`<button class="gc-generate-btn" style="width:auto;padding:8px 16px;margin:0" onclick="gcSubmitBrochure()">Enviar para aprobación →</button>`:''}
           </div>
         </div>
-        <!-- Vista previa styled para exportar -->
-        <div id="gcBrPreview" style="background:white;border-radius:12px;overflow:hidden;border:1px solid var(--gray-200);margin-bottom:16px">
-          <div style="background:linear-gradient(135deg,#714B67 0%,#5B3C53 60%,#017E84 100%);padding:40px 48px;color:white">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px;opacity:.8">
-              <div style="font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase">Odoo México · Brochure Consultivo</div>
-            </div>
-            <div style="font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">${cont.company?.giro||''}</div>
-            <div id="gcBrHeadline" style="font-size:32px;font-weight:700;line-height:1.2;margin-bottom:16px">Brochure para<br>${cont.company?.nombre||'tu empresa'}</div>
-            <div style="font-size:14px;opacity:.8">Soluciones empresariales Odoo · ${new Date().getFullYear()}</div>
-          </div>
-          <div style="padding:32px 40px">
-            <div id="gcBrText" style="font-size:14px;line-height:1.8;color:var(--gray-700);white-space:pre-wrap">${copy}</div>
-            <div style="margin-top:40px;padding-top:24px;border-top:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-              <div style="font-size:13px;color:var(--gray-500)">
-                ${aeNombre?`<strong>${aeNombre}</strong> · `:''}Account Executive Odoo México
+
+        <!-- BROCHURE A4 — estilo Odoo -->
+        <div id="gcBrPreview" style="width:794px;max-width:100%;margin:0 auto;background:white;border-radius:8px;overflow:hidden;border:1px solid var(--gray-200);font-family:'Inter',sans-serif">
+          <!-- Header morado -->
+          <div style="background:#714B67;padding:44px 48px 40px;color:white;position:relative;overflow:hidden">
+            <div style="position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.05)"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;position:relative">
+              <div style="background:rgba(255,255,255,.18);border-radius:7px;padding:5px 14px;font-size:14px;font-weight:700;letter-spacing:.5px">odoo</div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em">
+                <img src="${indIcon}" style="width:20px;height:20px;object-fit:contain;filter:brightness(0) invert(1);opacity:.7" crossorigin="anonymous" onerror="this.style.display='none'">
+                ${giro||'Solución empresarial'}
               </div>
-              <div style="font-size:12px;color:var(--gray-400)">odoo.com/mx</div>
+            </div>
+            <div style="font-size:38px;font-weight:800;line-height:1.08;letter-spacing:-1px;margin-bottom:14px;position:relative">${headlineHTML}</div>
+            <div style="font-size:16px;color:rgba(255,255,255,.78);line-height:1.5;max-width:90%;position:relative">${data.subtitulo||''}</div>
+          </div>
+
+          <!-- Cuerpo -->
+          <div style="padding:36px 48px 44px">
+            <p style="font-size:14px;line-height:1.7;color:#4b5563;margin-bottom:32px">${data.intro||''}</p>
+
+            <!-- Apps -->
+            <div style="font-family:'Caveat',cursive;font-size:26px;font-weight:700;color:#21272B;margin-bottom:16px">Lo que <span style="color:#017E84">Odoo</span> hará por ti</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:32px">
+              ${(data.apps||[]).map(a=>`
+                <div style="border:1.5px solid #eee;border-radius:12px;padding:16px;background:#fafafa">
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                    ${brIconImg(a.nombre,30)}
+                    <div style="font-size:14px;font-weight:700;color:#714B67">${a.nombre}</div>
+                  </div>
+                  <div style="font-size:12.5px;color:#374151;line-height:1.55;margin-bottom:8px">${a.beneficio||''}</div>
+                  <div style="font-size:11.5px;color:#017E84;font-weight:600;display:flex;align-items:center;gap:5px"><span style="font-size:13px">✦</span> ${a.impacto||''}</div>
+                </div>`).join('')}
+            </div>
+
+            <!-- Diferenciadores -->
+            <div style="background:#f5f0f3;border-radius:12px;padding:24px 28px;margin-bottom:28px">
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#714B67;margin-bottom:14px">¿Por qué Odoo?</div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                ${(data.diferenciadores||[]).map(d=>`<div style="display:flex;align-items:flex-start;gap:10px">
+                  <div style="width:20px;height:20px;border-radius:50%;background:#017E84;color:white;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">✓</div>
+                  <div style="font-size:13px;color:#374151;line-height:1.5">${d}</div>
+                </div>`).join('')}
+              </div>
+            </div>
+
+            <!-- Testimonial -->
+            ${data.testimonial?.cita?`
+            <div style="border-left:4px solid #FBB130;padding:6px 0 6px 20px;margin-bottom:32px">
+              <div style="font-size:15px;font-style:italic;color:#21272B;line-height:1.6;margin-bottom:10px">"${data.testimonial.cita}"</div>
+              <div style="font-size:12px;color:#9ca3af;font-weight:600">— ${data.testimonial.autor||''}${data.testimonial.empresa?`, ${data.testimonial.empresa}`:''}</div>
+            </div>`:''}
+
+            <!-- CTA -->
+            <div style="background:#714B67;border-radius:12px;padding:24px 28px;color:white;display:flex;align-items:center;justify-content:space-between;gap:16px">
+              <div style="font-size:15px;font-weight:600;line-height:1.45;flex:1">${data.cta||''}</div>
+              <div style="text-align:right;flex-shrink:0;border-left:1px solid rgba(255,255,255,.2);padding-left:16px">
+                ${aeNombre?`<div style="font-size:13px;font-weight:700">${aeNombre}</div>`:''}
+                <div style="font-size:11px;color:rgba(255,255,255,.65)">Account Executive</div>
+                ${currentUserData?.email?`<div style="font-size:11px;color:rgba(255,255,255,.5)">${currentUserData.email}</div>`:''}
+                ${currentUserData?.appointmentLink?`<div style="font-size:11px;color:#FBB130;margin-top:3px">Agenda una demo →</div>`:''}
+              </div>
             </div>
           </div>
         </div>
       </div>`;
-    window._gcBrContent=copy;
+    window._gcBrData=data;
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
-      contenido:{tipo:'brochure',apps:apps.slice(0,5).join(', ')},
-      touchpoint:{type:'brochure',summary:`Brochure generado · ${apps.slice(0,3).join(', ')}`}
+      contenido:{tipo:'brochure',apps:apps.slice(0,5).join(', '),headline:data.headline||'',fecha:new Date().toISOString()},
+      touchpoint:{type:'brochure',summary:`Brochure · ${data.headline||apps.slice(0,3).join(', ')}`}
     });
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcBrLoading',false);
@@ -4069,7 +4088,7 @@ window.gcSubmitBrochure=async function(){
     await addDoc(collection(db,'brochureApprovals'),{
       aeUid:currentUserData.uid, aeName:currentUserData.name,
       empresa:cont.company?.nombre||'Sin nombre', companyId:cont.company?.id||null,
-      content:window._gcBrContent||'',
+      content:JSON.stringify(window._gcBrData||{}),
       status:'pendiente_aprobacion', createdAt:serverTimestamp()
     });
     showNotif('Enviado para aprobación al manager ✓','success');
@@ -4085,9 +4104,10 @@ window.gcSubmitBrochure=async function(){
 async function gcLoadBrochureApprovals(){
   const c=document.getElementById('gcBrApprovals'); if(!c||!db) return;
   try{
-    const snap=await getDocs(query(collection(db,'brochureApprovals'),where('status','==','pendiente_aprobacion'),orderBy('createdAt','desc')));
+    const snap=await getDocs(query(collection(db,'brochureApprovals'),where('status','==','pendiente_aprobacion')));
     if(snap.empty){ c.innerHTML='<div class="cdc-empty">Sin aprobaciones pendientes</div>'; return; }
-    c.innerHTML=snap.docs.map(d=>{
+    const sortedDocs=[...snap.docs].sort((a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0));
+    c.innerHTML=sortedDocs.map(d=>{
       const r=d.data();
       return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
         <div><strong style="font-size:13px">${r.empresa}</strong><div style="font-size:11px;color:var(--gray-400)">${r.aeName}</div></div>
@@ -4126,367 +4146,6 @@ const ODOO_APPS_CATALOG=[
   {id:'suscripciones',name:'Suscripciones',icon:'🔄',desc:'Facturación recurrente, renovaciones automáticas y control de churn.'},
   {id:'servicio',name:'Servicio Externo',icon:'🔧',desc:'Gestión de técnicos en campo, órdenes de trabajo y seguimiento en tiempo real.'},
 ];
-
-function renderGcPropuesta(){
-  const c=document.getElementById('gcContent');
-  c.innerHTML=`
-    <div style="max-width:900px">
-      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📋 Propuesta comercial</h2>
-      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Genera una propuesta completa de 16 páginas en PDF con el formato oficial de Odoo México.</p>
-
-      <div class="gc-form-section">
-        <h3>🏢 Datos de la empresa</h3>
-        ${gcCompanySection('prop')}
-      </div>
-
-      <div class="gc-form-section">
-        <h3>📱 Aplicaciones recomendadas</h3>
-        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Selecciona las apps que incluirás en la propuesta</p>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-          ${ODOO_APPS_CATALOG.map(a=>`
-            <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;transition:border-color .15s">
-              <input type="checkbox" name="gcPropApp" value="${a.id}" style="accent-color:var(--purple)">
-              <span style="font-size:13px">${a.icon} ${a.name}</span>
-            </label>`).join('')}
-        </div>
-      </div>
-
-      <div class="gc-form-section">
-        <h3>💰 Inversión</h3>
-        ${pricingState.result?`<div style="background:var(--success-light);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--success);margin-bottom:16px;display:flex;gap:8px;align-items:center"><span>✅</span><span>Pricing cargado desde el módulo de Pricing — puedes editar los valores</span></div>`:`<div style="background:var(--accent-light);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--accent);margin-bottom:16px;display:flex;gap:8px;align-items:center"><span>💡</span><span>Configura el pricing en el <button onclick="showModule('pricing')" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline;padding:0">módulo Pricing</button> para que se autocomplete.</span></div>`}
-        <div class="gc-selector-grid">
-          <div class="gc-selector"><label>Plan seleccionado</label>
-            <select class="gc-select" id="gcPropPlan">
-              <option value="custom">Odoo Custom (On-premise/Cloud)</option>
-              <option value="sh">Odoo SH (Cloud propio)</option>
-              <option value="online">Odoo Online (SaaS)</option>
-            </select>
-          </div>
-          <div class="gc-selector"><label>Número de usuarios</label>
-            <input type="number" class="gc-select" id="gcPropUsuarios" placeholder="Ej. 15" min="1">
-          </div>
-        </div>
-        <div class="gc-selector-grid" style="margin-top:12px">
-          <div class="gc-selector"><label>Suscripción mensual (MXN)</label>
-            <input type="text" class="gc-select" id="gcPropMensual" placeholder="Ej. $8,500">
-          </div>
-          <div class="gc-selector"><label>Implementación (MXN)</label>
-            <input type="text" class="gc-select" id="gcPropImpl" placeholder="Ej. $45,000">
-          </div>
-        </div>
-        <div class="form-group" style="margin-top:12px"><label>Descripción del alcance del proyecto</label>
-          <textarea class="input" id="gcPropAlcance" placeholder="Ej. Ecosistema Integrado 360°: CRM + Ventas + Inventario + Contabilidad" style="min-height:70px;resize:vertical"></textarea>
-        </div>
-      </div>
-
-      <button class="gc-generate-btn" id="gcPropBtn" onclick="gcGeneratePropuesta()">
-        <span>📄</span> Generar propuesta completa
-      </button>
-      <div class="gc-loading" id="gcPropLoading"><div class="gc-spinner"></div><span>Generando propuesta...</span></div>
-      <div id="gcPropOutput" style="display:none;margin-top:24px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <span style="font-size:15px;font-weight:700">Vista previa de la propuesta</span>
-          <div style="display:flex;gap:10px">
-            <button class="btn btn-ghost" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
-          </div>
-        </div>
-        <div id="gcPropViewer" class="prop-viewer"></div>
-      </div>
-    </div>`;
-  gcInitCP('prop');
-  // Pre-fill from pricingState if available
-  if(pricingState.result){
-    const r=pricingState.result;
-    const uEl=document.getElementById('gcPropUsuarios'); if(uEl) uEl.value=r.users||pricingState.users||'';
-    const mEl=document.getElementById('gcPropMensual'); if(mEl) mEl.value=pricingState._mensualRef||'';
-    const iEl=document.getElementById('gcPropImpl'); if(iEl) iEl.value=pricingState._impl||'';
-    const edEl=document.getElementById('gcPropPlan');
-    if(edEl){ const edMap={'Standard':'custom','Personalizable':'online','Odoo SH':'sh'}; edEl.value=edMap[r.editionName]||'custom'; }
-  }
-  if(pricingState.company&&!cont.company){ cont.company=pricingState.company; cont.contact=pricingState.contact||null; cpState.selectedCompany=pricingState.company; cpState.selectedContact=pricingState.contact||null; renderM2o('gcCp_prop'); }
-}
-
-window.gcGeneratePropuesta=async function(){
-  if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
-  const apps=[...document.querySelectorAll('input[name="gcPropApp"]:checked')].map(v=>v.value);
-  if(apps.length===0){ showNotif('Selecciona al menos una aplicación','error'); return; }
-  const plan=document.getElementById('gcPropPlan')?.value||'custom';
-  const usuarios=document.getElementById('gcPropUsuarios')?.value||'—';
-  const mensual=document.getElementById('gcPropMensual')?.value||'A convenir';
-  const impl=document.getElementById('gcPropImpl')?.value||'A convenir';
-  const alcance=document.getElementById('gcPropAlcance')?.value||'Implementación personalizada de Odoo';
-  const btn=document.getElementById('gcPropBtn');
-  btn.disabled=true; gcShowLoading('gcPropLoading',true);
-  const appsData=apps.map(id=>ODOO_APPS_CATALOG.find(a=>a.id===id)).filter(Boolean);
-  // Render the propuesta HTML
-  const propHTML=buildPropuestaHTML(cont.company,cont.contact,appsData,{plan,usuarios,mensual,impl,alcance});
-  const output=document.getElementById('gcPropOutput');
-  const viewer=document.getElementById('gcPropViewer');
-  viewer.innerHTML=propHTML;
-  output.style.display='block';
-  output.scrollIntoView({behavior:'smooth',block:'start'});
-  btn.disabled=false; gcShowLoading('gcPropLoading',false);
-  showNotif('Propuesta generada. Usa Imprimir para guardar como PDF ✓','success');
-};
-
-function buildPropuestaHTML(company,contact,apps,pricing){
-  const aeName=currentUserData?.name||'Account Executive';
-  const companyName=company?.nombre||'[Empresa]';
-  const contactName=contact?.nombre||'[Nombre del cliente]';
-
-  const appsChunks=[];
-  for(let i=0;i<apps.length;i+=3) appsChunks.push(apps.slice(i,i+3));
-
-  return `
-    <!-- PÁGINA 1: Portada -->
-    <div class="prop-page" style="display:flex;flex-direction:column;justify-content:space-between;padding:56px">
-      <div>
-        <img src="${ASSETS}/logos/odoo_logo_color.svg" style="height:32px;margin-bottom:40px" onerror="this.outerHTML='<strong style=color:#714B67;font-size:20px>odoo</strong>'">
-        <div class="prop-headline" style="font-size:72px;line-height:1">Todo tu <span class="prop-hl-red">negocio</span><br>en una<br>sola plataforma.</div>
-        <div style="margin-top:24px;font-size:22px;font-weight:600;color:#6B7280;font-family:'Caveat',cursive">Propuesta para:</div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-end">
-        <div style="background:var(--od-shape-gray);border-radius:12px;padding:20px 28px;min-width:280px">
-          <div style="font-size:14px;font-weight:600;color:#9ca3af;margin-bottom:4px">Preparada para</div>
-          <div style="font-size:20px;font-weight:700;color:#21272B">${companyName}</div>
-          ${contactName!=='[Nombre del cliente]'?`<div style="font-size:14px;color:#6B7280;margin-top:4px">${contactName}${contact?.cargo?` · ${contact.cargo}`:''}</div>`:''}
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:13px;color:#9ca3af">Presentada por</div>
-          <div style="font-size:16px;font-weight:700">${aeName}</div>
-          <div style="font-size:13px;color:#6B7280">Account Executive · Odoo México</div>
-          <img src="${ASSETS}/logos/odoo_logo.svg" style="height:28px;margin-top:12px" onerror="this.outerHTML='<strong style=color:#714B67>odoo</strong>'">
-        </div>
-      </div>
-    </div>
-
-    <!-- PÁGINA 2: ¿Quiénes somos? -->
-    <div class="prop-page prop-page-content">
-      <div class="prop-section-label">✦ Sobre Odoo</div>
-      <div class="prop-headline" style="font-size:52px;margin-bottom:8px">¿Quiénes <span style="color:var(--od-green)">somos?</span></div>
-      <p style="font-size:16px;line-height:1.7;color:#374151;margin-bottom:32px">Creemos que el software empresarial debería cubrir necesidades complejas sin la necesidad de ser complicado. Nuestra misión es ofrecer un software que sea intuitivo, que tenga todas las funciones, que sea totalmente integrado, que sea fácil de usar y que funcione sin problemas para cualquier empresa y cualquier usuario.</p>
-      <div style="font-family:'Caveat',cursive;font-size:32px;font-weight:700;color:#21272B;margin-bottom:24px">Nuestros números.</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:32px">
-        ${[{n:'+5,000',l:'empleados'},{n:'+13M',l:'millones de usuarios'},{n:'+175',l:'países'}].map(s=>`
-          <div style="background:var(--od-shape-gray);border-radius:12px;padding:24px">
-            <div class="prop-stat-num">${s.n}</div>
-            <div class="prop-stat-label">${s.l}</div>
-          </div>`).join('')}
-      </div>
-      <div style="background:var(--purple);color:white;border-radius:12px;padding:20px 28px;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-family:'Caveat',cursive;font-size:24px;font-weight:700">Sencillo, eficiente, accesible<br>y en cualquier dispositivo.</div>
-        <img src="${ASSETS}/logos/odoo_logo_white.svg" style="height:28px;opacity:.9" onerror="">
-      </div>
-    </div>
-
-    <!-- PÁGINA 3: Tu proyecto con Odoo -->
-    <div class="prop-page prop-page-content">
-      <div style="font-family:'Caveat',cursive;font-size:52px;font-weight:700;margin-bottom:24px">Tu <span style="color:var(--od-green)">proyecto</span> con Odoo ✨</div>
-      <p style="font-size:15px;line-height:1.7;color:#374151;margin-bottom:24px"><strong>Odoo: Una plataforma integral</strong> para transformar la gestión empresarial. Con Odoo tendrás acceso a un ecosistema de más de 80 aplicaciones integradas, diseñadas para escalar tu operación y centralizar el control de todas las áreas clave de tu empresa.</p>
-      <div style="font-size:15px;font-weight:700;color:#21272B;margin-bottom:16px">Así es cómo Odoo impulsa a tu empresa:</div>
-      ${[
-        {icon:'🎯',title:'Visión 360° del negocio',desc:'Una plataforma única que brinda visibilidad y control sobre tu operación, facilitando la auditoría y el cumplimiento normativo.'},
-        {icon:'📊',title:'Trazabilidad total',desc:'Seguimiento detallado de cada actividad de tu empresa, con información centralizada y en tiempo real para decisiones más ágiles.'},
-        {icon:'⚡',title:'Aumenta la eficiencia',desc:'Automatiza las tareas repetitivas, optimiza tu flujo de trabajo y te permite visualizar todas tus operaciones en tiempo real.'},
-        {icon:'💡',title:'Toma de decisiones basada en datos',desc:'Información centralizada y en tiempo real para decisiones más ágiles y acertadas.'},
-        {icon:'💰',title:'Reduce los costos',desc:'No necesitas varias softwares y optimizarás tu infraestructura de TI.'},
-      ].map(b=>`<div class="prop-beneficio"><span class="prop-beneficio-icon">${b.icon}</span><div><div class="prop-beneficio-title">${b.title}</div><div class="prop-beneficio-desc">${b.desc}</div></div></div>`).join('')}
-    </div>
-
-    <!-- PÁGINA 4: Tu camino con Odoo -->
-    <div class="prop-page prop-page-content">
-      <div style="font-family:'Caveat',cursive;font-size:52px;font-weight:700;margin-bottom:16px">Tu camino con Odoo 🚀</div>
-      <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:32px">En Odoo acompañamos al cliente de inicio a fin para asegurar una implementación exitosa. En la etapa de venta, primero entendemos sus requerimientos, realizamos una <strong>demostración</strong> y definimos con claridad el <strong>presupuesto y alcance</strong>. Después, en <strong>implementación</strong>, arrancamos con un kick-off, configuramos la solución y realizamos pruebas. En <strong>soporte</strong>, asignamos al cliente con apoyo funcional y técnico.</p>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;position:relative;margin-bottom:32px">
-        ${[
-          {phase:'Venta',steps:['Descubrimiento','Propuesta / Demostración'],color:'#017E84'},
-          {phase:'Implementación',steps:['Kick-off','Configuración','Pruebas','Go-live'],color:'#714B67'},
-          {phase:'Soporte',steps:['Dirección de errores','Apoyo Funcional y Técnico'],color:'#1BB6F9'},
-        ].map(ph=>`
-          <div style="background:${ph.color};color:white;padding:24px;border-radius:12px;margin:0 4px">
-            <div style="font-weight:700;font-size:16px;margin-bottom:12px">${ph.phase}</div>
-            ${ph.steps.map(s=>`<div style="font-size:13px;padding:4px 0;opacity:.9">• ${s}</div>`).join('')}
-          </div>`).join('')}
-      </div>
-    </div>
-
-    <!-- PÁGINA 5-6: Metodología QuickStart -->
-    <div class="prop-page prop-page-content">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
-        <span style="font-size:24px">🏆</span>
-        <div style="font-family:'Caveat',cursive;font-size:40px;font-weight:700">Conoce nuestra metodología: QuickStart</div>
-      </div>
-      <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:20px">La metodología QuickStart de Odoo está diseñada para que tu empresa llegue a producción de forma rápida con control de presupuesto y eficiencia en su adopción. Garantizamos una implementación ordenada calidad. Primero priorizamos entender al usuario y sus objetivos, luego de las fases, se amplía con mejoras y avances adicionales conforme el equipo ya usa el sistema y aporta retroalimentación.</p>
-      <div style="background:var(--od-shape-gray);border-radius:12px;padding:24px;margin-bottom:20px">
-        <div style="font-weight:700;font-size:15px;color:#714B67;margin-bottom:12px">Mentalidad MVP si vive</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;color:#374151">
-          <div>• Enfocas al <strong>usuario del equipo</strong><br>• Requerimientos<br>• Criterios y métricas para alcanzar</div>
-          <div>• Planes Funcionales<br>• A punto de <strong>Resolución de errores</strong><br>• Alcanzable en el futuro</div>
-        </div>
-      </div>
-      <p style="font-size:13px;color:#6B7280;line-height:1.6;margin-bottom:16px">El punto de partida es entender el negocio con claridad: ustedes describen el "qué" y el "por qué" de sus procesos, y Odoo guía el "cómo hacerlo" en la solución estándar. La agilidad implica "tablero de estilos de adaptación" primero con la aproximación correcta para acelerar resultados, y solo después de revisar opciones apliques, el desarrollo es su plan 2 por impacto en tiempo, complejidad y mantenimiento.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        ${['Solución estándar','Requerimientos','SIG','ROI','Garantías','Implementación, no replicación'].map(item=>`
-          <div style="background:white;border:1px solid var(--od-line);border-radius:8px;padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:8px">
-            <span style="color:var(--od-green)">✓</span>${item}
-          </div>`).join('')}
-      </div>
-    </div>
-
-    <div class="prop-page prop-page-content">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
-        <span style="font-size:24px">🏆</span>
-        <div style="font-family:'Caveat',cursive;font-size:40px;font-weight:700">Conoce nuestra metodología: QuickStart</div>
-      </div>
-      <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:20px">QuickStart también define roles y responsabilidades para asegurar el éxito: se trabaja con un GPdC (Single Point of Contact) del lado del cliente, con autoridad para decisiones, que coordina información, equipos y validaciones. Odoo aporta un consultor que analiza proceso, configura, documenta y capacita. Para que el proyecto avance con ritmo. Para este proyecto se trabajará con un Success Pack que costea tiempo de implementación de 10 horas por semana.</p>
-      <div style="background:var(--od-shape-gray);border-radius:12px;padding:20px;margin-bottom:20px">
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;text-align:center">
-          ${['Odoo','Equipo del proyecto','Tu empresa','Interesados'].map(r=>`
-            <div><div style="font-size:24px;margin-bottom:8px">👤</div><div style="font-size:12px;font-weight:600">${r}</div></div>`).join('')}
-        </div>
-      </div>
-      <p style="font-size:13px;color:#6B7280;line-height:1.6">Durante el proyecto, la comunicación se mantiene frecuente, calibrando, documentada y transparente; y el avance se mide por secciones, pruebas, validaciones y capacitación hasta el fin. El servicio se entrega con un Success Pack y el trabajo se registra en bloques (mínimo 15 minutos), lo que permite trazabilidad y control del consumo.</p>
-      <div style="display:flex;align-items:center;gap:12px;margin-top:20px;padding:16px;background:var(--od-shape-gray);border-radius:12px">
-        <div style="font-family:'Caveat',cursive;font-size:28px;font-weight:700;color:#714B67">odoo.ly</div>
-        <div style="font-size:13px;color:#6B7280">Plataforma de gestión del proyecto — seguimiento en tiempo real</div>
-      </div>
-    </div>
-
-    <!-- PÁGINA 7: Tu proyecto específico -->
-    <div class="prop-page prop-page-content">
-      <div style="font-family:'Caveat',cursive;font-size:52px;font-weight:700;margin-bottom:24px">Tu <span style="color:var(--od-green)">proyecto</span> con Odoo ✨</div>
-      <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:20px">Esto ayuda que el equipo de ${companyName} de inicio a fin tenga toda la información que le permitirá usar toda la información que deba de estar al mismo tiempo y los módulos, tengan el apoyo que pueda fluir para correr con confianza al cliente en cualquier tema relacionado con la solución.</p>
-      <div style="background:var(--od-shape-gray);border-radius:8px;padding:16px 20px;margin-bottom:16px;font-size:13px;line-height:1.7">
-        <div style="font-weight:700;color:#714B67;margin-bottom:6px">✦ Alcance del Proyecto: ${pricing.alcance||'Ecosistema Integrado'}</div>
-        <p style="color:#374151">${apps.map(a=>a.name).join(' + ')} — Implementación completa con configuración, migración de datos, capacitación y soporte post go-live.</p>
-      </div>
-      <div style="margin-bottom:16px">
-        <div style="font-size:13px;font-weight:700;color:#21272B;margin-bottom:8px">1. Implementación y Exposición del Proceso:</div>
-        <p style="font-size:13px;color:#6B7280;line-height:1.6">Implementación profesional y consultoría especializada para maximizar el retorno de inversión. Nuestro equipo de expertos trabajará directamente con ${companyName} para garantizar una adopción exitosa y rápida del sistema.</p>
-      </div>
-      <div style="margin-bottom:16px">
-        <div style="font-size:13px;font-weight:700;color:#21272B;margin-bottom:8px">2. Marketing y Comunicación Empresarial:</div>
-        <p style="font-size:13px;color:#6B7280;line-height:1.6">Soporte estratégico en la comunicación del cambio hacia los equipos de ${companyName}, asegurando adopción sin resistencia y máximo aprovechamiento desde el día uno.</p>
-      </div>
-    </div>
-
-    <!-- PÁGINA 8: Nuestra propuesta comercial -->
-    <div class="prop-page prop-page-content">
-      <div style="font-family:'Caveat',cursive;font-size:48px;font-weight:700;margin-bottom:20px">💡 Nuestra propuesta comercial</div>
-      <p style="font-size:14px;color:#6B7280;line-height:1.7;margin-bottom:24px">El modelo de negocio de Odoo te permite disfrutar de todas las aplicaciones estándar de Odoo. Todas nuestras licencias son por <strong>suscripción directa</strong> y el soporte está en todas las funciones y áreas. ¡Conoce la verdadera transparencia!</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-        ${[
-          {name:'Custom',icon:'⚙️',desc:'La plataforma para personalizar todo tu caso de uso único. Plan integrado con On-Premise/Cloud con $674 para gestión de instancia + el costo de la cantidad de usuarios de Odoo que añadas.',price:'$274.00/usuario al mes + IVA'},
-          {name:'Odoo SH',icon:'⚡',desc:'Es la plataforma especializada para esta caso, con repositorio de código integrado con $674 para gestión de instancia + el costo de la cantidad de usuarios añadidos.',price:'Desde $274.00/usuario al mes + IVA'},
-        ].map(p=>`
-          <div style="border:2px solid var(--od-line);border-radius:12px;padding:20px">
-            <div style="font-size:20px;margin-bottom:8px">${p.icon}</div>
-            <div style="font-weight:700;font-size:16px;color:#21272B;margin-bottom:6px">${p.name}</div>
-            <div style="font-size:12px;color:#6B7280;line-height:1.6;margin-bottom:12px">${p.desc}</div>
-            <div style="font-size:13px;font-weight:700;color:#714B67">${p.price}</div>
-          </div>`).join('')}
-      </div>
-      <div style="background:var(--od-shape-gray);border-radius:8px;padding:16px;font-size:13px;color:#374151;line-height:1.7">
-        <div style="font-weight:700;margin-bottom:6px">Adicional $3 →</div>
-        <p>Montamos la capacidad de procesamiento, se recomienda 1 nodo (5 usuarios): $30-$50/mes aproximadamente. Almacenamiento de datos (Módulo de Almacenamiento de Odoo): Se recomienda 1-5 GB de inicio a rango de datos. Precio del proceso de inicio a rango: $100-$500/mes. Aumento de la licencia se puede realizar por mes a partir de base Odoo, este agregando el costo por separado.</p>
-      </div>
-    </div>
-
-    <!-- PÁGINA 9: Paquetes de éxito -->
-    <div class="prop-page prop-page-content">
-      <div style="font-family:'Caveat',cursive;font-size:48px;font-weight:700;margin-bottom:16px">🏆 Paquetes de éxito de Odoo</div>
-      <p style="font-size:13px;color:#6B7280;margin-bottom:20px">Un equipo de consultoría asignado a tu proyecto para implementar y configurar Odoo en base a las necesidades específicas, con capacitación incluida para que tu equipo de trabajo se vuelva independiente en el uso del sistema.</p>
-      <table class="prop-pricing-table">
-        <thead><tr>
-          <th>Incluye</th><th style="background:#017E84">Inicial</th><th style="background:#714B67">Básico</th><th style="background:#5B3C53">Personalizado</th><th style="background:#21272B">Pro</th>
-        </tr></thead>
-        <tbody>
-          ${['Horas de consultoría','Kick-off del proyecto','Análisis de requerimientos','Configuración','Capacitación','Pruebas (UAT)','Go-live','Soporte post go-live'].map((row,i)=>`
-            <tr><td><strong>${row}</strong></td>
-              <td style="text-align:center">${i<4?'✓':i===4?'Básica':i===7?'1 semana':'✓'}</td>
-              <td style="text-align:center">✓</td>
-              <td style="text-align:center">✓</td>
-              <td style="text-align:center">✓</td>
-            </tr>`).join('')}
-          <tr style="background:#714B67;color:white">
-            <td><strong>Precio</strong></td>
-            <td style="text-align:center;font-weight:700">INCLUIDA</td>
-            <td style="text-align:center;font-weight:700">MÁX $5,500</td>
-            <td style="text-align:center;font-weight:700">MÁX $20,000</td>
-            <td style="text-align:center;font-weight:700">MÁX $50,000</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- PÁGINA 10: Inversión -->
-    <div class="prop-page prop-page-content">
-      <div style="font-family:'Caveat',cursive;font-size:48px;font-weight:700;margin-bottom:8px">💰 Inversión Suscripción +<br>Implementación</div>
-      <p style="font-size:14px;color:#6B7280;margin-bottom:24px">Considerando ${pricing.usuarios} usuarios en plan ${pricing.plan==='custom'?'Custom + Odoo SH':pricing.plan} + las horas de consultoría necesarias, se proponen los siguientes esquemas de contratación:</p>
-      <table class="prop-pricing-table" style="margin-bottom:20px">
-        <thead><tr><th>Concepto</th><th>Mensual</th><th>Implementación</th><th>Total Año 1</th></tr></thead>
-        <tbody>
-          <tr><td><strong>Suscripción Odoo</strong></td><td>${pricing.mensual}</td><td>—</td><td>${pricing.mensual} × 12</td></tr>
-          <tr><td><strong>Implementación</strong></td><td>—</td><td>${pricing.impl}</td><td>${pricing.impl}</td></tr>
-          <tr style="background:#714B67;color:white"><td><strong>TOTAL</strong></td><td><strong>${pricing.mensual}</strong></td><td><strong>${pricing.impl}</strong></td><td><strong>A confirmar</strong></td></tr>
-        </tbody>
-      </table>
-      <div style="background:var(--od-shape-gray);border-radius:8px;padding:14px 16px;font-size:12px;color:#6B7280;line-height:1.7">
-        <strong>Notas importantes:</strong> Los precios mostrados incluyen un descuento por PRIMERA COMPRA. Todo cuanto antes agregue posibilidades de acceso a éste Descuentos proyectados para la Implementación y los Módulos Particulares en su totalidad se van descuentos especiales y exclusivos para este proyecto de contratación. La empresa puede establecer un financiamiento por medio de pago en plazos a evaluar en caso de considerarse una modalidad específica a partir de los 2 años.
-      </div>
-    </div>
-
-    <!-- PÁGINAS 11-${10+appsChunks.length}: Aplicaciones recomendadas -->
-    ${appsChunks.map((chunk,pi)=>`
-    <div class="prop-page prop-page-content">
-      <div style="font-family:'Caveat',cursive;font-size:44px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:10px">
-        Aplicaciones <span style="color:#FBB130">recomendadas</span> ✨
-      </div>
-      <p style="font-size:13px;color:#6B7280;margin-bottom:20px">Selección personalizada para ${companyName} — Fase ${pi+1} de ${appsChunks.length}</p>
-      ${chunk.map(a=>`<div class="prop-app-card">
-        <div class="prop-app-icon">
-          <span style="font-size:28px">${a.icon}</span>
-        </div>
-        <div>
-          <div class="prop-app-name">${a.name}</div>
-          <div class="prop-app-desc">${a.desc}</div>
-        </div>
-      </div>`).join('')}
-    </div>`).join('')}
-
-    <!-- Clientes México -->
-    <div class="prop-page" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
-      <div style="padding:40px 56px 24px">
-        <div class="prop-section-label">✦ Empresas que ya confían en Odoo México</div>
-        <div style="font-family:'Caveat',cursive;font-size:40px;font-weight:700;margin-bottom:4px">Clientes que ya <span style="color:var(--od-green)">transformaron</span> su negocio</div>
-      </div>
-      <div style="flex:1;overflow:hidden;padding:0 40px 40px">
-        <img src="${ASSETS}/clientes-mexico.svg" style="width:100%;height:auto;border-radius:12px" onerror="this.outerHTML='<div style=background:var(--od-shape-gray);height:300px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#9ca3af>Clientes México</div>'">
-      </div>
-    </div>
-
-    <!-- PENÚLTIMA: CTA -->
-    <div class="prop-page prop-page-purple" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:56px;color:white">
-      <img src="${ASSETS}/logos/odoo_logo_white.svg" style="height:36px;margin-bottom:32px;opacity:.9" onerror="">
-      <div style="font-family:'Caveat',cursive;font-size:56px;font-weight:700;line-height:1.1;margin-bottom:16px">¿Estás listo para comenzar<br>a utilizar Odoo en tu negocio?</div>
-      <div style="font-size:18px;opacity:.85;margin-bottom:40px">Elige ya, consulta nuestros servicios</div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
-        <a href="https://www.odoo.com/blog/customer-reviews-6" target="_blank" class="prop-cta-btn">⭐ Casos de éxito</a>
-        <a href="https://www.odoo.com/documentation/user" target="_blank" class="prop-cta-btn">📚 Documentación</a>
-        <a href="https://www.odoo.com/page/tour" target="_blank" class="prop-cta-btn">🎬 Tour demo</a>
-      </div>
-      <div style="margin-top:40px;display:flex;gap:20px;font-size:12px;opacity:.5">
-        <a href="https://www.odoo.com/legal" style="color:white">Legal</a>
-        <a href="https://www.odoo.com/security" style="color:white">Seguridad</a>
-        <a href="https://www.odoo.com/privacy" style="color:white">Privacidad</a>
-      </div>
-    </div>
-
-    <!-- ÚLTIMA: Portada final -->
-    <div class="prop-page prop-page-purple" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px">
-      <img src="${ASSETS}/logos/odoo_logo_white.svg" style="height:48px;opacity:.9" onerror="">
-    </div>`;
-}
 
 // ══════════════════════════════════════════
 // FRAMEWORK VISUAL MODULE
@@ -4843,28 +4502,57 @@ window.empOpenDetail=async function(id){
   const docsEl=document.getElementById('empDetailDocs');
   if(db){
     try{
-      const [disc,broch,csv]=await Promise.all([
-        getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',id),orderBy('createdAt','desc'))).catch(()=>({empty:true,docs:[]})),
-        getDocs(query(collection(db,'brochureApprovals'),where('companyId','==',id),orderBy('createdAt','desc'))).catch(()=>({empty:true,docs:[]})),
-        getDocs(query(collection(db,'csvSessions'),where('companyId','==',id))).catch(()=>({empty:true,docs:[]})),
+      // IMPORTANTE: sin orderBy() para evitar requerir índice compuesto — se ordena en cliente
+      const byDate=(a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0);
+      const [discR,brochR,csvR,priceR,freshCo]=await Promise.all([
+        getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',id))).catch(e=>{console.warn('disc:',e);return{docs:[]};}),
+        getDocs(query(collection(db,'brochureApprovals'),where('companyId','==',id))).catch(e=>{console.warn('broch:',e);return{docs:[]};}),
+        getDocs(query(collection(db,'csvSessions'),where('companyId','==',id))).catch(e=>{console.warn('csv:',e);return{docs:[]};}),
+        getDocs(query(collection(db,'pricingRecords'),where('companyId','==',id))).catch(e=>{console.warn('price:',e);return{docs:[]};}),
+        getDoc(doc(db,'companies',id)).catch(()=>null),
       ]);
+      const disc=[...discR.docs].sort(byDate), broch=[...brochR.docs].sort(byDate), csv=[...csvR.docs].sort(byDate), price=[...priceR.docs].sort(byDate);
+      const savedContent=(freshCo?.exists?.()?freshCo.data().memory?.contenidos?.saved:null)||co.memory?.contenidos?.saved||[];
       const sections=[];
       const fmtDate=ts=>ts?.toDate?.()?ts.toDate().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'—';
-      const docRow=(label,sub,date,onClick,onDel)=>`<div style="padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--purple-light)'" onmouseout="this.style.background='var(--gray-50)'" onclick="${onClick}">
-        <div><div style="font-size:13px;font-weight:600">${label}</div><div style="font-size:11px;color:var(--gray-500)">${sub}</div></div>
-        <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--gray-400)">${date}</span>${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();${onDel}">🗑</button>`:''}</div>
+      const fmtISO=s=>{try{return new Date(s).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})}catch(e){return''}};
+      const fmtMXN=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0}):'—';
+      const docRow=(label,sub,date,onClick,onDel)=>`<div style="padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;${onClick?'cursor:pointer;':''}transition:background .15s" ${onClick?`onmouseover="this.style.background='var(--purple-light)'" onmouseout="this.style.background='var(--gray-50)'" onclick="${onClick}"`:''}>
+        <div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:600">${label}</div><div style="font-size:11px;color:var(--gray-500)">${sub}</div></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span style="font-size:11px;color:var(--gray-400)">${date}</span>${onDel&&currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();${onDel}">🗑</button>`:''}</div>
       </div>`;
-      if(!disc.empty) sections.push(`<div style="margin-bottom:16px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:8px">🔍 Discovery (${disc.size})</div>
-        ${disc.docs.map(d=>{const r=d.data();return docRow(r.empresa||'Sin nombre',`${r.aeName||''} · ${r.industriaNombre||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();openDiscoveryForm('${d.id}')`,`deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
-      if(!broch.empty) sections.push(`<div style="margin-bottom:16px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:8px">📄 Brochures (${broch.size})</div>
-        ${broch.docs.map(d=>{const r=d.data();return docRow(r.empresa||'Sin nombre',`${r.aeName||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),``,`deleteRecord('brochureApprovals','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
-      if(!csv.empty) sections.push(`<div style="margin-bottom:16px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:8px">📋 CSV Sessions (${csv.size})</div>
-        ${csv.docs.map(d=>{const r=d.data();return docRow(`${r.fuente||'Sin fuente'} — ${r.rowCount||0} prospectos`,r.aeName||'',fmtDate(r.createdAt),``,`deleteRecord('csvSessions','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+      const secHead=(t)=>`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:8px">${t}</div>`;
+
+      if(disc.length) sections.push(`<div style="margin-bottom:16px">${secHead(`🔍 Discovery (${disc.length})`)}
+        ${disc.map(d=>{const r=d.data();return docRow(r.empresa||co.nombre,`${r.aeName||''} · ${r.industriaNombre||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();openDiscoveryForm('${d.id}')`,`deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+
+      if(price.length) sections.push(`<div style="margin-bottom:16px">${secHead(`💰 Pricing (${price.length})`)}
+        ${price.map(d=>{const r=d.data();return docRow(`${r.edition||'Pricing'} · ${r.users||0} usuarios`,`${fmtMXN(r.total)} · ${r.implHrs||0} hrs impl${r.isSH?' · Odoo SH':''}`,fmtDate(r.createdAt),'',`deleteRecord('pricingRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+
+      if(broch.length) sections.push(`<div style="margin-bottom:16px">${secHead(`📄 Brochures (${broch.length})`)}
+        ${broch.map(d=>{const r=d.data();return docRow(r.empresa||co.nombre,`${r.aeName||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),'',`deleteRecord('brochureApprovals','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+
+      if(savedContent.length){
+        const chLabel={whatsapp:'💬 WhatsApp',correo:'📧 Correo',linkedin:'👤 LinkedIn',cold_calling:'📞 Cold Calling',brochure:'📄 Brochure'};
+        sections.push(`<div style="margin-bottom:16px">${secHead(`✉️ Contenido guardado (${savedContent.length})`)}
+          ${savedContent.map((s,i)=>`<div style="padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+              <div style="font-size:12px;font-weight:700;color:var(--purple)">${chLabel[s.tipo]||s.tipo||'Mensaje'}${s.momLabel?` · ${s.momLabel.split('—')[0].trim()}`:''}${s.variante?` · V${s.variante}`:''}</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                <span style="font-size:11px;color:var(--gray-400)">${fmtISO(s.date)}</span>
+                <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="navigator.clipboard.writeText(this.closest('div').parentElement.querySelector('.emp-saved-text').dataset.full).then(()=>showNotif('Copiado ✓','success'))">📋</button>
+              </div>
+            </div>
+            <div class="emp-saved-text" data-full="${_esc(s.texto||'')}" style="font-size:12.5px;color:var(--gray-700);line-height:1.6;white-space:pre-wrap;max-height:64px;overflow:hidden;cursor:pointer" onclick="this.style.maxHeight=this.style.maxHeight==='none'?'64px':'none'">${_esc(s.texto||'')}</div>
+            ${s.contacto?`<div style="font-size:11px;color:var(--gray-400);margin-top:4px">Para: ${s.contacto} · ${s.aeName||''}</div>`:''}
+          </div>`).join('')}</div>`);
+      }
+
+      if(csv.length) sections.push(`<div style="margin-bottom:16px">${secHead(`📋 CSV Sessions (${csv.length})`)}
+        ${csv.map(d=>{const r=d.data();return docRow(`${r.fuente||'Sin fuente'} — ${r.rowCount||0} prospectos`,r.aeName||'',fmtDate(r.createdAt),'',`deleteRecord('csvSessions','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+
       docsEl.innerHTML=sections.length?sections.join(''):'<div class="cdc-empty">Sin documentos vinculados aún</div>';
-    } catch(e){ docsEl.innerHTML='<div class="cdc-empty">Error al cargar documentos</div>'; }
+    } catch(e){ console.error('empOpenDetail docs:',e); docsEl.innerHTML='<div class="cdc-empty">Error al cargar documentos: '+e.message+'</div>'; }
   }
 };
 
@@ -5115,9 +4803,13 @@ window.pricingSaveModsAndPDF=async function(){
 
 window.pricingGeneratePDF=function(){
   const ps=pricingState;
+  // Fallback de empresa: pricingState → propuesta module → picker activo
+  if(!ps.company){ ps.company=_propState?.company||cpState.selectedCompany||null; ps.contact=ps.contact||_propState?.contact||cpState.selectedContact||null; }
   const r=ps.result||{};
   const co=ps.company;
   const ct=ps.contact||null;
+  if(!co){ showNotif('Selecciona una empresa antes de generar la propuesta','error'); return; }
+  if(!ps.result){ showNotif('Configura un pricing antes de generar la propuesta','error'); return; }
   const fmtN=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0}):'—';
   const fmt2=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
   const today=new Date().toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
@@ -5221,12 +4913,12 @@ window.pricingGeneratePDF=function(){
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Inter',sans-serif;color:#21272B;background:white;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-/* A4 pages */
-.page{width:210mm;min-height:297mm;padding:0;page-break-after:always;position:relative;overflow:hidden;}
-.page:last-child{page-break-after:auto;}
-.page-inner{padding:14mm 18mm 18mm;height:100%;min-height:297mm;display:flex;flex-direction:column;}
+/* A4 pages — altura EXACTA para evitar páginas en blanco al imprimir */
+.page{width:210mm;height:296mm;padding:0;position:relative;overflow:hidden;page-break-after:always;break-after:page;}
+.page:last-child{page-break-after:auto;break-after:auto;}
+.page-inner{padding:14mm 18mm 16mm;height:296mm;display:flex;flex-direction:column;overflow:hidden;}
 /* Cover page */
-.cover{background:#714B67;color:white;min-height:297mm;display:flex;flex-direction:column;justify-content:space-between;padding:14mm 18mm;}
+.cover{background:#714B67;color:white;height:296mm;display:flex;flex-direction:column;justify-content:space-between;padding:14mm 18mm;overflow:hidden;}
 .cover-headline{font-family:'Inter',sans-serif;font-size:52px;font-weight:700;line-height:1.05;letter-spacing:-1.5px;color:white;margin-bottom:8px;}
 .cover-headline span{color:#FC787D;}
 .cover-sub{font-family:'Caveat',cursive;font-size:28px;color:rgba(255,255,255,.65);margin-bottom:40px;}
@@ -5292,7 +4984,9 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 .closing{background:linear-gradient(135deg,#714B67 0%,#4a2d42 100%);min-height:297mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18mm;}
 @media print{
   @page{size:A4;margin:0;}
-  .page{page-break-inside:avoid;}
+  html,body{width:210mm;}
+  .page{page-break-inside:avoid;break-inside:avoid;height:296mm;}
+  .page:last-child{page-break-after:avoid;}
 }
 </style></head><body>
 
