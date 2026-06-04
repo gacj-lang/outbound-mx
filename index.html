@@ -4993,29 +4993,19 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 <!-- PÁGINA 1: PORTADA -->
 <div class="page">
 <div class="cover">
-  <!-- Top logo bar -->
-  <div style="display:flex;align-items:center;justify-content:space-between">
-    <div style="display:flex;align-items:center;gap:10px">
-      <div style="background:rgba(255,255,255,.2);border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;color:white;letter-spacing:.5px">odoo</div>
-      <div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:1.5px;text-transform:uppercase;font-family:'Inter',monospace">México</div>
-    </div>
-    <div style="font-size:9.5px;color:rgba(255,255,255,.4);font-family:'Inter',monospace">${folio} · ${today}</div>
+  <!-- Logo oficial centrado arriba -->
+  <div style="text-align:center">
+    <img src="${ASSETS}/logos/odoo_logo_white.svg" crossorigin="anonymous" style="height:42px;object-fit:contain" onerror="this.outerHTML='<div style=&quot;display:inline-block;background:rgba(255,255,255,.2);border-radius:8px;padding:8px 18px;font-size:22px;font-weight:700;color:white;letter-spacing:.5px&quot;>odoo</div>'">
+    <div style="font-size:9.5px;color:rgba(255,255,255,.4);letter-spacing:1.5px;margin-top:10px;font-family:'Inter',monospace">${folio} · ${today}</div>
   </div>
 
-  <!-- Hero headline -->
-  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:20mm 0 10mm">
-    <div style="font-family:'Inter',sans-serif;font-size:58px;font-weight:700;line-height:1.0;letter-spacing:-2px;color:white;margin-bottom:10px">
-      Todo tu <span style="color:#FC787D;">negocio</span><br>en una<br>sola plataforma.
-    </div>
-    <div style="font-family:'Caveat',cursive;font-size:30px;color:rgba(255,255,255,.6);margin-top:8px">Propuesta para:</div>
-  </div>
-
-  <!-- Client info box -->
-  <div>
+  <!-- Centro: Propuesta para + caja de cliente -->
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+    <div style="font-family:'Caveat',cursive;font-size:34px;color:rgba(255,255,255,.6);margin-bottom:14px">Propuesta para:</div>
     <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">
-      <div style="background:rgba(255,255,255,.12);border-radius:12px;padding:20px 24px;flex:1;border:1px solid rgba(255,255,255,.2)">
+      <div style="background:rgba(255,255,255,.12);border-radius:12px;padding:22px 26px;flex:1;border:1px solid rgba(255,255,255,.2)">
         <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Preparada para</div>
-        <div style="font-size:26px;font-weight:700;color:white;letter-spacing:-.5px">${co?.nombre||'[Empresa]'}</div>
+        <div style="font-size:28px;font-weight:700;color:white;letter-spacing:-.5px">${co?.nombre||'[Empresa]'}</div>
         ${ct?`<div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:4px">${ct.nombre}${ct.cargo?` · ${ct.cargo}`:''}</div>`:''}
         <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:8px">Vigencia de esta propuesta: 30 días · hasta ${validity}</div>
       </div>
@@ -5027,6 +5017,11 @@ tr.sel-row td{color:#015c61;font-weight:700;}
         ${aePhone?`<div style="font-size:11px;color:rgba(255,255,255,.4)">${aePhone}</div>`:''}
       </div>
     </div>
+  </div>
+
+  <!-- Tagline blanco, pequeño, centrado, hasta abajo -->
+  <div style="text-align:center;color:white;font-size:20px;font-weight:600;letter-spacing:-.3px;opacity:.95">
+    Todo tu negocio en una sola plataforma.
   </div>
 </div>
 </div>
