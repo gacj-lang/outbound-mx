@@ -4,7 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Odoo Pricing</title>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+@font-face {
+  font-family: 'Inter';
+  src: url('https://gacj-lang.github.io/outbound-mx/assets/fonts/Inter-Variable.ttf') format('truetype');
+  font-weight: 100 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('https://gacj-lang.github.io/outbound-mx/assets/fonts/Inter-Italic-Variable.ttf') format('truetype');
+  font-weight: 100 900; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Caveat';
+  src: url('https://gacj-lang.github.io/outbound-mx/assets/fonts/Caveat-Variable.ttf') format('truetype');
+  font-weight: 400 700; font-style: normal; font-display: swap;
+}
+</style>
 <style>
   :root {
     /* Odoo palette */
@@ -26,13 +45,13 @@
     --green-light: #e6f7ea;
     --ink: #2c2b30;
     --muted: #8c8a94;
-    --mono: 'IBM Plex Mono', monospace;
+    --mono: 'Inter', monospace;
     --headline: 'Caveat', cursive;
-    --numeric:  'DM Sans', sans-serif;
-    --body: 'Nunito', sans-serif;
+    --numeric:  'Inter', sans-serif;
+    --body: 'Inter', sans-serif;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--ink); font-family:var(--body); min-height:100vh; overflow-x:hidden; }
+  body { background:var(--bg); color:var(--ink); font-family:'Inter', sans-serif; min-height:100vh; overflow-x:hidden; }
 
   /* subtle dot grid */
   body::before {
@@ -121,13 +140,13 @@
   /* EDITION TABS */
   .section-label { font-size:14px; color:var(--muted); font-weight:400; margin-bottom:10px; }
   .edition-tabs { display:flex; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:5px; gap:4px; margin-bottom:12px; width:fit-content; box-shadow:0 2px 8px rgba(0,0,0,.06); }
-  .etab { padding:9px 22px; border-radius:10px; border:none; background:transparent; color:var(--muted); font-family:var(--body); font-size:13px; font-weight:700; cursor:pointer; transition:all .2s; }
+  .etab { padding:9px 22px; border-radius:10px; border:none; background:transparent; color:var(--muted); font-family:'Inter', sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:all .2s; }
   .etab:hover { color:var(--ink); background:var(--bg); }
   .etab.active { background:var(--teal); color:#fff; box-shadow:0 4px 14px rgba(0,160,157,.3); }
 
   /* SELECTOR */
   .plan-tabs { display:flex; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:5px; gap:4px; margin-bottom:32px; width:fit-content; box-shadow:0 2px 8px rgba(0,0,0,.06); }
-  .ptab { padding:9px 20px; border-radius:10px; border:none; background:transparent; color:var(--muted); font-family:var(--body); font-size:13px; font-weight:700; cursor:pointer; transition:all .2s; }
+  .ptab { padding:9px 20px; border-radius:10px; border:none; background:transparent; color:var(--muted); font-family:'Inter', sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:all .2s; }
   .ptab:hover { color:var(--ink); background:var(--bg); }
   .ptab.active { background:var(--purple); color:#fff; box-shadow:0 4px 14px rgba(113,75,103,.35); }
   .ptab.star { position:relative; }
@@ -191,7 +210,7 @@
     font-family:var(--mono); line-height:1; flex-shrink:0; cursor:help; }
   .tip-icon.dark { background:var(--border); color:var(--muted); }
   .tip-box { visibility:hidden; opacity:0; position:absolute; bottom:calc(100% + 8px); left:50%;
-    transform:translateX(-50%); background:#1e1c24; color:#f0ede8; font-family:var(--body);
+    transform:translateX(-50%); background:#1e1c24; color:#f0ede8; font-family:'Inter', sans-serif;
     font-size:12px; font-weight:400; line-height:1.5; white-space:normal; width:220px;
     padding:10px 14px; border-radius:10px; box-shadow:0 8px 28px rgba(0,0,0,.22);
     pointer-events:none; transition:opacity .18s, visibility .18s; z-index:999; }
@@ -224,7 +243,7 @@
     border:1.5px solid var(--border);
     border-radius:14px;
     padding:13px 52px 13px 18px;
-    font-family:var(--body); font-size:14px; font-weight:600; color:var(--ink);
+    font-family:'Inter', sans-serif; font-size:14px; font-weight:600; color:var(--ink);
     cursor:pointer; outline:none;
     transition:border-color .25s, box-shadow .25s, background .25s;
     box-shadow: 0 1px 4px rgba(0,0,0,.05);
@@ -314,7 +333,7 @@
   .inp-textarea {
     width:100%; box-sizing:border-box;
     border:1.5px solid var(--border); border-radius:10px;
-    padding:10px 12px; font-family:var(--body); font-size:12px;
+    padding:10px 12px; font-family:'Inter', sans-serif; font-size:12px;
     color:var(--ink); background:var(--bg); resize:none; outline:none;
     line-height:1.55; transition:border-color .2s;
   }
@@ -348,7 +367,7 @@
   /* Mensaje contextual en panel total */
   .ctx-msg {
     margin-top:14px; padding:12px 14px; border-radius:12px;
-    font-size:12px; line-height:1.55; font-family:var(--body);
+    font-size:12px; line-height:1.55; font-family:'Inter', sans-serif;
     display:none;
   }
   .ctx-msg.warning { background:#fff7ed; color:#92400e; border:1px solid #fed7aa; display:block; }
@@ -533,11 +552,11 @@
   .grand-total { font-family:var(--numeric); font-size:56px; font-weight:700; color:#fff; line-height:1; }
   .grand-sub { font-size:11px; color:rgba(255,255,255,.5); margin-top:6px; margin-bottom:auto; }
   .cta { margin-top:24px; background:#fff; border:none; color:var(--purple); padding:16px; border-radius:12px;
-    font-family:var(--body); font-size:14px; font-weight:800; cursor:pointer; width:100%; letter-spacing:0.5px;
+    font-family:'Inter', sans-serif; font-size:14px; font-weight:800; cursor:pointer; width:100%; letter-spacing:0.5px;
     transition:opacity .2s, transform .2s; }
   .cta:hover { opacity:.92; transform:translateY(-1px); }
   .cta-pdf { margin-top:10px; background:transparent; border:1.5px solid rgba(255,255,255,.3); color:rgba(255,255,255,.8);
-    padding:12px 16px; border-radius:12px; font-family:var(--body); font-size:13px; font-weight:700;
+    padding:12px 16px; border-radius:12px; font-family:'Inter', sans-serif; font-size:13px; font-weight:700;
     cursor:pointer; width:100%; letter-spacing:0.5px; transition:all .2s; display:flex; align-items:center;
     justify-content:center; gap:8px; }
   .cta-pdf:hover { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.6); color:#fff; }
@@ -688,7 +707,7 @@
   }
   .pdf-header-title span { color:#714B67; }
   .pdf-header-meta {
-    text-align:right; font-family:'IBM Plex Mono',monospace;
+    text-align:right; font-family:'Inter',monospace;
     font-size:10px; color:#8c8a94; line-height:1.8;
   }
   .pdf-header-meta strong { color:#2c2b30; }
@@ -770,7 +789,7 @@
     border:1.5px solid rgba(255,255,255,.2);
     border-radius:10px;
     padding:9px 32px 9px 12px;
-    font-family:var(--body); font-size:12px; font-weight:600;
+    font-family:'Inter', sans-serif; font-size:12px; font-weight:600;
     color:#fff; cursor:pointer; outline:none;
     transition:border-color .2s;
   }
@@ -882,7 +901,7 @@
   .tptab {
     padding:7px 12px; border-radius:8px; border:1.5px solid rgba(255,255,255,.25);
     background:rgba(255,255,255,.1); color:rgba(255,255,255,.7);
-    font-family:var(--body); font-size:12px; font-weight:700; cursor:pointer;
+    font-family:'Inter', sans-serif; font-size:12px; font-weight:700; cursor:pointer;
     transition:all .2s; position:relative;
   }
   .tptab:hover { background:rgba(255,255,255,.2); color:#fff; border-color:rgba(255,255,255,.4); }
@@ -991,16 +1010,16 @@
 <div id="outbound-bar" style="position:sticky;top:0;z-index:9999;background:linear-gradient(135deg,#714B67,#5a3854);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(113,75,103,.3);">
   <div style="display:flex;align-items:center;gap:10px">
     <img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo_white.svg" style="height:24px" onerror="this.style.display='none'">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(255,255,255,.7);letter-spacing:1.5px;text-transform:uppercase">Outbound México · Pricing</span>
+    <span style="font-family:'Inter',monospace;font-size:11px;color:rgba(255,255,255,.7);letter-spacing:1.5px;text-transform:uppercase">Outbound México · Pricing</span>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
-    <button onclick="window.parent?.showImplPopup?.()" style="background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.4);padding:8px 16px;border-radius:10px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'" title="Ver metodología de implementación">
+    <button onclick="window.parent?.showImplPopup?.()" style="background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.4);padding:8px 16px;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'" title="Ver metodología de implementación">
       🏗 Implementación
     </button>
-    <button onclick="window.parent?.pricingShowModuleSelector?.()" style="background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.4);padding:8px 16px;border-radius:10px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'" title="Seleccionar módulos de implementación">
+    <button onclick="window.parent?.pricingShowModuleSelector?.()" style="background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.4);padding:8px 16px;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'" title="Seleccionar módulos de implementación">
       📱 Módulos
     </button>
-    <button onclick="sendToOutbound()" style="background:#fff;color:#714B67;border:none;padding:9px 20px;border-radius:10px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.15);transition:opacity .2s" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+    <button onclick="sendToOutbound()" style="background:#fff;color:#714B67;border:none;padding:9px 20px;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.15);transition:opacity .2s" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
       📄 Generar Propuesta PDF
     </button>
   </div>
@@ -1010,8 +1029,8 @@
   <div class="pdf-header" id="pdf-header">
     <div>
       <div class="pdf-header-title">Propuesta Comercial <span>Odoo</span></div>
-      <div id="pdf-client-name" style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;color:#2c2b30;margin-top:6px;display:none;"></div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#714B67;font-weight:700;margin-top:4px;" id="pdf-meta-sub"></div>
+      <div id="pdf-client-name" style="font-family:'Inter',monospace;font-size:14px;font-weight:700;color:#2c2b30;margin-top:6px;display:none;"></div>
+      <div style="font-family:'Inter',monospace;font-size:12px;color:#714B67;font-weight:700;margin-top:4px;" id="pdf-meta-sub"></div>
     </div>
     <div class="pdf-header-meta" id="pdf-meta-right"></div>
   </div>
@@ -2630,7 +2649,7 @@
     const yLabels = [0, 0.25, 0.5, 0.75, 1].map(f => {
       const v = maxVal * f;
       const y = yS(v);
-      return `<text x="${pad.l - 6}" y="${y+4}" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="9" fill="#8c8a94">${v > 999 ? '$'+(v/1000).toFixed(0)+'k' : '$'+v}</text>
+      return `<text x="${pad.l - 6}" y="${y+4}" text-anchor="end" font-family="Inter,monospace" font-size="9" fill="#8c8a94">${v > 999 ? '$'+(v/1000).toFixed(0)+'k' : '$'+v}</text>
               <line x1="${pad.l}" y1="${y}" x2="${pad.l+cW}" y2="${y}" stroke="#e4e1d9" stroke-width="1"/>`;
     }).join('');
 
@@ -2638,7 +2657,7 @@
     const xLabels = [0, 0.25, 0.5, 0.75, 1].map(f => {
       const m = Math.round(f * totalMonths);
       const x = xS(m);
-      return `<text x="${x}" y="${H - pad.b + 14}" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9" fill="#8c8a94">m${m}</text>`;
+      return `<text x="${x}" y="${H - pad.b + 14}" text-anchor="middle" font-family="Inter,monospace" font-size="9" fill="#8c8a94">m${m}</text>`;
     }).join('');
 
     svg.innerHTML = `
@@ -3081,7 +3100,7 @@
       toast.id = 'auto-switch-toast';
       toast.style.cssText = [
         'position:fixed','bottom:28px','left:50%','transform:translateX(-50%)',
-        'color:#fff','font-family:IBM Plex Mono,monospace',
+        'color:#fff','font-family:Inter,monospace',
         'font-size:12px','font-weight:600','letter-spacing:.3px',
         'padding:10px 22px','border-radius:12px',
         'z-index:9999','pointer-events:none','transition:opacity .4s','opacity:0'
