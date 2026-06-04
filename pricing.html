@@ -993,9 +993,17 @@
     <img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo_white.svg" style="height:24px" onerror="this.style.display='none'">
     <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(255,255,255,.7);letter-spacing:1.5px;text-transform:uppercase">Outbound México · Pricing</span>
   </div>
-  <button onclick="sendToOutbound()" style="background:#fff;color:#714B67;border:none;padding:9px 20px;border-radius:10px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.15);transition:opacity .2s" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
-    📋 Usar en Propuesta Comercial
-  </button>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button onclick="window.parent?.showImplPopup?.()" style="background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.4);padding:8px 16px;border-radius:10px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'" title="Ver metodología de implementación">
+      🏗 Implementación
+    </button>
+    <button onclick="window.parent?.pricingShowModuleSelector?.()" style="background:rgba(255,255,255,.15);color:white;border:1.5px solid rgba(255,255,255,.4);padding:8px 16px;border-radius:10px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'" title="Seleccionar módulos de implementación">
+      📱 Módulos
+    </button>
+    <button onclick="sendToOutbound()" style="background:#fff;color:#714B67;border:none;padding:9px 20px;border-radius:10px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.15);transition:opacity .2s" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+      📄 Generar Propuesta PDF
+    </button>
+  </div>
 </div>
 
 <div class="wrap">

@@ -789,6 +789,8 @@ input,select,textarea{font-family:inherit;}
     <div class="form-group"><label>Teléfono (WhatsApp)</label><input type="tel" id="regPhone" class="input" placeholder="+52 55 0000 0000"></div>
     <div class="form-group"><label>Nombre corto para templates</label><input type="text" id="regTemplate" class="input" placeholder="Ej. Ariel, Geo, Ana — el que usarás en propuestas y mensajes">
       <span style="font-size:11px;color:var(--gray-400)">Aparecerá en brochures, propuestas, WA, LinkedIn y correos generados.</span></div>
+    <div class="form-group"><label>Link de Appointment (Calendly u otro)</label><input type="text" id="regAppointmentLink" class="input" placeholder="https://calendly.com/tu-nombre — opcional">
+      <span style="font-size:11px;color:var(--gray-400)">Se incluirá automáticamente en los mensajes generados como CTA de agendado.</span></div>
     <div class="form-group"><label>Contraseña</label><input type="password" id="regPass" class="input" placeholder="Mínimo 6 caracteres"></div>
     <div class="form-group"><label>Confirmar contraseña</label><input type="password" id="regPass2" class="input" placeholder="Repite tu contraseña" onkeydown="if(event.key==='Enter')handleRegister()"></div>
     <button id="regBtn" class="btn btn-primary btn-full" onclick="handleRegister()">Crear cuenta</button>
@@ -831,6 +833,7 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" id="nav-gencontenidos" onclick="showModule('gencontenidos')"><span class="nav-icon">✉️</span> Generación de contenidos</button>
       <button class="nav-item" id="nav-csv" onclick="showModule('csv')"><span class="nav-icon">📋</span> CSV Builder</button>
       <button class="nav-item" id="nav-pricing" onclick="showModule('pricing')"><span class="nav-icon">💰</span> Pricing</button>
+      <button class="nav-item" id="nav-propuesta" onclick="showModule('propuesta')"><span class="nav-icon">📋</span> Propuesta Comercial</button>
       <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')"><span class="nav-icon">📊</span> Analytics</button>
       <div class="nav-section-label" style="margin-top:8px">Recursos</div>
       <button class="nav-item" id="nav-framework" onclick="showModule('framework')"><span class="nav-icon">🎨</span> Framework Visual</button>
@@ -977,8 +980,10 @@ window.handleRegister = async function(){
   setLoading('regBtn',true);
   try {
     const cred=await createUserWithEmailAndPassword(auth,email,pass);
+    const appointmentLink=document.getElementById('regAppointmentLink')?.value.trim()||'';
     const ud={ uid:cred.user.uid, name:resolvedName, email, gram,
       phone:phone||'', nombreTemplate:isManager?'Geovani':nombreTemplate,
+      appointmentLink: appointmentLink||'',
       role:isManager?'manager':'ae', status:isManager?'active':'pending', tlId:null,
       createdAt:serverTimestamp(), approvedAt:isManager?serverTimestamp():null };
     await setDoc(doc(db,'users',cred.user.uid),ud);
@@ -1042,7 +1047,7 @@ function renderTeamList(users){
   const tlForDropdown=[...(mgr?[{...mgr,name:mgr.name+' (Manager)'}]:[]),...tls];
   const tlOpts='<option value="">Sin TL</option>'+tlForDropdown.map(t=>`<option value="${t.uid}">${t.name}</option>`).join('');
   const row=(u)=>`<div class="user-card">
-    <div class="user-card-info"><div class="user-avatar sm">${u.name[0]}</div><div><strong>${u.name}</strong><div class="user-meta">${u.gram}</div></div></div>
+    <div class="user-card-info"><div class="user-avatar sm">${u.name[0]}</div><div><strong>${u.name}</strong><div class="user-meta">${u.gram}${u.appointmentLink?` · 📅`:''}</div></div></div>
     <div class="user-card-actions">
       <select class="role-select" onchange="assignRole('${u.uid}',this.value)">
         <option value="ae" ${u.role==='ae'?'selected':''}>AE</option>
@@ -1051,6 +1056,7 @@ function renderTeamList(users){
       <select class="role-select" onchange="assignTL('${u.uid}',this.value)">
         ${tlOpts.replace(`value="${u.tlId||''}"`,`value="${u.tlId||''}" selected`)}
       </select>
+      <button class="btn btn-ghost btn-sm" onclick="openEditUserPopup('${u.uid}')" title="Editar usuario">✏️</button>
     </div></div>`;
   c.innerHTML=`<div class="team-section"><h4 class="section-label">Team Leaders (${tls.length})</h4>${tls.map(row).join('')}</div>
     <div class="team-section" style="margin-top:24px"><h4 class="section-label">Account Executives (${aes.length})</h4>${aes.map(row).join('')}</div>`;
@@ -1140,7 +1146,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
   mc.classList.remove('topbar-hidden');
   tb.style.display='flex';
   const titles={home:'Inicio',empresas:'Empresas',discovery:'Discovery Guide',gencontenidos:'Generación de contenidos',
-    csv:'CSV Builder',pricing:'Pricing',analytics:'Analytics',
+    csv:'CSV Builder',pricing:'Pricing',propuesta:'Propuesta Comercial',analytics:'Analytics',
     manager:'Panel de Manager',settings:'Configuración',framework:'Framework Visual'};
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
   const content=document.getElementById('moduleContent');
@@ -1148,6 +1154,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
     home:renderHome, empresas:renderEmpresas, discovery:renderDiscoveryList,
     pricing:renderPricing, csv:renderCsvBuilder,
     gencontenidos:renderGenContenidos,
+    propuesta:renderPropuestaComercial,
     analytics:()=>renderComingSoon('Analytics','📊','Fase 7','Métricas de uso por AE, TL y equipo.'),
     manager:renderManagerPanel, settings:renderSettings,
     framework:renderFrameworkVisual,
@@ -1175,7 +1182,7 @@ function renderComingSoon(title,icon,phase,desc){
 function renderManagerPanel(){
   document.getElementById('moduleContent').innerHTML=`
     <div class="manager-wrap">
-      <div class="page-header"><h2>Panel de Manager</h2><p>Aprobaciones de usuarios y asignación de roles.</p></div>
+      <div class="page-header"><h2>Panel de Manager</h2><p>Aprobaciones de usuarios, asignación de roles y edición de perfiles.</p></div>
       <div class="manager-grid">
         <div class="card"><div class="card-header"><h3>⏳ Usuarios pendientes</h3></div><div id="pendingList"><div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div></div></div></div>
         <div class="card"><div class="card-header"><h3>👥 Equipo activo</h3></div><div id="teamList"><div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div></div>
@@ -1183,13 +1190,69 @@ function renderManagerPanel(){
     </div>`;
   loadManagerPanel();
 }
+
+window.openEditUserPopup=async function(uid){
+  const snap=await getDoc(doc(db,'users',uid));
+  if(!snap.exists()){ showNotif('Usuario no encontrado','error'); return; }
+  const u=snap.data();
+  const existing=document.getElementById('editUserPopup'); if(existing) existing.remove();
+  const overlay=document.createElement('div');
+  overlay.className='disc-popup-overlay'; overlay.id='editUserPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:520px">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title">✏️ Editar usuario — ${u.name}</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('editUserPopup').remove()">✕</button>
+    </div>
+    <div class="disc-popup-body" style="display:flex;flex-direction:column;gap:12px">
+      <div class="form-grid-2">
+        <div class="form-group"><label>Nombre completo</label><input type="text" id="euName" class="input" value="${u.name||''}"></div>
+        <div class="form-group"><label>Nombre corto (templates)</label><input type="text" id="euTemplate" class="input" value="${u.nombreTemplate||''}"></div>
+        <div class="form-group"><label>Teléfono</label><input type="tel" id="euPhone" class="input" value="${u.phone||''}"></div>
+        <div class="form-group"><label>Link de Appointment</label><input type="text" id="euAppointment" class="input" value="${u.appointmentLink||''}" placeholder="https://calendly.com/…"></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="document.getElementById('editUserPopup').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveEditUser('${uid}')">Guardar cambios</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+};
+
+window.saveEditUser=async function(uid){
+  const name=document.getElementById('euName')?.value.trim();
+  const nombreTemplate=document.getElementById('euTemplate')?.value.trim();
+  const phone=document.getElementById('euPhone')?.value.trim();
+  const appointmentLink=document.getElementById('euAppointment')?.value.trim();
+  try{
+    await updateDoc(doc(db,'users',uid),{name,nombreTemplate,phone,appointmentLink});
+    document.getElementById('editUserPopup')?.remove();
+    showNotif('Usuario actualizado ✓','success');
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+};
 function renderSettings(){
   const saved=(() =>{ try{ const ls=JSON.parse(localStorage.getItem('outbound_firebase_cfg')||'{}'); return Object.keys(ls).length>0?ls:firebaseConfig; }catch(e){ return firebaseConfig; }})();
   const ck=localStorage.getItem('outbound_claude_key')||'';
+  const u=currentUserData||{};
+  const isManager=u.role==='manager';
   document.getElementById('moduleContent').innerHTML=`
     <div class="settings-wrap">
-      <div class="page-header"><h2>⚙️ Configuración</h2><p>Integraciones de la app.</p></div>
+      <div class="page-header"><h2>⚙️ Configuración</h2><p>Ajusta tu perfil e integraciones de la app.</p></div>
       <div class="settings-sections">
+
+        <!-- MIS DATOS -->
+        <div class="card settings-card">
+          <div class="card-header"><h3>👤 Mis datos</h3></div>
+          <p class="settings-desc">Tu información aparecerá en brochures, propuestas, correos y mensajes generados por la IA.</p>
+          <div class="form-grid-2">
+            <div class="form-group"><label>Nombre completo</label><input type="text" id="cfgMyName" class="input" value="${u.name||''}" placeholder="Tu nombre completo"></div>
+            <div class="form-group"><label>Nombre corto (templates)</label><input type="text" id="cfgMyTemplate" class="input" value="${u.nombreTemplate||''}" placeholder="Ej. Ariel, Ana…"></div>
+            <div class="form-group"><label>Teléfono (WhatsApp)</label><input type="tel" id="cfgMyPhone" class="input" value="${u.phone||''}" placeholder="+52 55 0000 0000"></div>
+            <div class="form-group"><label>Link de Appointment</label><input type="text" id="cfgMyAppointment" class="input" value="${u.appointmentLink||''}" placeholder="https://calendly.com/…"></div>
+          </div>
+          <button class="btn btn-primary" onclick="saveMyProfile()">Guardar mis datos</button>
+        </div>
+
         <div class="card settings-card">
           <div class="card-header"><h3>🔥 Firebase</h3><span class="status-dot ${firebaseReady?'dot-green':'dot-red'}"></span></div>
           <p class="settings-desc">Autenticación y base de datos. <a href="https://console.firebase.google.com" target="_blank" class="link">Firebase Console →</a></p>
@@ -1221,6 +1284,20 @@ function renderSettings(){
       </div>
     </div>`;
 }
+window.saveMyProfile=async function(){
+  if(!db||!currentUser) return;
+  const name=document.getElementById('cfgMyName')?.value.trim()||currentUserData?.name||'';
+  const nombreTemplate=document.getElementById('cfgMyTemplate')?.value.trim()||'';
+  const phone=document.getElementById('cfgMyPhone')?.value.trim()||'';
+  const appointmentLink=document.getElementById('cfgMyAppointment')?.value.trim()||'';
+  try{
+    await updateDoc(doc(db,'users',currentUser.uid),{name,nombreTemplate,phone,appointmentLink});
+    currentUserData={...currentUserData,name,nombreTemplate,phone,appointmentLink};
+    renderAppHeader();
+    showNotif('Perfil actualizado ✓','success');
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
 window.saveClaudeKey=function(){
   const k=document.getElementById('claudeApiKey').value.trim();
   if(!k.startsWith('sk-ant')){ showNotif('La key debe empezar con sk-ant','error'); return; }
@@ -1605,6 +1682,11 @@ function buildDiscoveryFormHTML(data){
 
     <!-- SITUACIÓN -->
     <div class="disc-topic-row-1">
+    <div style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-radius:var(--radius);border:1px solid #bae6fd;padding:14px 18px;margin-bottom:12px;font-size:13px;line-height:1.6;color:#0c4a6e">
+      <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px">🗺️ Situación General — Cómo introducirlo</div>
+      <em>"Para poder entender su empresa y ofrecerles la mejor solución, me gustaría que compartiéramos algunos datos generales. No necesito el detalle por ahora — pero sí son datos críticos para mí: ¿cuántas personas trabajan con ustedes, qué sistemas usan hoy y cómo está estructurada la operación?"</em>
+      <div style="margin-top:6px;font-size:12px;color:#0369a1">💡 Mantén un tono ligero y conversacional. El objetivo es crear rapport y escuchar, no interrogar.</div>
+    </div>
     <div class="disc-topic-card" id="dcard-situacion">
       <div class="disc-topic-header"><span class="disc-topic-icon">🏢</span><span class="disc-covered-badge">✓ Cubierto</span></div>
       <div class="disc-topic-name">Situación General</div>
@@ -1633,11 +1715,27 @@ function buildDiscoveryFormHTML(data){
         </div>
       </div>
       <div class="disc-pill-section">
-        <div class="disc-pill-label">Tipo de empresa</div>
+        <div class="disc-pill-label">Tipo de producto</div>
         <div class="disc-quick-pills" id="dpill-tipo-empresa">
-          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa')">Productos físicos</span>
-          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa')">Servicios</span>
-          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa')">Mixta</span>
+          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa');discToggleProdOpts(this.textContent)">Productos físicos</span>
+          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa');discToggleProdOpts(this.textContent)">Mixtos (productos + servicios)</span>
+          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa');discToggleProdOpts('servicios')">Servicios</span>
+        </div>
+      </div>
+      <!-- Sub-opciones para productos físicos / mixtos -->
+      <div id="disc-prod-opts" style="display:none;margin:8px 0 4px;padding:10px 12px;background:var(--accent-light);border-radius:var(--radius-sm)">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:8px">Características del producto</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="perecederos" style="accent-color:var(--accent)"> Perecederos / caducidad</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="lote" style="accent-color:var(--accent)"> Lote / número de serie</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="unidades_paquetes" style="accent-color:var(--accent)"> Venta en unidades y/o paquetes</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="codigo_barras" style="accent-color:var(--accent)"> Usa código de barras</label>
+        </div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:6px">Origen del producto</div>
+        <div class="disc-quick-pills">
+          <span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'origen-prod')">Nacionales</span>
+          <span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'origen-prod')">Importados</span>
+          <span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'origen-prod')">Ambos</span>
         </div>
       </div>
       <button class="disc-mark-btn" onclick="discMarkCovered('dcard-situacion',this)">Marcar como cubierto</button>
@@ -1645,6 +1743,11 @@ function buildDiscoveryFormHTML(data){
     </div>
 
     <!-- FLUJOS -->
+    <div style="background:linear-gradient(135deg,#fffbeb,#fef9c3);border-radius:var(--radius);border:1px solid #fde68a;padding:14px 18px;margin-bottom:12px;font-size:13px;line-height:1.6;color:#78350f">
+      <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px">🔄 Flujos de la empresa — Cómo introducirlo</div>
+      <em>"Ahora me gustaría entender un poco más cómo opera su empresa en el día a día. Para que sea más ordenado, me gustaría dividirlo en tres partes: primero su proceso comercial — cómo consiguen y atienden clientes; luego el operativo — cómo gestionan sus productos o servicios; y finalmente el administrativo — lo financiero, contable y de RRHH. ¿Les parece?"</em>
+      <div style="margin-top:6px;font-size:12px;color:#92400e">💡 Deja que hablen. Tu rol es escuchar y anotar — las preguntas de posicionamiento son para cuando necesites profundizar un área específica.</div>
+    </div>
     <div class="disc-topic-card disc-flujos-card" id="dcard-flujos">
       <div class="disc-flujos-toggle" onclick="discToggleFlujos()">
         <div class="disc-flujos-toggle-left">
@@ -1780,6 +1883,13 @@ function buildDiscoveryFormHTML(data){
 
     <!-- DOLOR · BUDGET · TIMELINE -->
     <div class="disc-topic-row-3">
+
+    <!-- DOLOR guidance -->
+    <div style="grid-column:1/-1;background:linear-gradient(135deg,#fdf2f8,#fce7f3);border-radius:var(--radius);border:1px solid #fbcfe8;padding:14px 18px;margin-bottom:12px;font-size:13px;line-height:1.6;color:#831843">
+      <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px">🎯 Dolor · Presupuesto · Timeline — Cómo cerrarlo</div>
+      <em>"Con todo lo que me cuentan, puedo ver que hay áreas donde Odoo podría hacer una diferencia real. Antes de recomendarles algo específico, me ayudaría saber: ¿ya tienen pensado un presupuesto para esto? ¿Y quién estaría involucrado en la decisión final?"</em>
+      <div style="margin-top:6px;font-size:12px;color:#9d174d">💡 Estas tarjetas se llenan de manera orgánica — el dolor emerge de los flujos, el budget y timeline al final cuando ya hay confianza.</div>
+    </div>
 
     <!-- DOLOR -->
     <div class="disc-topic-card" id="dcard-dolor">
@@ -1987,7 +2097,7 @@ function discInitForm(data){
 function discRestorePills(){
   const s=disc.selections;
   // Single pills
-  ['tipo-empresa','budget','modelo-pago','decisor','aprobacion','timeline','fit'].forEach(group=>{
+  ['tipo-empresa','origen-prod','budget','modelo-pago','decisor','aprobacion','timeline','fit'].forEach(group=>{
     if(!s[group]) return;
     document.querySelectorAll('.disc-quick-pills .disc-qpill').forEach(p=>{
       if(p.getAttribute('onclick')?.includes("'"+group+"'")&&p.textContent.trim()===s[group]){
@@ -2083,6 +2193,11 @@ window.discSaveEmpresa=function(){
   const nb=document.getElementById('discEmpresaBadge');
   const nom=disc.selections['emp-nombre']||'';
   if(nb){ nb.textContent='📄 '+nom; nb.style.display=nom?'inline-block':'none'; }
+};
+window.discToggleProdOpts=function(tipo){
+  const el=document.getElementById('disc-prod-opts');
+  if(!el) return;
+  el.style.display=(tipo==='servicios')?'none':'block';
 };
 window.discPillSingle=function(el,group){
   el.closest('.disc-quick-pills').querySelectorAll('.disc-qpill').forEach(p=>{ p.className='disc-qpill'; });
@@ -2467,6 +2582,8 @@ window.discSaveRecord=async function(){
           empleados:s['emp-empleados']||'',
           facturacion:s['emp-facturacion']||'',
           tipoEmpresa:s['tipo-empresa']||'',
+          origenProducto:s['origen-prod']||'',
+          caracProducto:[...document.querySelectorAll('input[name="discProdOpt"]:checked')].map(i=>i.value),
           vision:Array.isArray(s.vision)?s.vision:[s.vision].filter(Boolean),
           nota:geminiNote||'',
         },
@@ -2659,7 +2776,10 @@ async function updateCompanyMemory(companyId, type, data){
     if(cpState.selectedCompany?.id===companyId) cpState.selectedCompany.memory=updated;
     if(cont.company?.id===companyId) cont.company.memory=updated;
     if(pricingState.company?.id===companyId) pricingState.company.memory=updated;
-  } catch(e){ console.warn('updateCompanyMemory:',e); }
+  } catch(e){
+    console.warn('updateCompanyMemory error:',e.code||e.message,e);
+    if(e.code==='permission-denied') console.error('🔒 Firestore rules blocking company memory write — check Firestore rules in Firebase console');
+  }
 }
 
 function buildMemoryContext(company){
@@ -3009,14 +3129,14 @@ function renderGenContenidos(){
   content.innerHTML=`
     <div class="gc-layout">
       <nav class="gc-submenu">
-        <div class="gc-submenu-title">Submódulos</div>
+        <div class="gc-submenu-title">Tipo de contenido</div>
         ${[
-          {id:'brochure',    icon:'📄', label:'Brochure'},
-          {id:'templates-wa',icon:'💬', label:'Templates WA'},
-          {id:'templates-co',icon:'📧', label:'Templates de correo'},
-          {id:'pub-linkedin',icon:'💼', label:'Publicación LinkedIn'},
-          {id:'msg-linkedin',icon:'👤', label:'Mensaje LinkedIn'},
-          {id:'propuesta',   icon:'📋', label:'Propuesta comercial'},
+          {id:'pub-linkedin', icon:'💼', label:'Publicación LinkedIn'},
+          {id:'brochure',     icon:'📄', label:'Brochure'},
+          {id:'templates-co', icon:'📧', label:'Template de correo'},
+          {id:'templates-wa', icon:'💬', label:'Template WhatsApp'},
+          {id:'msg-linkedin', icon:'👤', label:'Mensaje LinkedIn'},
+          {id:'cold-calling', icon:'📞', label:'Apertura Cold Calling'},
         ].map(s=>`
           <button class="gc-submenu-item ${cont.activeSection===s.id?'active':''}"
             id="gcsub-${s.id}" onclick="gcShowSection('${s.id}')">
@@ -3038,7 +3158,8 @@ window.gcShowSection=function(section){
   const map={
     'brochure':renderGcBrochure,'templates-wa':renderGcTemplatesWA,
     'templates-co':renderGcTemplatesCorreo,'pub-linkedin':renderGcPublicacionLinkedIn,
-    'msg-linkedin':renderGcMensajeLinkedIn,'propuesta':renderGcPropuesta,
+    'msg-linkedin':renderGcMensajeLinkedIn,'cold-calling':renderGcColdCalling,
+    'propuesta':renderGcPropuesta,
   };
   const fn=map[section]; if(fn){ c.innerHTML=''; fn(); }
 };
@@ -3110,8 +3231,9 @@ function gcCompanyContext(overrideCompany=null){
   const indKey=Object.keys(INDUSTRY_MAP).find(k=>k.toLowerCase()===(c.giro||'').toLowerCase());
   const odooInd=indKey?ODOO_INDUSTRIES[indKey]||'':'';
   const memCtx=buildMemoryContext(c);
+  const aeAppt=currentUserData?.appointmentLink||'';
   return `EMPRESA: ${c.nombre} | Giro: ${c.giro||'nd'} | Tamaño: ${c.tamaño||'nd'} | Origen: ${c.origen||'nd'}${c.website?` | Web: ${c.website}`:''}${c.linkedin?` | LinkedIn empresa: ${c.linkedin}`:''}
-CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.correo||ct.email||'nd'}${ct.linkedin?` | LinkedIn: ${ct.linkedin}`:''}`: 'Sin contacto seleccionado'}${odooInd?`\nCONTEXTO INDUSTRIA (${c.giro}): ${odooInd}`:''}${memCtx}`;
+CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.correo||ct.email||'nd'}${ct.linkedin?` | LinkedIn: ${ct.linkedin}`:''}`: 'Sin contacto seleccionado'}${aeAppt?`\nLINK DE AGENDADO DEL AE: ${aeAppt}`:''}${odooInd?`\nCONTEXTO INDUSTRIA (${c.giro}): ${odooInd}`:''}${memCtx}`;
 }
 
 async function gcCallClaude(prompt, fileAttachment=null){
@@ -3185,14 +3307,20 @@ function renderGcTemplatesWA(){
 
       <div class="gc-form-section">
         <h3>🎯 Contexto adicional</h3>
-        <div class="form-group"><label>¿Qué quieres lograr con este mensaje?</label>
+        <div class="form-group"><label>Momento del toque</label>
           <select class="gc-select" id="gcWaObjetivo">
-            <option value="primer_contacto">Primer contacto / romper el hielo</option>
-            <option value="seguimiento">Seguimiento después de primera reunión</option>
-            <option value="reactivar">Reactivar prospecto frío</option>
-            <option value="compartir_info">Compartir información / brochure</option>
-            <option value="agendar">Agendar demo o reunión</option>
+            <option value="primer_toque">1er toque — Cold (primer contacto)</option>
+            <option value="segundo_toque">2do toque — Seguimiento frío</option>
+            <option value="tercer_toque">3er toque — Reactivación</option>
+            <option value="cuarto_toque">4to toque — Último intento antes de pausa</option>
+            <option value="post_demo">Post-demo — Próximos pasos</option>
+            <option value="compartir_recurso">Compartir brochure / recurso</option>
+            <option value="toque_final">Toque final — Cierre o pausa</option>
+            <option value="evento_especial">Evento especial</option>
           </select>
+        </div>
+        <div id="gcWaEventoLinkWrap" style="display:none">
+          <div class="form-group"><label>Link del evento</label><input type="text" class="input" id="gcWaEventoLink" placeholder="https://..."></div>
         </div>
         <div class="form-group"><label>Contexto adicional (opcional)</label>
           <textarea class="input" id="gcWaContexto" placeholder="Ej. Mencionaron que tienen problemas con su sistema de inventario..." style="min-height:80px;resize:vertical"></textarea>
@@ -3212,23 +3340,36 @@ function renderGcTemplatesWA(){
       <div class="gc-output-wrap" id="gcWaOutput" style="margin-top:20px"></div>
     </div>`;
   gcInitCP('wa');
+  // Show/hide event link
+  setTimeout(()=>{
+    const sel=document.getElementById('gcWaObjetivo');
+    if(sel) sel.addEventListener('change',()=>{
+      const wrap=document.getElementById('gcWaEventoLinkWrap');
+      if(wrap) wrap.style.display=sel.value==='evento_especial'?'block':'none';
+    });
+  },100);
 }
 
 window.gcGenerateWA=async function(){
   if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
-  const obj=document.getElementById('gcWaObjetivo')?.value||'primer_contacto';
+  const obj=document.getElementById('gcWaObjetivo')?.value||'primer_toque';
   const ctx=document.getElementById('gcWaContexto')?.value||'';
+  const eventoLink=document.getElementById('gcWaEventoLink')?.value||'';
   const aeNombre=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'el AE';
+  const apptLink=currentUserData?.appointmentLink||'';
   const btn=document.getElementById('gcWaBtn');
   btn.disabled=true; gcShowLoading('gcWaLoading',true);
   document.getElementById('gcWaOutput').classList.remove('show');
   try{
+    const objLabel={primer_toque:'1er toque — cold',segundo_toque:'2do toque — seguimiento',tercer_toque:'3er toque — reactivación',cuarto_toque:'4to toque — último intento',post_demo:'post-demo próximos pasos',compartir_recurso:'compartir brochure/recurso',toque_final:'toque final — cierre o pausa',evento_especial:'evento especial'}[obj]||obj;
     const text=await gcCallClaude(`Eres un experto en outbound B2B para México. Genera 3 variantes de mensaje de WhatsApp para un Account Executive de Odoo.
 
 ${gcCompanyContext()}
 NOMBRE DEL AE (quien envía el mensaje): ${aeNombre}
-OBJETIVO: ${obj.replace(/_/g,' ')}
+MOMENTO DEL TOQUE: ${objLabel}
 CONTEXTO ADICIONAL: ${ctx||'ninguno'}
+${eventoLink?`LINK DEL EVENTO: ${eventoLink}`:''}
+${apptLink?`LINK DE AGENDADO DEL AE: ${apptLink} — incluye este link como CTA cuando sea apropiado`:''}
 TONO: ${cont.tone} | LONGITUD: ${cont.length}
 
 Reglas:
@@ -3236,14 +3377,14 @@ Reglas:
 - NO menciones el nombre de Claude ni de ninguna IA
 - NO uses emojis en exceso (máx 1-2 por mensaje)
 - Cada variante debe sentirse diferente (ángulo distinto)
-- Para longitud "corto": máx 3 líneas. "equilibrado": 5-8 líneas. "largo": 10-15 líneas
+- Para "corto": máx 3 líneas. "equilibrado": 5-8 líneas. "largo": 10-15 líneas
 - Incluye siempre un CTA claro al final
-- El mensaje debe estar firmado o referenciado con el nombre "${aeNombre}" donde sea natural
+- Firmado con "${aeNombre}" donde sea natural
 - Formato: "VARIANTE 1:\n[texto]\n\nVARIANTE 2:\n[texto]\n\nVARIANTE 3:\n[texto]"`);
     gcShowOutput('gcWaOutput',text,true);
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
-      contenido:{tipo:'whatsapp',topic:msg,objetivo:obj},
-      touchpoint:{type:'whatsapp',summary:`WA generado · ${obj.replace(/_/g,' ')}`}
+      contenido:{tipo:'whatsapp',topic:ctx||objLabel,objetivo:obj,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
+      touchpoint:{type:'whatsapp',summary:`WA ${objLabel} · ${cont.contact?.nombre||cont.company?.nombre||''}`}
     });
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcWaLoading',false);
@@ -3265,14 +3406,16 @@ function renderGcTemplatesCorreo(){
       <div class="gc-form-section">
         <h3>🎯 Configuración</h3>
         <div class="gc-selector-grid">
-          <div class="gc-selector"><label>Objetivo del correo</label>
+          <div class="gc-selector"><label>Momento del toque</label>
             <select class="gc-select" id="gcCoObjetivo">
-              <option value="cold_email">Cold email — primer contacto</option>
-              <option value="follow_up_1">Follow-up 1 (post first email)</option>
-              <option value="follow_up_2">Follow-up 2 (breakup email)</option>
-              <option value="post_demo">Post-demo — próximos pasos</option>
-              <option value="compartir_recursos">Compartir brochure / recursos</option>
-              <option value="propuesta">Enviar propuesta comercial</option>
+              <option value="primer_toque">1er toque — Cold email</option>
+              <option value="segundo_toque">2do toque — Seguimiento frío</option>
+              <option value="tercer_toque">3er toque — Reactivación</option>
+              <option value="cuarto_toque">4to toque — Último intento</option>
+              <option value="post_demo">Post-demo — Próximos pasos</option>
+              <option value="compartir_recurso">Compartir brochure / recurso</option>
+              <option value="toque_final">Toque final — Cierre o pausa</option>
+              <option value="evento_especial">Evento especial</option>
             </select>
           </div>
           <div class="gc-selector"><label>Industria del prospecto</label>
@@ -3598,6 +3741,98 @@ window.gcDownloadImage=async function(){
     showNotif('Error al generar imagen: '+e.message,'error');
   }
   if(btn){ btn.disabled=false; btn.textContent='⬇ Descargar PNG'; }
+};
+
+// ── Cold Calling ──
+function renderGcColdCalling(){
+  const c=document.getElementById('gcContent');
+  c.innerHTML=`
+    <div style="max-width:800px">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📞 Apertura de Cold Calling</h2>
+      <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Genera un guion de apertura para llamada en frío: primeras 60 segundos, hook de industria y manejo de objeciones iniciales.</p>
+
+      <div class="gc-form-section">
+        <h3>🏢 Empresa y contacto</h3>
+        ${gcCompanySection('cc')}
+      </div>
+
+      <div class="gc-form-section">
+        <h3>🎯 Contexto de la llamada</h3>
+        <div class="gc-selector-grid">
+          <div class="gc-selector"><label>Objetivo de la llamada</label>
+            <select class="gc-select" id="gcCcObjetivo">
+              <option value="agendar_demo">Agendar demo / intromeet</option>
+              <option value="calificar">Calificar y entender la operación</option>
+              <option value="referido">Venir referido de alguien</option>
+              <option value="reactivar">Reactivar prospecto previo</option>
+            </select>
+          </div>
+          <div class="gc-selector"><label>Cargo del prospecto</label>
+            <input type="text" class="input" id="gcCcCargo" placeholder="Ej. Director General, Gerente de Operaciones…">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px"><label>Dolor o contexto previo (si aplica)</label>
+          <textarea class="input" id="gcCcContexto" placeholder="Ej. Lo encontré en LinkedIn, mencionó que están buscando sistema, es referido de…" style="min-height:70px;resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <div class="gc-form-section">
+        <h3>✍️ Estilo</h3>
+        <div class="gc-selector">${renderToneSelector(cont.tone)}</div>
+      </div>
+
+      <button class="gc-generate-btn" id="gcCcBtn" onclick="gcGenerateColdCalling()">
+        <span>📞</span> Generar guion de apertura
+      </button>
+      <div class="gc-loading" id="gcCcLoading"><div class="gc-spinner"></div><span>Generando guion...</span></div>
+      <div class="gc-output-wrap" id="gcCcOutput" style="margin-top:20px"></div>
+    </div>`;
+  gcInitCP('cc');
+}
+
+window.gcGenerateColdCalling=async function(){
+  if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
+  const obj=document.getElementById('gcCcObjetivo')?.value||'agendar_demo';
+  const cargo=document.getElementById('gcCcCargo')?.value||'';
+  const ctx=document.getElementById('gcCcContexto')?.value||'';
+  const aeNombre=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'el AE';
+  const apptLink=currentUserData?.appointmentLink||'';
+  const btn=document.getElementById('gcCcBtn');
+  btn.disabled=true; gcShowLoading('gcCcLoading',true);
+  document.getElementById('gcCcOutput').classList.remove('show');
+  try{
+    const text=await gcCallClaude(`Eres un experto en ventas B2B y cold calling para mercados LATAM. Genera un guion completo de apertura de llamada en frío para un Account Executive de Odoo México.
+
+${gcCompanyContext()}
+CARGO DEL PROSPECTO: ${cargo||'Director/Gerente'}
+NOMBRE DEL AE: ${aeNombre}
+OBJETIVO DE LA LLAMADA: ${obj.replace(/_/g,' ')}
+CONTEXTO PREVIO: ${ctx||'ninguno'}
+${apptLink?`LINK PARA AGENDAR: ${apptLink}`:''}
+TONO: ${cont.tone}
+
+Genera el guion con estas secciones:
+1. **APERTURA** (5-10 segundos): Presentación natural, no vendedora
+2. **HOOK DE INDUSTRIA** (15-20 segundos): Una pregunta o dato que detona curiosidad específica para su industria/empresa
+3. **PROPÓSITO CLARO** (15 segundos): Por qué llamas, qué quieres lograr
+4. **MANEJO DE OBJECIONES**: 3 objeciones comunes con respuestas naturales
+   - "No tengo tiempo"
+   - "Ya tenemos sistema"
+   - "Mándame un correo"
+5. **CIERRE**: CTA para agendar${apptLink?` usando el link: ${apptLink}`:''}
+
+Reglas:
+- Español de México, natural y conversacional
+- No sonar a script — sonar a conversación real
+- Cada respuesta a objeción max 2-3 oraciones
+- Formato claro con las secciones marcadas`);
+    gcShowOutput('gcCcOutput',text,false);
+    if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
+      contenido:{tipo:'cold_calling',topic:obj,cargo,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
+      touchpoint:{type:'cold_calling',summary:`Cold calling script · ${cont.contact?.nombre||cont.company?.nombre||''}`}
+    });
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+  btn.disabled=false; gcShowLoading('gcCcLoading',false);
 };
 
 // ── 5. Brochure ──
@@ -4760,7 +4995,7 @@ const PRICING_MODULE_LIST=[
   {key:'gastos',icon:'💳',name:'Gastos',desc:'Reporte y aprobación de gastos'},
 ];
 
-function pricingShowModuleSelector(){
+window.pricingShowModuleSelector=function pricingShowModuleSelector(){
   const existing=document.getElementById('pricingModSel'); if(existing) existing.remove();
   const prev=pricingState.selectedModules||['crm','inventario','contabilidad','facturacion','compras','rrhh'];
   const overlay=document.createElement('div');
@@ -4785,7 +5020,7 @@ function pricingShowModuleSelector(){
           </label>`).join('')}
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button class="btn btn-ghost" onclick="showModule('gencontenidos');setTimeout(()=>gcShowSection('propuesta'),400);document.getElementById('pricingModSel').remove()">Ir a propuesta →</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('pricingModSel').remove();showModule('propuesta')">Ir a Propuesta Comercial →</button>
         <button class="btn btn-primary" onclick="pricingSaveModsAndPDF()">📄 Generar propuesta PDF</button>
       </div>
     </div>
@@ -5068,6 +5303,139 @@ td:first-child{text-align:left;color:#1a1a1a;font-weight:600;}
   w.document.write(html);
   w.document.close();
   setTimeout(()=>w.print(),800);
+};
+
+// ══════════════════════════════════════════
+// PROPUESTA COMERCIAL — Módulo independiente
+// ══════════════════════════════════════════
+function renderPropuestaComercial(){
+  const content=document.getElementById('moduleContent');
+  content.style.padding='28px';
+  // Pre-carry pricing state if available
+  const ps=pricingState;
+  const hasPricing=ps.result||ps.company;
+  content.innerHTML=`
+    <div style="max-width:960px">
+      <div class="page-header">
+        <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📋 Propuesta Comercial</h2>
+        <p style="color:var(--gray-500);font-size:14px">Genera la propuesta ejecutiva en PDF lista para presentar al cliente. Se alimenta del Pricing configurado.</p>
+      </div>
+
+      ${!hasPricing?`
+      <div class="alert-banner alert-warning" style="margin-bottom:20px">
+        ⚠️ No hay un pricing activo. Puedes seleccionar una empresa y buscar el último pricing guardado, o ir a
+        <button onclick="showModule('pricing')" style="background:none;border:none;color:var(--warning);font-weight:700;cursor:pointer;padding:0;text-decoration:underline">Pricing</button> primero.
+      </div>`:''}
+
+      <div class="card" style="padding:24px;margin-bottom:20px">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:16px">🏢 Empresa y contacto</h3>
+        <div id="propCp"></div>
+        <div id="propIndDisplay" style="display:none;margin-top:8px;padding:6px 12px;background:var(--accent-light);border-radius:var(--radius-sm);font-size:13px;color:var(--accent)"></div>
+      </div>
+
+      <div class="card" style="padding:24px;margin-bottom:20px" id="propPricingCard">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h3 style="font-size:15px;font-weight:600">💰 Pricing</h3>
+          <button class="btn btn-ghost btn-sm" onclick="propLoadLastPricing()">🔄 Cargar último pricing</button>
+        </div>
+        <div id="propPricingSummary">
+          ${hasPricing?propBuildPricingSummary(ps):'<div class="cdc-empty" style="padding:16px">Sin pricing cargado — selecciona una empresa y haz clic en "Cargar último pricing", o configura uno en Pricing.</div>'}
+        </div>
+      </div>
+
+      <div class="card" style="padding:24px;margin-bottom:20px">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:16px">📱 Módulos en el alcance</h3>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Módulos que se incluyen en la implementación. Se pre-seleccionan del último pricing.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px" id="propModGrid">
+          ${PRICING_MODULE_LIST.map(m=>{
+            const sel=(ps.selectedModules||['crm','inventario','contabilidad','facturacion','compras','rrhh']).includes(m.key);
+            return `<label style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border:1.5px solid ${sel?'var(--purple)':'var(--gray-200)'};border-radius:8px;cursor:pointer;background:${sel?'var(--purple-light)':'white'}">
+              <input type="checkbox" name="propMod" value="${m.key}" ${sel?'checked':''} style="margin-top:2px;accent-color:var(--purple)"
+                onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--gray-200)';this.closest('label').style.background=this.checked?'var(--purple-light)':'white'">
+              <div><div style="font-size:13px;font-weight:700">${m.icon} ${m.name}</div><div style="font-size:11px;color:var(--gray-500)">${m.desc}</div></div>
+            </label>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="card" style="padding:24px;margin-bottom:24px">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:12px">📝 Notas de implementación</h3>
+        <textarea class="input" id="propImplNotes" placeholder="Notas específicas del alcance de implementación…" style="min-height:80px;resize:vertical">${ps.implNotes||''}</textarea>
+      </div>
+
+      <div style="display:flex;gap:12px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="showModule('pricing')">← Ir a Pricing</button>
+        <button class="btn btn-primary" style="padding:12px 28px;font-size:15px" onclick="propGenerarPDF()">
+          📄 Generar Propuesta PDF
+        </button>
+      </div>
+    </div>`;
+
+  // Mount company picker
+  (async()=>{
+    await mountCompanyPicker('propCp',(company,contact)=>{
+      _propState.company=company; _propState.contact=contact;
+      const el=document.getElementById('propIndDisplay');
+      if(el&&company?.giro){ el.style.display='block'; el.innerHTML=`🏭 ${company.giro}`; }
+    });
+    if(ps.company){ cpState.selectedCompany=ps.company; cpState.selectedContact=ps.contact||null; renderM2o('propCp'); _propState.company=ps.company; _propState.contact=ps.contact||null; }
+  })();
+}
+
+const _propState={company:null,contact:null};
+
+function propBuildPricingSummary(ps){
+  const r=ps.result||{};
+  const fmt=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0}):'—';
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">
+    ${[
+      {l:'Edición',v:r.editionName||ps.edition||'—'},
+      {l:'Usuarios',v:r.users||ps.users||'—'},
+      {l:'Plan',v:(PRICING_DATA?.planLabels||[])[r.planIdx??ps.planIdx??1]||'—'},
+      {l:'Mensual (ref.)',v:ps._mensualRef||fmt(r.mensualRef)||'—'},
+      {l:'Implementación',v:ps._impl||fmt(r.implPrice)||'—'},
+      {l:'Total (sin IVA)',v:fmt(r.total)||'—'},
+    ].map(i=>`<div style="background:var(--gray-50);border-radius:var(--radius-sm);padding:12px">
+      <div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.05em">${i.l}</div>
+      <div style="font-size:16px;font-weight:700;margin-top:2px">${i.v}</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+window.propLoadLastPricing=async function(){
+  const co=_propState.company||cpState.selectedCompany;
+  if(!co){ showNotif('Selecciona una empresa primero','error'); return; }
+  if(!db){ showNotif('Sin conexión a Firebase','error'); return; }
+  try{
+    const q=query(collection(db,'pricingRecords'),where('companyId','==',co.id));
+    const snap=await getDocs(q);
+    if(snap.empty){ showNotif('No se encontró pricing para esta empresa','warning'); return; }
+    const docs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    const last=docs[0];
+    pricingState.result={editionName:last.edition,users:last.users,planIdx:last.planIdx,mensualRef:last.mensualRef,implPrice:last.implPrice,total:last.total};
+    pricingState.users=last.users; pricingState.planIdx=last.planIdx;
+    pricingState._mensualRef=last.mensualRef?'$'+Number(last.mensualRef).toLocaleString('es-MX',{minimumFractionDigits:0}):'';
+    pricingState._impl=last.implPrice?'$'+Number(last.implPrice).toLocaleString('es-MX',{minimumFractionDigits:0}):'';
+    pricingState.company=co;
+    // Load selected modules from company memory
+    const memMods=co.memory?.pricing?.selectedApps||[];
+    if(memMods.length) pricingState.selectedModules=PRICING_MODULE_LIST.filter(m=>memMods.some(n=>n.toLowerCase()===m.name.toLowerCase())).map(m=>m.key);
+    const sumEl=document.getElementById('propPricingSummary');
+    if(sumEl) sumEl.innerHTML=propBuildPricingSummary(pricingState);
+    showNotif('Último pricing cargado ✓','success');
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
+window.propGenerarPDF=function(){
+  // Sync current state before generating
+  const mods=[...document.querySelectorAll('input[name="propMod"]:checked')].map(i=>i.value);
+  pricingState.selectedModules=mods;
+  const notes=document.getElementById('propImplNotes')?.value||'';
+  pricingState.implNotes=notes;
+  if(_propState.company){ pricingState.company=_propState.company; pricingState.contact=_propState.contact||null; }
+  if(!pricingState.company){ showNotif('Selecciona una empresa primero','error'); return; }
+  if(!pricingState.result){ showNotif('Carga un pricing primero','error'); return; }
+  pricingGeneratePDF();
 };
 
 window.renderPricingHome=function renderPricingHome(){
@@ -5548,16 +5916,24 @@ window.csvHandleFile=async function(file){
 window.deleteRecord=async function(collectionName,id,onSuccess){
   if(currentUserData?.role!=='manager'){ showNotif('Solo el manager puede eliminar','error'); return; }
   if(!confirm('¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
+  if(!db){ showNotif('Sin conexión a Firebase','error'); return; }
   try{
     await deleteDoc(doc(db,collectionName,id));
     showNotif('Eliminado ✓','success'); if(onSuccess) onSuccess();
-  } catch(e){ showNotif('Error: '+e.message,'error'); }
+  } catch(e){
+    console.error('deleteRecord error:',e);
+    if(e.code==='permission-denied'||e.message?.includes('permission')){
+      showNotif('Error de permisos — revisa las reglas de Firestore en la consola de Firebase','error');
+    } else {
+      showNotif('Error: '+e.message,'error');
+    }
+  }
 };
 window.deleteCompany=async function(id){
   if(currentUserData?.role!=='manager'){ showNotif('Solo el manager puede eliminar','error'); return; }
   if(!confirm('¿Eliminar empresa y todos sus documentos relacionados?\n\nEsto eliminará Discovery sessions, brochures y CSV vinculados. No se puede deshacer.')) return;
   try{
-    for(const c of ['discoveryRecords','brochureApprovals','csvSessions']){
+    for(const c of ['discoveryRecords','brochureApprovals','csvSessions','pricingRecords']){
       const snap=await getDocs(query(collection(db,c),where('companyId','==',id)));
       for(const d of snap.docs) await deleteDoc(d.ref);
     }
