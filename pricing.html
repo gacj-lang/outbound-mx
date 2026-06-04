@@ -1378,7 +1378,7 @@
             <div id="fx-footer" style="font-size:10px;color:#fff;font-family:var(--mono);margin-top:6px;text-align:right;"></div>
           </div>
         </div>
-        <button class="cta" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
+        <button class="cta" onclick="sendToOutbound()">📄 Generar Propuesta PDF</button>
         </div>
       </div>
     </div>
@@ -3442,7 +3442,7 @@
   renderPrintTable();
 
   // ── DESCARGAR PDF ─────────────────────────────────────────────────────────
-  function downloadPDF() { window.print(); }
+  function downloadPDF() { sendToOutbound(); }
 
   // ── OUTBOUND INTEGRATION ──────────────────────────────────────────────────
   // Listen for company name from parent app
