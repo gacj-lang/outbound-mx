@@ -5058,6 +5058,7 @@ window.pricingGeneratePDF=function(){
   const ps=pricingState;
   const r=ps.result||{};
   const co=ps.company;
+  const ct=ps.contact||null;
   const fmtN=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0}):'—';
   const fmt2=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
   const today=new Date().toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
@@ -5065,6 +5066,7 @@ window.pricingGeneratePDF=function(){
   const folio='OD-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*9000+1000));
   const aeN=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'AE';
   const aeFullN=currentUserData?.name||'Account Executive'; const aeEmail=currentUserData?.email||'';
+  const aePhone=currentUserData?.phone||''; const aeAppt=currentUserData?.appointmentLink||'';
 
   // Plan data
   const PD=PRICING_DATA;
@@ -5156,153 +5158,341 @@ window.pricingGeneratePDF=function(){
     </div>`:'';
 
   const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500;600&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0;} body{font-family:'DM Sans',sans-serif;color:#1a1a1a;background:white;}
-.page{width:210mm;min-height:297mm;padding:18mm 22mm;page-break-after:always;position:relative;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;color:#21272B;background:white;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+/* A4 pages */
+.page{width:210mm;min-height:297mm;padding:0;page-break-after:always;position:relative;overflow:hidden;}
 .page:last-child{page-break-after:auto;}
-.sec{margin-bottom:18px;break-inside:avoid;}
-.sec-ttl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#bbb;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
-.sec-ttl::after{content:'';flex:1;height:1px;background:#efefef;}
-table{border-collapse:collapse;width:100%;}
-th{padding:7px 9px;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#aaa;background:#f7f7f7;text-align:right;border-bottom:1.5px solid #e8e8e8;}
+.page-inner{padding:14mm 18mm 18mm;height:100%;min-height:297mm;display:flex;flex-direction:column;}
+/* Cover page */
+.cover{background:#714B67;color:white;min-height:297mm;display:flex;flex-direction:column;justify-content:space-between;padding:14mm 18mm;}
+.cover-headline{font-family:'DM Sans',sans-serif;font-size:52px;font-weight:700;line-height:1.05;letter-spacing:-1.5px;color:white;margin-bottom:8px;}
+.cover-headline span{color:#FC787D;}
+.cover-sub{font-family:'Caveat',cursive;font-size:28px;color:rgba(255,255,255,.65);margin-bottom:40px;}
+.cover-client-box{background:rgba(255,255,255,.12);border-radius:12px;padding:20px 24px;border:1px solid rgba(255,255,255,.2);}
+/* Section labels */
+.sec-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af;margin-bottom:10px;display:flex;align-items:center;gap:10px;}
+.sec-label::after{content:'';flex:1;height:1px;background:#e5e7eb;}
+.sec-label-dark{color:rgba(255,255,255,.4);}
+.sec-label-dark::after{background:rgba(255,255,255,.15);}
+/* Stats grid */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.stat-box{background:#f5f4f0;border-radius:10px;padding:16px;text-align:center;}
+.stat-num{font-size:26px;font-weight:700;color:#714B67;letter-spacing:-1px;}
+.stat-label{font-size:11px;color:#6b7280;margin-top:3px;}
+/* Benefit items */
+.benefit-item{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid #f3f4f6;}
+.benefit-item:last-child{border-bottom:none;}
+.benefit-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+/* Plan table */
+table{border-collapse:collapse;width:100%;margin-bottom:4px;}
+th{padding:8px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9ca3af;background:#f9fafb;text-align:right;border-bottom:2px solid #e5e7eb;}
 th:first-child{text-align:left;}
-td{padding:8px 9px;border-bottom:1px solid #f4f4f4;font-size:11px;text-align:right;color:#555;}
-td:first-child{text-align:left;color:#1a1a1a;font-weight:600;}
-.footer{position:absolute;bottom:14mm;left:22mm;right:22mm;display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid #efefef;}
-@media print{@page{size:A4;margin:0;}}
+td{padding:9px 10px;border-bottom:1px solid #f3f4f6;font-size:11px;text-align:right;color:#6b7280;}
+td:first-child{text-align:left;color:#21272B;font-weight:600;}
+tr.sel-row{background:#f0fdf4;}
+tr.sel-row td{color:#015c61;font-weight:700;}
+/* Investment summary boxes */
+.inv-grid{display:grid;grid-template-columns:1fr 1fr 1fr;border-radius:10px;overflow:hidden;border:1.5px solid #e5e7eb;}
+.inv-box{padding:14px 16px;}
+.inv-box.highlight{background:#714B67;}
+.inv-box-label{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;margin-bottom:5px;}
+.inv-box.highlight .inv-box-label{color:rgba(255,255,255,.5);}
+.inv-box-val{font-size:20px;font-weight:700;font-family:'DM Mono',monospace;color:#21272B;}
+.inv-box.highlight .inv-box-val{color:white;}
+.inv-box-sub{font-size:9.5px;color:#9ca3af;margin-top:3px;line-height:1.4;}
+.inv-box.highlight .inv-box-sub{color:rgba(255,255,255,.4);}
+/* Pay terms */
+.pay-row{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #f3f4f6;}
+.pay-row:last-child{border-bottom:none;background:#f0fdf4;border-radius:0 0 8px 8px;}
+/* Module cards */
+.mod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.mod-card{border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 11px;background:white;}
+.mod-card.sel{border-color:#714B67;background:#fdf8fc;}
+/* SH box */
+.sh-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;}
+.sh-box{border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;background:#fff7ed;}
+/* Page footer */
+.pg-footer{margin-top:auto;padding-top:10px;border-top:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;}
+.ae-badge{display:flex;align-items:center;gap:8px;}
+.ae-avatar{width:28px;height:28px;background:#714B67;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;}
+/* Caveat headlines */
+.hand{font-family:'Caveat',cursive;}
+/* Callout box */
+.callout{background:#714B67;color:white;border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-top:16px;}
+/* Implementation path */
+.impl-path{display:flex;align-items:center;gap:0;margin:12px 0;}
+.impl-step{flex:1;text-align:center;position:relative;}
+.impl-step::after{content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);font-size:14px;color:#9ca3af;}
+.impl-step:last-child::after{display:none;}
+.impl-step-dot{width:32px;height:32px;border-radius:50%;background:#714B67;color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;}
+.impl-step-label{font-size:9.5px;color:#6b7280;font-weight:600;}
+/* Closing page */
+.closing{background:linear-gradient(135deg,#714B67 0%,#4a2d42 100%);min-height:297mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18mm;}
+@media print{
+  @page{size:A4;margin:0;}
+  .page{page-break-inside:avoid;}
+}
 </style></head><body>
 
-<!-- PÁGINA 1 -->
+<!-- PÁGINA 1: PORTADA -->
 <div class="page">
-  <!-- Header -->
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:16px;margin-bottom:18px;border-bottom:3px solid #714B67">
+<div class="cover">
+  <!-- Top logo bar -->
+  <div style="display:flex;align-items:center;justify-content:space-between">
     <div style="display:flex;align-items:center;gap:10px">
-      <div style="width:38px;height:38px;background:#714B67;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:white">O</div>
-      <div><div style="font-size:16px;font-weight:700;letter-spacing:-.02em">Odoo México</div><div style="font-size:9.5px;color:#aaa;text-transform:uppercase;letter-spacing:.05em">Propuesta Comercial</div></div>
+      <div style="background:rgba(255,255,255,.2);border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;color:white;letter-spacing:.5px">odoo</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:1.5px;text-transform:uppercase;font-family:'DM Mono',monospace">México</div>
     </div>
-    <div style="text-align:right">
-      <div style="font-size:9px;color:#bbb;font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Folio <span style="font-family:'DM Mono',monospace;color:#888">${folio}</span></div>
-      <div style="font-size:9px;color:#bbb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Preparada para</div>
-      <div style="font-size:17px;font-weight:700;color:#714B67;letter-spacing:-.02em">${co?.nombre||'Cliente'}</div>
-      <div style="font-size:10px;color:#bbb;margin-top:2px">${today} · Vigencia 30 días</div>
+    <div style="font-size:9.5px;color:rgba(255,255,255,.4);font-family:'DM Mono',monospace">${folio} · ${today}</div>
+  </div>
+
+  <!-- Hero headline -->
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:20mm 0 10mm">
+    <div style="font-family:'DM Sans',sans-serif;font-size:58px;font-weight:700;line-height:1.0;letter-spacing:-2px;color:white;margin-bottom:10px">
+      Todo tu <span style="color:#FC787D;">negocio</span><br>en una<br>sola plataforma.
     </div>
+    <div style="font-family:'Caveat',cursive;font-size:30px;color:rgba(255,255,255,.6);margin-top:8px">Propuesta para:</div>
   </div>
 
-  <!-- Configuración -->
-  <div class="sec">
-    <div class="sec-ttl">Configuración de la propuesta</div>
-    <table><tbody>
-      <tr style="background:#fdf8fc"><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa;width:34%">Edición</td><td style="text-align:left"><span style="background:#714B67;color:white;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:4px">${r.editionName||ed.name}</span></td></tr>
-      <tr><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa">Usuarios activos</td><td style="text-align:left;font-size:12px">${users} usuarios</td></tr>
-      <tr style="background:#fdf8fc"><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa">Plan de contrato</td><td style="text-align:left"><span style="background:#017E84;color:white;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:4px">${planLabel}</span><span style="font-size:8.5px;font-weight:700;text-transform:uppercase;background:#FBB130;color:#7a5200;padding:1px 6px;border-radius:3px;margin-left:6px">Recomendado</span></td></tr>
-      <tr><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa">Tarifa año 1</td><td style="text-align:left">${fmtN(rateY1)} MXN / usuario / mes</td></tr>
-      ${planMonths>12?`<tr><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa">Tarifa año 2+</td><td style="text-align:left">${fmtN(rateY2)} MXN / usuario / mes <span style="font-size:9.5px;color:#bbb">(incluido en el contrato)</span></td></tr>`:''}
-      <tr><td style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#aaa">Implementación</td><td style="text-align:left">Paquete ${r.implHrs||50} horas — ${fmtN(implPriceN)} MXN</td></tr>
-    </tbody></table>
-  </div>
-
-  <!-- Comparativa -->
-  <div class="sec">
-    <div class="sec-ttl">Comparativa de planes · ${users} usuarios · ${r.editionName||ed.name}</div>
-    <table><thead><tr>
-      <th style="text-align:left">Contrato</th><th>Tarifa año 1/usr</th><th>Tarifa año 2+/usr</th><th>Total licencias</th><th>Implementación</th><th>Total lic.+impl.</th>
-    </tr></thead><tbody>${compRows}</tbody></table>
-    <div style="font-size:8.5px;color:#ccc;margin-top:5px">Precios en MXN sin IVA. Ahorros vs. plan mensual equivalente. Implementación: inversión única.</div>
-  </div>
-
-  <!-- Resumen inversión -->
-  <div class="sec" style="margin-bottom:0">
-    <div class="sec-ttl">Resumen de inversión · ${planLabel}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border:1px solid #efefef;border-radius:8px;overflow:hidden">
-      <div style="padding:14px 16px;border-right:1px solid #efefef">
-        <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#bbb;margin-bottom:4px">Licencias · ${planMonths} meses</div>
-        <div style="font-size:19px;font-weight:700;font-family:'DM Mono',monospace;color:#1a1a1a">${fmtN(licTotal)}</div>
-        <div style="font-size:9.5px;color:#aaa;margin-top:3px;line-height:1.4">${planMonths>12?`Año 1: ${fmtN(rateY1)}/usr/mes<br>Año 2+: ${fmtN(rateY2)}/usr/mes`:`${fmtN(rateY1)}/usr/mes`}</div>
+  <!-- Client info box -->
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">
+      <div style="background:rgba(255,255,255,.12);border-radius:12px;padding:20px 24px;flex:1;border:1px solid rgba(255,255,255,.2)">
+        <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Preparada para</div>
+        <div style="font-size:26px;font-weight:700;color:white;letter-spacing:-.5px">${co?.nombre||'[Empresa]'}</div>
+        ${ct?`<div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:4px">${ct.nombre}${ct.cargo?` · ${ct.cargo}`:''}</div>`:''}
+        <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:8px">Vigencia de esta propuesta: 30 días · hasta ${validity}</div>
       </div>
-      <div style="padding:14px 16px;border-right:1px solid #efefef">
-        <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#bbb;margin-bottom:4px">Implementación</div>
-        <div style="font-size:19px;font-weight:700;font-family:'DM Mono',monospace;color:#1a1a1a">${fmtN(implPriceN)}</div>
-        <div style="font-size:9.5px;color:#aaa;margin-top:3px">${r.implHrs||50} hrs de consultoría<br>Inversión única</div>
-      </div>
-      <div style="padding:14px 16px;background:#714B67">
-        <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.5);margin-bottom:4px">Total con IVA (16%)</div>
-        <div style="font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:white">${fmtN(total)}</div>
-        <div style="font-size:9.5px;color:rgba(255,255,255,.45);margin-top:3px">Subtotal ${fmtN(subtotal)}<br>IVA ${fmtN(iva)}</div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:10px;color:rgba(255,255,255,.45);margin-bottom:4px">Presentada por</div>
+        <div style="font-size:15px;font-weight:700;color:white">${aeFullN}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.5)">Account Executive</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">${aeEmail}</div>
+        ${aePhone?`<div style="font-size:11px;color:rgba(255,255,255,.4)">${aePhone}</div>`:''}
       </div>
     </div>
-  </div>
-
-  <div class="footer">
-    <div style="display:flex;align-items:center;gap:8px">
-      <div style="width:28px;height:28px;background:#714B67;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">${aeN[0]}</div>
-      <div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#aaa">${aeEmail} · Account Executive · Odoo México</div></div>
-    </div>
-    <div style="font-size:9px;color:#ccc">Página 1 de 2</div>
   </div>
 </div>
+</div>
 
-<!-- PÁGINA 2 -->
+<!-- PÁGINA 2: QUIÉNES SOMOS + TU PROYECTO -->
 <div class="page">
+<div class="page-inner">
   <!-- Mini header -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;margin-bottom:16px;border-bottom:1.5px solid #714B67">
-    <div style="display:flex;align-items:center;gap:7px">
-      <div style="width:26px;height:26px;background:#714B67;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white">O</div>
-      <div style="font-size:12px;font-weight:700;color:#714B67">Odoo México · Propuesta Comercial</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;margin-bottom:16px;border-bottom:2px solid #714B67">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="background:#714B67;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;color:white">odoo</div>
+      <div style="font-size:11px;color:#714B67;font-weight:600">Propuesta Comercial</div>
     </div>
-    <div style="font-size:9.5px;color:#bbb">${co?.nombre||'Cliente'} · <span style="font-family:'DM Mono',monospace">${folio}</span></div>
+    <div style="font-size:9px;color:#9ca3af;font-family:'DM Mono',monospace">${co?.nombre||''} · ${folio}</div>
+  </div>
+
+  <!-- ¿Quiénes somos? -->
+  <div style="margin-bottom:20px">
+    <div class="sec-label">✦ Sobre Odoo</div>
+    <div style="font-family:'Caveat',cursive;font-size:38px;font-weight:700;color:#21272B;margin-bottom:8px">¿Quiénes <span style="color:#017E84">somos?</span></div>
+    <p style="font-size:12px;line-height:1.65;color:#6b7280;margin-bottom:14px">Creemos que el software empresarial debería cubrir necesidades complejas sin la necesidad de ser complicado. Nuestra misión es ofrecer un software que sea intuitivo, que tenga todas las funciones, que esté totalmente integrado y que funcione sin problemas para cualquier empresa y cualquier usuario.</p>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-num">+5,000</div><div class="stat-label">empleados</div></div>
+      <div class="stat-box"><div class="stat-num">+13M</div><div class="stat-label">millones de usuarios</div></div>
+      <div class="stat-box"><div class="stat-num">+175</div><div class="stat-label">países</div></div>
+    </div>
+    <div class="callout">
+      <div style="font-family:'Caveat',cursive;font-size:20px;font-weight:600">Sencillo, eficiente, accesible<br>y en cualquier dispositivo.</div>
+      <div style="background:rgba(255,255,255,.15);border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700;color:white;letter-spacing:.5px">odoo</div>
+    </div>
+  </div>
+
+  <!-- Tu proyecto con Odoo -->
+  <div>
+    <div class="sec-label">✦ Así es como Odoo impulsa a tu empresa</div>
+    <div style="font-family:'Caveat',cursive;font-size:34px;font-weight:700;color:#21272B;margin-bottom:10px">Tu proyecto <span style="color:#017E84">con Odoo</span> ✨</div>
+    ${[
+      {bg:'#fdf0f0',ic:'#FC787D',icon:'🎯',title:'Visión 360° del negocio',desc:'Una plataforma única que brinda visibilidad y control total sobre tu operación.'},
+      {bg:'#f0f9f9',ic:'#017E84',icon:'⚙️',title:'Operación integrada',desc:'Elimina la doble captura y los errores entre departamentos. Todo conectado en tiempo real.'},
+      {bg:'#f5f0fd',ic:'#714B67',icon:'📈',title:'Escala sin cambiar sistema',desc:'Desde 5 hasta 5,000 usuarios. Odoo crece contigo sin migraciones dolorosas.'},
+      {bg:'#fffbeb',ic:'#d97706',icon:'🤖',title:'IA integrada en tu operación',desc:'Predicciones de cierre, reabasto automático, conciliación bancaria y más.'},
+    ].map(b=>`
+      <div class="benefit-item">
+        <div class="benefit-icon" style="background:${b.bg};color:${b.ic}">${b.icon}</div>
+        <div><div style="font-size:12px;font-weight:700;color:#21272B;margin-bottom:2px">${b.title}</div><div style="font-size:11px;color:#6b7280;line-height:1.5">${b.desc}</div></div>
+      </div>`).join('')}
+  </div>
+
+  <div class="pg-footer">
+    <div class="ae-badge"><div class="ae-avatar">${aeN[0]}</div><div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#9ca3af">${aeEmail}</div></div></div>
+    <div style="font-size:9px;color:#d1d5db;font-family:'DM Mono',monospace">2 · ${co?.nombre||''}</div>
+  </div>
+</div>
+</div>
+
+<!-- PÁGINA 3: INVERSIÓN -->
+<div class="page">
+<div class="page-inner">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;margin-bottom:16px;border-bottom:2px solid #714B67">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="background:#714B67;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;color:white">odoo</div>
+      <div style="font-size:11px;color:#714B67;font-weight:600">Inversión y contratación</div>
+    </div>
+    <div style="font-size:9px;color:#9ca3af;font-family:'DM Mono',monospace">${co?.nombre||''} · ${folio}</div>
+  </div>
+
+  <!-- Config summary strip -->
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <div style="background:#714B67;color:white;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:700">${r.editionName||ed.name}</div>
+    <div style="background:#017E84;color:white;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:700">${planLabel}</div>
+    <div style="background:#f3f4f6;color:#374151;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">${users} usuarios</div>
+    <div style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">${r.implHrs||50} hrs implementación</div>
+  </div>
+
+  <!-- Comparativa de planes -->
+  <div style="margin-bottom:14px">
+    <div class="sec-label">Comparativa de planes · ${users} usuarios</div>
+    <table>
+      <thead><tr>
+        <th style="text-align:left">Contrato</th>
+        <th>Tarifa año 1<br><span style="font-weight:400;text-transform:none;letter-spacing:0">/usr/mes</span></th>
+        <th>Tarifa año 2+<br><span style="font-weight:400;text-transform:none;letter-spacing:0">/usr/mes</span></th>
+        <th>Total licencias</th>
+        <th>Implementación</th>
+        <th>Total lic.+impl.</th>
+      </tr></thead>
+      <tbody>${compRows}</tbody>
+    </table>
+    <div style="font-size:8.5px;color:#d1d5db;margin-top:4px">Precios en MXN sin IVA. Ahorros calculados vs. plan mensual equivalente.</div>
+  </div>
+
+  <!-- Investment summary boxes -->
+  <div style="margin-bottom:14px">
+    <div class="sec-label">Resumen de inversión · ${planLabel}</div>
+    <div class="inv-grid">
+      <div class="inv-box" style="border-right:1.5px solid #e5e7eb">
+        <div class="inv-box-label">Licencias · ${planMonths} meses</div>
+        <div class="inv-box-val">${fmtN(licTotal)}</div>
+        <div class="inv-box-sub">${planMonths>12?`Año 1: ${fmtN(rateY1)}/usr/mes<br>Año 2+: ${fmtN(rateY2)}/usr/mes`:`${fmtN(rateY1)} / usuario / mes`}</div>
+      </div>
+      <div class="inv-box" style="border-right:1.5px solid #e5e7eb">
+        <div class="inv-box-label">Implementación (única)</div>
+        <div class="inv-box-val">${fmtN(implPriceN)}</div>
+        <div class="inv-box-sub">${r.implHrs||50} horas de consultoría<br>Quickstart Odoo</div>
+      </div>
+      <div class="inv-box highlight">
+        <div class="inv-box-label">Total con IVA (16%)</div>
+        <div class="inv-box-val">${fmtN(total)}</div>
+        <div class="inv-box-sub">Subtotal ${fmtN(subtotal)}<br>IVA ${fmtN(iva)}</div>
+      </div>
+    </div>
   </div>
 
   ${shSection}
 
-  <!-- Términos de pago -->
-  <div class="sec">
-    <div class="sec-ttl">Términos de pago</div>
+  <!-- Payment terms -->
+  <div style="margin-bottom:0">
+    <div class="sec-label">Términos de pago</div>
     ${payTerm?`
-    <table><thead><tr>
-      <th style="text-align:left">Concepto</th><th style="text-align:left">Fecha</th><th>Importe</th>
-    </tr></thead><tbody>
-    ${payRows}
-    <tr style="background:#f0f9f9"><td style="color:#017E84;font-weight:700">Total</td><td></td><td style="font-weight:700;font-size:13px;color:#714B67">${fmt2(total)}</td></tr>
-    </tbody></table>
-    <div style="font-size:9px;color:#bbb;margin-top:5px">Importes con IVA incluido. Pagos mediante SPEI / Cheque nominativo. CFDI emitido el mismo día del pago.</div>`
-    :'<div style="font-size:12px;color:#bbb;padding:14px;background:#fafafa;border-radius:7px;border:1px solid #efefef">No se seleccionó un esquema de pago.</div>'}
+    <div style="border:1.5px solid #e5e7eb;border-radius:8px;overflow:hidden">
+      <div style="background:#714B67;padding:8px 14px;font-size:10px;font-weight:700;color:white;text-transform:uppercase;letter-spacing:.08em">${payTerm.name}</div>
+      ${payTerm.splits.map(s=>`
+      <div class="pay-row">
+        <div style="font-size:11.5px;font-weight:600;color:#21272B">${s.lbl}</div>
+        <div style="font-size:10px;color:#9ca3af">${s.days===0?fmtDate(baseDate):fmtDate(addDays(baseDate,s.days))}</div>
+        <div style="font-size:13px;font-weight:700;color:#017E84;font-family:'DM Mono',monospace">${fmt2(total*s.pct)}</div>
+      </div>`).join('')}
+      <div class="pay-row" style="background:#f0fdf4">
+        <div style="font-size:12px;font-weight:700;color:#015c61">Total</div><div></div>
+        <div style="font-size:14px;font-weight:700;color:#714B67;font-family:'DM Mono',monospace">${fmt2(total)}</div>
+      </div>
+    </div>
+    <div style="font-size:8.5px;color:#d1d5db;margin-top:4px">Pagos mediante SPEI / Cheque nominativo. CFDI emitido el mismo día. Importes con IVA incluido.</div>
+    `:'<div style="font-size:11.5px;color:#9ca3af;padding:12px;background:#f9fafb;border-radius:8px;border:1.5px solid #e5e7eb">Términos de pago a convenir.</div>'}
   </div>
 
-  <!-- Módulos -->
+  <div class="pg-footer">
+    <div class="ae-badge"><div class="ae-avatar">${aeN[0]}</div><div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#9ca3af">${aeEmail}</div></div></div>
+    <div style="text-align:right">
+      <div style="font-size:10px;font-weight:600;color:#d97706;background:#fffbeb;border:1px solid #fde68a;padding:2px 8px;border-radius:4px;display:inline-block">Vigente hasta ${validity}</div>
+      <div style="font-size:9px;color:#d1d5db;font-family:'DM Mono',monospace;margin-top:2px">3 · ${folio}</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- PÁGINA 4: MÓDULOS + NOTAS + CIERRE -->
+<div class="page">
+<div class="page-inner">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;margin-bottom:16px;border-bottom:2px solid #714B67">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="background:#714B67;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;color:white">odoo</div>
+      <div style="font-size:11px;color:#714B67;font-weight:600">Aplicaciones y alcance</div>
+    </div>
+    <div style="font-size:9px;color:#9ca3af;font-family:'DM Mono',monospace">${co?.nombre||''} · ${folio}</div>
+  </div>
+
+  <!-- Modules -->
   ${selMods.length?`
-  <div class="sec">
-    <div class="sec-ttl">Módulos de Odoo considerados en el alcance</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${modCards}</div>
-    <div style="font-size:8.5px;color:#bbb;margin-top:6px">Módulos con borde morado incluidos en las ${r.implHrs||50} horas de consultoría.</div>
+  <div style="margin-bottom:16px">
+    <div class="sec-label">Aplicaciones Odoo en el alcance de implementación</div>
+    <div class="mod-grid">
+      ${PRICING_MODULE_LIST.filter(m=>selMods.includes(m.key)).map(m=>`
+        <div class="mod-card sel">
+          <div style="font-size:18px;margin-bottom:5px">${m.icon}</div>
+          <div style="font-size:11.5px;font-weight:700;color:#714B67">${m.name}</div>
+          <div style="font-size:9.5px;color:#9ca3af;margin-top:2px;line-height:1.35">${m.desc}</div>
+        </div>`).join('')}
+    </div>
+    <div style="font-size:8.5px;color:#d1d5db;margin-top:5px">Módulos incluidos en las ${r.implHrs||50} horas de consultoría. Módulos adicionales se cotizan por separado.</div>
   </div>`:''}
 
-  <!-- Notas de implementación -->
-  <div class="sec">
-    <div class="sec-ttl">Notas de implementación</div>
-    ${ps.implNotes?`<div style="border:1.5px solid #efefef;border-radius:8px;padding:14px 16px;background:#fafafa;font-size:11.5px;color:#555;line-height:1.6;white-space:pre-wrap">${ps.implNotes}</div>`
-    :'<div style="border:1.5px solid #efefef;border-radius:8px;padding:14px 16px;background:#fafafa;font-size:11.5px;color:#bbb;font-style:italic">Sin notas adicionales.</div>'}
+  <!-- Impl notes -->
+  <div style="margin-bottom:16px">
+    <div class="sec-label">Notas de implementación y alcance</div>
+    <div style="border:1.5px solid #e5e7eb;border-radius:8px;padding:14px 16px;background:#f9fafb;font-size:11.5px;color:#374151;line-height:1.65;white-space:pre-wrap;min-height:60px">
+      ${ps.implNotes||'<span style="color:#d1d5db;font-style:italic">Sin notas adicionales.</span>'}
+    </div>
   </div>
 
-  <div class="footer">
-    <div style="display:flex;align-items:center;gap:8px">
-      <div style="width:28px;height:28px;background:#714B67;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">${aeN[0]}</div>
-      <div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#aaa">${aeEmail} · Account Executive · Odoo México</div></div>
+  <!-- Implementation path -->
+  <div style="margin-bottom:16px">
+    <div class="sec-label">Tu camino con Odoo</div>
+    <div class="impl-path">
+      ${['Venta','Kick-off','Análisis','Config.','Pruebas','Capacitación','Go-Live','Soporte'].map((s,i)=>`
+        <div class="impl-step">
+          <div class="impl-step-dot" style="background:${i===6?'#017E84':'#714B67'};font-size:9px">${i+1}</div>
+          <div class="impl-step-label">${s}</div>
+        </div>`).join('')}
     </div>
-    <div style="text-align:right">
-      <div style="font-size:10px;font-weight:600;color:#d97706;background:#fffbeb;padding:3px 8px;border-radius:4px;border:1px solid #fde68a;display:inline-block">Vigente hasta: ${validity}</div>
-      <div style="font-size:9px;color:#ccc;margin-top:3px;font-family:'DM Mono',monospace">Página 2 de 2 · ${folio}</div>
+    <div style="font-size:10px;color:#9ca3af;background:#f9fafb;padding:10px 14px;border-radius:8px;border:1px solid #e5e7eb;line-height:1.6">
+      En Odoo acompañamos al cliente de inicio a fin. La metodología <strong style="color:#714B67">Quickstart</strong> prioriza llegar al Go-Live rápido, con control de presupuesto y enfocándose en la adopción real del usuario.
     </div>
   </div>
+
+  <!-- Closing strip -->
+  <div style="background:linear-gradient(135deg,#714B67,#4a2d42);border-radius:10px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
+    <div>
+      <div style="font-family:'Caveat',cursive;font-size:22px;font-weight:700;color:white">¡Estás listo para comenzar con Odoo!</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:4px">${aeFullN} · ${aeEmail}${aePhone?` · ${aePhone}`:''}${aeAppt?` · <span style="color:#FC787D">${aeAppt}</span>`:''}</div>
+    </div>
+    <div style="background:rgba(255,255,255,.15);border-radius:6px;padding:4px 14px;font-size:13px;font-weight:700;color:white;flex-shrink:0">odoo</div>
+  </div>
+
+  <div class="pg-footer">
+    <div class="ae-badge"><div class="ae-avatar">${aeN[0]}</div><div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#9ca3af">Account Executive · Odoo México</div></div></div>
+    <div style="font-size:9px;color:#d1d5db;font-family:'DM Mono',monospace">4 · ${folio}</div>
+  </div>
+</div>
 </div>
 
 </body></html>`;
 
   // Abrir en nueva ventana para imprimir/guardar como PDF
   const w=window.open('','_blank');
+  if(!w){ showNotif('Permite ventanas emergentes en tu navegador','error'); return; }
   w.document.write(html);
   w.document.close();
-  setTimeout(()=>w.print(),800);
+  setTimeout(()=>w.print(),1200);
 };
 
 // ══════════════════════════════════════════
