@@ -4932,7 +4932,9 @@ window.pricingGeneratePDF=function(){
 <style>__FONTFACE_STYLE__</style>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Inter',sans-serif;color:#21272B;background:white;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{font-family:'Inter',sans-serif;color:#21272B;background:white;-webkit-print-color-adjust:exact;print-color-adjust:exact;word-spacing:normal;}
+/* Reset Caveat word-spacing — html2canvas hereda valores incorrectos sin esto */
+[style*="Caveat"]{word-spacing:0 !important;letter-spacing:0 !important;}
 /* LETTER pages (21.6 × 27.9 cm) */
 .page{width:816px;height:1056px;padding:0;position:relative;overflow:hidden;page-break-after:always;break-after:page;}
 .page:last-child{page-break-after:auto;break-after:auto;}
@@ -5031,14 +5033,14 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   <!-- Velo suave izquierda para legibilidad -->
   <div style="position:absolute;inset:0;background:linear-gradient(92deg,#f5f4f0 42%,rgba(245,244,240,.88) 54%,rgba(245,244,240,0) 72%);z-index:1;pointer-events:none"></div>
 
-  <!-- LOGO — grande, arriba izquierda -->
-  <div style="position:relative;z-index:2;width:320px">
+  <!-- LOGO — 2x más grande -->
+  <div style="position:relative;z-index:2;width:640px;max-width:55%">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 919 495" style="width:100%;height:auto;display:block">
       <path d="M695,346a75,75,0,1,1,75-75A75,75,0,0,1,695,346Zm0-31a44,44,0,1,0-44-44A44,44,0,0,0,695,315ZM538,346a75,75,0,1,1,75-75A75,75,0,0,1,538,346Zm0-31a44,44,0,1,0-44-44A44,44,0,0,0,538,315Zm-82-45c0,41.9-33.6,76-75,76s-75-34-75-75.9S336.5,196,381,196c16.4,0,31.6,3.5,44,12.6V165.1c0-8.3,7.3-15.1,15.5-15.1s15.5,6.8,15.5,15.1Zm-75,45a44,44,0,1,0-44-44A44,44,0,0,0,381,315Z" fill="#8f8f8f"/>
       <path d="M224,346a75,75,0,1,1,75-75A75,75,0,0,1,224,346Zm0-31a44,44,0,1,0-44-44A44,44,0,0,0,224,315Z" fill="#714b67"/>
     </svg>
-    <div style="font-size:14px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#017E84;margin-top:18px;font-family:'Inter',sans-serif">Propuesta Comercial · ${new Date().getFullYear()}</div>
-    <div style="font-size:12px;color:#9ca3af;letter-spacing:.06em;margin-top:5px;font-family:'Inter',sans-serif">${folio} · ${today}</div>
+    <div style="font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#017E84;margin-top:14px;font-family:'Inter',sans-serif">Propuesta Comercial · ${new Date().getFullYear()}</div>
+    <div style="font-size:11px;color:#9ca3af;letter-spacing:.05em;margin-top:4px;font-family:'Inter',sans-serif">${folio} · ${today}</div>
   </div>
 
   <!-- CAJA DE CLIENTE — centro izquierda -->
@@ -5055,12 +5057,10 @@ tr.sel-row td{color:#015c61;font-weight:700;}
     </div>
   </div>
 
-  <!-- TAGLINE — Inter (igual que el resto del documento) -->
+  <!-- TAGLINE — Caveat (fuente ya verificada como funcionando) -->
   <div style="position:relative;z-index:2">
-    <div style="font-family:'Inter',sans-serif;font-weight:800;font-size:54px;color:#21272B;line-height:1.06;letter-spacing:-1.5px">
-      Todo tu negocio<br>en una sola plataforma.
-    </div>
-    <div style="font-family:'Inter',sans-serif;font-weight:500;font-size:22px;color:#017E84;margin-top:14px;letter-spacing:-.2px">Sencillo · Eficiente · Personalizable</div>
+    <div style="font-family:'Caveat',cursive;font-weight:700;font-size:58px;color:#21272B;line-height:1.05;word-spacing:normal;letter-spacing:0">Todo tu negocio en una sola plataforma</div>
+    <div style="font-family:'Caveat',cursive;font-weight:400;font-size:34px;color:#017E84;margin-top:6px;word-spacing:normal;letter-spacing:0">Sencillo eficiente personalizable</div>
   </div>
 
 </div>
@@ -5081,7 +5081,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   <!-- ¿Quiénes somos? -->
   <div style="margin-bottom:20px">
     <div class="sec-label">✦ Sobre Odoo</div>
-    <div style="font-family:'Caveat',cursive;font-size:38px;font-weight:700;color:#21272B;margin-bottom:8px">¿Quiénes <span style="color:#017E84">somos?</span></div>
+    <div style="font-family:'Caveat',cursive;font-size:38px;font-weight:700;color:#21272B;margin-bottom:8px;word-spacing:normal;letter-spacing:0">¿Quiénes <span style="color:#017E84">somos?</span></div>
     <p style="font-size:12px;line-height:1.65;color:#6b7280;margin-bottom:14px">Creemos que el software empresarial debería cubrir necesidades complejas sin la necesidad de ser complicado. Nuestra misión es ofrecer un software que sea intuitivo, que tenga todas las funciones, que esté totalmente integrado y que funcione sin problemas para cualquier empresa y cualquier usuario.</p>
     <div class="stats-grid">
       <div class="stat-box"><div class="stat-num">+5,000</div><div class="stat-label">empleados</div></div>
@@ -5089,7 +5089,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
       <div class="stat-box"><div class="stat-num">+175</div><div class="stat-label">países</div></div>
     </div>
     <div class="callout">
-      <div style="font-family:'Caveat',cursive;font-size:20px;font-weight:600">Sencillo, eficiente, accesible<br>y en cualquier dispositivo.</div>
+      <div style="font-family:'Caveat',cursive;font-size:20px;font-weight:600;word-spacing:normal;letter-spacing:0">Sencillo, eficiente, accesible<br>y en cualquier dispositivo.</div>
       <div style="background:rgba(255,255,255,.15);border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700;color:white;letter-spacing:.5px">odoo</div>
     </div>
   </div>
@@ -5097,7 +5097,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   <!-- Tu proyecto con Odoo -->
   <div>
     <div class="sec-label">✦ Así es como Odoo impulsa a tu empresa</div>
-    <div style="font-family:'Caveat',cursive;font-size:34px;font-weight:700;color:#21272B;margin-bottom:10px">Tu proyecto <span style="color:#017E84">con Odoo</span> ✨</div>
+    <div style="font-family:'Caveat',cursive;font-size:34px;font-weight:700;color:#21272B;margin-bottom:10px;word-spacing:normal;letter-spacing:0">Tu proyecto <span style="color:#017E84">con Odoo</span> ✨</div>
     ${[
       {bg:'#fdf0f0',ic:'#FC787D',icon:'🎯',title:'Visión 360° del negocio',desc:'Una plataforma única que brinda visibilidad y control total sobre tu operación.'},
       {bg:'#f0f9f9',ic:'#017E84',icon:'⚙️',title:'Operación integrada',desc:'Elimina la doble captura y los errores entre departamentos. Todo conectado en tiempo real.'},
@@ -5264,7 +5264,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   <!-- Closing strip -->
   <div style="background:linear-gradient(135deg,#714B67,#4a2d42);border-radius:10px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
     <div>
-      <div style="font-family:'Caveat',cursive;font-size:22px;font-weight:700;color:white">¡Estás listo para comenzar con Odoo!</div>
+      <div style="font-family:'Caveat',cursive;font-size:22px;font-weight:700;color:white;word-spacing:normal;letter-spacing:0">¡Estás listo para comenzar con Odoo!</div>
       <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:4px">${aeFullN} · ${aeEmail}${aePhone?` · ${aePhone}`:''}${aeAppt?` · <span style="color:#FC787D">${aeAppt}</span>`:''}</div>
     </div>
     <div style="background:rgba(255,255,255,.15);border-radius:6px;padding:4px 14px;font-size:13px;font-weight:700;color:white;flex-shrink:0">odoo</div>
