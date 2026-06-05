@@ -4934,11 +4934,11 @@ window.pricingGeneratePDF=function(){
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Inter',sans-serif;color:#21272B;background:white;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 /* LETTER pages (21.6 × 27.9 cm) */
-.page{width:816px;height:1056px;padding:0;position:relative;overflow:hidden;page-break-after:always;break-after:page;}
+.page{width:816px;height:279mm;padding:0;position:relative;overflow:hidden;page-break-after:always;break-after:page;}
 .page:last-child{page-break-after:auto;break-after:auto;}
-.page-inner{padding:52px 68px 60px;height:1056px;display:flex;flex-direction:column;overflow:hidden;}
+.page-inner{padding:52px 68px 60px;height:279mm;display:flex;flex-direction:column;overflow:hidden;}
 /* Cover page */
-.cover{background:#f5f4f0;color:#21272B;height:1056px;display:flex;flex-direction:column;justify-content:space-between;padding:68px 68px 60px;overflow:hidden;position:relative;}
+.cover{background:#f5f4f0;color:#21272B;height:279mm;display:flex;flex-direction:column;justify-content:space-between;padding:68px 68px 60px;overflow:hidden;position:relative;}
 .cover::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,#d8d4cc 1.2px,transparent 1.2px);background-size:26px 26px;opacity:.5;pointer-events:none;}
 .cover-headline{font-family:'Inter',sans-serif;font-size:52px;font-weight:700;line-height:1.05;letter-spacing:-1.5px;color:white;margin-bottom:8px;}
 .cover-headline span{color:#FC787D;}
@@ -5005,9 +5005,9 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 .closing{background:linear-gradient(135deg,#714B67 0%,#4a2d42 100%);min-height:1056px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18mm;}
 @media print{
   @page{size:216mm 279mm;margin:0;}
-  html,body{width:816px;}
-  .page{page-break-inside:avoid;break-inside:avoid;height:1056px;}
-  .page:last-child{page-break-after:avoid;}
+  html,body{width:816px;margin:0;padding:0;}
+  .page{page-break-inside:avoid;break-inside:avoid;height:279mm;}
+  .page:last-child{page-break-after:avoid;break-after:avoid;}
 }
 </style></head><body>
 
