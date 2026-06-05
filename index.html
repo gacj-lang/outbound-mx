@@ -5274,72 +5274,37 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 
 </body></html>`;
 
-  // ── Generar PDF descargable REAL (html2canvas + jsPDF) ──
-  // Renderiza en un iframe OCULTO y captura solo las páginas → nunca incluye Lusha ni la pantalla.
-  const fileName=`Propuesta-Odoo-${(co.nombre||'cliente').replace(/[^a-zA-Z0-9]/g,'-')}.pdf`;
+  // ── Generar PDF imprimiendo SOLO el iframe ──
+  // Render NATIVO del browser (fuentes/spacing/layout perfectos, como en pantalla).
+  // Imprimimos el iframe, NO la ventana → Lusha (que vive en la ventana padre) no aparece.
   (async()=>{
-    showNotif('Generando PDF…','info');
-    // SIN @font-face en el HTML — inyectamos fuentes via FontFace API directamente
-    // sobre el documento del iframe, que es el método que html2canvas SÍ respeta.
-    const finalHtml=html.replace('__FONTFACE_STYLE__','/* fuentes via FontFace API */');
-    const PX_W=816, PX_H=1056, MM_W=216, MM_H=279;
+    showNotif('Preparando documento…','info');
+    // @font-face con base64 (la impresión nativa SÍ respeta @font-face, a diferencia de html2canvas)
+    const fontCSS=getPdfFontCSS();
+    const finalHtml=html.replace('__FONTFACE_STYLE__',fontCSS);
     const iframe=document.createElement('iframe');
-    iframe.style.cssText=`position:fixed;left:-99999px;top:0;width:${PX_W}px;height:${PX_H}px;border:0;background:white`;
+    // Visible pero detrás de todo y sin interacción — debe estar attached para imprimir
+    iframe.style.cssText='position:fixed;right:0;bottom:0;width:816px;height:1056px;border:0;opacity:.01;pointer-events:none;z-index:-9999';
     document.body.appendChild(iframe);
     try{
       const idoc=iframe.contentWindow.document;
       idoc.open(); idoc.write(finalHtml); idoc.close();
-      // 1. DOM listo
+      // Esperar DOM, fuentes e imágenes
       await new Promise(res=>{ if(idoc.readyState==='complete') res(); else iframe.onload=res; setTimeout(res,1500); });
-
-      // 2. ── CARGA DE FUENTES VIA FontFace API ──────────────────────────────
-      // Este es el único método que html2canvas respeta.
-      // Los base64 ya están en memoria como constantes JS → sin fetch, sin red.
-      const fontDefs=[
-        {name:'Inter',  src:INTER_REG_B64,   opts:{weight:'400'}},
-        {name:'Inter',  src:INTER_SEMI_B64,  opts:{weight:'600'}},
-        {name:'Inter',  src:INTER_BOLD_B64,  opts:{weight:'700'}},
-        {name:'Inter',  src:INTER_EXTRA_B64, opts:{weight:'800'}},
-        {name:'Caveat', src:CAVEAT_REG_B64,  opts:{weight:'400'}},
-        {name:'Caveat', src:CAVEAT_BOLD_B64, opts:{weight:'700'}},
-      ];
-      const Win=iframe.contentWindow;
-      await Promise.all(fontDefs.map(async fd=>{
-        try{
-          const face=new Win.FontFace(fd.name,`url(${fd.src})`,fd.opts);
-          const loaded=await face.load();
-          idoc.fonts.add(loaded);
-        }catch(e){ console.warn('FontFace load fail:',fd.name,fd.opts,e.message); }
-      }));
-      await idoc.fonts.ready;
-      await new Promise(r=>setTimeout(r,300));
-
-      // 3. Imágenes
+      try{ await idoc.fonts.ready; }catch(e){}
       const imgs=[...idoc.images];
-      await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r;setTimeout(r,1200);})));
-      await new Promise(r=>setTimeout(r,150));
-
-      const pages=[...idoc.querySelectorAll('.page')];
-      const {jsPDF}=window.jspdf;
-      const pdf=new jsPDF({orientation:'p',unit:'mm',format:[MM_W,MM_H],compress:true});
-      for(let i=0;i<pages.length;i++){
-        const canvas=await html2canvas(pages[i],{
-          scale:2,useCORS:false,allowTaint:true,backgroundColor:'#ffffff',
-          foreignObjectRendering:true,
-          logging:false,width:PX_W,height:PX_H,
-          windowWidth:PX_W,windowHeight:PX_H,
-        });
-        const img=canvas.toDataURL('image/jpeg',0.93);
-        if(i>0) pdf.addPage([MM_W,MM_H]);
-        pdf.addImage(img,'JPEG',0,0,MM_W,MM_H,undefined,'FAST');
-      }
-      pdf.save(fileName);
-      showNotif('PDF generado ✓','success');
+      await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r;setTimeout(r,1500);})));
+      await new Promise(r=>setTimeout(r,500));
+      // Imprimir SOLO el contenido del iframe
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      showNotif('En el diálogo elige "Guardar como PDF" ✓','info');
+      // Remover el iframe después (dar tiempo al diálogo)
+      setTimeout(()=>iframe.remove(),120000);
     } catch(err){
       console.error('PDF error:',err);
-      showNotif('Error al generar PDF: '+err.message,'error');
-    } finally {
-      setTimeout(()=>iframe.remove(),500);
+      showNotif('Error al preparar PDF: '+err.message,'error');
+      iframe.remove();
     }
   })();
 };
