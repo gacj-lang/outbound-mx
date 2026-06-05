@@ -5054,8 +5054,8 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 
   <!-- TAGLINE — Caveat (fuente ya verificada como funcionando) -->
   <div style="position:relative;z-index:2">
-    <div style="font-family:'Caveat',cursive;font-weight:700;font-size:58px;color:#21272B;line-height:1.05;word-spacing:-6px;letter-spacing:0">Todo tu negocio en una sola plataforma</div>
-    <div style="font-family:'Caveat',cursive;font-weight:400;font-size:34px;color:#017E84;margin-top:6px;word-spacing:-4px;letter-spacing:0">Sencillo eficiente personalizable</div>
+    <div style="font-family:'Caveat',cursive;font-weight:700;font-size:58px;color:#21272B;line-height:1.05;word-spacing:normal;letter-spacing:0">Todo tu negocio en una sola plataforma</div>
+    <div style="font-family:'Caveat',cursive;font-weight:400;font-size:34px;color:#017E84;margin-top:6px;word-spacing:normal;letter-spacing:0">Sencillo eficiente personalizable</div>
   </div>
 
 </div>
@@ -5076,7 +5076,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   <!-- ¿Quiénes somos? -->
   <div style="margin-bottom:20px">
     <div class="sec-label">✦ Sobre Odoo</div>
-    <div style="font-family:'Caveat',cursive;font-size:38px;font-weight:700;color:#21272B;margin-bottom:8px;word-spacing:-6px;letter-spacing:0">¿Quiénes <span style="color:#017E84">somos?</span></div>
+    <div style="font-family:'Caveat',cursive;font-size:38px;font-weight:700;color:#21272B;margin-bottom:8px;word-spacing:normal;letter-spacing:0">¿Quiénes <span style="color:#017E84">somos?</span></div>
     <p style="font-size:12px;line-height:1.65;color:#6b7280;margin-bottom:14px">Creemos que el software empresarial debería cubrir necesidades complejas sin la necesidad de ser complicado. Nuestra misión es ofrecer un software que sea intuitivo, que tenga todas las funciones, que esté totalmente integrado y que funcione sin problemas para cualquier empresa y cualquier usuario.</p>
     <div class="stats-grid">
       <div class="stat-box"><div class="stat-num">+5,000</div><div class="stat-label">empleados</div></div>
@@ -5084,7 +5084,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
       <div class="stat-box"><div class="stat-num">+175</div><div class="stat-label">países</div></div>
     </div>
     <div class="callout">
-      <div style="font-family:'Caveat',cursive;font-size:20px;font-weight:600;word-spacing:-4px;letter-spacing:0">Sencillo, eficiente, accesible<br>y en cualquier dispositivo.</div>
+      <div style="font-family:'Caveat',cursive;font-size:20px;font-weight:600;word-spacing:normal;letter-spacing:0">Libera tu potencial de crecimiento.</div>
       <div style="background:rgba(255,255,255,.15);border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700;color:white;letter-spacing:.5px">odoo</div>
     </div>
   </div>
@@ -5092,7 +5092,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   <!-- Tu proyecto con Odoo -->
   <div>
     <div class="sec-label">✦ Así es como Odoo impulsa a tu empresa</div>
-    <div style="font-family:'Caveat',cursive;font-size:34px;font-weight:700;color:#21272B;margin-bottom:10px;word-spacing:-6px;letter-spacing:0">Tu proyecto <span style="color:#017E84">con Odoo</span> ✨</div>
+    <div style="font-family:'Caveat',cursive;font-size:34px;font-weight:700;color:#21272B;margin-bottom:10px;word-spacing:normal;letter-spacing:0">Tu proyecto <span style="color:#017E84">con Odoo</span> ✨</div>
     ${[
       {bg:'#fdf0f0',ic:'#FC787D',icon:'🎯',title:'Visión 360° del negocio',desc:'Una plataforma única que brinda visibilidad y control total sobre tu operación.'},
       {bg:'#f0f9f9',ic:'#017E84',icon:'⚙️',title:'Operación integrada',desc:'Elimina la doble captura y los errores entre departamentos. Todo conectado en tiempo real.'},
@@ -5259,7 +5259,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   <!-- Closing strip -->
   <div style="background:linear-gradient(135deg,#714B67,#4a2d42);border-radius:10px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
     <div>
-      <div style="font-family:'Caveat',cursive;font-size:22px;font-weight:700;color:white;word-spacing:-4px;letter-spacing:0">¡Estás listo para comenzar con Odoo!</div>
+      <div style="font-family:'Caveat',cursive;font-size:22px;font-weight:700;color:white;word-spacing:normal;letter-spacing:0">¡Estás listo para comenzar con Odoo!</div>
       <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:4px">${aeFullN} · ${aeEmail}${aePhone?` · ${aePhone}`:''}${aeAppt?` · <span style="color:#FC787D">${aeAppt}</span>`:''}</div>
     </div>
     <div style="background:rgba(255,255,255,.15);border-radius:6px;padding:4px 14px;font-size:13px;font-weight:700;color:white;flex-shrink:0">odoo</div>
@@ -5325,9 +5325,9 @@ tr.sel-row td{color:#015c61;font-weight:700;}
       for(let i=0;i<pages.length;i++){
         const canvas=await html2canvas(pages[i],{
           scale:2,useCORS:false,allowTaint:true,backgroundColor:'#ffffff',
+          foreignObjectRendering:true,
           logging:false,width:PX_W,height:PX_H,
           windowWidth:PX_W,windowHeight:PX_H,
-          onclone:(doc)=>{ doc.body.style.margin='0'; doc.body.style.padding='0'; }
         });
         const img=canvas.toDataURL('image/jpeg',0.93);
         if(i>0) pdf.addPage([MM_W,MM_H]);
@@ -5451,10 +5451,16 @@ window.propLoadLastPricing=async function(){
     if(snap.empty){ showNotif('No se encontró pricing para esta empresa','warning'); return; }
     const docs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
     const last=docs[0];
-    pricingState.result={editionName:last.edition,users:last.users,planIdx:last.planIdx,mensualRef:last.mensualRef,implPrice:last.implPrice,total:last.total};
+    pricingState.result={editionName:last.edition,users:last.users,planIdx:last.planIdx,mensualRef:last.mensualRef,implPrice:last.implPrice,total:last.total,implHrs:last.implHrs||50};
     pricingState.users=last.users; pricingState.planIdx=last.planIdx;
     pricingState._mensualRef=last.mensualRef?'$'+Number(last.mensualRef).toLocaleString('es-MX',{minimumFractionDigits:0}):'';
     pricingState._impl=last.implPrice?'$'+Number(last.implPrice).toLocaleString('es-MX',{minimumFractionDigits:0}):'';
+    // Cargar datos SH si aplica
+    pricingState.isSH=last.isSH||false;
+    pricingState.shWorkers=last.shWorkers||1;
+    pricingState.shStaging=last.shStaging||0;
+    pricingState.shStorage=last.shStorage||0;
+    pricingState.shCost=last.shCost||0;
     pricingState.company=co;
     // Load selected modules from company memory
     const memMods=co.memory?.pricing?.selectedApps||[];
