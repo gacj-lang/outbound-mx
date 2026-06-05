@@ -952,6 +952,7 @@ function appIconUrl(key){ return `${ASSETS}/icons/apps/${ODOO_APP_ICONS[key]||ke
 function industryIconUrl(giro){ const k=Object.keys(ODOO_INDUSTRY_ICONS).find(k=>k===giro?.toLowerCase()); return k?`${ASSETS}/icons/industry/${ODOO_INDUSTRY_ICONS[k]}.svg`:`${ASSETS}/icons/industry/industry_it.svg`; }
 function highlightUrl(n=1,bold=false){ return `${ASSETS}/highlights/${bold?'blue_highlight_bold':'blue_highlight'}_0${n}.svg`; }
 let CLAUDE_KEY_DEFAULT = ''; // Cargado desde Firestore — no guardar en código fuente
+let PEXELS_KEY = ''; // Banco de fotos para imágenes de LinkedIn — cargado desde Firestore config/app
 
 let app, auth, db, firebaseReady=false;
 let currentUser=null, currentUserData=null;
@@ -997,6 +998,7 @@ async function loadAppConfig(){
     if(snap.exists()){
       const d=snap.data();
       if(d.claudeKey) CLAUDE_KEY_DEFAULT=d.claudeKey;
+      if(d.pexelsKey) PEXELS_KEY=d.pexelsKey;
     }
   } catch(e){ console.warn('loadAppConfig:',e); }
 }
@@ -2698,6 +2700,44 @@ const INDUSTRY_MAP = {
   'Turismo':'industry_hotel','Otra':'industry_odoo_partner'
 };
 
+// ── Keywords de búsqueda de fotos (Pexels) por industria ──
+const PHOTO_KEYWORDS = {
+  'Construcción':['construction site workers','engineer hard hat blueprint','construction team meeting'],
+  'Retail':['retail store staff','shop owner tablet','boutique salesperson customer'],
+  'Restaurante':['restaurant kitchen chef','cafe staff working','restaurant manager tablet'],
+  'Comercializadora':['warehouse worker logistics','distribution center staff','wholesale business team'],
+  'Manufactura':['factory workers production','manufacturing engineer','industrial workers tablet'],
+  'Software/IT':['software developers office','tech team meeting','programmers working laptop'],
+  'Servicios':['business professionals meeting','consulting team office','service team working'],
+  'Distribución':['logistics warehouse team','delivery distribution staff','supply chain workers'],
+  'Ecommerce':['online store packing','ecommerce warehouse','entrepreneur laptop shipping'],
+  'Salud':['medical staff clinic','healthcare professionals','pharmacy workers'],
+  'Educación':['teachers classroom technology','education staff meeting','school administration'],
+  'Inmobiliaria':['real estate agent client','property manager office','realtor showing'],
+  'Logística':['logistics team warehouse','transport fleet workers','supply chain office'],
+  'Agricultura':['agriculture farm workers','agribusiness technology','farming team'],
+  'Turismo':['hotel staff reception','hospitality team','travel agency office'],
+  'Otra':['business team office working','professionals meeting laptop','modern office teamwork'],
+};
+
+// Busca una foto en Pexels por industria. Devuelve {url, photographer} o null.
+async function fetchIndustryPhoto(industria, page=1){
+  if(!PEXELS_KEY){ return null; }
+  const kws=PHOTO_KEYWORDS[industria]||PHOTO_KEYWORDS['Otra'];
+  const query=kws[(page-1)%kws.length];
+  try{
+    const res=await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=15&orientation=landscape`,{
+      headers:{'Authorization':PEXELS_KEY}
+    });
+    if(!res.ok) throw new Error('Pexels '+res.status);
+    const data=await res.json();
+    const photos=data.photos||[];
+    if(!photos.length) return null;
+    const pick=photos[(page-1)%photos.length];
+    return { url:pick.src.large2x||pick.src.large, photographer:pick.photographer, query };
+  }catch(e){ console.warn('fetchIndustryPhoto:',e.message); return null; }
+}
+
 // ── Odoo Apps catálogo completo (odoo.com/es/page/all-apps) ──
 const ODOO_APPS = {
   'Finanzas':['Contabilidad','Facturación','Gastos','Hoja de cálculo (BI)','Documentos','Firma electrónica'],
@@ -3175,6 +3215,8 @@ const cont={
   company:null, contact:null,
   tone:'interesante', length:'equilibrado', format:'1200x627',
   channel:'whatsapp', // canal activo del template de mensaje
+  imgStyle:'foto', // 'foto' (Pexels) | 'grafica' (tarjeta) — estilo imagen LinkedIn
+  photoPage:1, lastPhoto:null, lastPubData:null,
   output:null,
   setSection(s){ this.activeSection=s; },
   discard(){ this.company=null; this.contact=null; this.output=null; },
@@ -3576,6 +3618,23 @@ function renderGcPublicacionLinkedIn(){
       <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Crea imágenes para el feed de LinkedIn con el framework visual de Odoo. Descarga en PNG.</p>
 
       <div class="gc-form-section">
+        <h3>🎨 Estilo de imagen</h3>
+        <div style="display:flex;gap:10px">
+          <button class="gc-imgstyle-btn ${cont.imgStyle!=='grafica'?'active':''}" data-style="foto" onclick="gcSetImgStyle('foto')"
+            style="flex:1;padding:14px;border:1.5px solid ${cont.imgStyle!=='grafica'?'var(--purple)':'var(--gray-200)'};background:${cont.imgStyle!=='grafica'?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;text-align:left">
+            <div style="font-size:14px;font-weight:700;color:${cont.imgStyle!=='grafica'?'var(--purple)':'var(--gray-700)'}">📷 Foto real</div>
+            <div style="font-size:11px;color:var(--gray-500);margin-top:2px">Personas trabajando según la industria + branding Odoo</div>
+          </button>
+          <button class="gc-imgstyle-btn ${cont.imgStyle==='grafica'?'active':''}" data-style="grafica" onclick="gcSetImgStyle('grafica')"
+            style="flex:1;padding:14px;border:1.5px solid ${cont.imgStyle==='grafica'?'var(--purple)':'var(--gray-200)'};background:${cont.imgStyle==='grafica'?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;text-align:left">
+            <div style="font-size:14px;font-weight:700;color:${cont.imgStyle==='grafica'?'var(--purple)':'var(--gray-700)'}">🎨 Tarjeta gráfica</div>
+            <div style="font-size:11px;color:var(--gray-500);margin-top:2px">Diseño con degradado, iconos y formas de Odoo</div>
+          </button>
+        </div>
+        ${!PEXELS_KEY?`<div style="margin-top:10px;font-size:12px;color:var(--warning);background:var(--warning-light);border:1px solid #fde68a;border-radius:8px;padding:8px 12px">⚠️ Las fotos reales requieren configurar la API de Pexels. Avisa al manager. Mientras, usa "Tarjeta gráfica".</div>`:''}
+      </div>
+
+      <div class="gc-form-section">
         <h3>📐 Formato</h3>
         <div class="gc-format-grid">
           ${LI_FORMATS.map(f=>`
@@ -3619,6 +3678,25 @@ window.gcSetFormat=function(id,el){
   document.querySelectorAll('.gc-format-card').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
 };
+window.gcSetImgStyle=function(style){
+  cont.imgStyle=style;
+  document.querySelectorAll('.gc-imgstyle-btn').forEach(b=>{
+    const active=b.dataset.style===style;
+    b.style.borderColor=active?'var(--purple)':'var(--gray-200)';
+    b.style.background=active?'var(--purple-light)':'white';
+    b.querySelector('div').style.color=active?'var(--purple)':'var(--gray-700)';
+  });
+};
+window.gcOtraFoto=async function(){
+  if(!cont.lastPubData){ return; }
+  cont.photoPage=(cont.photoPage||1)+1;
+  const btn=document.querySelector('.gc-otrafoto-btn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Buscando...'; }
+  const ind=document.getElementById('gcPubIndustria')?.value||cont.lastPubData._ind||'Otra';
+  const photo=await fetchIndustryPhoto(ind,cont.photoPage);
+  if(photo){ cont.lastPhoto=photo; renderGcImagePreview(cont.lastPubData); }
+  else { showNotif('No se encontró otra foto','info'); if(btn){ btn.disabled=false; btn.textContent='🔄 Otra foto'; } }
+};
 
 window.gcGeneratePub=async function(){
   const ind=document.getElementById('gcPubIndustria')?.value||'';
@@ -3647,6 +3725,19 @@ Responde con este JSON exacto (sin markdown):
     let parsed;
     try { parsed=JSON.parse(copy.replace(/```json?\n?/g,'').replace(/```/g,'').trim()); }
     catch(e){ parsed={headline:msg.substring(0,40),subheadline:'Odoo lo hace posible.',stat:stat,cta:'Saber más',hashtags:'#odoo #erp'}; }
+    parsed._ind=ind;
+    cont.lastPubData=parsed;
+    // Si el estilo es foto, busca una foto real de la industria
+    cont.lastPhoto=null;
+    if(cont.imgStyle!=='grafica'){
+      if(PEXELS_KEY){
+        cont.photoPage=1;
+        cont.lastPhoto=await fetchIndustryPhoto(ind,1);
+        if(!cont.lastPhoto) showNotif('No se encontró foto, usando tarjeta gráfica','info');
+      } else {
+        showNotif('Pexels no configurado — usando tarjeta gráfica','info');
+      }
+    }
     renderGcImagePreview(parsed);
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcPubLoading',false);
@@ -3661,42 +3752,68 @@ function renderGcImagePreview(data){
     '1080x1920':{w:1080,h:1920,scale:.28,label:'1080×1920 — Historia'},
   };
   const f=fmtConfig[fmt]||fmtConfig['1200x627'];
+  const big=f.h>600;
+  const pad=big?80:48;
+  const photo=cont.lastPhoto;
+  const headlineSize=big?Math.min(68,f.w*.058):Math.min(46,f.w*.04);
+
+  // Bloque de contenido (logo + headline + sub + stat + cta) — compartido
+  const contentBlock=(onPhoto)=>`
+    <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:2">
+      <img src="${ASSETS}/logos/odoo_logo_white.svg" crossorigin="anonymous" style="height:${big?38:26}px" onerror="this.outerHTML='<span style=&quot;font-size:${big?28:20}px;font-weight:800;color:white&quot;>odoo</span>'">
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:${big?'40px 0':'18px 0'};position:relative;z-index:2">
+      <div style="font-family:'Caveat',cursive;font-weight:700;font-size:${headlineSize}px;line-height:1.05;margin-bottom:16px;text-shadow:${onPhoto?'0 2px 12px rgba(0,0,0,.4)':'none'}">${data.headline}</div>
+      <div style="font-size:${big?22:16}px;font-weight:500;opacity:.95;line-height:1.4;max-width:85%;text-shadow:${onPhoto?'0 1px 8px rgba(0,0,0,.5)':'none'}">${data.subheadline}</div>
+      ${data.stat?`<div style="margin-top:24px;background:#FBB130;color:#3a2a05;padding:${big?'12px 18px':'9px 14px'};border-radius:10px;font-size:${big?18:14}px;font-weight:800;display:inline-block;align-self:flex-start;box-shadow:0 4px 14px rgba(0,0,0,.2)">${data.stat}</div>`:''}
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2">
+      <div style="background:white;color:#714B67;padding:${big?'12px 24px':'9px 18px'};border-radius:8px;font-weight:800;font-size:${big?16:13}px;box-shadow:0 4px 14px rgba(0,0,0,.2)">${data.cta} →</div>
+      <div style="font-size:${big?13:11}px;opacity:.9;font-weight:600;text-shadow:${onPhoto?'0 1px 6px rgba(0,0,0,.5)':'none'}">${data.hashtags}</div>
+    </div>`;
+
+  let canvasInner;
+  if(photo){
+    // ── ESTILO FOTO: foto real de fondo + overlay degradado + contenido ──
+    canvasInner=`
+      <img src="${photo.url}" crossorigin="anonymous" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0">
+      <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(45,30,42,.45) 0%,rgba(70,45,64,.78) 70%,rgba(70,45,64,.92) 100%);z-index:1"></div>
+      ${contentBlock(true)}`;
+  } else {
+    // ── ESTILO TARJETA GRÁFICA mejorada: degradado + iconos de apps + doodle ──
+    const iconRow=['crm','stock','account','sale','project','website'];
+    canvasInner=`
+      <div style="position:absolute;width:${f.w*.6}px;height:${f.w*.6}px;border-radius:50%;background:rgba(255,255,255,.05);top:-${f.w*.22}px;right:-${f.w*.15}px;z-index:0"></div>
+      <div style="position:absolute;width:${f.w*.34}px;height:${f.w*.34}px;border-radius:50%;background:rgba(1,160,157,.25);bottom:-${f.w*.08}px;left:-${f.w*.04}px;z-index:0"></div>
+      <!-- cluster de iconos de apps, esquina inferior derecha -->
+      <div style="position:absolute;right:${pad*.5}px;bottom:${pad*.5}px;display:flex;gap:${big?14:9}px;opacity:.9;z-index:1">
+        ${iconRow.map(ic=>`<div style="width:${big?64:42}px;height:${big?64:42}px;background:white;border-radius:${big?16:11}px;box-shadow:0 6px 18px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;padding:${big?13:9}px">
+          <img src="${ASSETS}/icons/apps/${ic}.svg" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain" onerror="this.style.display='none'">
+        </div>`).join('')}
+      </div>
+      ${contentBlock(false)}`;
+  }
+
   const wrap=document.getElementById('gcPubOutput');
   wrap.classList.add('show');
   wrap.innerHTML=`
     <div class="gc-output-header">
-      <span class="gc-output-label">${f.label}</span>
+      <span class="gc-output-label">${f.label}${photo?' · 📷 Foto real':' · 🎨 Gráfica'}</span>
       <div class="gc-output-actions">
+        ${photo?`<button class="gc-copy-btn gc-otrafoto-btn" onclick="gcOtraFoto()">🔄 Otra foto</button>`:''}
         <button class="gc-download-btn" onclick="gcDownloadImage()">⬇ Descargar PNG</button>
       </div>
     </div>
     <div class="gc-canvas-outer" style="height:${f.h*f.scale+20}px">
       <div id="gcImageCanvas" style="width:${f.w}px;height:${f.h}px;transform:scale(${f.scale});transform-origin:top left;
         background:linear-gradient(135deg,#714B67 0%,#5B3C53 60%,#017E84 100%);
-        border-radius:${f.w>800?'24px':'20px'};padding:${f.h>800?'80px':'48px'};
+        border-radius:${f.w>800?'24px':'20px'};padding:${pad}px;
         display:flex;flex-direction:column;justify-content:space-between;
         color:white;font-family:'Inter',sans-serif;position:relative;overflow:hidden;">
-        <!-- Decorative circles -->
-        <div style="position:absolute;width:${f.w*.6}px;height:${f.w*.6}px;border-radius:50%;background:rgba(255,255,255,.04);top:-${f.w*.2}px;right:-${f.w*.15}px;"></div>
-        <div style="position:absolute;width:${f.w*.3}px;height:${f.w*.3}px;border-radius:50%;background:rgba(1,126,132,.2);bottom:-${f.w*.05}px;left:${f.w*.05}px;"></div>
-        <!-- Logo -->
-        <div style="display:flex;align-items:center;gap:12px">
-          <img src="${ASSETS}/logos/odoo_logo_white.svg" style="height:${f.h>.5*f.w?36:24}px;filter:brightness(0) invert(1)" onerror="this.style.display='none'">
-        </div>
-        <!-- Main content -->
-        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:${f.h>600?'40px 0':'20px 0'}">
-          <div style="font-family:'Caveat',cursive;font-weight:700;font-size:${f.h>600?Math.min(72,f.w*.06):Math.min(48,f.w*.04)}px;line-height:1.1;margin-bottom:16px">${data.headline}</div>
-          <div style="font-size:${f.h>600?22:16}px;font-weight:500;opacity:.9;line-height:1.4;max-width:80%">${data.subheadline}</div>
-          ${data.stat?`<div style="margin-top:24px;background:rgba(251,177,48,.15);border-left:3px solid #FBB130;padding:12px 16px;border-radius:0 8px 8px 0;font-size:${f.h>600?18:14}px;font-weight:700">${data.stat}</div>`:''}
-        </div>
-        <!-- CTA + hashtags -->
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div style="background:white;color:#714B67;padding:10px 20px;border-radius:4px;font-weight:700;font-size:${f.h>600?16:13}px">${data.cta} →</div>
-          <div style="font-size:${f.h>600?13:11}px;opacity:.7">${data.hashtags}</div>
-        </div>
+        ${canvasInner}
       </div>
     </div>
-    <p style="font-size:12px;color:var(--gray-400);margin-top:8px;text-align:center">Vista previa escalada · El PNG descargado será en resolución completa</p>
+    <p style="font-size:12px;color:var(--gray-400);margin-top:8px;text-align:center">Vista previa escalada · El PNG será en resolución completa${photo?` · Foto: ${photo.photographer} (Pexels)`:''}</p>
     ${data.post_text?`
     <div style="margin-top:24px;background:var(--gray-50);border-radius:var(--radius);border:1.5px solid var(--gray-200);padding:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -3717,7 +3834,7 @@ window.gcDownloadImage=async function(){
     const orig=canvas.style.transform;
     canvas.style.transform='none';
     canvas.style.fontFamily="'Inter',sans-serif";
-    const c=await html2canvas(canvas,{scale:2,useCORS:true,allowTaint:true,logging:false,backgroundColor:null});
+    const c=await html2canvas(canvas,{scale:2,useCORS:true,allowTaint:false,imageTimeout:20000,logging:false,backgroundColor:null});
     canvas.style.transform=orig;
     const link=document.createElement('a');
     link.download=`odoo-linkedin-${cont.format}.png`;
