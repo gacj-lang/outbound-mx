@@ -5284,10 +5284,9 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   const fileName=`Propuesta-Odoo-${(co.nombre||'cliente').replace(/[^a-zA-Z0-9]/g,'-')}.pdf`;
   (async()=>{
     showNotif('Generando PDF…','info');
-    // Embebe las fuentes (base64) para que Caveat/Inter rendericen correctamente
-    const fontCSS=getPdfFontCSS();
-    const finalHtml=html.replace('__FONTFACE_STYLE__',fontCSS);
-    // Letter: 816×1056px @ 96dpi = 21.6×27.9cm
+    // SIN @font-face en el HTML — inyectamos fuentes via FontFace API directamente
+    // sobre el documento del iframe, que es el método que html2canvas SÍ respeta.
+    const finalHtml=html.replace('__FONTFACE_STYLE__','/* fuentes via FontFace API */');
     const PX_W=816, PX_H=1056, MM_W=216, MM_H=279;
     const iframe=document.createElement('iframe');
     iframe.style.cssText=`position:fixed;left:-99999px;top:0;width:${PX_W}px;height:${PX_H}px;border:0;background:white`;
@@ -5295,26 +5294,35 @@ tr.sel-row td{color:#015c61;font-weight:700;}
     try{
       const idoc=iframe.contentWindow.document;
       idoc.open(); idoc.write(finalHtml); idoc.close();
-      // 1. Esperar DOM completo
-      await new Promise(res=>{ if(idoc.readyState==='complete') res(); else iframe.onload=res; setTimeout(res,2000); });
-      // 2. Esperar fuentes embebidas — crítico para Caveat
-      try{ await idoc.fonts.ready; }catch(e){}
-      // 3. Forzar render de Caveat con los pesos exactos usados
-      try{
-        await Promise.all([
-          idoc.fonts.load("400 20px Caveat"),
-          idoc.fonts.load("600 20px Caveat"),
-          idoc.fonts.load("700 46px Caveat"),
-          idoc.fonts.load("400 14px Inter"),
-          idoc.fonts.load("700 14px Inter"),
-          idoc.fonts.load("800 28px Inter"),
-        ]);
-      }catch(e){ console.warn('fonts.load:',e); }
-      await new Promise(r=>setTimeout(r,400));
-      // 4. Imágenes
+      // 1. DOM listo
+      await new Promise(res=>{ if(idoc.readyState==='complete') res(); else iframe.onload=res; setTimeout(res,1500); });
+
+      // 2. ── CARGA DE FUENTES VIA FontFace API ──────────────────────────────
+      // Este es el único método que html2canvas respeta.
+      // Los base64 ya están en memoria como constantes JS → sin fetch, sin red.
+      const fontDefs=[
+        {name:'Inter',  src:INTER_REG_B64,   opts:{weight:'400'}},
+        {name:'Inter',  src:INTER_SEMI_B64,  opts:{weight:'600'}},
+        {name:'Inter',  src:INTER_BOLD_B64,  opts:{weight:'700'}},
+        {name:'Inter',  src:INTER_EXTRA_B64, opts:{weight:'800'}},
+        {name:'Caveat', src:CAVEAT_REG_B64,  opts:{weight:'400'}},
+        {name:'Caveat', src:CAVEAT_BOLD_B64, opts:{weight:'700'}},
+      ];
+      const Win=iframe.contentWindow;
+      await Promise.all(fontDefs.map(async fd=>{
+        try{
+          const face=new Win.FontFace(fd.name,`url(${fd.src})`,fd.opts);
+          const loaded=await face.load();
+          idoc.fonts.add(loaded);
+        }catch(e){ console.warn('FontFace load fail:',fd.name,fd.opts,e.message); }
+      }));
+      await idoc.fonts.ready;
+      await new Promise(r=>setTimeout(r,300));
+
+      // 3. Imágenes
       const imgs=[...idoc.images];
-      await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r;setTimeout(r,1500);})));
-      await new Promise(r=>setTimeout(r,200));
+      await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r;setTimeout(r,1200);})));
+      await new Promise(r=>setTimeout(r,150));
 
       const pages=[...idoc.querySelectorAll('.page')];
       const {jsPDF}=window.jspdf;
