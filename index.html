@@ -4806,22 +4806,41 @@ let _pdfFontCSS=null;
 async function getPdfFontCSS(){
   if(_pdfFontCSS) return _pdfFontCSS;
   const toB64=async(url)=>{
-    const res=await fetch(url); const buf=await res.arrayBuffer();
+    const res=await fetch(url);
+    if(!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
+    const buf=await res.arrayBuffer();
     const bytes=new Uint8Array(buf); let bin='';
     const chunk=8192;
     for(let i=0;i<bytes.length;i+=chunk){ bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+chunk)); }
     return 'data:font/ttf;base64,'+btoa(bin);
   };
   try{
-    const [inter,caveat]=await Promise.all([
-      toB64(`${ASSETS}/fonts/Inter-Variable.ttf`),
-      toB64(`${ASSETS}/fonts/Caveat-Variable.ttf`),
+    // IMPORTANTE: usar fuentes ESTÁTICAS (no variable) — html2canvas tiene bugs con variable fonts
+    const [interReg,interMed,interSemi,interBold,interEB,cavReg,cavSemi,cavBold]=await Promise.all([
+      toB64(`${ASSETS}/fonts/Inter-Regular.ttf`),
+      toB64(`${ASSETS}/fonts/Inter-Medium.ttf`),
+      toB64(`${ASSETS}/fonts/Inter-SemiBold.ttf`),
+      toB64(`${ASSETS}/fonts/Inter-Bold.ttf`),
+      toB64(`${ASSETS}/fonts/Inter-ExtraBold.ttf`),
+      toB64(`${ASSETS}/fonts/Caveat-Regular.ttf`),
+      toB64(`${ASSETS}/fonts/Caveat-SemiBold.ttf`),
+      toB64(`${ASSETS}/fonts/Caveat-Bold.ttf`),
     ]);
-    _pdfFontCSS=`@font-face{font-family:'Inter';src:url(${inter}) format('truetype');font-weight:100 900;font-style:normal;}`+
-      `@font-face{font-family:'Caveat';src:url(${caveat}) format('truetype');font-weight:400 700;font-style:normal;}`;
+    _pdfFontCSS=[
+      `@font-face{font-family:'Inter';src:url(${interReg}) format('truetype');font-weight:400;font-style:normal;}`,
+      `@font-face{font-family:'Inter';src:url(${interMed}) format('truetype');font-weight:500;font-style:normal;}`,
+      `@font-face{font-family:'Inter';src:url(${interSemi}) format('truetype');font-weight:600;font-style:normal;}`,
+      `@font-face{font-family:'Inter';src:url(${interBold}) format('truetype');font-weight:700;font-style:normal;}`,
+      `@font-face{font-family:'Inter';src:url(${interEB}) format('truetype');font-weight:800;font-style:normal;}`,
+      `@font-face{font-family:'Caveat';src:url(${cavReg}) format('truetype');font-weight:400;font-style:normal;}`,
+      `@font-face{font-family:'Caveat';src:url(${cavSemi}) format('truetype');font-weight:600;font-style:normal;}`,
+      `@font-face{font-family:'Caveat';src:url(${cavBold}) format('truetype');font-weight:700;font-style:normal;}`,
+    ].join('');
+    console.log('✓ Fuentes embebidas correctamente (estáticas)');
   }catch(e){
-    console.warn('Font embed falló, usando fallback CDN:',e);
-    _pdfFontCSS=`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Caveat:wght@500;600;700&display=swap');`;
+    console.warn('Font embed falló:',e.message);
+    // Fallback: CDN (puede fallar en el iframe)
+    _pdfFontCSS=`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Caveat:wght@400;600;700&display=swap');`;
   }
   return _pdfFontCSS;
 }
@@ -4938,12 +4957,12 @@ window.pricingGeneratePDF=function(){
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Inter',sans-serif;color:#21272B;background:white;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-/* A4 pages — altura EXACTA para evitar páginas en blanco al imprimir */
-.page{width:210mm;height:296mm;padding:0;position:relative;overflow:hidden;page-break-after:always;break-after:page;}
+/* LETTER pages (21.6 × 27.9 cm) */
+.page{width:816px;height:1056px;padding:0;position:relative;overflow:hidden;page-break-after:always;break-after:page;}
 .page:last-child{page-break-after:auto;break-after:auto;}
-.page-inner{padding:14mm 18mm 16mm;height:296mm;display:flex;flex-direction:column;overflow:hidden;}
-/* Cover page — fondo claro estilo Odoo */
-.cover{background:#f5f4f0;color:#21272B;height:296mm;display:flex;flex-direction:column;justify-content:space-between;padding:18mm 18mm 16mm;overflow:hidden;position:relative;}
+.page-inner{padding:52px 68px 60px;height:1056px;display:flex;flex-direction:column;overflow:hidden;}
+/* Cover page */
+.cover{background:#f5f4f0;color:#21272B;height:1056px;display:flex;flex-direction:column;justify-content:space-between;padding:68px 68px 60px;overflow:hidden;position:relative;}
 .cover::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,#d8d4cc 1.2px,transparent 1.2px);background-size:26px 26px;opacity:.5;pointer-events:none;}
 .cover-headline{font-family:'Inter',sans-serif;font-size:52px;font-weight:700;line-height:1.05;letter-spacing:-1.5px;color:white;margin-bottom:8px;}
 .cover-headline span{color:#FC787D;}
@@ -5007,11 +5026,11 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 .impl-step-dot{width:32px;height:32px;border-radius:50%;background:#714B67;color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;}
 .impl-step-label{font-size:9.5px;color:#6b7280;font-weight:600;}
 /* Closing page */
-.closing{background:linear-gradient(135deg,#714B67 0%,#4a2d42 100%);min-height:297mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18mm;}
+.closing{background:linear-gradient(135deg,#714B67 0%,#4a2d42 100%);min-height:1056px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18mm;}
 @media print{
-  @page{size:A4;margin:0;}
-  html,body{width:210mm;}
-  .page{page-break-inside:avoid;break-inside:avoid;height:296mm;}
+  @page{size:216mm 279mm;margin:0;}
+  html,body{width:816px;}
+  .page{page-break-inside:avoid;break-inside:avoid;height:1056px;}
   .page:last-child{page-break-after:avoid;}
 }
 </style></head><body>
@@ -5019,49 +5038,64 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 <!-- PÁGINA 1: PORTADA -->
 <div class="page">
 <div class="cover">
-  <!-- Cluster de iconos a la derecha, sangrando del borde (decoración) -->
-  <div style="position:absolute;top:-20px;right:-60px;width:340px;transform:rotate(-9deg);transform-origin:top right;z-index:0">
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
-      ${['calendar','crm','account','project','mass_mailing','sale','website','point_of_sale','stock','hr','helpdesk','purchase'].map(f=>`
-        <div style="aspect-ratio:1;background:white;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;padding:14px">
-          <img src="${ASSETS}/icons/apps/${f}.svg" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain" onerror="this.parentElement.style.display='none'">
-        </div>`).join('')}
-    </div>
-  </div>
-  <!-- Velo para difuminar el cluster hacia el contenido -->
-  <div style="position:absolute;inset:0;background:linear-gradient(100deg,#f5f4f0 38%,rgba(245,244,240,.85) 52%,rgba(245,244,240,0) 72%);z-index:1"></div>
 
-  <!-- Logo grande arriba-izquierda -->
-  <div style="position:relative;z-index:2;width:230px">
+  <!-- ══ CLUSTER de apps — cubre 75% de la altura a la derecha ══ -->
+  <div style="position:absolute;top:0;right:-80px;width:380px;height:100%;padding-top:40px;padding-bottom:40px;z-index:0;display:flex;flex-direction:column;justify-content:space-between;transform:rotate(-8deg);transform-origin:top right">
+    ${(()=>{
+      const apps=['calendar','crm','account','project','mass_mailing','sale','website','point_of_sale','stock','hr','helpdesk','purchase','mrp','sign','fleet','expenses','approvals','voip','mail','survey'];
+      const rows=[];
+      const sz=92;
+      for(let i=0;i<apps.length;i+=2){
+        rows.push(`<div style="display:flex;gap:20px;${i%4===2?'margin-left:24px':''}">
+          <div style="width:${sz}px;height:${sz}px;background:white;border-radius:22px;box-shadow:0 8px 28px rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;padding:20px;flex-shrink:0">
+            <img src="${ASSETS}/icons/apps/${apps[i]}.svg" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain" onerror="this.style.opacity='.2'">
+          </div>
+          ${apps[i+1]?`<div style="width:${sz}px;height:${sz}px;background:white;border-radius:22px;box-shadow:0 8px 28px rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;padding:20px;flex-shrink:0">
+            <img src="${ASSETS}/icons/apps/${apps[i+1]}.svg" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain" onerror="this.style.opacity='.2'">
+          </div>`:''}
+        </div>`);
+      }
+      return rows.map(r=>`<div>${r}</div>`).join('');
+    })()}
+  </div>
+  <!-- Velo izquierda → derecha para que el contenido sea legible -->
+  <div style="position:absolute;inset:0;background:linear-gradient(95deg,#f5f4f0 44%,rgba(245,244,240,.9) 56%,rgba(245,244,240,0) 76%);z-index:1;pointer-events:none"></div>
+
+  <!-- ══ LOGO — arriba izquierda ══ -->
+  <div style="position:relative;z-index:2;width:200px">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 919 495" style="width:100%;height:auto;display:block">
       <path d="M695,346a75,75,0,1,1,75-75A75,75,0,0,1,695,346Zm0-31a44,44,0,1,0-44-44A44,44,0,0,0,695,315ZM538,346a75,75,0,1,1,75-75A75,75,0,0,1,538,346Zm0-31a44,44,0,1,0-44-44A44,44,0,0,0,538,315Zm-82-45c0,41.9-33.6,76-75,76s-75-34-75-75.9S336.5,196,381,196c16.4,0,31.6,3.5,44,12.6V165.1c0-8.3,7.3-15.1,15.5-15.1s15.5,6.8,15.5,15.1Zm-75,45a44,44,0,1,0-44-44A44,44,0,0,0,381,315Z" fill="#8f8f8f"/>
       <path d="M224,346a75,75,0,1,1,75-75A75,75,0,0,1,224,346Zm0-31a44,44,0,1,0-44-44A44,44,0,0,0,224,315Z" fill="#714b67"/>
     </svg>
-    <div style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#017E84;margin-top:14px">Propuesta Comercial · ${new Date().getFullYear()}</div>
-    <div style="font-size:10px;color:#9ca3af;letter-spacing:1px;margin-top:4px;font-family:'Inter',monospace">${folio} · ${today}</div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#017E84;margin-top:12px;font-family:'Inter',sans-serif">Propuesta Comercial · ${new Date().getFullYear()}</div>
+    <div style="font-size:10px;color:#9ca3af;letter-spacing:.08em;margin-top:3px;font-family:'Inter',sans-serif">${folio} · ${today}</div>
   </div>
 
-  <!-- Caja de cliente (izquierda, centro) -->
-  <div style="position:relative;z-index:2;max-width:62%">
-    <div style="background:white;border-radius:16px;padding:24px 28px;box-shadow:0 12px 40px rgba(0,0,0,.1)">
-      <div style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px">Preparada para</div>
-      <div style="font-size:30px;font-weight:800;color:#21272B;letter-spacing:-.5px;line-height:1.05">${co?.nombre||'[Empresa]'}</div>
-      ${ct?`<div style="font-size:13px;color:#6b7280;margin-top:5px">${ct.nombre}${ct.cargo?` · ${ct.cargo}`:''}</div>`:''}
-      <div style="height:1px;background:#eee;margin:16px 0"></div>
-      <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Presentada por</div>
-      <div style="font-size:14px;font-weight:700;color:#714B67">${aeFullN}</div>
-      <div style="font-size:11px;color:#9ca3af">Account Executive · Odoo México${aeEmail?` · ${aeEmail}`:''}</div>
-      <div style="font-size:10px;color:#c2c8d0;margin-top:8px">Vigencia: 30 días · hasta ${validity}</div>
+  <!-- ══ CAJA DE CLIENTE — centro izquierda ══ -->
+  <div style="position:relative;z-index:2;max-width:58%">
+    <div style="background:white;border-radius:18px;padding:28px 32px;box-shadow:0 16px 50px rgba(0,0,0,.12)">
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;font-family:'Inter',sans-serif">Preparada para</div>
+      <div style="font-size:32px;font-weight:800;color:#21272B;letter-spacing:-.5px;line-height:1.05;font-family:'Inter',sans-serif">${co?.nombre||'[Empresa]'}</div>
+      ${ct?`<div style="font-size:14px;color:#6b7280;margin-top:6px;font-family:'Inter',sans-serif">${ct.nombre}${ct.cargo?` · ${ct.cargo}`:''}</div>`:''}
+      <div style="height:1px;background:#f0f0f0;margin:18px 0"></div>
+      <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-family:'Inter',sans-serif">Presentada por</div>
+      <div style="font-size:15px;font-weight:700;color:#714B67;font-family:'Inter',sans-serif">${aeFullN}</div>
+      <div style="font-size:12px;color:#9ca3af;font-family:'Inter',sans-serif">Account Executive · Odoo México${aeEmail?` · ${aeEmail}`:''}</div>
+      <div style="font-size:11px;color:#c2c8d0;margin-top:10px;font-family:'Inter',sans-serif">Vigencia: 30 días · hasta ${validity}</div>
     </div>
   </div>
 
-  <!-- Tagline Caveat abajo-izquierda -->
+  <!-- ══ TAGLINE — abajo izquierda, Caveat ══ -->
   <div style="position:relative;z-index:2">
-    <div style="font-family:'Caveat',cursive;font-weight:700;font-size:46px;color:#21272B;line-height:1.05;letter-spacing:.5px">
-      Todo tu <span style="position:relative;white-space:nowrap"><span style="position:relative;z-index:1">negocio</span><span style="position:absolute;left:0;right:-4px;bottom:6px;height:34%;background:#FBB130;opacity:.55;border-radius:4px;z-index:0"></span></span><br>en una sola plataforma.
+    <div style="font-family:'Caveat',cursive;font-weight:700;font-size:52px;color:#21272B;line-height:1.1;letter-spacing:0">
+      Todo tu <span style="position:relative;display:inline-block">
+        <span style="position:relative;z-index:2">negocio</span>
+        <span style="position:absolute;left:-2px;right:-2px;bottom:8px;height:32%;background:#FBB130;opacity:.55;border-radius:4px;z-index:1"></span>
+      </span><br>en una sola plataforma.
     </div>
-    <div style="font-family:'Caveat',cursive;font-weight:600;font-size:26px;color:#017E84;margin-top:6px">¡Sencillo, eficiente, personalizable!</div>
+    <div style="font-family:'Caveat',cursive;font-weight:600;font-size:30px;color:#017E84;margin-top:8px;letter-spacing:0">¡Sencillo, eficiente, personalizable!</div>
   </div>
+
 </div>
 </div>
 
@@ -5286,31 +5320,48 @@ tr.sel-row td{color:#015c61;font-weight:700;}
     // Embebe las fuentes (base64) para que Caveat/Inter rendericen correctamente
     const fontCSS=await getPdfFontCSS();
     const finalHtml=html.replace('__FONTFACE_STYLE__',fontCSS);
+    // Letter: 816×1056px @ 96dpi = 21.6×27.9cm
+    const PX_W=816, PX_H=1056, MM_W=216, MM_H=279;
     const iframe=document.createElement('iframe');
-    iframe.style.cssText='position:fixed;left:-99999px;top:0;width:794px;height:1123px;border:0;background:white';
+    iframe.style.cssText=`position:fixed;left:-99999px;top:0;width:${PX_W}px;height:${PX_H}px;border:0;background:white`;
     document.body.appendChild(iframe);
     try{
       const idoc=iframe.contentWindow.document;
       idoc.open(); idoc.write(finalHtml); idoc.close();
-      // Esperar carga + fuentes + imágenes
-      await new Promise(res=>{ if(idoc.readyState==='complete') res(); else iframe.onload=res; setTimeout(res,1800); });
+      // 1. Esperar DOM completo
+      await new Promise(res=>{ if(idoc.readyState==='complete') res(); else iframe.onload=res; setTimeout(res,2000); });
+      // 2. Esperar fuentes embebidas — crítico para Caveat
       try{ await idoc.fonts.ready; }catch(e){}
-      try{ await idoc.fonts.load("700 38px Caveat"); await idoc.fonts.load("400 14px Inter"); }catch(e){}
-      await new Promise(r=>setTimeout(r,200));
-      // Esperar a que las imágenes (iconos/logos) carguen
+      // 3. Forzar render de Caveat con los pesos exactos usados
+      try{
+        await Promise.all([
+          idoc.fonts.load("400 20px Caveat"),
+          idoc.fonts.load("600 20px Caveat"),
+          idoc.fonts.load("700 46px Caveat"),
+          idoc.fonts.load("400 14px Inter"),
+          idoc.fonts.load("700 14px Inter"),
+          idoc.fonts.load("800 28px Inter"),
+        ]);
+      }catch(e){ console.warn('fonts.load:',e); }
+      await new Promise(r=>setTimeout(r,400));
+      // 4. Imágenes
       const imgs=[...idoc.images];
-      await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r;setTimeout(r,1200);})));
-      await new Promise(r=>setTimeout(r,300));
+      await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r;setTimeout(r,1500);})));
+      await new Promise(r=>setTimeout(r,200));
 
       const pages=[...idoc.querySelectorAll('.page')];
       const {jsPDF}=window.jspdf;
-      const pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4',compress:true});
-      const W=210, H=297;
+      const pdf=new jsPDF({orientation:'p',unit:'mm',format:[MM_W,MM_H],compress:true});
       for(let i=0;i<pages.length;i++){
-        const canvas=await html2canvas(pages[i],{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false,width:794,height:1123,windowWidth:794,windowHeight:1123});
-        const img=canvas.toDataURL('image/jpeg',0.92);
-        if(i>0) pdf.addPage();
-        pdf.addImage(img,'JPEG',0,0,W,H,undefined,'FAST');
+        const canvas=await html2canvas(pages[i],{
+          scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',
+          logging:false,width:PX_W,height:PX_H,
+          windowWidth:PX_W,windowHeight:PX_H,
+          onclone:(doc)=>{ doc.body.style.margin='0'; doc.body.style.padding='0'; }
+        });
+        const img=canvas.toDataURL('image/jpeg',0.93);
+        if(i>0) pdf.addPage([MM_W,MM_H]);
+        pdf.addImage(img,'JPEG',0,0,MM_W,MM_H,undefined,'FAST');
       }
       pdf.save(fileName);
       showNotif('PDF generado ✓','success');
