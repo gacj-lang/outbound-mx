@@ -4917,8 +4917,9 @@ body{font-family:'Inter',sans-serif;color:#21272B;background:white;-webkit-print
 .page{width:210mm;height:296mm;padding:0;position:relative;overflow:hidden;page-break-after:always;break-after:page;}
 .page:last-child{page-break-after:auto;break-after:auto;}
 .page-inner{padding:14mm 18mm 16mm;height:296mm;display:flex;flex-direction:column;overflow:hidden;}
-/* Cover page */
-.cover{background:#714B67;color:white;height:296mm;display:flex;flex-direction:column;justify-content:space-between;padding:14mm 18mm;overflow:hidden;}
+/* Cover page — fondo claro estilo Odoo */
+.cover{background:#f5f4f0;color:#21272B;height:296mm;display:flex;flex-direction:column;justify-content:space-between;padding:18mm 18mm 16mm;overflow:hidden;position:relative;}
+.cover::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,#d8d4cc 1.2px,transparent 1.2px);background-size:26px 26px;opacity:.5;pointer-events:none;}
 .cover-headline{font-family:'Inter',sans-serif;font-size:52px;font-weight:700;line-height:1.05;letter-spacing:-1.5px;color:white;margin-bottom:8px;}
 .cover-headline span{color:#FC787D;}
 .cover-sub{font-family:'Caveat',cursive;font-size:28px;color:rgba(255,255,255,.65);margin-bottom:40px;}
@@ -4993,35 +4994,53 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 <!-- PÁGINA 1: PORTADA -->
 <div class="page">
 <div class="cover">
-  <!-- Logo oficial centrado arriba -->
-  <div style="text-align:center">
-    <img src="${ASSETS}/logos/odoo_logo_white.svg" crossorigin="anonymous" style="height:42px;object-fit:contain" onerror="this.outerHTML='<div style=&quot;display:inline-block;background:rgba(255,255,255,.2);border-radius:8px;padding:8px 18px;font-size:22px;font-weight:700;color:white;letter-spacing:.5px&quot;>odoo</div>'">
-    <div style="font-size:9.5px;color:rgba(255,255,255,.4);letter-spacing:1.5px;margin-top:10px;font-family:'Inter',monospace">${folio} · ${today}</div>
+  <!-- Etiqueta superior -->
+  <div style="position:relative;text-align:center">
+    <div style="font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#017E84">Propuesta Comercial · Odoo ${new Date().getFullYear()}</div>
+    <div style="font-size:10px;color:#9ca3af;letter-spacing:1.5px;margin-top:6px;font-family:'Inter',monospace">${folio} · ${today}</div>
   </div>
 
-  <!-- Centro: Propuesta para + caja de cliente -->
-  <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
-    <div style="font-family:'Caveat',cursive;font-size:34px;color:rgba(255,255,255,.6);margin-bottom:14px">Propuesta para:</div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">
-      <div style="background:rgba(255,255,255,.12);border-radius:12px;padding:22px 26px;flex:1;border:1px solid rgba(255,255,255,.2)">
-        <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Preparada para</div>
-        <div style="font-size:28px;font-weight:700;color:white;letter-spacing:-.5px">${co?.nombre||'[Empresa]'}</div>
-        ${ct?`<div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:4px">${ct.nombre}${ct.cargo?` · ${ct.cargo}`:''}</div>`:''}
-        <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:8px">Vigencia de esta propuesta: 30 días · hasta ${validity}</div>
+  <!-- Centro: LOGO grande + cluster de iconos -->
+  <div style="position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px">
+    <!-- Logo oficial Odoo (inline SVG — render garantizado) -->
+    <div style="width:300px;max-width:62%">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 919 495" style="width:100%;height:auto;display:block">
+        <path d="M695,346a75,75,0,1,1,75-75A75,75,0,0,1,695,346Zm0-31a44,44,0,1,0-44-44A44,44,0,0,0,695,315ZM538,346a75,75,0,1,1,75-75A75,75,0,0,1,538,346Zm0-31a44,44,0,1,0-44-44A44,44,0,0,0,538,315Zm-82-45c0,41.9-33.6,76-75,76s-75-34-75-75.9S336.5,196,381,196c16.4,0,31.6,3.5,44,12.6V165.1c0-8.3,7.3-15.1,15.5-15.1s15.5,6.8,15.5,15.1Zm-75,45a44,44,0,1,0-44-44A44,44,0,0,0,381,315Z" fill="#8f8f8f"/>
+        <path d="M224,346a75,75,0,1,1,75-75A75,75,0,0,1,224,346Zm0-31a44,44,0,1,0-44-44A44,44,0,0,0,224,315Z" fill="#714b67"/>
+      </svg>
+    </div>
+    <!-- Cluster de iconos de apps (decoración) -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;max-width:80%">
+      ${['crm','sale','stock','account','project','website','point_of_sale','mass_mailing','hr','helpdesk'].map((f,i)=>`
+        <div style="width:48px;height:48px;border-radius:12px;background:white;box-shadow:0 4px 14px rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center;${i%2?'transform:translateY(-6px)':''}">
+          <img src="${ASSETS}/icons/apps/${f}.svg" crossorigin="anonymous" style="width:30px;height:30px;object-fit:contain" onerror="this.style.display='none'">
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- Caja de cliente -->
+  <div style="position:relative;margin-bottom:24px">
+    <div style="font-family:'Caveat',cursive;font-size:32px;color:#714B67;margin-bottom:12px;text-align:center">Propuesta preparada para</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;background:white;border-radius:14px;padding:22px 26px;box-shadow:0 8px 30px rgba(0,0,0,.08)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px">Cliente</div>
+        <div style="font-size:28px;font-weight:800;color:#21272B;letter-spacing:-.5px;line-height:1.1">${co?.nombre||'[Empresa]'}</div>
+        ${ct?`<div style="font-size:13px;color:#6b7280;margin-top:4px">${ct.nombre}${ct.cargo?` · ${ct.cargo}`:''}</div>`:''}
+        <div style="font-size:10px;color:#b6bdc7;margin-top:8px">Vigencia: 30 días · hasta ${validity}</div>
       </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:10px;color:rgba(255,255,255,.45);margin-bottom:4px">Presentada por</div>
-        <div style="font-size:15px;font-weight:700;color:white">${aeFullN}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.5)">Account Executive</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">${aeEmail}</div>
-        ${aePhone?`<div style="font-size:11px;color:rgba(255,255,255,.4)">${aePhone}</div>`:''}
+      <div style="text-align:right;flex-shrink:0;border-left:1px solid #eee;padding-left:18px">
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em">Presentada por</div>
+        <div style="font-size:14px;font-weight:700;color:#714B67">${aeFullN}</div>
+        <div style="font-size:11px;color:#9ca3af">Account Executive</div>
+        <div style="font-size:11px;color:#b6bdc7;margin-top:2px">${aeEmail}</div>
+        ${aePhone?`<div style="font-size:11px;color:#b6bdc7">${aePhone}</div>`:''}
       </div>
     </div>
   </div>
 
-  <!-- Tagline blanco, pequeño, centrado, hasta abajo -->
-  <div style="text-align:center;color:white;font-size:20px;font-weight:600;letter-spacing:-.3px;opacity:.95">
-    Todo tu negocio en una sola plataforma.
+  <!-- Tagline Caveat (realce), grande y centrado, hasta abajo -->
+  <div style="position:relative;text-align:center;font-family:'Caveat',cursive;font-size:38px;font-weight:700;color:#21272B;line-height:1.1">
+    Todo tu <span style="position:relative;white-space:nowrap"><span style="position:relative;z-index:1">negocio</span><span style="position:absolute;left:-2px;right:-2px;bottom:4px;height:40%;background:#FBB130;opacity:.5;border-radius:3px;z-index:0"></span></span> en una sola plataforma.
   </div>
 </div>
 </div>
