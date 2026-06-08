@@ -1569,7 +1569,7 @@ function renderDiscSessions(sessions){
           <span class="disc-status-badge status-${s.status||'borrador'}">${statusLabel[s.status||'borrador']}</span>
           ${s.geminiNote?'<span class="disc-ai-indicator">✨ Nota Claude</span>':''}
         </div>
-        ${currentUserData?.role==='manager'?`<button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px" onclick="event.stopPropagation();deleteRecord('discoveryRecords','${s.id}',renderDiscoveryList)" title="Eliminar">🗑</button>`:''}
+        ${currentUserData?.role==='manager'?`<button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px" onclick="event.stopPropagation();deleteRecord('discoveryRecords','${s.id}',()=>showModule('discovery'))" title="Eliminar">🗑</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -3306,13 +3306,18 @@ function gcCompanySection(subId){
   return `<div id="gcCp_${subId}"></div><div id="gcIndDisplay_${subId}" style="display:none;margin-top:8px;padding:6px 12px;background:var(--accent-light);border-radius:var(--radius-sm);font-size:13px;color:var(--accent)"></div>`;
 }
 async function gcInitCP(subId){
-  // Restore previously selected company/contact across section switches
+  // El picker debe reflejar SOLO la selección del módulo de contenidos (cont.company),
+  // no una selección heredada de Pricing/Propuesta (cpState es singleton compartido).
   const prevCo=cont.company, prevCt=cont.contact;
   await mountCompanyPicker(`gcCp_${subId}`,(company,contact)=>{
     cont.company=company; cont.contact=contact;
     gcUpdateIndDisplay(subId);
   });
-  if(prevCo){ cpState.selectedCompany=prevCo; cpState.selectedContact=prevCt||null; renderM2o(`gcCp_${subId}`); gcUpdateIndDisplay(subId); }
+  // Sincronizar el picker con cont.company (null si no hay nada seleccionado → picker vacío)
+  cpState.selectedCompany=prevCo||null;
+  cpState.selectedContact=prevCt||null;
+  renderM2o(`gcCp_${subId}`);
+  if(prevCo) gcUpdateIndDisplay(subId);
 }
 function gcUpdateIndDisplay(subId){
   const el=document.getElementById('gcIndDisplay_'+subId); if(!el) return;
@@ -3708,23 +3713,23 @@ window.gcGeneratePub=async function(){
   btn.disabled=true; gcShowLoading('gcPubLoading',true);
   document.getElementById('gcPubOutput').classList.remove('show');
   try{
-    const copy=await gcCallClaude(`Genera el copy para una imagen de LinkedIn de Odoo México Y el texto del post.
+    const copy=await gcCallClaude(`Genera el contenido para una imagen comercial de LinkedIn de Odoo México dirigida a la industria de ${ind}, Y el texto del post.
 INDUSTRIA TARGET: ${ind} | TONO: ${tono}
 MENSAJE PRINCIPAL: ${msg}
 ESTADÍSTICA: ${stat||'ninguna'}
 
 Responde con este JSON exacto (sin markdown):
 {
-  "headline": "Frase principal impactante (máx 8 palabras, puede ser pregunta o afirmación)",
-  "subheadline": "Frase secundaria que amplía (máx 15 palabras)",
-  "stat": "${stat||''}",
-  "cta": "Call to action corto (máx 5 palabras)",
-  "hashtags": "#odoo #erp #[industria] (3-5 hashtags relevantes)",
-  "post_text": "Texto completo del post de LinkedIn (150-300 palabras). Usa emojis de forma estratégica (3-5 en el texto). Estructura: gancho impactante primera línea, desarrollo del mensaje, estadística o ejemplo si aplica, reflexión/CTA, y los hashtags al final separados en su propia línea. Escribe en español de México."
+  "headline": "Frase comercial corta y específica para la industria de ${ind} (máx 6 palabras). Ej. para construcción: 'Administra tu constructora con Odoo'",
+  "highlight": "1-2 palabras DEL headline para resaltar (deben aparecer literalmente en headline)",
+  "subheadline": "Frase secundaria de beneficio (máx 10 palabras)",
+  "puntos": ["3 a 4 efectos WOW MUY específicos de la industria de ${ind} con Odoo, cada uno máx 7 palabras. Ej. construcción: 'Costeo de obra en tiempo real', 'Facturación por avance automática', 'Control de materiales por proyecto'"],
+  "post_text": "Texto completo del post de LinkedIn (150-280 palabras). Emojis estratégicos (3-5). Estructura: gancho potente en la primera línea, desarrollo, los puntos WOW, reflexión/CTA, y hashtags (#odoo #erp #${ind.toLowerCase().replace(/[^a-z]/g,'')}) en su propia línea al final. Español de México."
 }`);
     let parsed;
     try { parsed=JSON.parse(copy.replace(/```json?\n?/g,'').replace(/```/g,'').trim()); }
-    catch(e){ parsed={headline:msg.substring(0,40),subheadline:'Odoo lo hace posible.',stat:stat,cta:'Saber más',hashtags:'#odoo #erp'}; }
+    catch(e){ parsed={headline:msg.substring(0,40),highlight:'',subheadline:'Odoo lo hace posible.',puntos:[]}; }
+    if(!Array.isArray(parsed.puntos)) parsed.puntos=[];
     parsed._ind=ind;
     cont.lastPubData=parsed;
     // Si el estilo es foto, busca una foto real de la industria
@@ -3752,46 +3757,47 @@ function renderGcImagePreview(data){
     '1080x1920':{w:1080,h:1920,scale:.28,label:'1080×1920 — Historia'},
   };
   const f=fmtConfig[fmt]||fmtConfig['1200x627'];
-  const big=f.h>600;
-  const pad=big?80:48;
   const photo=cont.lastPhoto;
-  const headlineSize=big?Math.min(68,f.w*.058):Math.min(46,f.w*.04);
+  const landscape=f.w/f.h>1.25;        // 1200x627, 1584x396 → foto a la derecha
+  const pad=Math.round(f.w*0.05);
+  const hSize=landscape?Math.min(58,f.w*.05):Math.min(72,f.w*.07);
+  const subSize=landscape?Math.round(f.w*.018):Math.round(f.w*.026);
+  const puntoSize=landscape?Math.round(f.w*.0145):Math.round(f.w*.022);
 
-  // Bloque de contenido (logo + headline + sub + stat + cta) — compartido
-  const contentBlock=(onPhoto)=>`
-    <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:2">
-      <img src="${ASSETS}/logos/odoo_logo_white.svg" crossorigin="anonymous" style="height:${big?38:26}px" onerror="this.outerHTML='<span style=&quot;font-size:${big?28:20}px;font-weight:800;color:white&quot;>odoo</span>'">
-    </div>
-    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:${big?'40px 0':'18px 0'};position:relative;z-index:2">
-      <div style="font-family:'Caveat',cursive;font-weight:700;font-size:${headlineSize}px;line-height:1.05;margin-bottom:16px;text-shadow:${onPhoto?'0 2px 12px rgba(0,0,0,.4)':'none'}">${data.headline}</div>
-      <div style="font-size:${big?22:16}px;font-weight:500;opacity:.95;line-height:1.4;max-width:85%;text-shadow:${onPhoto?'0 1px 8px rgba(0,0,0,.5)':'none'}">${data.subheadline}</div>
-      ${data.stat?`<div style="margin-top:24px;background:#FBB130;color:#3a2a05;padding:${big?'12px 18px':'9px 14px'};border-radius:10px;font-size:${big?18:14}px;font-weight:800;display:inline-block;align-self:flex-start;box-shadow:0 4px 14px rgba(0,0,0,.2)">${data.stat}</div>`:''}
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2">
-      <div style="background:white;color:#714B67;padding:${big?'12px 24px':'9px 18px'};border-radius:8px;font-weight:800;font-size:${big?16:13}px;box-shadow:0 4px 14px rgba(0,0,0,.2)">${data.cta} →</div>
-      <div style="font-size:${big?13:11}px;opacity:.9;font-weight:600;text-shadow:${onPhoto?'0 1px 6px rgba(0,0,0,.5)':'none'}">${data.hashtags}</div>
-    </div>`;
+  // Headline con resaltador Caveat (marcador detrás de la palabra clave)
+  const hl=data.highlight||'';
+  const headlineHTML=(hl&&data.headline?.includes(hl))
+    ? data.headline.replace(hl,`<span style="position:relative;display:inline-block"><span style="position:relative;z-index:2">${hl}</span><span style="position:absolute;left:-2px;right:-4px;bottom:${Math.round(hSize*.08)}px;height:${Math.round(hSize*.32)}px;background:#FC787D;opacity:.5;border-radius:4px;z-index:1"></span></span>`)
+    : (data.headline||'');
+
+  // Puntos WOW con checkmark
+  const puntos=(data.puntos||[]).slice(0,4);
+  const puntosHTML=puntos.map(p=>`
+    <div style="display:flex;align-items:flex-start;gap:${Math.round(f.w*.012)}px;margin-bottom:${Math.round(f.w*.014)}px">
+      <div style="width:${Math.round(puntoSize*1.5)}px;height:${Math.round(puntoSize*1.5)}px;border-radius:50%;background:#017E84;color:white;font-size:${Math.round(puntoSize*.9)}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;margin-top:1px">✓</div>
+      <div style="font-size:${puntoSize}px;font-weight:600;color:#21272B;line-height:1.3">${p}</div>
+    </div>`).join('');
+
+  // Bloque de texto (logo + headline + subtitle + puntos) — SIN hashtags ni CTA
+  const textBlock=`
+    <img src="${ASSETS}/logos/odoo_logo_color.svg" crossorigin="anonymous" style="height:${Math.round(f.w*.05)}px;width:auto;display:block;margin-bottom:${Math.round(f.w*.03)}px" onerror="this.outerHTML='<div style=&quot;font-size:${Math.round(f.w*.05)}px;font-weight:800;color:#714B67&quot;>odoo</div>'">
+    <div style="font-family:'Caveat',cursive;font-weight:700;font-size:${hSize}px;line-height:1.05;color:#21272B;margin-bottom:${Math.round(f.w*.018)}px">${headlineHTML}</div>
+    <div style="font-family:'Caveat',cursive;font-weight:400;font-size:${subSize}px;color:#017E84;margin-bottom:${Math.round(f.w*.028)}px">${data.subheadline||''}</div>
+    <div>${puntosHTML}</div>`;
+
+  // Foto con bordes redondeados
+  const photoBlock=photo?`<img src="${photo.url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;border-radius:${Math.round(f.w*.018)}px;display:block">`
+    :`<div style="width:100%;height:100%;border-radius:${Math.round(f.w*.018)}px;background:linear-gradient(135deg,#714B67,#017E84);display:flex;align-items:center;justify-content:center;color:white;font-family:'Caveat',cursive;font-size:${Math.round(f.w*.03)}px;text-align:center;padding:20px">Configura Pexels<br>para fotos reales</div>`;
 
   let canvasInner;
-  if(photo){
-    // ── ESTILO FOTO: foto real de fondo + overlay degradado + contenido ──
+  if(landscape){
     canvasInner=`
-      <img src="${photo.url}" crossorigin="anonymous" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0">
-      <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(45,30,42,.45) 0%,rgba(70,45,64,.78) 70%,rgba(70,45,64,.92) 100%);z-index:1"></div>
-      ${contentBlock(true)}`;
+      <div style="flex:1.15;display:flex;flex-direction:column;justify-content:center;padding-right:${pad}px">${textBlock}</div>
+      <div style="flex:1;height:100%">${photoBlock}</div>`;
   } else {
-    // ── ESTILO TARJETA GRÁFICA mejorada: degradado + iconos de apps + doodle ──
-    const iconRow=['crm','stock','account','sale','project','website'];
     canvasInner=`
-      <div style="position:absolute;width:${f.w*.6}px;height:${f.w*.6}px;border-radius:50%;background:rgba(255,255,255,.05);top:-${f.w*.22}px;right:-${f.w*.15}px;z-index:0"></div>
-      <div style="position:absolute;width:${f.w*.34}px;height:${f.w*.34}px;border-radius:50%;background:rgba(1,160,157,.25);bottom:-${f.w*.08}px;left:-${f.w*.04}px;z-index:0"></div>
-      <!-- cluster de iconos de apps, esquina inferior derecha -->
-      <div style="position:absolute;right:${pad*.5}px;bottom:${pad*.5}px;display:flex;gap:${big?14:9}px;opacity:.9;z-index:1">
-        ${iconRow.map(ic=>`<div style="width:${big?64:42}px;height:${big?64:42}px;background:white;border-radius:${big?16:11}px;box-shadow:0 6px 18px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;padding:${big?13:9}px">
-          <img src="${ASSETS}/icons/apps/${ic}.svg" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain" onerror="this.style.display='none'">
-        </div>`).join('')}
-      </div>
-      ${contentBlock(false)}`;
+      <div>${textBlock}</div>
+      <div style="flex:1;min-height:0;margin-top:${Math.round(f.w*.02)}px">${photoBlock}</div>`;
   }
 
   const wrap=document.getElementById('gcPubOutput');
@@ -3806,10 +3812,10 @@ function renderGcImagePreview(data){
     </div>
     <div class="gc-canvas-outer" style="height:${f.h*f.scale+20}px">
       <div id="gcImageCanvas" style="width:${f.w}px;height:${f.h}px;transform:scale(${f.scale});transform-origin:top left;
-        background:linear-gradient(135deg,#714B67 0%,#5B3C53 60%,#017E84 100%);
+        background:#f5f4f0;
         border-radius:${f.w>800?'24px':'20px'};padding:${pad}px;
-        display:flex;flex-direction:column;justify-content:space-between;
-        color:white;font-family:'Inter',sans-serif;position:relative;overflow:hidden;">
+        display:flex;flex-direction:${landscape?'row':'column'};
+        font-family:'Inter',sans-serif;position:relative;overflow:hidden;box-sizing:border-box">
         ${canvasInner}
       </div>
     </div>
@@ -4103,16 +4109,16 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
                 ${giro||'Solución empresarial'}
               </div>
             </div>
-            <div style="font-size:38px;font-weight:800;line-height:1.08;letter-spacing:-1px;margin-bottom:14px;position:relative">${headlineHTML}</div>
-            <div style="font-size:16px;color:rgba(255,255,255,.78);line-height:1.5;max-width:90%;position:relative">${data.subtitulo||''}</div>
+            <div style="font-family:'Caveat',cursive;font-size:54px;font-weight:700;line-height:1.0;margin-bottom:10px;position:relative">${headlineHTML}</div>
+            <div style="font-family:'Caveat',cursive;font-size:26px;font-weight:400;color:rgba(255,255,255,.88);line-height:1.2;max-width:90%;position:relative">${data.subtitulo||''}</div>
           </div>
 
           <!-- Cuerpo -->
           <div style="padding:36px 48px 44px">
-            <p style="font-size:14px;line-height:1.7;color:#4b5563;margin-bottom:32px">${data.intro||''}</p>
+            <p style="font-size:14px;line-height:1.7;color:#4b5563;margin-bottom:30px">${data.intro||''}</p>
 
             <!-- Apps -->
-            <div style="font-family:'Caveat',cursive;font-size:26px;font-weight:700;color:#21272B;margin-bottom:16px">Lo que <span style="color:#017E84">Odoo</span> hará por ti</div>
+            <div style="font-family:'Caveat',cursive;font-size:34px;font-weight:700;color:#21272B;margin-bottom:16px">Lo que <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2;color:#017E84">Odoo</span><span style="position:absolute;left:-2px;right:-2px;bottom:4px;height:34%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span> hará por ti</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:32px">
               ${(data.apps||[]).map(a=>`
                 <div style="border:1.5px solid #eee;border-radius:12px;padding:16px;background:#fafafa">
@@ -4127,7 +4133,7 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
 
             <!-- Diferenciadores -->
             <div style="background:#f5f0f3;border-radius:12px;padding:24px 28px;margin-bottom:28px">
-              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#714B67;margin-bottom:14px">¿Por qué Odoo?</div>
+              <div style="font-family:'Caveat',cursive;font-size:30px;font-weight:700;color:#714B67;margin-bottom:14px">¿Por qué <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2">Odoo</span><span style="position:absolute;left:-2px;right:-2px;bottom:3px;height:34%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span>?</div>
               <div style="display:flex;flex-direction:column;gap:12px">
                 ${(data.diferenciadores||[]).map(d=>`<div style="display:flex;align-items:flex-start;gap:10px">
                   <div style="width:20px;height:20px;border-radius:50%;background:#017E84;color:white;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">✓</div>
@@ -5938,6 +5944,7 @@ window.csvSaveSession=async function(){
     showNotif('Sesión guardada ✓','success'); csvLoadHistory();
   } catch(e){ showNotif('Error: '+e.message,'error'); }
 };
+window.csvLoadHistory=csvLoadHistory;
 async function csvLoadHistory(){
   const el=document.getElementById('csvHistory'); if(!el||!db) return;
   try{
@@ -5955,7 +5962,7 @@ async function csvLoadHistory(){
           <div style="font-size:12px;color:var(--gray-400)">${r.rowCount||0} prospectos · ${r.aeName} · ${date}</div></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-ghost btn-sm" onclick="csvReloadSession('${d.id}')">↻ Recargar</button>
-          ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('csvSessions','${d.id}',csvLoadHistory)">🗑</button>`:''}
+          ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('csvSessions','${d.id}',()=>csvLoadHistory())">🗑</button>`:''}
         </div>
       </div>`;}).join('')}</div>`;
   } catch(e){ el.innerHTML='<div class="cdc-empty">Error al cargar</div>'; }
