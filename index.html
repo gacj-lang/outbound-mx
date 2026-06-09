@@ -1594,6 +1594,13 @@ window.openDiscoveryForm = async function(recordId){
   document.getElementById('moduleContent').style.padding='0';
   document.getElementById('moduleContent').innerHTML=buildDiscoveryFormHTML(existingData);
   discInitForm(existingData);
+  // Listener delegado: CUALQUIER input/change en el formulario dispara autosave
+  // (robusto — funciona igual en sesión nueva o reabierta, sin depender de cada handler)
+  const wrapEl=document.querySelector('.disc-wrap');
+  if(wrapEl){
+    wrapEl.addEventListener('input',()=>discAutosave());
+    wrapEl.addEventListener('change',()=>discAutosave());
+  }
   // Mount company picker for discovery
   mountCompanyPicker('discM2oWrap',(co,ct)=>{
     disc.selections['emp-nombre']=co?.nombre||'';
@@ -2261,9 +2268,13 @@ window.discToggleTV=function(id,el){
   disc.selections['tipo_venta']=[...disc.activeTV].map(k=>TV_NAMES[k]).join(', ');
   discUpdateApps();
 };
-window.discSaveEmpresa=function(){
+// Lee los campos de empresa a disc.selections (SIN disparar autosave — evita bucles)
+function discReadEmpFields(){
   const fields=['nombre','razones','empleados','sistemas','usuarios','presupuesto','facturacion'];
   fields.forEach(f=>{ const el=document.getElementById('d-emp-'+f); if(el) disc.selections['emp-'+f]=el.value.trim?el.value.trim():el.value; });
+}
+window.discSaveEmpresa=function(){
+  discReadEmpFields();
   const nb=document.getElementById('discEmpresaBadge');
   const nom=disc.selections['emp-nombre']||'';
   if(nb){ nb.textContent='📄 '+nom; nb.style.display=nom?'inline-block':'none'; }
@@ -2614,8 +2625,8 @@ window.discCopyOutput=function(){
 let _discAutosaveT=null;
 window.discAutosave=function(){
   if(!disc.formActive) return;
-  // Solo autoguardar si hay algo significativo (empresa o nombre)
-  if(!disc.companyId && !(disc.selections['emp-nombre'])) return;
+  // Autoguardar si ya existe el registro (reabierto) o hay algo significativo
+  if(!disc.recordId && !disc.companyId && !(disc.selections['emp-nombre'])) return;
   const ind=document.getElementById('discAutosaveInd');
   if(ind){ ind.innerHTML='✎ Cambios sin guardar…'; ind.style.color='var(--gray-400)'; }
   clearTimeout(_discAutosaveT);
@@ -2624,7 +2635,7 @@ window.discAutosave=function(){
 
 window.discSaveRecord=async function(opts={}){
   const silent=opts.silent===true;
-  discSaveEmpresa();
+  discReadEmpFields(); // leer campos SIN re-disparar autosave
   const empresa=disc.selections['emp-nombre']||'Sin nombre';
   const status=disc.status||document.getElementById('discStatusSelHeader')?.value||document.getElementById('discStatusSel')?.value||'borrador';
   const geminiNote=document.getElementById('discGeminiOutput')?.textContent||'';
