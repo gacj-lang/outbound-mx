@@ -1469,7 +1469,7 @@ const disc = {
   discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; }
 };
 // Expose disc setters for inline HTML handlers
-window.discSetStatus = (v) => { disc.status = v; };
+window.discSetStatus = (v) => { disc.status = v; discAutosave(); };
 window.discGetStatus = () => disc.status;
 
 // ── Sessions list view ──
@@ -1785,10 +1785,10 @@ function buildDiscoveryFormHTML(data){
       <div id="disc-prod-opts" style="display:none;margin:8px 0 4px;padding:10px 12px;background:var(--accent-light);border-radius:var(--radius-sm)">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:8px">Características del producto</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="perecederos" style="accent-color:var(--accent)"> Perecederos / caducidad</label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="lote" style="accent-color:var(--accent)"> Lote / número de serie</label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="unidades_paquetes" style="accent-color:var(--accent)"> Venta en unidades y/o paquetes</label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="codigo_barras" style="accent-color:var(--accent)"> Usa código de barras</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="perecederos" onchange="discAutosave()" style="accent-color:var(--accent)"> Perecederos / caducidad</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="lote" onchange="discAutosave()" style="accent-color:var(--accent)"> Lote / número de serie</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="unidades_paquetes" onchange="discAutosave()" style="accent-color:var(--accent)"> Venta en unidades y/o paquetes</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="codigo_barras" onchange="discAutosave()" style="accent-color:var(--accent)"> Usa código de barras</label>
         </div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:6px">Origen del producto</div>
         <div class="disc-quick-pills">
@@ -2022,7 +2022,7 @@ function buildDiscoveryFormHTML(data){
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
         <div>
           <div class="disc-pc-title" style="color:#c2410c">💾 Guardar sesión</div>
-          <div class="disc-pc-sub" style="margin-bottom:0">Guarda los datos de esta sesión en tu historial.</div>
+          <div class="disc-pc-sub" style="margin-bottom:0">Se guarda solo automáticamente · <span id="discAutosaveInd" style="font-weight:600;color:var(--gray-400)">Autoguardado activo</span></div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <select class="disc-status-select" id="discStatusSel" onchange="discSetStatus(this.value)">
@@ -2031,7 +2031,7 @@ function buildDiscoveryFormHTML(data){
             <option value="completado">Completada</option>
             <option value="archivado">Archivada</option>
           </select>
-          <button class="disc-save-btn" id="discSaveBtn" onclick="discSaveRecord()">💾 Guardar en historial</button>
+          <button class="disc-save-btn" id="discSaveBtn" onclick="discSaveRecord()">💾 Guardar ahora</button>
         </div>
       </div>
     </div>
@@ -2045,7 +2045,7 @@ function buildDiscoveryFormHTML(data){
       <div class="disc-pc-sub">Pega la transcripción de Google Meet para generar la nota estructurada que copiarás a Odoo CRM.</div>
 
       <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Transcripción de Google Meet</div>
-      <textarea class="disc-transcript-ta" id="discTranscriptInput" placeholder="Pega aquí la transcripción completa de la llamada...&#10;&#10;(En Google Meet: Actividades → Transcribir → Ver transcripción → Copiar todo)" style="min-height:80px;max-height:120px;resize:vertical"></textarea>
+      <textarea class="disc-transcript-ta" id="discTranscriptInput" oninput="discAutosave()" placeholder="Pega aquí la transcripción completa de la llamada...&#10;&#10;(En Google Meet: Actividades → Transcribir → Ver transcripción → Copiar todo)" style="min-height:80px;max-height:120px;resize:vertical"></textarea>
 
       <button class="disc-gemini-btn" id="discAnalyzeBtn" onclick="discAnalyzeClaude()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
@@ -2227,6 +2227,7 @@ window.discEndCall=function(){
     btn.onclick=null; // ya no se puede volver a presionar
     setTimeout(()=>discSetMode('postcall'),800);
   }
+  discAutosave();
 };
 window.discSelectInd=function(id,el){
   disc.currentInd=id;
@@ -2252,6 +2253,7 @@ window.discSaveEmpresa=function(){
   const nb=document.getElementById('discEmpresaBadge');
   const nom=disc.selections['emp-nombre']||'';
   if(nb){ nb.textContent='📄 '+nom; nb.style.display=nom?'inline-block':'none'; }
+  discAutosave();
 };
 window.discToggleProdOpts=function(tipo){
   const el=document.getElementById('disc-prod-opts');
@@ -2263,6 +2265,7 @@ window.discPillSingle=function(el,group){
   el.classList.add('selected-'+(el.dataset.color||'b'));
   disc.selections[group]=el.textContent.trim();
   discUpdateBANT();
+  discAutosave();
 };
 window.discPillMulti=function(el,group){
   const cls='selected-'+(el.dataset.color||'b');
@@ -2271,6 +2274,7 @@ window.discPillMulti=function(el,group){
   const val=el.textContent.trim();
   if(el.classList.contains(cls)){ if(!disc.selections[group].includes(val)) disc.selections[group].push(val); }
   else disc.selections[group]=disc.selections[group].filter(v=>v!==val);
+  discAutosave();
 };
 window.discToggleDolor=function(el){
   el.classList.toggle('selected-r');
@@ -2280,6 +2284,7 @@ window.discToggleDolor=function(el){
   else disc.selections['dolores']=disc.selections['dolores'].filter(v=>v!==val);
   const c=document.getElementById('dcard-dolor'); if(c) c.style.borderColor=disc.selections['dolores']?.length?'#f97316':'';
   discUpdateBANT();
+  discAutosave();
 };
 window.discMarkCovered=function(cardId,btn){
   const card=document.getElementById(cardId); if(!card) return;
@@ -2292,6 +2297,7 @@ window.discMarkCovered=function(cardId,btn){
   if(!disc.selections.coveredCards) disc.selections.coveredCards=[];
   if(cov){ if(!disc.selections.coveredCards.includes(cardId)) disc.selections.coveredCards.push(cardId); }
   else disc.selections.coveredCards=disc.selections.coveredCards.filter(c=>c!==cardId);
+  discAutosave();
 };
 window.discMarkFlujo=function(name,btn){
   const cov=!btn.textContent.startsWith('✓');
@@ -2308,6 +2314,7 @@ window.discMarkFlujo=function(name,btn){
   const dm={'comercial':'dbant-comercial','operativo':'dbant-operativo','administrativo':'dbant-admin'};
   const di={'comercial':'dbi-comercial','operativo':'dbi-operativo','administrativo':'dbi-admin'};
   discSetBarDot(dm[name],di[name],cov);
+  discAutosave();
 };
 function discSetBarDot(dotId,itemId,cov){
   const dot=document.getElementById(dotId); if(dot){ dot.classList.toggle('covered',cov); dot.classList.toggle('filled',false); }
@@ -2589,7 +2596,20 @@ window.discCopyOutput=function(){
 };
 
 // ── Save to Firestore ──
-window.discSaveRecord=async function(){
+// ── Autosave con debounce ──
+let _discAutosaveT=null;
+window.discAutosave=function(){
+  if(!disc.formActive) return;
+  // Solo autoguardar si hay algo significativo (empresa o nombre)
+  if(!disc.companyId && !(disc.selections['emp-nombre'])) return;
+  const ind=document.getElementById('discAutosaveInd');
+  if(ind){ ind.innerHTML='✎ Cambios sin guardar…'; ind.style.color='var(--gray-400)'; }
+  clearTimeout(_discAutosaveT);
+  _discAutosaveT=setTimeout(()=>{ window.discSaveRecord({silent:true}); }, 2500);
+};
+
+window.discSaveRecord=async function(opts={}){
+  const silent=opts.silent===true;
   discSaveEmpresa();
   const empresa=disc.selections['emp-nombre']||'Sin nombre';
   const statusEl=document.getElementById('discStatusSel');
@@ -2608,7 +2628,9 @@ window.discSaveRecord=async function(){
     geminiNote, recoNote, transcript, status, callEnded:disc.callEnded||false, updatedAt:serverTimestamp(),
   };
   const btn=document.getElementById('discSaveBtn');
-  if(btn){ btn.disabled=true; btn.textContent='Guardando...'; }
+  const ind=document.getElementById('discAutosaveInd');
+  if(silent){ if(ind){ ind.innerHTML='⏳ Guardando…'; ind.style.color='var(--gray-400)'; } }
+  else if(btn){ btn.disabled=true; btn.textContent='Guardando...'; }
   try {
     if(disc.recordId&&db){
       await updateDoc(doc(db,'discoveryRecords',disc.recordId),record);
@@ -2625,8 +2647,13 @@ window.discSaveRecord=async function(){
       localStorage.setItem('disc_local',JSON.stringify(locals));
       disc.recordId=localRec.id;
     }
-    showNotif('Sesión guardada ✓','success');
-    if(btn){ btn.textContent='✓ Guardado'; btn.style.background='#15803d'; setTimeout(()=>{ btn.disabled=false; btn.textContent='💾 Guardar en historial'; btn.style.background=''; },2000); }
+    if(silent){
+      if(ind){ ind.innerHTML='✓ Guardado automáticamente'; ind.style.color='var(--success)'; }
+    } else {
+      showNotif('Sesión guardada ✓','success');
+      if(ind){ ind.innerHTML='✓ Guardado'; ind.style.color='var(--success)'; }
+      if(btn){ btn.textContent='✓ Guardado'; btn.style.background='#15803d'; setTimeout(()=>{ btn.disabled=false; btn.textContent='💾 Guardar en historial'; btn.style.background=''; },2000); }
+    }
     // ── Actualizar memoria de la empresa ──
     if(disc.companyId){
       const s=disc.selections||{};
@@ -2650,8 +2677,8 @@ window.discSaveRecord=async function(){
       });
     }
   } catch(e){
-    showNotif('Error al guardar: '+e.message,'error');
-    if(btn){ btn.disabled=false; btn.textContent='💾 Guardar en historial'; }
+    if(silent){ if(ind){ ind.innerHTML='⚠ Error al guardar'; ind.style.color='var(--danger)'; } }
+    else { showNotif('Error al guardar: '+e.message,'error'); if(btn){ btn.disabled=false; btn.textContent='💾 Guardar en historial'; } }
   }
 };
 
@@ -2863,8 +2890,18 @@ async function updateCompanyMemory(companyId, type, data){
     };
     if(type==='discovery')  updated.discovery ={...existing.discovery||{},...data.discovery};
     if(type==='pricing')    updated.pricing   ={...existing.pricing||{},...data.pricing};
-    if(type==='contenido')  updated.contenidos={...existing.contenidos||{},
-      recent:[{...data.contenido,date:new Date().toISOString()},...(existing.contenidos?.recent||[])].slice(0,10)};
+    if(type==='contenido'){
+      const c0=existing.contenidos||{};
+      const newCont={
+        ...c0,
+        recent:[{...data.contenido,date:new Date().toISOString()},...(c0.recent||[])].slice(0,10),
+      };
+      // Auto-guardar contenido completo en saved[] (historial por empresa/submódulo)
+      if(data.savedContent){
+        newCont.saved=[{...data.savedContent,aeName:currentUserData?.name||'',aeGram:currentUserData?.gram||'',date:new Date().toISOString()},...(c0.saved||[])].slice(0,60);
+      }
+      updated.contenidos=newCont;
+    }
     if(type==='propuesta')  updated.propuesta ={...existing.propuesta||{},...data.propuesta};
 
     await updateDoc(ref,{'memory':updated,'updatedAt':serverTimestamp()});
@@ -3601,6 +3638,7 @@ Reglas generales:
     gcShowOutput('gcTplOutput',text,true,{tipo:channel,momento,momLabel});
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
       contenido:{tipo:channel,topic:ctx||momLabel,momento,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
+      savedContent:{tipo:channel,momLabel,momento,contacto:cont.contact?.nombre||'',texto:text},
       touchpoint:{type:channel,summary:`${GC_CHANNELS.find(c=>c.id===channel)?.label||channel} · ${momLabel} · ${cont.contact?.nombre||cont.company?.nombre||''}`}
     });
   } catch(e){ showNotif('Error: '+e.message,'error'); }
@@ -3744,6 +3782,15 @@ Responde con este JSON exacto (sin markdown):
       }
     }
     renderGcImagePreview(parsed);
+    // Auto-guardar el post en la memoria de la empresa (si hay empresa en contenidos)
+    if(cont.company?.id){
+      const postTexto=parsed.post_text||`${parsed.headline||''}\n${parsed.subheadline||''}\n\n${(parsed.puntos||[]).map(p=>'• '+p).join('\n')}`;
+      updateCompanyMemory(cont.company.id,'contenido',{
+        contenido:{tipo:'linkedin_post',topic:msg,industria:ind,fecha:new Date().toISOString()},
+        savedContent:{tipo:'linkedin_post',momLabel:`Post LinkedIn · ${ind}`,contacto:'',texto:postTexto,headline:parsed.headline||''},
+        touchpoint:{type:'linkedin_post',summary:`Post LinkedIn · ${ind} · ${parsed.headline||''}`}
+      });
+    }
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcPubLoading',false);
 };
@@ -3941,6 +3988,7 @@ Reglas:
     gcShowOutput('gcCcOutput',text,false);
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
       contenido:{tipo:'cold_calling',topic:obj,cargo,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
+      savedContent:{tipo:'cold_calling',momLabel:'Cold calling',contacto:cont.contact?.nombre||'',texto:text},
       touchpoint:{type:'cold_calling',summary:`Cold calling script · ${cont.contact?.nombre||cont.company?.nombre||''}`}
     });
   } catch(e){ showNotif('Error: '+e.message,'error'); }
@@ -4163,10 +4211,15 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
         </div>
       </div>`;
     window._gcBrData=data;
-    if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
-      contenido:{tipo:'brochure',apps:apps.slice(0,5).join(', '),headline:data.headline||'',fecha:new Date().toISOString()},
-      touchpoint:{type:'brochure',summary:`Brochure · ${data.headline||apps.slice(0,3).join(', ')}`}
-    });
+    if(cont.company?.id){
+      const brTexto=`${data.headline||''}\n${data.subtitulo||''}\n\n${data.intro||''}\n\nApps: ${(data.apps||[]).map(a=>a.nombre).join(', ')}\n\n${(data.diferenciadores||[]).join(' · ')}\n\nCTA: ${data.cta||''}`;
+      updateCompanyMemory(cont.company.id,'contenido',{
+        contenido:{tipo:'brochure',apps:apps.slice(0,5).join(', '),headline:data.headline||'',fecha:new Date().toISOString()},
+        savedContent:{tipo:'brochure',momLabel:'Brochure',contacto:cont.contact?.nombre||'',texto:brTexto,headline:data.headline||''},
+        touchpoint:{type:'brochure',summary:`Brochure · ${data.headline||apps.slice(0,3).join(', ')}`}
+      });
+      showNotif('Brochure generado y guardado en la empresa ✓','success');
+    }
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcBrLoading',false);
 };
@@ -4687,33 +4740,52 @@ window.empEdit=async function(id){
       <button class="disc-copy-btn" onclick="document.getElementById('empEditPopup').remove()">✕</button>
     </div>
     <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
-      <div class="form-group"><label>Nombre *</label><input class="input" id="empEditNombre" value="${co.nombre||''}"></div>
+      <div class="form-group"><label>Nombre *</label><input class="input" id="empEditNombre" value="${co.nombre||''}" oninput="empAutosaveEdit('${id}')"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group"><label>Giro / Industria</label>
-          <select class="input" id="empEditGiro"><option value="">—</option>${Object.keys(INDUSTRY_MAP).map(k=>`<option ${co.giro===k?'selected':''}>${k}</option>`).join('')}</select></div>
+          <select class="input" id="empEditGiro" onchange="empAutosaveEdit('${id}')"><option value="">—</option>${Object.keys(INDUSTRY_MAP).map(k=>`<option ${co.giro===k?'selected':''}>${k}</option>`).join('')}</select></div>
         <div class="form-group"><label>Tamaño</label>
-          <select class="input" id="empEditTam"><option value="">—</option>${['1-10 empleados','11-50 empleados','51-200 empleados','200+ empleados'].map(v=>`<option ${co.tamaño===v?'selected':''}>${v}</option>`).join('')}</select></div>
+          <select class="input" id="empEditTam" onchange="empAutosaveEdit('${id}')"><option value="">—</option>${['1-10 empleados','11-50 empleados','51-200 empleados','200+ empleados'].map(v=>`<option ${co.tamaño===v?'selected':''}>${v}</option>`).join('')}</select></div>
         <div class="form-group"><label>Origen</label>
-          <select class="input" id="empEditOrig"><option value="">—</option>${['Ferias comerciales','Networking','Lusha','Apollo','LinkedIn','Bases de datos','Google','Otro'].map(v=>`<option ${co.origen===v?'selected':''}>${v}</option>`).join('')}</select></div>
-        <div class="form-group"><label>Sitio web</label><input class="input" id="empEditWeb" value="${co.website||''}"></div>
-        <div class="form-group" style="grid-column:span 2"><label>LinkedIn empresa</label><input class="input" id="empEditLi" value="${co.linkedin||''}"></div>
+          <select class="input" id="empEditOrig" onchange="empAutosaveEdit('${id}')"><option value="">—</option>${['Ferias comerciales','Networking','Lusha','Apollo','LinkedIn','Bases de datos','Google','Otro'].map(v=>`<option ${co.origen===v?'selected':''}>${v}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Sitio web</label><input class="input" id="empEditWeb" value="${co.website||''}" oninput="empAutosaveEdit('${id}')"></div>
+        <div class="form-group" style="grid-column:span 2"><label>LinkedIn empresa</label><input class="input" id="empEditLi" value="${co.linkedin||''}" oninput="empAutosaveEdit('${id}')"></div>
       </div>
-      <button class="btn btn-primary btn-full" onclick="empSaveEdit('${id}')">Guardar cambios</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <span id="empEditAutosaveInd" style="font-size:12px;color:var(--gray-400);font-weight:600">Autoguardado activo</span>
+        <button class="btn btn-primary" onclick="empSaveEdit('${id}')">Guardar y cerrar</button>
+      </div>
     </div>
   </div>`;
   overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
   document.body.appendChild(overlay);
 };
 
-window.empSaveEdit=async function(id){
+let _empEditAutosaveT=null;
+window.empAutosaveEdit=function(id){
+  const ind=document.getElementById('empEditAutosaveInd');
+  if(ind){ ind.textContent='✎ Cambios sin guardar…'; ind.style.color='var(--gray-400)'; }
+  clearTimeout(_empEditAutosaveT);
+  _empEditAutosaveT=setTimeout(()=>empSaveEdit(id,{silent:true}),2000);
+};
+
+window.empSaveEdit=async function(id,opts={}){
+  const silent=opts.silent===true;
   const nombre=document.getElementById('empEditNombre')?.value.trim();
-  if(!nombre){ showNotif('El nombre es obligatorio','error'); return; }
+  if(!nombre){ if(!silent) showNotif('El nombre es obligatorio','error'); return; }
   const updated={nombre,giro:document.getElementById('empEditGiro')?.value||'',tamaño:document.getElementById('empEditTam')?.value||'',origen:document.getElementById('empEditOrig')?.value||'',website:document.getElementById('empEditWeb')?.value||'',linkedin:document.getElementById('empEditLi')?.value||''};
-  const saved=await saveCompany({id,...updated}); if(!saved) return;
+  const ind=document.getElementById('empEditAutosaveInd');
+  if(silent&&ind){ ind.textContent='⏳ Guardando…'; }
+  const saved=await saveCompany({id,...updated}); if(!saved){ if(silent&&ind){ind.textContent='⚠ Error';ind.style.color='var(--danger)';} return; }
   const idx=_allEmpresas.findIndex(c=>c.id===id);
   if(idx>=0) _allEmpresas[idx]={..._allEmpresas[idx],...updated};
-  document.getElementById('empEditPopup')?.remove();
-  showNotif('Empresa actualizada ✓','success'); empRender(_allEmpresas);
+  if(silent){
+    if(ind){ ind.textContent='✓ Guardado automáticamente'; ind.style.color='var(--success)'; }
+    empRender(_allEmpresas);
+  } else {
+    document.getElementById('empEditPopup')?.remove();
+    showNotif('Empresa actualizada ✓','success'); empRender(_allEmpresas);
+  }
 };
 
 window.empShowCreate=function(){
