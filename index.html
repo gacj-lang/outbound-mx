@@ -1696,6 +1696,7 @@ function buildDiscoveryFormHTML(data){
         <button class="disc-mode-btn active" id="dmbEscucha" onclick="discSetMode('escucha')">🎧 En llamada</button>
         <button class="disc-mode-btn" id="dmbPostcall" onclick="discSetMode('postcall')">📋 Post-call</button>
       </div>
+      <span id="discAutosaveInd" style="font-size:12px;font-weight:600;color:var(--gray-400);white-space:nowrap">Autoguardado activo</span>
       <button class="btn btn-ghost btn-sm" id="discQuickSave" onclick="discSaveRecord()" style="font-size:12px;padding:6px 14px;border-color:var(--success);color:var(--success)">💾 Guardar</button>
       <button class="disc-end-btn" id="discEndBtn" onclick="discEndCall()">⏹ Finalizar llamada</button>
     </div>
@@ -2022,7 +2023,7 @@ function buildDiscoveryFormHTML(data){
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
         <div>
           <div class="disc-pc-title" style="color:#c2410c">💾 Guardar sesión</div>
-          <div class="disc-pc-sub" style="margin-bottom:0">Se guarda solo automáticamente · <span id="discAutosaveInd" style="font-weight:600;color:var(--gray-400)">Autoguardado activo</span></div>
+          <div class="disc-pc-sub" style="margin-bottom:0">Se guarda solo automáticamente mientras trabajas.</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <select class="disc-status-select" id="discStatusSel" onchange="discSetStatus(this.value)">
