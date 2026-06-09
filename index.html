@@ -1469,7 +1469,13 @@ const disc = {
   discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; }
 };
 // Expose disc setters for inline HTML handlers
-window.discSetStatus = (v) => { disc.status = v; discAutosave(); };
+window.discSetStatus = (v) => {
+  disc.status = v;
+  // Sincronizar ambos selectores (header + post-call)
+  const a=document.getElementById('discStatusSel'); if(a&&a.value!==v) a.value=v;
+  const b=document.getElementById('discStatusSelHeader'); if(b&&b.value!==v) b.value=v;
+  discAutosave();
+};
 window.discGetStatus = () => disc.status;
 
 // ── Sessions list view ──
@@ -1697,6 +1703,12 @@ function buildDiscoveryFormHTML(data){
         <button class="disc-mode-btn" id="dmbPostcall" onclick="discSetMode('postcall')">📋 Post-call</button>
       </div>
       <span id="discAutosaveInd" style="font-size:12px;font-weight:600;color:var(--gray-400);white-space:nowrap">Autoguardado activo</span>
+      <select class="disc-status-select" id="discStatusSelHeader" onchange="discSetStatus(this.value)" style="font-size:12px;padding:6px 10px">
+        <option value="borrador">Borrador</option>
+        <option value="en_proceso">En proceso</option>
+        <option value="completado">Completada</option>
+        <option value="archivado">Archivada</option>
+      </select>
       <button class="btn btn-ghost btn-sm" id="discQuickSave" onclick="discSaveRecord()" style="font-size:12px;padding:6px 14px;border-color:var(--success);color:var(--success)">💾 Guardar</button>
       <button class="disc-end-btn" id="discEndBtn" onclick="discEndCall()">⏹ Finalizar llamada</button>
     </div>
@@ -2131,8 +2143,9 @@ function discInitForm(data){
     const nb=document.getElementById('discEmpresaBadge');
     const nom=disc.selections['emp-nombre']||'';
     if(nb&&nom){ nb.textContent='📄 '+nom; nb.style.display='inline-block'; }
-    // Restore status select
+    // Restore status select (ambos: header + post-call)
     const ss=document.getElementById('discStatusSel'); if(ss) ss.value=disc.status;
+    const ssh=document.getElementById('discStatusSelHeader'); if(ssh) ssh.value=disc.status;
     // Restore pills
     discRestorePills();
     discRestoreCovered();
@@ -2613,8 +2626,7 @@ window.discSaveRecord=async function(opts={}){
   const silent=opts.silent===true;
   discSaveEmpresa();
   const empresa=disc.selections['emp-nombre']||'Sin nombre';
-  const statusEl=document.getElementById('discStatusSel');
-  const status=statusEl?statusEl.value:disc.status;
+  const status=disc.status||document.getElementById('discStatusSelHeader')?.value||document.getElementById('discStatusSel')?.value||'borrador';
   const geminiNote=document.getElementById('discGeminiOutput')?.textContent||'';
   const recoNote=document.getElementById('discRecoOutput')?.textContent||'';
   const transcript=document.getElementById('discTranscriptInput')?.value||'';
