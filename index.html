@@ -4047,7 +4047,7 @@ const GC_GRAPHIC_GRADS=[
   ['#1E3A5F','#017E84'],['#0F766E','#714B67'],['#714B67','#FBB130'],
 ];
 const GC_GRAPHIC_VARIANTS=4;  // 0 mosaico · 1 constelación · 2 héroe · 3 lista
-const GC_MISSING_ICONS=new Set(['whatsapp']);  // módulos sin archivo SVG — se omiten del panel para no dejar huecos
+const GC_MISSING_ICONS=new Set();  // módulos sin archivo SVG — se omiten del panel para no dejar huecos
 function gcGraphicPanel(data,f){
   const R=Math.round(f.w*.018);
   const grad=GC_GRAPHIC_GRADS[data._gradIdx||0]||GC_GRAPHIC_GRADS[0];
