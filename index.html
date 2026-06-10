@@ -5118,27 +5118,31 @@ function modIcon(m,size=20){
 
 window.pricingShowModuleSelector=function pricingShowModuleSelector(){
   const existing=document.getElementById('pricingModSel'); if(existing) existing.remove();
-  const prev=pricingState.selectedModules||['crm','inventario','contabilidad','facturacion','compras','rrhh'];
+  const prev=pricingState.selectedModules||['CRM','Ventas','Inventario','Compras','Contabilidad','Facturación','Empleados'];
   const overlay=document.createElement('div');
   overlay.className='disc-popup-overlay'; overlay.id='pricingModSel';
-  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:680px">
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:720px">
     <div class="disc-popup-header">
       <div class="disc-popup-title">📱 Módulos en el alcance de implementación</div>
       <button class="disc-copy-btn" onclick="document.getElementById('pricingModSel').remove()">✕</button>
     </div>
     <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
       <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Selecciona los módulos que recomiendas e incluyes en las ${pricingState.result?.implHrs||50} horas de implementación. Aparecerán en la propuesta comercial.</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:20px">
-        ${PRICING_MODULE_LIST.map(m=>`
-          <label style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:8px;cursor:pointer;transition:all .15s;${prev.includes(m.key)?'border-color:var(--purple);background:var(--purple-light);':''}"
-            onmouseover="this.style.borderColor='var(--purple)'" onmouseout="if(!this.querySelector('input').checked){this.style.borderColor='var(--gray-200)';this.style.background='white';}">
-            <input type="checkbox" name="pricingMod" value="${m.key}" ${prev.includes(m.key)?'checked':''} style="margin-top:2px;accent-color:var(--purple)"
-              onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--gray-200)';this.closest('label').style.background=this.checked?'var(--purple-light)':'white'">
-            <div>
-              <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">${modIcon(m,16)} ${m.name}</div>
-              <div style="font-size:11px;color:var(--gray-500);margin-top:1px">${m.desc}</div>
+      <div style="max-height:380px;overflow-y:auto;margin-bottom:16px;padding-right:4px">
+        ${Object.entries(ODOO_APPS).map(([cat,apps])=>`
+          <div style="margin-bottom:12px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400);margin-bottom:5px">${cat}</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:5px">
+              ${apps.map(app=>`
+                <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid ${prev.includes(app)?'var(--purple)':'var(--gray-200)'};border-radius:8px;cursor:pointer;background:${prev.includes(app)?'var(--purple-light)':'white'}"
+                  onmouseover="if(!this.querySelector('input').checked)this.style.borderColor='var(--purple)'" onmouseout="if(!this.querySelector('input').checked){this.style.borderColor='var(--gray-200)';this.style.background='white';}">
+                  <input type="checkbox" name="pricingMod" value="${app}" ${prev.includes(app)?'checked':''} style="accent-color:var(--purple);flex-shrink:0"
+                    onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--gray-200)';this.closest('label').style.background=this.checked?'var(--purple-light)':'white'">
+                  ${brIconImg(app,14)}
+                  <span style="font-size:12px;font-weight:600">${app}</span>
+                </label>`).join('')}
             </div>
-          </label>`).join('')}
+          </div>`).join('')}
       </div>
       <div id="pDescToggle" data-mode="short" style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:9px 14px;background:var(--gray-50);border-radius:8px;border:1px solid var(--gray-100)">
         <span style="font-size:12px;color:var(--gray-500);flex-shrink:0">Descripción en propuesta PDF:</span>
@@ -5177,7 +5181,7 @@ window.pricingSaveModsAndPDF=async function(){
   // ── Guardar en memoria de empresa ──
   const ps=pricingState, r=ps.result||{};
   if(ps.company?.id){
-    const modNames=PRICING_MODULE_LIST.filter(m=>pricingState.selectedModules.includes(m.key)).map(m=>m.name);
+    const modNames=pricingState.selectedModules;
     await updateCompanyMemory(ps.company.id,'pricing',{
       pricing:{
         edition:r.editionName||'',
@@ -5291,12 +5295,12 @@ window.pricingGeneratePDF=function(){
 
   // Modules
   const selMods=(ps.selectedModules||[]);
-  const modCards=PRICING_MODULE_LIST.filter(m=>selMods.includes(m.key)).map(m=>`
+  const modCards=selMods.map(name=>{const ml=PRICING_MODULE_LIST.find(m=>m.name.toLowerCase()===name.toLowerCase());const d=ml?(ps.descMode==='long'&&ml.longDesc?ml.longDesc:ml.desc):'';return`
     <div style="border:1.5px solid #714B67;background:#fdf8fc;border-radius:8px;padding:10px 11px">
-      <div style="font-size:16px;margin-bottom:4px">${m.icon}</div>
-      <div style="font-size:11.5px;font-weight:700;color:#714B67">${m.name}</div>
-      <div style="font-size:10px;color:#aaa;margin-top:2px;line-height:1.35">${ps.descMode==='long'&&m.longDesc?m.longDesc:m.desc}</div>
-    </div>`).join('');
+      <div style="margin-bottom:4px">${brIconImg(name,18)}</div>
+      <div style="font-size:11.5px;font-weight:700;color:#714B67">${name}</div>
+      <div style="font-size:10px;color:#aaa;margin-top:2px;line-height:1.35">${d}</div>
+    </div>`}).join('');
 
   // SH section
   const shSection=ps.isSH?`
@@ -5618,12 +5622,12 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   <div style="margin-bottom:16px">
     <div class="sec-label">Aplicaciones Odoo en el alcance de implementación</div>
     <div class="mod-grid">
-      ${PRICING_MODULE_LIST.filter(m=>selMods.includes(m.key)).map(m=>`
+      ${selMods.map(name=>{const ml=PRICING_MODULE_LIST.find(m=>m.name.toLowerCase()===name.toLowerCase());const d=ml?(ps.descMode==='long'&&ml.longDesc?ml.longDesc:ml.desc):'';return`
         <div class="mod-card sel">
-          <div style="margin-bottom:5px">${modIcon(m,22)}</div>
-          <div style="font-size:11.5px;font-weight:700;color:#714B67">${m.name}</div>
-          <div style="font-size:9.5px;color:#9ca3af;margin-top:2px;line-height:1.35">${ps.descMode==='long'&&m.longDesc?m.longDesc:m.desc}</div>
-        </div>`).join('')}
+          <div style="margin-bottom:5px">${brIconImg(name,22)}</div>
+          <div style="font-size:11.5px;font-weight:700;color:#714B67">${name}</div>
+          <div style="font-size:9.5px;color:#9ca3af;margin-top:2px;line-height:1.35">${d}</div>
+        </div>`}).join('')}
     </div>
     <div style="font-size:8.5px;color:#d1d5db;margin-top:5px">Módulos incluidos en las ${r.implHrs||50} horas de consultoría. Módulos adicionales se cotizan por separado.</div>
   </div>`:''}
@@ -5745,15 +5749,20 @@ function renderPropuestaComercial(){
       <div class="card" style="padding:24px;margin-bottom:20px">
         <h3 style="font-size:15px;font-weight:600;margin-bottom:16px">📱 Módulos en el alcance</h3>
         <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Módulos que se incluyen en la implementación. Se pre-seleccionan del último pricing.</p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px" id="propModGrid">
-          ${PRICING_MODULE_LIST.map(m=>{
-            const sel=(ps.selectedModules||['crm','inventario','contabilidad','facturacion','compras','rrhh']).includes(m.key);
-            return `<label style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border:1.5px solid ${sel?'var(--purple)':'var(--gray-200)'};border-radius:8px;cursor:pointer;background:${sel?'var(--purple-light)':'white'}">
-              <input type="checkbox" name="propMod" value="${m.key}" ${sel?'checked':''} style="margin-top:2px;accent-color:var(--purple)"
-                onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--gray-200)';this.closest('label').style.background=this.checked?'var(--purple-light)':'white'">
-              <div><div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">${modIcon(m,16)} ${m.name}</div><div style="font-size:11px;color:var(--gray-500)">${m.desc}</div></div>
-            </label>`;
-          }).join('')}
+        <div style="max-height:400px;overflow-y:auto" id="propModGrid">
+          ${Object.entries(ODOO_APPS).map(([cat,apps])=>`
+            <div style="margin-bottom:12px">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400);margin-bottom:5px">${cat}</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:5px">
+                ${apps.map(app=>{const sel=(ps.selectedModules||['CRM','Ventas','Inventario','Compras','Contabilidad','Facturación','Empleados']).includes(app);return`
+                  <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid ${sel?'var(--purple)':'var(--gray-200)'};border-radius:8px;cursor:pointer;background:${sel?'var(--purple-light)':'white'}">
+                    <input type="checkbox" name="propMod" value="${app}" ${sel?'checked':''} style="accent-color:var(--purple);flex-shrink:0"
+                      onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--gray-200)';this.closest('label').style.background=this.checked?'var(--purple-light)':'white'">
+                    ${brIconImg(app,14)}
+                    <span style="font-size:12px;font-weight:600">${app}</span>
+                  </label>`}).join('')}
+              </div>
+            </div>`).join('')}
         </div>
       </div>
 
@@ -5824,7 +5833,7 @@ window.propLoadLastPricing=async function(){
     pricingState.company=co;
     // Load selected modules from company memory
     const memMods=co.memory?.pricing?.selectedApps||[];
-    if(memMods.length) pricingState.selectedModules=PRICING_MODULE_LIST.filter(m=>memMods.some(n=>n.toLowerCase()===m.name.toLowerCase())).map(m=>m.key);
+    if(memMods.length) pricingState.selectedModules=memMods;
     const sumEl=document.getElementById('propPricingSummary');
     if(sumEl) sumEl.innerHTML=propBuildPricingSummary(pricingState);
     showNotif('Último pricing cargado ✓','success');

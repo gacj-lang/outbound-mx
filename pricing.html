@@ -901,7 +901,7 @@
     background:var(--card); border:1px solid var(--border); border-radius:16px;
     padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,.07);
     display:flex; flex-direction:column; justify-content:center;
-    width:210px; min-width:210px; height:220px; flex-shrink:0;
+    width:210px; min-width:210px; height:auto; min-height:220px; flex-shrink:0;
     animation:fadeSlide .22s ease;
   }
   .pc-label {
@@ -935,6 +935,8 @@
   .pc-sub {
     font-size:11px; color:var(--muted); line-height:1.4;
   }
+  .pc-ptog { border:none; border-radius:99px; padding:4px 12px; font-size:11px; font-weight:500; cursor:pointer; color:var(--muted); background:transparent; transition:all .15s; }
+  .pc-ptog.active { background:var(--card); color:var(--text); font-weight:700; box-shadow:0 1px 4px rgba(0,0,0,.12); }
 
 
   .renewal-mini-card {
@@ -1069,6 +1071,10 @@
     </div>
     <div class="edition-info" id="edition-info"></div>
     <div class="price-card" id="price-card">
+      <div style="background:var(--surface,#f3f4f6);border-radius:99px;padding:3px;display:inline-flex;gap:1px;margin-bottom:10px;border:1px solid var(--border)">
+        <button class="pc-ptog" id="pc-tog-m" onclick="setPlan(0,null)">Mensual</button>
+        <button class="pc-ptog" id="pc-tog-a" onclick="setPlan(1,null)">Anual <span style="background:#16a34a;color:white;font-size:9px;border-radius:3px;padding:1px 4px;margin-left:1px">-20%</span></button>
+      </div>
       <div class="pc-label">Precio usuario base</div>
       <div class="pc-main">
         <span class="pc-currency" id="pc-currency">$</span>
@@ -2783,7 +2789,11 @@
     updateTotal(i);
     renderTable();
     renderCharts();
-    updatePayTermsVisibility();  }
+    updatePayTermsVisibility();
+    // Sync price-card toggle
+    const togM=document.getElementById('pc-tog-m'), togA=document.getElementById('pc-tog-a');
+    if(togM&&togA){ togM.classList.toggle('active',i===0); togA.classList.toggle('active',i>=1); }
+  }
 
   function setEdition(i, el) {
     document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
