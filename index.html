@@ -2842,8 +2842,8 @@ const PRICING_DATA = {
   planLabels:['Mensual','1 año','2 años','3 años','4 años','5 años'],
   editions:[
     {id:'standard',       name:'Estándar',      rates:[225,180,180,180,180,180], ratesY2:[285,285,228,228,228,228]},
-    {id:'personalizable', name:'Personalizado', rates:[342,274,274,274,274,274], ratesY2:[425,425,340,340,340,340]},
-    {id:'sh',             name:'Odoo.SH',        rates:[342,274,274,274,274,274], ratesY2:[425,425,340,340,340,340]},
+    {id:'personalizable', name:'Personalizado', rates:[342,274,274,274,274,274], ratesY2:[425,340,340,340,340,340]},
+    {id:'sh',             name:'Odoo.SH',        rates:[342,274,274,274,274,274], ratesY2:[425,340,340,340,340,340]},
   ],
   implPackages:[
     {hrs:12,  label:'12 horas',  price:12000},
@@ -5826,6 +5826,8 @@ window.renderPricingHome=function renderPricingHome(){
   const content=document.getElementById('moduleContent');
   content.style.padding='28px';
   const fmt=n=>n?'$'+n.toLocaleString('es-MX',{minimumFractionDigits:0}):'';
+  const std=PRICING_DATA.editions[0];
+  const per=PRICING_DATA.editions[1];
   content.innerHTML=`
     <div style="max-width:900px;margin:0 auto">
       <!-- Header -->
@@ -5848,7 +5850,6 @@ window.renderPricingHome=function renderPricingHome(){
           {icon:'🔄',title:'Al renovar: precio lista, sin descuento',tip:'Cuando vence un contrato, el cliente renueva a precio lista sin el descuento de primera contratación. El plan multianual es la única forma de mantener condiciones favorables más allá del primer contrato.'},
           {icon:'📋',title:'Estándar: solo flujos muy simples',tip:'Solo para clientes de 1–5 usuarios con procesos básicos sin personalizaciones. Todo cliente que requiera Studio, multi-empresa o multi-sucursal necesita Personalizado — que es la gran mayoría.'},
           {icon:'💡',title:'Odoo.SH: técnicos o alta demanda',tip:'Para clientes con IT interno, desarrollo propio o que requieren mayor capacidad de procesamiento (muchos usuarios concurrentes o demanda alta del sistema). Incluye código fuente, staging y escalamiento.'},
-          {icon:'⚠️',title:'Sin promesas de ROI',tip:'El ROI es difícil de cuantificar antes de la implementación y los datos rara vez son claros en calificación. Enfócate en el fit técnico y el alcance. Prometer un retorno sin respaldo compromete la confianza.'},
         ].map(t=>`
           <div class="card" style="padding:18px;border-left:3px solid var(--purple)">
             <div style="font-size:22px;margin-bottom:8px">${t.icon}</div>
@@ -5857,36 +5858,88 @@ window.renderPricingHome=function renderPricingHome(){
           </div>`).join('')}
       </div>
 
-      <!-- Quick reference -->
-      <div class="card" style="padding:20px">
-        <h4 style="font-size:14px;font-weight:700;margin-bottom:14px">📌 Referencia rápida de precios (MXN/usuario/mes)</h4>
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:13px">
-            <thead><tr style="background:var(--gray-50)">
-              <th style="padding:8px 12px;text-align:left;font-weight:600;border-bottom:2px solid var(--gray-200)">Edición</th>
-              <th style="padding:8px 12px;text-align:center;font-weight:600;border-bottom:2px solid var(--gray-200)">Mensual</th>
-              <th style="padding:8px 12px;text-align:center;font-weight:600;border-bottom:2px solid var(--gray-200)">1 año</th>
-              <th style="padding:8px 12px;text-align:center;font-weight:600;border-bottom:2px solid var(--gray-200)">2-5 años</th>
-              <th style="padding:8px 12px;text-align:center;font-weight:600;border-bottom:2px solid var(--gray-200)">Año 2+ (2-5 años)</th>
-            </tr></thead>
-            <tbody>
-              ${[
-                {name:'Estándar',r:[225,180,180],y2:285},
-                {name:'Personalizado',r:[342,274,274],y2:425},
-                {name:'Odoo.SH',r:[342,274,274],y2:425},
-              ].map((e,i)=>`<tr style="${i%2===0?'background:var(--gray-50)':''}">
-                <td style="padding:8px 12px;font-weight:600">${e.name}</td>
-                <td style="padding:8px 12px;text-align:center">$${e.r[0]}</td>
-                <td style="padding:8px 12px;text-align:center">$${e.r[1]}</td>
-                <td style="padding:8px 12px;text-align:center;color:var(--success);font-weight:600">$${e.r[2]}</td>
-                <td style="padding:8px 12px;text-align:center;color:var(--warning)">$${e.y2}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>
+      <!-- Pricing widget -->
+      <div class="card" style="padding:28px">
+        <h4 style="font-size:15px;font-weight:700;margin-bottom:20px;text-align:center">Licenciamiento Odoo MX — por usuario / mes</h4>
+        <div style="display:flex;justify-content:center;margin-bottom:28px">
+          <div style="background:var(--gray-100);border-radius:99px;padding:4px;display:inline-flex;gap:2px">
+            <button id="pToggleA" onclick="window.pricingToggle('anual')"
+              style="background:white;border:none;border-radius:99px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;align-items:center;gap:7px">
+              Anual <span style="background:var(--success);color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px">-20%</span>
+            </button>
+            <button id="pToggleM" onclick="window.pricingToggle('mensual')"
+              style="background:transparent;border:none;border-radius:99px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;color:var(--gray-500)">
+              Mensual
+            </button>
+          </div>
         </div>
-        <p style="font-size:11px;color:var(--gray-400);margin-top:10px">Precios en MXN sin IVA. El año 2 en adelante aplica solo para planes multianualidad de 2+ años.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px">
+          <div style="border:1px solid var(--gray-200);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400);margin-bottom:6px">Una aplicación</div>
+              <div style="font-size:34px;font-weight:800;color:var(--gray-900);line-height:1">Gratis</div>
+              <div style="font-size:12px;color:var(--gray-400);margin-top:4px">sin límite de usuarios</div>
+            </div>
+            <div style="border-top:1px solid var(--gray-200);padding-top:14px;display:flex;flex-direction:column;gap:7px">
+              <div style="font-size:12px;color:var(--gray-700)">✓ Una app sin límite de usuarios</div>
+              <div style="font-size:12px;color:var(--gray-700)">✓ Odoo en línea (cloud)</div>
+            </div>
+          </div>
+          <div style="border:1px solid var(--gray-200);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--success);margin-bottom:6px">Estándar</div>
+              <div style="display:flex;align-items:baseline;gap:6px">
+                <div id="pPriceStd" style="font-size:34px;font-weight:800;color:var(--gray-900);line-height:1">${fmt(std.rates[1])}</div>
+                <div id="pRefStd" style="font-size:12px;color:var(--gray-400);text-decoration:line-through">${fmt(std.rates[0])}/mes</div>
+              </div>
+              <div style="font-size:12px;color:var(--gray-400);margin-top:4px">por usuario / mes</div>
+            </div>
+            <div style="border-top:1px solid var(--gray-200);padding-top:14px;display:flex;flex-direction:column;gap:7px">
+              <div style="font-size:12px;color:var(--gray-700)">✓ Todas las apps de Odoo</div>
+              <div style="font-size:12px;color:var(--gray-700)">✓ Odoo en línea (cloud)</div>
+              <div style="font-size:11px;color:var(--gray-400);margin-top:4px">Recomendado: 1–5 usuarios sin personalizaciones</div>
+            </div>
+          </div>
+          <div style="border:2px solid var(--purple);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px;position:relative">
+            <div style="position:absolute;top:-11px;left:16px;background:var(--purple);color:white;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em">MÁS POPULAR</div>
+            <div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin-bottom:6px">Personalizado</div>
+              <div style="display:flex;align-items:baseline;gap:6px">
+                <div id="pPricePer" style="font-size:34px;font-weight:800;color:var(--gray-900);line-height:1">${fmt(per.rates[1])}</div>
+                <div id="pRefPer" style="font-size:12px;color:var(--gray-400);text-decoration:line-through">${fmt(per.rates[0])}/mes</div>
+              </div>
+              <div style="font-size:12px;color:var(--gray-400);margin-top:4px">por usuario / mes</div>
+            </div>
+            <div style="border-top:1px solid var(--gray-200);padding-top:14px;display:flex;flex-direction:column;gap:7px">
+              <div style="font-size:12px;color:var(--gray-700)">✓ Todas las apps de Odoo</div>
+              <div style="font-size:12px;color:var(--gray-700)">✓ Odoo en línea / Odoo.SH* / local</div>
+              <div style="font-size:12px;color:var(--gray-700)">✓ Studio de Odoo (personalizaciones)</div>
+              <div style="font-size:12px;color:var(--gray-700)">✓ Multiempresa (multi-RFC)</div>
+              <div style="font-size:12px;color:var(--gray-700)">✓ API externa (integraciones)</div>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--gray-400);margin-top:14px;text-align:center">MXN sin IVA · Precio de primera contratación vigente 12 meses · * Odoo.SH incluye costo adicional de hosting</p>
       </div>
     </div>`;
+  window.pricingToggle=function(mode){
+    const anual=mode==='anual';
+    const el=id=>document.getElementById(id);
+    el('pPriceStd').textContent=fmt(anual?std.rates[1]:std.rates[0]);
+    el('pRefStd').textContent=anual?fmt(std.rates[0])+'/mes':fmt(std.ratesY2[0])+' lista';
+    el('pPricePer').textContent=fmt(anual?per.rates[1]:per.rates[0]);
+    el('pRefPer').textContent=anual?fmt(per.rates[0])+'/mes':fmt(per.ratesY2[0])+' lista';
+    const aBtn=el('pToggleA'),mBtn=el('pToggleM');
+    if(!aBtn||!mBtn) return;
+    aBtn.style.background=anual?'white':'transparent';
+    aBtn.style.color=anual?'var(--gray-900)':'var(--gray-500)';
+    aBtn.style.boxShadow=anual?'0 1px 4px rgba(0,0,0,.1)':'none';
+    aBtn.style.fontWeight=anual?'700':'600';
+    mBtn.style.background=anual?'transparent':'white';
+    mBtn.style.color=anual?'var(--gray-500)':'var(--gray-900)';
+    mBtn.style.boxShadow=anual?'none':'0 1px 4px rgba(0,0,0,.1)';
+    mBtn.style.fontWeight=anual?'600':'700';
+  };
 };
 
 window.showImplPopup=function(){
