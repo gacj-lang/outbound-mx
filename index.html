@@ -3966,7 +3966,7 @@ window.gcOtraFoto=async function(){
   if(btn){ btn.disabled=true; btn.textContent='⏳ Buscando...'; }
   const ind=document.getElementById('gcPubIndustria')?.value||cont.lastPubData._ind||'Otra';
   const photo=await fetchIndustryPhoto(ind,cont.photoPage);
-  if(photo){ cont.lastPhoto=photo; renderGcImagePreview(cont.lastPubData); }
+  if(photo){ cont.lastPhoto=photo; cont.lastPubData._photoComp=Math.floor(Math.random()*GC_PHOTO_COMPS); renderGcImagePreview(cont.lastPubData); }
   else { showNotif('No se encontró otra foto','info'); if(btn){ btn.disabled=false; btn.textContent='🔄 Otra foto'; } }
 };
 
@@ -4014,13 +4014,14 @@ Responde con este JSON exacto (sin markdown):
     // Variante del panel gráfico (arreglo de iconos) — se elige al azar para dar diversidad
     parsed._graphicVariant=Math.floor(Math.random()*GC_GRAPHIC_VARIANTS);
     parsed._gradIdx=Math.floor(Math.random()*GC_GRAPHIC_GRADS.length);
+    parsed._photoComp=Math.floor(Math.random()*GC_PHOTO_COMPS);  // composición de foto aleatoria → no siempre el mismo molde
     cont.lastPubData=parsed;
-    // Si el estilo es foto, busca una foto real de la industria
+    // Si el estilo es foto, busca una foto real de la industria (página aleatoria para variar la imagen, no siempre la misma)
     cont.lastPhoto=null;
     if(cont.imgStyle!=='grafica'){
       if(PEXELS_KEY){
-        cont.photoPage=1;
-        cont.lastPhoto=await fetchIndustryPhoto(ind,1);
+        cont.photoPage=1+Math.floor(Math.random()*8);
+        cont.lastPhoto=await fetchIndustryPhoto(ind,cont.photoPage);
         if(!cont.lastPhoto) showNotif('No se encontró foto, usando tarjeta gráfica','info');
       } else {
         showNotif('Pexels no configurado — usando tarjeta gráfica','info');
@@ -4107,6 +4108,76 @@ window.gcOtraGrafica=function(){
   renderGcImagePreview(d);
 };
 
+// Construye el bloque de texto (logo + headline + subtítulo + puntos). tone 'light' (texto oscuro) | 'dark' (texto blanco sobre foto)
+function gcBuildText(data,f,sz,layout,tone){
+  const dark=tone==='dark';
+  const hColor=dark?'#FFFFFF':'#21272B';
+  const subColor=dark?'rgba(255,255,255,.92)':'#017E84';
+  const ptColor=dark?'#FFFFFF':'#21272B';
+  const logo=dark?'odoo_logo_white.svg':'odoo_logo_color.svg';
+  const sh=dark?';text-shadow:0 2px 8px rgba(0,0,0,.40)':'';
+  const shS=dark?';text-shadow:0 1px 4px rgba(0,0,0,.35)':'';
+  const hl=data.highlight||'';
+  const headlineHTML=(hl&&data.headline?.includes(hl))
+    ? data.headline.replace(hl,`<span style="position:relative;display:inline-block"><span style="position:relative;z-index:2">${hl}</span><span style="position:absolute;left:-2px;right:-4px;bottom:${Math.round(sz.h*.08)}px;height:${Math.round(sz.h*.32)}px;background:${layout.hlColor};opacity:${dark?.6:.5};border-radius:4px;z-index:1"></span></span>`)
+    : (data.headline||'');
+  const puntos=(data.puntos||[]).slice(0,4);
+  const puntosHTML=puntos.map(p=>`
+    <div style="display:flex;align-items:flex-start;gap:${Math.round(f.w*.012)}px;margin-bottom:${Math.round(f.w*.014)}px">
+      <div style="width:${Math.round(sz.p*1.5)}px;height:${Math.round(sz.p*1.5)}px;border-radius:50%;background:${layout.checkColor};color:white;font-size:${Math.round(sz.p*.9)}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;margin-top:1px${dark?';box-shadow:0 2px 6px rgba(0,0,0,.3)':''}">✓</div>
+      <div style="font-size:${sz.p}px;font-weight:600;color:${ptColor};line-height:1.3${shS}">${p}</div>
+    </div>`).join('');
+  return `
+    <img src="${ASSETS}/logos/${logo}" crossorigin="anonymous" style="height:${Math.round(f.w*.05)}px;width:auto;display:block;margin-bottom:${Math.round(f.w*.03)}px" onerror="this.outerHTML='<div style=&quot;font-size:${Math.round(f.w*.05)}px;font-weight:800;color:${dark?'#fff':'#714B67'}&quot;>odoo</div>'">
+    <div style="font-family:'Caveat',cursive;font-weight:700;font-size:${sz.h}px;line-height:1.05;color:${hColor};margin-bottom:${Math.round(f.w*.018)}px${sh}">${headlineHTML}</div>
+    <div style="font-family:'Caveat',cursive;font-weight:400;font-size:${sz.s}px;color:${subColor};margin-bottom:${Math.round(f.w*.028)}px${shS}">${data.subheadline||''}</div>
+    <div>${puntosHTML}</div>`;
+}
+
+// Composiciones para foto real — distintas "plantillas" para que no se sienta siempre el mismo molde
+const GC_PHOTO_COMPS=4;  // 0 split · 1 foto+tarjeta · 2 foto+overlay+texto blanco · 3 foto dominante+panel color
+const GC_PANEL_COLORS=['#714B67','#017E84','#1E3A5F','#5B3E54','#0F766E'];
+function gcPhotoComposition(data,f,landscape,layout,sz,photoUrl){
+  const comp=(data._photoComp||0)%GC_PHOTO_COMPS;
+  const pad=Math.round(f.w*0.05);
+  const rad=Math.round(f.w*.018);
+  const pc=GC_PANEL_COLORS[(data._gradIdx||0)%GC_PANEL_COLORS.length];
+  const img=()=>`<img src="${photoUrl}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block">`;
+  const photoLayer=`<div style="position:absolute;inset:0">${img()}</div>`;
+
+  // Comp 1 — Foto a sangre + tarjeta de texto clara flotante
+  if(comp===1){
+    const cp=Math.round(f.w*.035);
+    const card=landscape
+      ? `<div style="position:absolute;top:${pad}px;bottom:${pad}px;left:${pad}px;width:47%;background:${layout.bg};border-radius:${rad}px;box-shadow:0 ${Math.round(f.w*.012)}px ${Math.round(f.w*.03)}px rgba(0,0,0,.25);padding:${cp}px;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box">${gcBuildText(data,f,sz,layout,'light')}</div>`
+      : `<div style="position:absolute;left:${pad}px;right:${pad}px;bottom:${pad}px;background:${layout.bg};border-radius:${rad}px;box-shadow:0 ${Math.round(f.w*.012)}px ${Math.round(f.w*.03)}px rgba(0,0,0,.25);padding:${cp}px;box-sizing:border-box">${gcBuildText(data,f,sz,layout,'light')}</div>`;
+    return {inner:photoLayer+card,bg:pc,pad:0};
+  }
+  // Comp 2 — Foto a sangre + overlay degradado + texto blanco encima
+  if(comp===2){
+    const overlay=landscape
+      ? `<div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(18,16,26,.82) 0%,rgba(18,16,26,.55) 42%,rgba(18,16,26,0) 72%)"></div>`
+      : `<div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(18,16,26,.86) 0%,rgba(18,16,26,.35) 46%,rgba(18,16,26,0) 76%)"></div>`;
+    const textPos=landscape
+      ? `position:absolute;top:${pad}px;bottom:${pad}px;left:${pad}px;width:54%;display:flex;flex-direction:column;justify-content:center`
+      : `position:absolute;left:${pad}px;right:${pad}px;bottom:${pad}px`;
+    return {inner:photoLayer+overlay+`<div style="${textPos}">${gcBuildText(data,f,sz,layout,'dark')}</div>`,bg:pc,pad:0};
+  }
+  // Comp 3 — Foto dominante + panel de color sólido con texto blanco
+  if(comp===3){
+    const tp=Math.round(f.w*.04);
+    if(landscape){
+      return {inner:`<div style="flex:1.4;height:100%;position:relative;overflow:hidden">${img()}</div><div style="flex:1;background:${pc};display:flex;flex-direction:column;justify-content:center;padding:${tp}px;box-sizing:border-box">${gcBuildText(data,f,sz,layout,'dark')}</div>`,bg:pc,pad:0};
+    }
+    return {inner:`<div style="flex:1.2;width:100%;position:relative;overflow:hidden">${img()}</div><div style="background:${pc};padding:${tp}px;box-sizing:border-box">${gcBuildText(data,f,sz,layout,'dark')}</div>`,bg:pc,pad:0};
+  }
+  // Comp 0 — Split clásico (fondo claro, texto a un lado, foto al otro)
+  const textBlock=`<div style="display:flex;flex-direction:column;justify-content:center;${landscape?`flex:1.15;padding-${layout.textRight?'left':'right'}:${pad}px`:''}">${gcBuildText(data,f,sz,layout,'light')}</div>`;
+  const photoCell=`<div style="${landscape?'flex:1;height:100%':'flex:1;min-height:0;margin-top:'+Math.round(f.w*.02)+'px'};border-radius:${rad}px;overflow:hidden">${img()}</div>`;
+  const inner=landscape?(layout.textRight?photoCell+textBlock:textBlock+photoCell):textBlock+photoCell;
+  return {inner,bg:layout.bg,pad};
+}
+
 function renderGcImagePreview(data){
   const fmt=cont.format;
   const fmtConfig={
@@ -4123,43 +4194,19 @@ function renderGcImagePreview(data){
   const subSize=landscape?Math.round(f.w*.018):Math.round(f.w*.026);
   const puntoSize=landscape?Math.round(f.w*.0145):Math.round(f.w*.022);
   const layout=data._layout||{bg:'#f5f4f0',checkColor:'#017E84',hlColor:'#FC787D',textRight:false};
+  const sz={h:hSize,s:subSize,p:puntoSize};
 
-  // Headline con resaltador Caveat (marcador detrás de la palabra clave)
-  const hl=data.highlight||'';
-  const headlineHTML=(hl&&data.headline?.includes(hl))
-    ? data.headline.replace(hl,`<span style="position:relative;display:inline-block"><span style="position:relative;z-index:2">${hl}</span><span style="position:absolute;left:-2px;right:-4px;bottom:${Math.round(hSize*.08)}px;height:${Math.round(hSize*.32)}px;background:${layout.hlColor};opacity:.5;border-radius:4px;z-index:1"></span></span>`)
-    : (data.headline||'');
-
-  // Puntos WOW con checkmark
-  const puntos=(data.puntos||[]).slice(0,4);
-  const puntosHTML=puntos.map(p=>`
-    <div style="display:flex;align-items:flex-start;gap:${Math.round(f.w*.012)}px;margin-bottom:${Math.round(f.w*.014)}px">
-      <div style="width:${Math.round(puntoSize*1.5)}px;height:${Math.round(puntoSize*1.5)}px;border-radius:50%;background:${layout.checkColor};color:white;font-size:${Math.round(puntoSize*.9)}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;margin-top:1px">✓</div>
-      <div style="font-size:${puntoSize}px;font-weight:600;color:#21272B;line-height:1.3">${p}</div>
-    </div>`).join('');
-
-  // Bloque de texto (logo + headline + subtitle + puntos) — SIN hashtags ni CTA
-  const textBlock=`
-    <img src="${ASSETS}/logos/odoo_logo_color.svg" crossorigin="anonymous" style="height:${Math.round(f.w*.05)}px;width:auto;display:block;margin-bottom:${Math.round(f.w*.03)}px" onerror="this.outerHTML='<div style=&quot;font-size:${Math.round(f.w*.05)}px;font-weight:800;color:#714B67&quot;>odoo</div>'">
-    <div style="font-family:'Caveat',cursive;font-weight:700;font-size:${hSize}px;line-height:1.05;color:#21272B;margin-bottom:${Math.round(f.w*.018)}px">${headlineHTML}</div>
-    <div style="font-family:'Caveat',cursive;font-weight:400;font-size:${subSize}px;color:#017E84;margin-bottom:${Math.round(f.w*.028)}px">${data.subheadline||''}</div>
-    <div>${puntosHTML}</div>`;
-
-  // Bloque visual: foto real (Pexels) o panel gráfico con arreglo de iconos Odoo
-  const photoBlock=photo?`<img src="${photo.url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;border-radius:${Math.round(f.w*.018)}px;display:block">`
-    :gcGraphicPanel(data,f);
-
-  let canvasInner;
-  if(landscape){
-    canvasInner=layout.textRight
-      ? `<div style="flex:1;height:100%">${photoBlock}</div>
-         <div style="flex:1.15;display:flex;flex-direction:column;justify-content:center;padding-left:${pad}px">${textBlock}</div>`
-      : `<div style="flex:1.15;display:flex;flex-direction:column;justify-content:center;padding-right:${pad}px">${textBlock}</div>
-         <div style="flex:1;height:100%">${photoBlock}</div>`;
+  let canvasInner,canvasBg,canvasPad;
+  if(photo){
+    // Foto real — varias composiciones (split · foto+tarjeta · foto+overlay+texto blanco · foto+panel color)
+    const comp=gcPhotoComposition(data,f,landscape,layout,sz,photo.url);
+    canvasInner=comp.inner; canvasBg=comp.bg; canvasPad=comp.pad;
   } else {
-    canvasInner=`
-      <div>${textBlock}</div>
-      <div style="flex:1;min-height:0;margin-top:${Math.round(f.w*.02)}px">${photoBlock}</div>`;
+    // Tarjeta gráfica — texto + panel de iconos Odoo (el panel ya rota entre 4 variantes)
+    const textBlock=`<div style="display:flex;flex-direction:column;justify-content:center;${landscape?`flex:1.15;padding-${layout.textRight?'left':'right'}:${pad}px`:''}">${gcBuildText(data,f,sz,layout,'light')}</div>`;
+    const panelCell=`<div style="${landscape?'flex:1;height:100%':'flex:1;min-height:0;margin-top:'+Math.round(f.w*.02)+'px'}">${gcGraphicPanel(data,f)}</div>`;
+    canvasInner=landscape?(layout.textRight?panelCell+textBlock:textBlock+panelCell):textBlock+panelCell;
+    canvasBg=layout.bg; canvasPad=pad;
   }
 
   const wrap=document.getElementById('gcPubOutput');
@@ -4174,8 +4221,8 @@ function renderGcImagePreview(data){
     </div>
     <div class="gc-canvas-outer" style="height:${f.h*f.scale+20}px">
       <div id="gcImageCanvas" style="width:${f.w}px;height:${f.h}px;transform:scale(${f.scale});transform-origin:top left;
-        background:${layout.bg};
-        border-radius:${f.w>800?'24px':'20px'};padding:${pad}px;
+        background:${canvasBg};
+        border-radius:${f.w>800?'24px':'20px'};padding:${canvasPad}px;
         display:flex;flex-direction:${landscape?'row':'column'};
         font-family:'Inter',sans-serif;position:relative;overflow:hidden;box-sizing:border-box">
         ${canvasInner}
