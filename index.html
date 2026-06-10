@@ -3319,19 +3319,7 @@ async function loadCentroControl(){
       snap.docs.forEach(d=>tasks.push({dot:'red',text:`Aprobar cuenta: ${d.data().name}`,action:"showModule('manager')"}));
     } catch(e){}
   }
-  // Pending brochure approvals
-  if((currentUserData?.role==='manager'||currentUserData?.role==='tl')&&db){
-    try{
-      const snap=await getDocs(query(collection(db,'brochureApprovals'),where('status','==','pendiente_aprobacion')));
-      snap.docs.forEach(d=>tasks.push({dot:'yellow',text:`Aprobar brochure: ${d.data().empresa||'Sin nombre'}`,action:"showModule('gencontenidos')"}));
-    } catch(e){}
-  }
-  // 15-day brochure update reminder
-  const lastUpdate=localStorage.getItem('brochure_last_update');
-  if(currentUserData?.role==='manager'&&lastUpdate){
-    const days=Math.floor((Date.now()-parseInt(lastUpdate))/(1000*60*60*24));
-    if(days>=15) tasks.push({dot:'yellow',text:`Han pasado ${days} días — actualiza el contenido del Brochure`,action:"showModule('gencontenidos')"});
-  }
+
   if(tasks.length===0){
     container.innerHTML='<div class="cdc-empty">✓ Todo al día — sin tareas pendientes</div>';
   } else {
@@ -3370,13 +3358,44 @@ const cont={
   activeSection:'pub-linkedin',
   company:null, contact:null,
   tone:'interesante', length:'equilibrado', format:'1200x627',
-  channel:'whatsapp', // canal activo del template de mensaje
-  imgStyle:'foto', // 'foto' (Pexels) | 'grafica' (tarjeta) — estilo imagen LinkedIn
+  channel:'whatsapp',
+  imgStyle:'foto',
   photoPage:1, lastPhoto:null, lastPubData:null,
   output:null,
+  brCta:'prospeccion',
   setSection(s){ this.activeSection=s; },
   discard(){ this.company=null; this.contact=null; this.output=null; },
   formActive:false,
+};
+
+const BR_CTA_OPTS=[
+  {id:'prospeccion',        label:'Prospección — Agendar intromeet'},
+  {id:'seguimiento_demo',   label:'Seguimiento post-demo'},
+  {id:'seguimiento_pricing',label:'Seguimiento post-pricing'},
+  {id:'seguimiento_cierre', label:'Seguimiento para cierre'},
+  {id:'cierre',             label:'Cierre de oportunidad'},
+];
+function brGetCtaText(type){
+  const ae=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'';
+  const appt=currentUserData?.appointmentLink||'';
+  const apptLine=appt?`\n\n→ Agenda una sesión: ${appt}`:'';
+  switch(type){
+    case 'seguimiento_demo':
+      return `Revisemos juntos los próximos pasos. El objetivo es validar el alcance exacto para tu operación y responder cualquier duda que haya quedado de la demo.${apptLine}`;
+    case 'seguimiento_pricing':
+      return `Ya tienes la propuesta en mano. Si quieres revisar el alcance o resolver alguna duda antes de avanzar, una llamada corta es suficiente.${apptLine}`;
+    case 'seguimiento_cierre':
+      return `Estamos listos para arrancar. El equipo de implementación tiene disponibilidad en las próximas semanas — el momento de avanzar es ahora.${apptLine}`;
+    case 'cierre':
+      return `¡Bienvenido a Odoo!${ae?' '+ae+' será tu punto de contacto':' Tu Account Executive te acompañará'} durante todo el proceso. En breve nos pondremos en contacto para coordinar el arranque.`;
+    default:
+      return `¿Agendamos una intromeet de 30 minutos para explorar cómo Odoo puede transformar la operación de tu empresa?${apptLine}`;
+  }
+}
+window.gcUpdateBrCta=function(type){
+  cont.brCta=type;
+  const el=document.getElementById('gcBrCtaText');
+  if(el){ el.textContent=brGetCtaText(type); }
 };
 
 function renderGenContenidos(){
@@ -3550,7 +3569,6 @@ function gcShowOutput(wrapId,content,variants=false,saveCtx=null){
             <span class="gc-variant-num" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--purple);background:var(--purple-light);padding:3px 10px;border-radius:99px">Variante ${i+1}</span>
             <div style="display:flex;gap:6px">
               <button class="gc-copy-btn" onclick="gcCopyVariant(${i})">📋 Copiar</button>
-              <button class="gc-copy-btn" style="border-color:var(--success);color:var(--success)" onclick="gcSaveVariant(${i},this)">💾 Guardar en empresa</button>
             </div>
           </div>
           <div class="gc-variant-text" id="gcVarText${i}" data-full="${_esc(p)}" data-expanded="0" style="font-size:13.5px;line-height:1.7;color:var(--gray-700);white-space:pre-wrap">${preview}</div>
@@ -3578,8 +3596,27 @@ window.gcToggleVariant=function(i){
     if(btn) btn.innerHTML='Ver menos ▴';
   }
 };
-window.gcCopyVariant=function(i){
-  navigator.clipboard.writeText(_gcVariants[i]||'').then(()=>showNotif('Copiado ✓','success'));
+window.gcCopyVariant=async function(i){
+  const text=_gcVariants[i]||'';
+  await navigator.clipboard.writeText(text);
+  showNotif('Copiado ✓','success');
+  if(!cont.company?.id) return;
+  try{
+    const ctx=window._gcSaveCtx||{tipo:'mensaje'};
+    await gcSaveContentToCompany(cont.company.id,{
+      tipo:ctx.tipo||'mensaje',momento:ctx.momento||'',momLabel:ctx.momLabel||'',
+      contacto:cont.contact?.nombre||'',texto:text,variante:i+1,
+    });
+    const card=document.getElementById('gcVar'+i);
+    if(card&&!card.querySelector('.gc-saved-badge')){
+      const badge=document.createElement('span');
+      badge.className='gc-saved-badge';
+      badge.style.cssText='font-size:11px;font-weight:600;color:var(--success);padding:3px 8px;background:#f0fdf4;border:1.5px solid var(--success);border-radius:99px;margin-left:6px';
+      badge.textContent='✓ Guardado';
+      const chip=card.querySelector('.gc-variant-num');
+      if(chip) chip.insertAdjacentElement('afterend',badge);
+    }
+  } catch(e){ /* silent */ }
 };
 window.gcSaveVariant=async function(i,btn){
   const text=_gcVariants[i]; if(!text) return;
@@ -3618,6 +3655,17 @@ async function gcSaveContentToCompany(companyId,entry){
   if(cont.company?.id===companyId) cont.company.memory=updated;
   const idx=_allEmpresas.findIndex(e=>e.id===companyId);
   if(idx>=0) _allEmpresas[idx]={..._allEmpresas[idx],memory:updated};
+}
+
+function gcShowSavedBadge(wrapId){
+  const wrap=document.getElementById(wrapId); if(!wrap) return;
+  const actions=wrap.querySelector('.gc-output-actions'); if(!actions) return;
+  if(actions.querySelector('.gc-saved-badge')) return;
+  const badge=document.createElement('span');
+  badge.className='gc-saved-badge';
+  badge.style.cssText='font-size:12px;font-weight:600;color:var(--success);padding:4px 10px;background:#f0fdf4;border:1.5px solid var(--success);border-radius:99px;flex-shrink:0';
+  badge.textContent='✓ Guardado en empresa';
+  actions.insertBefore(badge,actions.firstChild);
 }
 
 // ── Template de mensaje (unificado: WhatsApp / Correo / LinkedIn) ──
@@ -3751,8 +3799,10 @@ ${channelRules}
 
 Reglas generales:
 - NO menciones a Claude ni a ninguna IA
+- NO incluyas firma ni línea de despedida al final (sin 'Saludos', 'Quedo a tus órdenes', 'Atentamente', etc.)
+- Evita palabras grandilocuentes: 'solución integral', 'de clase mundial', 'líder del mercado', 'potencializar', 'disruptivo', 'robusto', 'plataforma de vanguardia', 'ecosistema', 'sinergias'
 - Cada variante con un ángulo claramente distinto
-- Español de México natural
+- Español de México natural, directo, sin sonar a vendedor de catálogo
 - Formato EXACTO: "VARIANTE 1:\\n[texto]\\n\\nVARIANTE 2:\\n[texto]\\n\\nVARIANTE 3:\\n[texto]"`);
     gcShowOutput('gcTplOutput',text,true,{tipo:channel,momento,momLabel});
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
@@ -3888,6 +3938,16 @@ Responde con este JSON exacto (sin markdown):
     catch(e){ parsed={headline:msg.substring(0,40),highlight:'',subheadline:'Odoo lo hace posible.',puntos:[]}; }
     if(!Array.isArray(parsed.puntos)) parsed.puntos=[];
     parsed._ind=ind;
+    // Variación aleatoria de layout (C-LI1) — fondo claro + tipografía Odoo siempre
+    const _liLayouts=[
+      {bg:'#f5f4f0',checkColor:'#017E84',hlColor:'#FC787D',textRight:false},
+      {bg:'#f0f5f5',checkColor:'#017E84',hlColor:'#FBB130',textRight:false},
+      {bg:'#f5f3f8',checkColor:'#714B67',hlColor:'#FBB130',textRight:true},
+      {bg:'#f5f4f0',checkColor:'#714B67',hlColor:'#FC787D',textRight:true},
+      {bg:'#f0f4f8',checkColor:'#017E84',hlColor:'#FC787D',textRight:false},
+      {bg:'#fdf8f0',checkColor:'#FBB130',hlColor:'#FC787D',textRight:false},
+    ];
+    parsed._layout=_liLayouts[Math.floor(Math.random()*_liLayouts.length)];
     cont.lastPubData=parsed;
     // Si el estilo es foto, busca una foto real de la industria
     cont.lastPhoto=null;
@@ -3903,6 +3963,7 @@ Responde con este JSON exacto (sin markdown):
     renderGcImagePreview(parsed);
     // Auto-guardar el post en la memoria de la empresa (si hay empresa en contenidos)
     if(cont.company?.id){
+      gcShowSavedBadge('gcPubOutput');
       const postTexto=parsed.post_text||`${parsed.headline||''}\n${parsed.subheadline||''}\n\n${(parsed.puntos||[]).map(p=>'• '+p).join('\n')}`;
       updateCompanyMemory(cont.company.id,'contenido',{
         contenido:{tipo:'linkedin_post',topic:msg,industria:ind,fecha:new Date().toISOString()},
@@ -3929,18 +3990,19 @@ function renderGcImagePreview(data){
   const hSize=landscape?Math.min(58,f.w*.05):Math.min(72,f.w*.07);
   const subSize=landscape?Math.round(f.w*.018):Math.round(f.w*.026);
   const puntoSize=landscape?Math.round(f.w*.0145):Math.round(f.w*.022);
+  const layout=data._layout||{bg:'#f5f4f0',checkColor:'#017E84',hlColor:'#FC787D',textRight:false};
 
   // Headline con resaltador Caveat (marcador detrás de la palabra clave)
   const hl=data.highlight||'';
   const headlineHTML=(hl&&data.headline?.includes(hl))
-    ? data.headline.replace(hl,`<span style="position:relative;display:inline-block"><span style="position:relative;z-index:2">${hl}</span><span style="position:absolute;left:-2px;right:-4px;bottom:${Math.round(hSize*.08)}px;height:${Math.round(hSize*.32)}px;background:#FC787D;opacity:.5;border-radius:4px;z-index:1"></span></span>`)
+    ? data.headline.replace(hl,`<span style="position:relative;display:inline-block"><span style="position:relative;z-index:2">${hl}</span><span style="position:absolute;left:-2px;right:-4px;bottom:${Math.round(hSize*.08)}px;height:${Math.round(hSize*.32)}px;background:${layout.hlColor};opacity:.5;border-radius:4px;z-index:1"></span></span>`)
     : (data.headline||'');
 
   // Puntos WOW con checkmark
   const puntos=(data.puntos||[]).slice(0,4);
   const puntosHTML=puntos.map(p=>`
     <div style="display:flex;align-items:flex-start;gap:${Math.round(f.w*.012)}px;margin-bottom:${Math.round(f.w*.014)}px">
-      <div style="width:${Math.round(puntoSize*1.5)}px;height:${Math.round(puntoSize*1.5)}px;border-radius:50%;background:#017E84;color:white;font-size:${Math.round(puntoSize*.9)}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;margin-top:1px">✓</div>
+      <div style="width:${Math.round(puntoSize*1.5)}px;height:${Math.round(puntoSize*1.5)}px;border-radius:50%;background:${layout.checkColor};color:white;font-size:${Math.round(puntoSize*.9)}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;margin-top:1px">✓</div>
       <div style="font-size:${puntoSize}px;font-weight:600;color:#21272B;line-height:1.3">${p}</div>
     </div>`).join('');
 
@@ -3957,9 +4019,11 @@ function renderGcImagePreview(data){
 
   let canvasInner;
   if(landscape){
-    canvasInner=`
-      <div style="flex:1.15;display:flex;flex-direction:column;justify-content:center;padding-right:${pad}px">${textBlock}</div>
-      <div style="flex:1;height:100%">${photoBlock}</div>`;
+    canvasInner=layout.textRight
+      ? `<div style="flex:1;height:100%">${photoBlock}</div>
+         <div style="flex:1.15;display:flex;flex-direction:column;justify-content:center;padding-left:${pad}px">${textBlock}</div>`
+      : `<div style="flex:1.15;display:flex;flex-direction:column;justify-content:center;padding-right:${pad}px">${textBlock}</div>
+         <div style="flex:1;height:100%">${photoBlock}</div>`;
   } else {
     canvasInner=`
       <div>${textBlock}</div>
@@ -3978,7 +4042,7 @@ function renderGcImagePreview(data){
     </div>
     <div class="gc-canvas-outer" style="height:${f.h*f.scale+20}px">
       <div id="gcImageCanvas" style="width:${f.w}px;height:${f.h}px;transform:scale(${f.scale});transform-origin:top left;
-        background:#f5f4f0;
+        background:${layout.bg};
         border-radius:${f.w>800?'24px':'20px'};padding:${pad}px;
         display:flex;flex-direction:${landscape?'row':'column'};
         font-family:'Inter',sans-serif;position:relative;overflow:hidden;box-sizing:border-box">
@@ -4105,11 +4169,14 @@ Reglas:
 - Cada respuesta a objeción max 2-3 oraciones
 - Formato claro con las secciones marcadas`);
     gcShowOutput('gcCcOutput',text,false);
-    if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
-      contenido:{tipo:'cold_calling',topic:obj,cargo,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
-      savedContent:{tipo:'cold_calling',momLabel:'Cold calling',contacto:cont.contact?.nombre||'',texto:text},
-      touchpoint:{type:'cold_calling',summary:`Cold calling script · ${cont.contact?.nombre||cont.company?.nombre||''}`}
-    });
+    if(cont.company?.id){
+      gcShowSavedBadge('gcCcOutput');
+      updateCompanyMemory(cont.company.id,'contenido',{
+        contenido:{tipo:'cold_calling',topic:obj,cargo,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
+        savedContent:{tipo:'cold_calling',momLabel:'Cold calling',contacto:cont.contact?.nombre||'',texto:text},
+        touchpoint:{type:'cold_calling',summary:`Cold calling script · ${cont.contact?.nombre||cont.company?.nombre||''}`}
+      });
+    }
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcCcLoading',false);
 };
@@ -4117,13 +4184,11 @@ Reglas:
 // ── 5. Brochure ──
 function renderGcBrochure(){
   const c=document.getElementById('gcContent');
-  const isManager=currentUserData?.role==='manager';
   c.innerHTML=`
     <div style="max-width:800px">
       <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📄 Brochure</h2>
       <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">
         Genera un brochure consultivo de Odoo adaptado a la industria y dolores específicos del prospecto.
-        ${!isManager?'<strong>Los brochures requieren aprobación del manager antes de compartirse.</strong>':''}
       </p>
 
       <div class="gc-form-section">
@@ -4153,20 +4218,21 @@ function renderGcBrochure(){
         </div>
       </div>
 
+      <div class="gc-form-section">
+        <h3>📌 Mensaje final del brochure</h3>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:10px">El recuadro morado al final del brochure mostrará el mensaje adecuado para la etapa. Puedes cambiarlo después de generar sin necesidad de regenerar.</p>
+        <select class="gc-select" id="gcBrCtaType" onchange="gcUpdateBrCta(this.value)">
+          ${BR_CTA_OPTS.map(o=>`<option value="${o.id}" ${cont.brCta===o.id?'selected':''}>${o.label}</option>`).join('')}
+        </select>
+      </div>
+
       <button class="gc-generate-btn" id="gcBrBtn" onclick="gcGenerateBrochure()">
         <span>📄</span> Generar brochure consultivo
       </button>
       <div class="gc-loading" id="gcBrLoading"><div class="gc-spinner"></div><span>Generando brochure con contexto de industria...</span></div>
       <div class="gc-output-wrap" id="gcBrOutput" style="margin-top:20px"></div>
-
-      ${isManager?`
-      <div class="card" style="margin-top:24px;padding:20px;background:var(--gray-50)">
-        <h4 style="font-size:14px;font-weight:700;margin-bottom:12px">📋 Aprobaciones pendientes</h4>
-        <div id="gcBrApprovals"><div class="cdc-empty">Cargando...</div></div>
-      </div>`:''}
     </div>`;
   gcInitCP('br');
-  if(isManager) gcLoadBrochureApprovals();
 }
 
 // Auto-select recommended apps based on company industry
@@ -4184,12 +4250,51 @@ window.gcBrSelectRecommended=function(){
 // Mapea nombre de app (ODOO_APPS) a archivo de icono SVG real
 function brAppIcon(name){
   const n=(name||'').toLowerCase();
-  const map={crm:'crm',ventas:'sale',venta:'sale',inventario:'stock',compras:'purchase',compra:'purchase',
-    contabilidad:'account',facturación:'account',facturacion:'account',rrhh:'hr','recursos humanos':'hr',nómina:'hr',nomina:'hr',
-    fabricación:'mrp',fabricacion:'mrp',manufactura:'mrp',producción:'mrp',produccion:'mrp',proyecto:'project',proyectos:'project',
-    helpdesk:'helpdesk',ecommerce:'website','e-commerce':'website',sitio:'website',website:'website','punto de venta':'point_of_sale',pos:'point_of_sale',
-    marketing:'mass_mailing',email:'mass_mailing',flota:'fleet','firma':'sign',firma:'sign',gastos:'expenses',suscripción:'subscription',suscripciones:'subscription',
-    alquiler:'rental','servicio externo':'industry_fsm',campo:'industry_fsm'};
+  const map={
+    // Finanzas
+    'contabilidad':'account','facturación':'account','facturacion':'account',
+    'gastos':'hr_expense','hoja de cálculo':'spreadsheet','spreadsheet':'spreadsheet',
+    'documentos':'documents','firma electrónica':'sign','firma electronica':'sign','firma':'sign',
+    // Ventas
+    'crm':'crm','ventas':'sale','venta':'sale',
+    'pdv para tiendas':'point_of_sale','punto de venta':'point_of_sale','pos':'point_of_sale',
+    'pdv para restaurantes':'pos_restaurant','restaurante':'pos_restaurant',
+    'suscripciones':'sale_subscription','suscripción':'sale_subscription','suscripcion':'sale_subscription',
+    'alquiler':'sale_renting',
+    // Sitios Web
+    'creador de sitios':'website','sitio web':'website','website':'website',
+    'comercio electrónico':'website_sale','comercio electronico':'website_sale','ecommerce':'website_sale','e-commerce':'website_sale',
+    'blog':'website_blog','foro':'website_forum',
+    'chat en vivo':'live_chat','chat':'live_chat',
+    'elearning':'slide','elearning':'slide','aprendizaje':'slide',
+    // Cadena de suministro
+    'inventario':'stock','manufactura':'mrp','fabricación':'mrp','fabricacion':'mrp','producción':'mrp','produccion':'mrp',
+    'plm':'mrp_plm','compras':'purchase','compra':'purchase',
+    'mantenimiento':'maintenance','calidad':'quality_control',
+    // Recursos humanos
+    'empleados':'hr','recursos humanos':'hr','rrhh':'hr',
+    'reclutamiento':'hr_recruitment','vacaciones':'hr_holidays','tiempo libre':'hr_holidays',
+    'evaluaciones':'hr_appraisal','evaluacion':'hr_appraisal','referencias':'referral','flotilla':'fleet','flota':'fleet',
+    'nómina':'hr_payroll','nomina':'hr_payroll',
+    // Marketing
+    'redes sociales':'social','marketing por correo':'mass_mailing','email marketing':'mass_mailing',
+    'marketing por sms':'sms_marketing','sms':'sms_marketing',
+    'eventos':'event','automatización de marketing':'marketing_automation','automatizacion de marketing':'marketing_automation',
+    'encuestas':'survey',
+    // Servicios
+    'proyectos':'project','proyecto':'project',
+    'registro de horas':'hr_timesheet','horas':'hr_timesheet','timesheet':'hr_timesheet',
+    'servicio externo':'industry_fsm','campo':'industry_fsm',
+    'soporte al cliente':'helpdesk','soporte':'helpdesk','helpdesk':'helpdesk',
+    'planeación':'planning','planeacion':'planning','citas':'appointment','calendario':'calendar',
+    // Productividad
+    'conversaciones':'mail','discuss':'mail',
+    'inteligencia artificial':'mail_bot','iot':'iot','voip':'voip',
+    'artículos':'knowledge','articulos':'knowledge','knowledge':'knowledge',
+    'whatsapp':'whatsapp',
+    // Personalización
+    'studio':'studio',
+  };
   for(const k in map){ if(n.includes(k)) return map[k]; }
   return 'apps';
 }
@@ -4257,10 +4362,10 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
         <div class="gc-output-header" style="margin-bottom:14px">
           <span class="gc-output-label">Brochure generado</span>
           <div class="gc-output-actions" style="flex-wrap:wrap;gap:6px">
+            ${cont.company?.id?`<span style="font-size:12px;font-weight:600;color:var(--success);padding:4px 10px;background:#f0fdf4;border:1.5px solid var(--success);border-radius:99px;flex-shrink:0">✓ Guardado en empresa</span>`:''}
             <button class="gc-copy-btn" onclick="gcExportBrochure('pdf')">⬇ PDF</button>
             <button class="gc-copy-btn" onclick="gcExportBrochure('imagen')">🖼 Imagen</button>
             <button class="gc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="gcGenerateBrochure()">↺ Regenerar</button>
-            ${currentUserData?.role!=='manager'?`<button class="gc-generate-btn" style="width:auto;padding:8px 16px;margin:0" onclick="gcSubmitBrochure()">Enviar para aprobación →</button>`:''}
           </div>
         </div>
 
@@ -4318,7 +4423,7 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
 
             <!-- CTA -->
             <div style="background:#714B67;border-radius:12px;padding:24px 28px;color:white;display:flex;align-items:center;justify-content:space-between;gap:16px">
-              <div style="font-size:15px;font-weight:600;line-height:1.45;flex:1">${data.cta||''}</div>
+              <div style="font-size:15px;font-weight:600;line-height:1.45;flex:1;white-space:pre-line"><span id="gcBrCtaText">${brGetCtaText(cont.brCta)}</span></div>
               <div style="text-align:right;flex-shrink:0;border-left:1px solid rgba(255,255,255,.2);padding-left:16px">
                 ${aeNombre?`<div style="font-size:13px;font-weight:700">${aeNombre}</div>`:''}
                 <div style="font-size:11px;color:rgba(255,255,255,.65)">Account Executive</div>
@@ -4331,7 +4436,7 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
       </div>`;
     window._gcBrData=data;
     if(cont.company?.id){
-      const brTexto=`${data.headline||''}\n${data.subtitulo||''}\n\n${data.intro||''}\n\nApps: ${(data.apps||[]).map(a=>a.nombre).join(', ')}\n\n${(data.diferenciadores||[]).join(' · ')}\n\nCTA: ${data.cta||''}`;
+      const brTexto=`${data.headline||''}\n${data.subtitulo||''}\n\n${data.intro||''}\n\nApps: ${(data.apps||[]).map(a=>a.nombre).join(', ')}\n\n${(data.diferenciadores||[]).join(' · ')}\n\nCTA: ${brGetCtaText(cont.brCta)}`;
       updateCompanyMemory(cont.company.id,'contenido',{
         contenido:{tipo:'brochure',apps:apps.slice(0,5).join(', '),headline:data.headline||'',fecha:new Date().toISOString()},
         savedContent:{tipo:'brochure',momLabel:'Brochure',contacto:cont.contact?.nombre||'',texto:brTexto,headline:data.headline||''},
@@ -4377,54 +4482,6 @@ window.gcExportBrochure=async function(format){
   } catch(e){ showNotif('Error al exportar: '+e.message,'error'); }
 };
 
-window.gcSubmitBrochure=async function(){
-  if(!db){ showNotif('Requiere conexión a Firebase','error'); return; }
-  try{
-    await addDoc(collection(db,'brochureApprovals'),{
-      aeUid:currentUserData.uid, aeName:currentUserData.name,
-      empresa:cont.company?.nombre||'Sin nombre', companyId:cont.company?.id||null,
-      content:JSON.stringify(window._gcBrData||{}),
-      status:'pendiente_aprobacion', createdAt:serverTimestamp()
-    });
-    showNotif('Enviado para aprobación al manager ✓','success');
-    // Notify manager
-    await setDoc(doc(db,'notifications','brochure_'+Date.now()),{
-      type:'brochure_approval',targetRole:'manager',
-      aeUid:currentUserData.uid,aeName:currentUserData.name,
-      empresa:cont.company?.nombre||'Sin nombre',read:false,createdAt:serverTimestamp()
-    });
-  } catch(e){ showNotif('Error: '+e.message,'error'); }
-};
-
-async function gcLoadBrochureApprovals(){
-  const c=document.getElementById('gcBrApprovals'); if(!c||!db) return;
-  try{
-    const snap=await getDocs(query(collection(db,'brochureApprovals'),where('status','==','pendiente_aprobacion')));
-    if(snap.empty){ c.innerHTML='<div class="cdc-empty">Sin aprobaciones pendientes</div>'; return; }
-    const sortedDocs=[...snap.docs].sort((a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0));
-    c.innerHTML=sortedDocs.map(d=>{
-      const r=d.data();
-      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
-        <div><strong style="font-size:13px">${r.empresa}</strong><div style="font-size:11px;color:var(--gray-400)">${r.aeName}</div></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-sm btn-success" onclick="gcApproveBrochure('${d.id}')">✓ Aprobar</button>
-          <button class="btn btn-sm btn-ghost-danger" onclick="gcRejectBrochure('${d.id}')">✕</button>
-        </div>
-      </div>`;
-    }).join('');
-  } catch(e){ c.innerHTML='<div class="cdc-empty">Error al cargar</div>'; }
-}
-window.gcApproveBrochure=async function(id){
-  await updateDoc(doc(db,'brochureApprovals',id),{status:'aprobado',approvedAt:serverTimestamp()});
-  localStorage.setItem('brochure_last_update',Date.now().toString());
-  showNotif('Brochure aprobado ✓','success');
-  gcLoadBrochureApprovals();
-};
-window.gcRejectBrochure=async function(id){
-  await updateDoc(doc(db,'brochureApprovals',id),{status:'rechazado'});
-  showNotif('Brochure rechazado','info');
-  gcLoadBrochureApprovals();
-};
 
 // ── 6. Propuesta Comercial ──
 const ODOO_APPS_CATALOG=[
