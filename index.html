@@ -2841,9 +2841,9 @@ const PRICING_DATA = {
   planMonths:[1,12,24,36,48,60],
   planLabels:['Mensual','1 año','2 años','3 años','4 años','5 años'],
   editions:[
-    {id:'standard',       name:'Standard',      rates:[225,180,180,180,180,180], ratesY2:[285,285,228,228,228,228]},
-    {id:'personalizable', name:'Personalizable', rates:[342,274,274,274,274,274], ratesY2:[425,425,340,340,340,340]},
-    {id:'sh',             name:'Odoo SH',        rates:[342,274,274,274,274,274], ratesY2:[425,425,340,340,340,340]},
+    {id:'standard',       name:'Estándar',      rates:[225,180,180,180,180,180], ratesY2:[285,285,228,228,228,228]},
+    {id:'personalizable', name:'Personalizado', rates:[342,274,274,274,274,274], ratesY2:[425,425,340,340,340,340]},
+    {id:'sh',             name:'Odoo.SH',        rates:[342,274,274,274,274,274], ratesY2:[425,425,340,340,340,340]},
   ],
   implPackages:[
     {hrs:12,  label:'12 horas',  price:12000},
@@ -4882,7 +4882,7 @@ window.empOpenDetail=async function(id){
         ${disc.map(d=>{const r=d.data();return docRow(r.empresa||co.nombre,`${r.aeName||''} · ${r.industriaNombre||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();openDiscoveryForm('${d.id}')`,`deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
 
       if(price.length) sections.push(`<div style="margin-bottom:16px">${secHead(`💰 Pricing (${price.length})`)}
-        ${price.map(d=>{const r=d.data();return docRow(`${r.edition||'Pricing'} · ${r.users||0} usuarios`,`${fmtMXN(r.total)} · ${r.implHrs||0} hrs impl${r.isSH?' · Odoo SH':''}`,fmtDate(r.createdAt),'',`deleteRecord('pricingRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+        ${price.map(d=>{const r=d.data();return docRow(`${r.edition||'Pricing'} · ${r.users||0} usuarios`,`${fmtMXN(r.total)} · ${r.implHrs||0} hrs impl${r.isSH?' · Odoo.SH':''}`,fmtDate(r.createdAt),'',`deleteRecord('pricingRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
 
       if(broch.length) sections.push(`<div style="margin-bottom:16px">${secHead(`📄 Brochures (${broch.length})`)}
         ${broch.map(d=>{const r=d.data();return docRow(r.empresa||co.nombre,`${r.aeName||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),'',`deleteRecord('brochureApprovals','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
@@ -5281,7 +5281,7 @@ window.pricingGeneratePDF=function(){
   const shSection=ps.isSH?`
     <div style="break-inside:avoid;margin-bottom:18px">
       <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#bbb;margin-bottom:10px;display:flex;align-items:center;gap:8px">
-        Recursos Odoo SH <span style="flex:1;height:1px;background:#efefef;display:inline-block"></span></div>
+        Recursos Odoo.SH <span style="flex:1;height:1px;background:#efefef;display:inline-block"></span></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
         <div style="border:1px solid #ffe0c8;border-radius:8px;padding:13px 15px;background:#fff8f5">
           <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#f97316;margin-bottom:5px">Workers</div>
@@ -5299,7 +5299,7 @@ window.pricingGeneratePDF=function(){
           <div style="font-size:10px;color:#aaa;margin-top:3px">Almacenamiento adicional</div>
         </div>
       </div>
-      <div style="font-size:10px;color:#aaa;margin-top:6px">Costo total Odoo SH: ${fmtN(ps.shCost)} MXN · incluido en el total de inversión.</div>
+      <div style="font-size:10px;color:#aaa;margin-top:6px">Costo total Odoo.SH: ${fmtN(ps.shCost)} MXN · incluido en el total de inversión.</div>
     </div>`:'';
 
   const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
@@ -5843,12 +5843,12 @@ window.renderPricingHome=function renderPricingHome(){
       <!-- Tips B2B SaaS ERP -->
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:32px">
         ${[
-          {icon:'📅',title:'Vende multianualidad desde el inicio',tip:'Los planes de 2-5 años tienen el mismo precio mensual pero generan mayor compromiso y ARR. Propón siempre 2 años como mínimo para cuentas medianas.'},
-          {icon:'👥',title:'Ancla en usuarios, no en precio',tip:'Muestra el costo por usuario/mes. Un plan de $274/usuario a 24 meses es más digerible que hablar del total. El comparativo vs. SAP/Dynamics ayuda.'},
-          {icon:'🚀',title:'Implementación = inversión única',tip:'Enmarca la implementación como inversión que se amortiza en el contrato. A 24 meses, un paquete de $44,800 son ~$1,867/mes — menos que un practicante.'},
-          {icon:'💡',title:'Odoo SH para clientes técnicos',tip:'Para IT managers o empresas con desarrollos propios, Odoo SH es diferenciador. Código fuente, staging ilimitado, despliegue propio. Ticket 20-30% mayor.'},
-          {icon:'📊',title:'ROI concreto antes del cierre',tip:'Calcula el ROI específico: si tienen 5 personas haciendo conciliaciones 3h/día, eso son 75h/semana × 52 = 3,900 horas anuales. ¿Cuánto vale eso vs. Odoo?'},
-          {icon:'🤝',title:'Propuesta en 2 escenarios',tip:'Presenta siempre 2 opciones: Standard mínimo viable y Personalizable con lo ideal. Evita dar una sola opción — genera comparación interna favorable.'},
+          {icon:'🎯',title:'Descuento de primera contratación',tip:'Vigente solo 12 meses y aplica únicamente a los primeros usuarios contratados. Los usuarios agregados después pagan precio regular. Es una ventana única: aprovéchala para negociar el mayor alcance desde el inicio.'},
+          {icon:'📅',title:'Multianuales: descuento sobre año 2+',tip:'2 años hasta 5%, 3-4 años hasta 10%, 5 años hasta 15% sobre la tarifa lista del año 2. Acercan el costo multianual al precio de primera contratación — que después ya no vuelve a obtenerse.'},
+          {icon:'🔄',title:'Al renovar: precio lista, sin descuento',tip:'Cuando vence un contrato, el cliente renueva a precio lista sin el descuento de primera contratación. El plan multianual es la única forma de mantener condiciones favorables más allá del primer contrato.'},
+          {icon:'📋',title:'Estándar: solo flujos muy simples',tip:'Solo para clientes de 1–5 usuarios con procesos básicos sin personalizaciones. Todo cliente que requiera Studio, multi-empresa o multi-sucursal necesita Personalizado — que es la gran mayoría.'},
+          {icon:'💡',title:'Odoo.SH: técnicos o alta demanda',tip:'Para clientes con IT interno, desarrollo propio o que requieren mayor capacidad de procesamiento (muchos usuarios concurrentes o demanda alta del sistema). Incluye código fuente, staging y escalamiento.'},
+          {icon:'⚠️',title:'Sin promesas de ROI',tip:'El ROI es difícil de cuantificar antes de la implementación y los datos rara vez son claros en calificación. Enfócate en el fit técnico y el alcance. Prometer un retorno sin respaldo compromete la confianza.'},
         ].map(t=>`
           <div class="card" style="padding:18px;border-left:3px solid var(--purple)">
             <div style="font-size:22px;margin-bottom:8px">${t.icon}</div>
@@ -5871,9 +5871,9 @@ window.renderPricingHome=function renderPricingHome(){
             </tr></thead>
             <tbody>
               ${[
-                {name:'Standard',r:[225,180,180],y2:285},
-                {name:'Personalizable',r:[342,274,274],y2:425},
-                {name:'Odoo SH',r:[342,274,274],y2:425},
+                {name:'Estándar',r:[225,180,180],y2:285},
+                {name:'Personalizado',r:[342,274,274],y2:425},
+                {name:'Odoo.SH',r:[342,274,274],y2:425},
               ].map((e,i)=>`<tr style="${i%2===0?'background:var(--gray-50)':''}">
                 <td style="padding:8px 12px;font-weight:600">${e.name}</td>
                 <td style="padding:8px 12px;text-align:center">$${e.r[0]}</td>

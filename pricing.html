@@ -635,17 +635,6 @@
     #pdf-client-name { display:block !important; font-size:12px !important; }
     .pdf-header { display:flex !important; }
 
-    /* ── Resumen de planes ── */
-    #plan-summary-wrap { display:block !important; margin-bottom:14px !important; }
-    #plan-summary-body { display:block !important; }
-    #plan-summary-body.hidden-by-user { display:none !important; }
-    #plan-summary-cards { display:grid !important; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)) !important; gap:8px !important; }
-    #plan-summary-cards > div { break-inside:avoid; page-break-inside:avoid; border-radius:10px !important; font-size:8px !important; }
-    #plan-summary-cards button { display:none !important; }
-    #plan-summary-wrap > div > div { break-inside:avoid; page-break-inside:avoid; margin-bottom:10px !important; }
-    #plan-summary-wrap table { width:100%; border-collapse:collapse; }
-    #plan-summary-wrap table td { font-size:7.5px !important; padding:3px 8px !important; }
-    #plan-summary-wrap > div > span { font-size:8px !important; }
 
     /* ── Plazos de pago ── */
     #pay-schedule-print-block {
@@ -691,9 +680,6 @@
   .chart-toggle-btn:hover { background:var(--purple); color:#fff; }
   .chart-toggle-btn .ct-chev { transition:transform .25s; display:inline-block; }
   .chart-toggle-btn.open .ct-chev { transform:rotate(180deg); }
-  /* ── Resumen de planes: siempre visible salvo que el usuario lo oculte ── */
-  #plan-summary-body { display:block !important; }
-  #plan-summary-body.hidden-by-user { display:none !important; }
 
   /* ── PDF HEADER (solo visible al imprimir) ── */
   .pdf-header {
@@ -1068,9 +1054,9 @@
     <div class="edition-selectors">
       <p class="section-label">Selecciona la edición de tu plan</p>
       <div class="edition-tabs" style="margin-bottom:20px;">
-        <button class="etab" onclick="setEdition(0,this)">Standard</button>
-        <button class="etab active" onclick="setEdition(1,this)">Personalizable</button>
-        <button class="etab" onclick="setEdition(2,this)">Odoo SH</button>
+        <button class="etab" onclick="setEdition(0,this)">Estándar</button>
+        <button class="etab active" onclick="setEdition(1,this)">Personalizado</button>
+        <button class="etab" onclick="setEdition(2,this)">Odoo.SH</button>
       </div>
       <p class="section-label" style="margin-top:8px;">Número de usuarios</p>
       <div class="user-input-wrap">
@@ -1100,11 +1086,11 @@
   <div class="sh-vars-wrap" id="sh-vars-wrap">
     <div class="sh-vars-header">
       <div class="sh-vars-icon"></div>
-      <div class="sh-vars-title">Recursos Odoo SH</div>
+      <div class="sh-vars-title">Recursos Odoo.SH</div>
     </div>
     <div class="sh-vars-grid">
       <div class="sh-var-item">
-        <div class="sh-var-label"><span class="tip">Workers<span class="tip-icon dark">?</span><span class="tip-box">Número de procesos de trabajo simultáneos que maneja tu instancia de Odoo SH. Más workers = mayor capacidad de usuarios concurrentes.<br><br><strong>Precio unitario anual:</strong><br><span id="sh-tip-worker"></span></span></span></div>
+        <div class="sh-var-label"><span class="tip">Workers<span class="tip-icon dark">?</span><span class="tip-box">Número de procesos de trabajo simultáneos que maneja tu instancia de Odoo.SH. Más workers = mayor capacidad de usuarios concurrentes.<br><br><strong>Precio unitario anual:</strong><br><span id="sh-tip-worker"></span></span></span></div>
         <div class="sh-var-counter">
           <button class="sh-var-btn" onclick="changeSHVar('workers',-1)">−</button>
           <input class="sh-var-input" type="number" id="sh-workers" value="1" min="1" max="8" oninput="if(parseInt(this.value)>8){this.value=8;}setSHVarFromInput('workers',this.value)" onchange="if(parseInt(this.value)>8){this.value=8;}setSHVarFromInput('workers',this.value)">
@@ -1164,19 +1150,7 @@
     </table>
   </div>
 
-  <!-- ── TABLA RESUMEN DE PLANES SELECCIONADOS ── -->
-  <!-- RESUMEN DE PLANES SELECCIONADOS -->
-  <div id="plan-summary-wrap" style="margin:18px 0 24px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:1px;">Resumen de planes seleccionados</span>
-      <button id="plan-summary-body-btn" class="section-toggle-btn open" onclick="toggleSummary()">
-        <span class="btn-label">Ocultar</span><span class="btn-chevron">▾</span>
-      </button>
-    </div>
-    <div id="plan-summary-body">
-      <div id="plan-summary-cards"></div>
-    </div>
-  </div>
+
   <!-- IMPLEMENTATION DROPDOWN -->
   <div class="impl-selector-wrap">
     <div class="impl-selector-left">
@@ -1195,6 +1169,18 @@
         <option value="150">150 horas</option>
         <option value="175">175 horas</option>
         <option value="200">200 horas</option>
+        <option value="225">225 horas</option>
+        <option value="250">250 horas</option>
+        <option value="275">275 horas</option>
+        <option value="300">300 horas</option>
+        <option value="325">325 horas</option>
+        <option value="350">350 horas</option>
+        <option value="375">375 horas</option>
+        <option value="400">400 horas</option>
+        <option value="425">425 horas</option>
+        <option value="450">450 horas</option>
+        <option value="475">475 horas</option>
+        <option value="500">500 horas</option>
         <option value="otro">Otro</option>
       </select>
       <div class="impl-dropdown-arrow">▾</div>
@@ -1446,9 +1432,7 @@
       if (tr) tr.classList.toggle('row-hidden', !v);
       if (rb) rb.classList.toggle('row-off', !v);
     });
-    updateRecommendedBadge();
-    renderPlanSummary();
-    renderCharts();
+    updateRecommendedBadge();    renderCharts();
   }
 
   // Historial de planes ocultados (stack para restaurar el último)
@@ -1496,9 +1480,7 @@
       const idx = parseInt(btn.dataset.idx);
       btn.classList.toggle('row-off', !rowVisible[idx]);
     });
-    updateRecommendedBadge();
-    renderPlanSummary();
-  }
+    updateRecommendedBadge();  }
 
   // ── CANDADOS DE DESCUENTO (false = bloqueado = sin descuento visible) ──
   let discLicUnlocked  = false;
@@ -1538,9 +1520,9 @@
       name: 'México', currency: 'MXN', locale: 'es-MX', symbol: '$', iva: 0.16,
       editions: [
         // rates = tarifa Y1 | ratesY2 = tarifa Y2+ / usuarios adicionales
-        { name:'Standard',       rates:[225, 180, 180, 180, 180, 180], ratesY2:[285, 285, 228, 228, 228, 228] },
-        { name:'Personalizable', rates:[342, 274, 274, 274, 274, 274], ratesY2:[425, 425, 340, 340, 340, 340] },
-        { name:'Odoo SH',        rates:[342, 274, 274, 274, 274, 274], ratesY2:[425, 425, 340, 340, 340, 340] },
+        { name:'Estándar',       rates:[225, 180, 180, 180, 180, 180], ratesY2:[285, 285, 228, 228, 228, 228] },
+        { name:'Personalizado', rates:[342, 274, 274, 274, 274, 274], ratesY2:[425, 425, 340, 340, 340, 340] },
+        { name:'Odoo.SH',        rates:[342, 274, 274, 274, 274, 274], ratesY2:[425, 425, 340, 340, 340, 340] },
       ],
       impl: {
         0:   { label:'Sin paquete', price:0 },
@@ -1553,18 +1535,30 @@
         150: { label:'150 horas',  price:124800 },
         175: { label:'175 horas',  price:147800 },
         200: { label:'200 horas',  price:160000 },
+        225: { label:'225 horas',  price:183000 },
+        250: { label:'250 horas',  price:204800 },
+        275: { label:'275 horas',  price:227800 },
+        300: { label:'300 horas',  price:240000 },
+        325: { label:'325 horas',  price:263000 },
+        350: { label:'350 horas',  price:284800 },
+        375: { label:'375 horas',  price:307800 },
+        400: { label:'400 horas',  price:320000 },
+        425: { label:'425 horas',  price:343000 },
+        450: { label:'450 horas',  price:364800 },
+        475: { label:'475 horas',  price:387800 },
+        500: { label:'500 horas',  price:400000 },
       }
     },
     cl: {
       name: 'Chile', currency: 'USD', locale: 'en-US', symbol: '$', iva: 0.19,
       editions: [
-        { name:'Standard',
+        { name:'Estándar',
           rates:   [9.10,  7.25, 7.25, 7.25, 7.25, 7.25],
           ratesY2: [11.20, 8.95, 8.95, 8.95, 8.95, 8.95] },
-        { name:'Personalizable',
+        { name:'Personalizado',
           rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
           ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
-        { name:'Odoo SH',
+        { name:'Odoo.SH',
           rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
           ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
       ],
@@ -1584,13 +1578,13 @@
     co: {
       name: 'Colombia', currency: 'USD', locale: 'en-US', symbol: '$', iva: 0.19,
       editions: [
-        { name:'Standard',
+        { name:'Estándar',
           rates:   [9.10,  7.25, 7.25, 7.25, 7.25, 7.25],
           ratesY2: [11.20, 8.95, 8.95, 8.95, 8.95, 8.95] },
-        { name:'Personalizable',
+        { name:'Personalizado',
           rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
           ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
-        { name:'Odoo SH',
+        { name:'Odoo.SH',
           rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
           ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
       ],
@@ -1610,13 +1604,13 @@
     pe: {
       name: 'Perú', currency: 'USD', locale: 'en-US', symbol: '$', iva: 0.18,
       editions: [
-        { name:'Standard',
+        { name:'Estándar',
           rates:   [9.10,  7.25, 7.25, 7.25, 7.25, 7.25],
           ratesY2: [11.20, 8.95, 8.95, 8.95, 8.95, 8.95] },
-        { name:'Personalizable',
+        { name:'Personalizado',
           rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
           ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
-        { name:'Odoo SH',
+        { name:'Odoo.SH',
           rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
           ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
       ],
@@ -1636,13 +1630,13 @@
     ec: {
       name: 'Ecuador', currency: 'USD', locale: 'en-US', symbol: '$', iva: 0.15,
       editions: [
-        { name:'Standard',
+        { name:'Estándar',
           rates:   [9.10,  7.25, 7.25, 7.25, 7.25, 7.25],
           ratesY2: [11.20, 8.95, 8.95, 8.95, 8.95, 8.95] },
-        { name:'Personalizable',
+        { name:'Personalizado',
           rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
           ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
-        { name:'Odoo SH',
+        { name:'Odoo.SH',
           rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
           ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
       ],
@@ -1910,7 +1904,7 @@
       // Celda licenciamiento mensual: licencias + SH
       const licMensualDisplay = shMensual > 0
         ? `<div class="ct-total teal">${fmtMXN(tarifaBase * currentUsers + shMensual)}</div>
-           <div class="ct-base">lic. + Odoo SH</div>`
+           <div class="ct-base">lic. + Odoo.SH</div>`
         : `<div class="ct-total teal">${fmtMXN(tarifaBase * currentUsers)}</div>`;
 
       const isMXLocal  = currentCurrency.currency === 'MXN';
@@ -1955,7 +1949,7 @@
         <td class="td-disc-lic ${discLicUnlocked ? 'disc-cell-visible' : 'disc-cell-hidden'}">${licDiscCell}</td>
         <td>
           <div class="ct-total teal">${i === 0 ? (shMensual > 0 ? fmtMXN(tarifaBase * currentUsers + shMensual) : fmtMXN(tarifaBase * currentUsers)) : (licTotal ? fmtMXN(licTotal) : '—')}</div>
-          ${i === 0 && shMensual > 0 ? `<div class="ct-base">lic. + Odoo SH</div>` : ''}
+          ${i === 0 && shMensual > 0 ? `<div class="ct-base">lic. + Odoo.SH</div>` : ''}
           ${i !== 0 && activeLicDisc > 0 ? `<div class="ct-base" style="text-decoration:line-through;color:var(--muted)">${fmtMXN(getLicTotal(i, 0))}</div>` : ''}
           ${i !== 0 && savings > 0 && activeLicDisc === 0 ? `<div class="ct-base">Ahorro: ${fmtMXN(savings)}</div>` : ''}
         </td>
@@ -2071,9 +2065,7 @@
 
     renderTable();
     updateTotal(currentPlanIdx);
-    renderCharts();
-    renderPlanSummary();
-  }
+    renderCharts();  }
 
   function setImplCustom() {
     const hrs   = parseFloat(document.getElementById('impl-custom-hrs').value)   || 0;
@@ -2118,19 +2110,6 @@
     }
   }
 
-  function toggleSummary() {
-    const body = document.getElementById('plan-summary-body');
-    const btn  = document.getElementById('plan-summary-body-btn');
-    if (!body) return;
-    const isHidden = body.classList.contains('hidden-by-user');
-    body.classList.toggle('hidden-by-user', !isHidden);
-    body.style.display = '';  // let CSS handle it
-    if (btn) {
-      btn.classList.toggle('open', isHidden);
-      const lbl = btn.querySelector('.btn-label');
-      if (lbl) lbl.textContent = isHidden ? 'Ocultar' : 'Mostrar';
-    }
-  }
 
   // ── CONVERSIÓN A MONEDA LOCAL ─────────────────────────────────────────────
   // Map country code → local currency info
@@ -2348,8 +2327,8 @@
   const editionDetails = [
     {
       key: 'std',
-      title: 'Standard',
-      subtitle: 'Ideal para empresas que buscan empezar rápido',
+      title: 'Estándar',
+      subtitle: 'Solo para empresas de 1–5 usuarios con flujos básicos',
       items: [
         { text: 'Odoo Online — todos los módulos incluidos', tag: null },
         { text: 'Hosting y soporte incluidos',               tag: null },
@@ -2357,10 +2336,10 @@
     },
     {
       key: 'per',
-      title: 'Personalizable',
+      title: 'Personalizado',
       subtitle: 'Para empresas con procesos específicos',
       items: [
-        { text: 'Todo lo incluido en Standard',                    tag: 'inherited' },
+        { text: 'Todo lo incluido en Estándar',                    tag: 'inherited' },
         { text: 'Odoo Studio — personalizaciones en interfaz',           tag: null },
         { text: 'Multiempresa (Multi RFC)',                              tag: null },
         { text: 'API externa — integraciones con otras plataformas',     tag: null },
@@ -2368,10 +2347,10 @@
     },
     {
       key: 'sh',
-      title: 'Odoo SH',
+      title: 'Odoo.SH',
       subtitle: 'Máxima flexibilidad técnica y control total',
       items: [
-        { text: 'Todo lo incluido en Personalizable',                    tag: 'inherited' },
+        { text: 'Todo lo incluido en Personalizado',                    tag: 'inherited' },
         { text: 'Ambiente para desarrollos desde el código',             tag: 'new' },
         { text: 'Capacidad de escalar almacenamiento y performance',     tag: 'new' },
       ]
@@ -2445,23 +2424,23 @@
   function updateRenewalMini() {
     const el = document.getElementById('rmc-table');
     if (!el) return;
-    const ed       = editionBaseRates[currentEdition];
-    const listRate = ed.ratesY2 ? ed.ratesY2[0] : ed.rates[0]; // precio lista/mes/usuario
-    const sym      = currentCurrency.symbol;
-    const locale   = currentCurrency.locale;
-    const fmt      = n => sym + n.toLocaleString(locale, {minimumFractionDigits:2, maximumFractionDigits:2});
+    const ed     = editionBaseRates[currentEdition];
+    const sym    = currentCurrency.symbol;
+    const locale = currentCurrency.locale;
+    const fmt    = n => sym + n.toLocaleString(locale, {minimumFractionDigits:2, maximumFractionDigits:2});
 
-    // Mostrar renovación para cada plan anual visible
+    // Renovación: precio_año2 del plan correspondiente × usuarios × meses del plan
     const rows = [
-      { label:'1 Año',  months:12 },
-      { label:'2 Años', months:24 },
-      { label:'3 Años', months:36 },
-      { label:'4 Años', months:48 },
-      { label:'5 Años', months:60 },
+      { label:'1 Año',  months:12, planIdx:1 },
+      { label:'2 Años', months:24, planIdx:2 },
+      { label:'3 Años', months:36, planIdx:3 },
+      { label:'4 Años', months:48, planIdx:4 },
+      { label:'5 Años', months:60, planIdx:5 },
     ].filter((_,i) => rowVisible[i+1]);
 
     el.innerHTML = rows.map(r => {
-      const total = listRate * currentUsers * r.months;
+      const rateY2 = ed.ratesY2 ? ed.ratesY2[r.planIdx] : ed.rates[r.planIdx];
+      const total  = rateY2 * currentUsers * r.months;
       return `<div class="rmc-row">
         <span class="rmc-plan">${r.label}</span>
         <span class="rmc-total">${fmt(total)}</span>
@@ -2804,9 +2783,7 @@
     updateTotal(i);
     renderTable();
     renderCharts();
-    updatePayTermsVisibility();
-    renderPlanSummary();
-  }
+    updatePayTermsVisibility();  }
 
   function setEdition(i, el) {
     document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
@@ -3111,11 +3088,11 @@
     if (direction === 'down') {
       toast.style.background = '#00A09D';
       toast.style.boxShadow = '0 4px 20px rgba(0,160,157,.5)';
-      toast.textContent = '↩ Cambiado a Personalizable — menos de 25 usuarios';
+      toast.textContent = '↩ Cambiado a Personalizado — menos de 25 usuarios';
     } else {
       toast.style.background = '#714B67';
       toast.style.boxShadow = '0 4px 20px rgba(113,75,103,.5)';
-      toast.textContent = '⚡ Cambiado a Odoo SH — 25 o más usuarios';
+      toast.textContent = '⚡ Cambiado a Odoo.SH — 25 o más usuarios';
     }
     toast.style.opacity = '1';
     clearTimeout(toast._t);
@@ -3157,9 +3134,7 @@
     renderTable();
     updateTotal(currentPlanIdx);
     renderCharts();
-    updateRecommendedBadge();
-    renderPlanSummary();
-  }
+    updateRecommendedBadge();  }
 
 
   // ── START DATE FOR PAYMENT TERMS ─────────────────────────────────────────
@@ -3217,187 +3192,6 @@
   });
 
   // ── DYNAMIC RECOMMENDED BADGE ─────────────────────────────────────────────
-  function renderPlanSummary() {
-    const container = document.getElementById('plan-summary-cards');
-    if (!container) return;
-    // Body state is controlled ONLY by toggleSummary() - never change it here
-    const summaryBody = document.getElementById('plan-summary-body');
-
-    const hasImpl      = currentImplPrice > 0;
-    const ed           = editionBaseRates[currentEdition];
-    const isMX         = currentCurrency.currency === 'MXN';
-    // Always show at least the visible plans; if none visible, show all
-    let visiblePlans = plans.map((p,i) => i).filter(i => rowVisible[i]);
-    if (visiblePlans.length === 0) {
-      visiblePlans = plans.map((p,i) => i).filter(i => i > 0); // show all except mensual if none visible
-    }
-
-    container.innerHTML = '';
-    if (visiblePlans.length === 0) return;
-
-    // Grid wrapper
-    const grid = document.createElement('div');
-    grid.style.cssText = `display:flex;flex-direction:row;gap:14px;align-items:stretch;overflow-x:auto;padding-bottom:8px;min-height:10px;`;
-    container.appendChild(grid);
-
-    visiblePlans.forEach(i => {
-      const p          = plans[i];
-      const tarifaY1   = ed.rates[i];
-      const tarifaY2   = ed.ratesY2 ? ed.ratesY2[i] : tarifaY1;
-      const actLicDisc = discLicUnlocked ? licDiscByPlan[i] : 0;
-      const actImpDisc = discImplUnlocked ? implDiscByPlan[i] : 0;
-      // Para plan mensual getLicTotal retorna 0 — calcular manual
-      const licNoDisc  = i === 0
-        ? Math.round(ed.rates[0] * currentUsers * 100) / 100
-        : getLicTotal(i, 0);
-      const licTotal   = i === 0
-        ? Math.round(ed.rates[0] * currentUsers * 100) / 100
-        : getLicTotal(i, actLicDisc);
-      // Ahorro real = lo que pagarías renovando mensualmente - precio contrato (con IVA para MXN)
-      const isMXc      = currentCurrency.currency === 'MXN';
-      const baseSaving = getBaseSavings(i, actLicDisc);
-      const implSaving = hasImpl ? (currentImplPrice - implAfter) : 0;
-      const totalSaving = Math.round((baseSaving + implSaving) * (isMXc ? 1.16 : 1) * 100) / 100;
-      const licSaved   = licNoDisc - licTotal;
-      const implAfter  = hasImpl ? Math.round(currentImplPrice * (1 - actImpDisc / 100) * 100) / 100 : 0;
-      const total      = licTotal + implAfter;
-      const isActive   = i === currentPlanIdx;
-      const isBest     = p.badge === 'Recomendado';
-      const months     = planMonths[i];
-
-      // IVA only for MXN
-      const totalIVA   = total; // Sin IVA en resumen de planes
-
-      const card = document.createElement('div');
-      card.style.cssText = `
-        display:flex;flex-direction:column;flex:0 0 220px;min-width:220px;border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s;
-        border:${isActive ? '2.5px solid #0d9488' : isBest ? '2.5px solid var(--purple)' : '1.5px solid var(--border)'};
-        box-shadow:${isActive ? '0 4px 20px rgba(13,148,136,.18)' : isBest ? '0 4px 20px rgba(113,75,103,.18)' : '0 2px 8px rgba(0,0,0,.06)'};
-        background:#fff;
-      `;
-      // card click disabled to prevent render loop - use Seleccionar button
-
-      // Header
-      const headerBg = isActive ? '#0d9488' : isBest ? 'var(--purple)' : '#f5f3ff';
-      const headerColor = (isActive || isBest) ? '#fff' : 'var(--purple)';
-      let headerHTML = `<div style="background:${headerBg};padding:12px 16px;text-align:center;">`;
-      if (isBest) headerHTML += `<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.85);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">🏆 MAYOR AHORRO</div>`;
-      headerHTML += `<div style="font-size:11px;font-weight:700;color:${headerColor};letter-spacing:2px;text-transform:uppercase;">${p.label.toUpperCase()}</div>`;
-      headerHTML += `</div>`;
-
-      // Total price
-      const totalFmt = fmtMXN(totalIVA);
-      const totalMatch = totalFmt.match(/^([^\d]*)(\d[\d,]*)\.?(\d*)$/);
-      let priceHTML = '';
-      if (totalMatch) {
-        priceHTML = `<div style="text-align:center;padding:14px 12px 8px;border-bottom:1px solid #f0ede8;">
-          <div style="display:flex;align-items:flex-start;justify-content:center;gap:2px;">
-            <span style="font-size:13px;font-weight:700;color:var(--ink);margin-top:4px;">${totalMatch[1]}</span>
-            <span style="font-size:28px;font-weight:800;color:var(--ink);line-height:1;">${totalMatch[2]}</span>
-            ${totalMatch[3] ? `<span style="font-size:13px;font-weight:700;color:var(--ink);margin-top:4px;">.${totalMatch[3]}</span>` : ''}
-          </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px;">+ IVA · Total inversión</div>
-          ${totalSaving > 0 ? `<div style="margin-top:6px;font-size:11px;font-weight:700;color:#16a34a;">💰 Ahorras ${fmtMXN(totalSaving)}</div>` : (i===1 ? `<div style="margin-top:6px;font-size:11px;color:var(--muted);">Precio de lista</div>` : '')}
-        </div>`;
-      }
-
-      // Detail rows
-      let detailHTML = `<div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px;flex:1;">`;
-
-      // Licenciamiento usuarios
-      detailHTML += `<div style="display:flex;flex-direction:column;gap:2px;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:16px;">👥</span>
-          <span style="font-size:11px;font-weight:600;color:var(--ink);">Licenciamiento — Usuarios</span>
-        </div>
-        <div style="padding-left:22px;font-size:11px;color:var(--muted);">1er año: <strong style="color:var(--ink)">${fmtMXN(tarifaY1)} MXN/usuario/mes</strong></div>
-        ${i >= 2 ? `<div style="padding-left:22px;font-size:11px;color:var(--muted);">A partir del 2° año: <strong style="color:var(--ink)">${fmtMXN(tarifaY2)} MXN/usuario/mes</strong></div>` : ''}
-        ${i === 0 ? `<div style="padding-left:22px;font-size:11px;color:var(--muted);">Usuarios adicionales: <strong style="color:var(--ink)">${fmtMXN(tarifaY2)} MXN/usuario/mes</strong></div>` : ''}
-      </div>`;
-
-      // Licenciamiento total
-      detailHTML += `<div style="display:flex;align-items:center;gap:6px;">
-        <span style="font-size:16px;">🔷</span>
-        <div>
-          <div style="font-size:11px;font-weight:600;color:var(--ink);">${currentEdition === 2 ? 'Licenciamiento + SH (total)' : 'Licenciamiento'}</div>
-          <div style="font-size:13px;font-weight:700;color:var(--ink);">${fmtMXN(licTotal)}</div>
-        </div>
-      </div>`;
-
-      // Descuento multianual — desglose estilo hoja de cálculo
-      if (i >= 2) {
-        const ed2        = editionBaseRates[currentEdition];
-        const rY1        = ed2.rates[i];
-        const rY2        = ed2.ratesY2 ? ed2.ratesY2[i] : rY1;
-        const mos        = planMonths[i];
-        const precioY1   = rY1 * currentUsers * 12;
-        const precioY2   = rY2 * currentUsers * Math.max(0, mos - 12);
-        const precioBase = precioY1 + precioY2;
-        // Descuento efectivo = manual si está desbloqueado, sino el base del plan (licDiscMax)
-        const discEfectivo = discLicUnlocked ? actLicDisc : 0;
-        const descMonto    = discEfectivo > 0 ? Math.round(precioBase * discEfectivo / 100 * 100) / 100 : 0;
-        detailHTML += `<div style="display:flex;align-items:flex-start;gap:6px;">
-          <span style="font-size:16px;">🏷</span>
-          <div style="flex:1;">
-            <div style="font-size:11px;font-weight:600;color:var(--ink);">Descuento multianual</div>
-            <div style="margin-top:4px;padding:6px 8px;background:#fafafa;border-radius:6px;border:1px solid #f0ede8;font-size:10px;color:var(--muted);line-height:1.8;">
-              <div style="display:flex;justify-content:space-between;"><span>Precio Y1 (${rY1} × ${currentUsers}u × 12m)</span><span style="font-family:var(--mono);color:var(--ink);">${fmtMXN(precioY1)}</span></div>
-              ${mos > 12 ? `<div style="display:flex;justify-content:space-between;"><span>Precio Y2 (${rY2} × ${currentUsers}u × ${mos-12}m)</span><span style="font-family:var(--mono);color:var(--ink);">${fmtMXN(precioY2)}</span></div>` : ''}
-              <div style="display:flex;justify-content:space-between;border-top:1px solid #e4e1d9;margin-top:3px;padding-top:3px;"><span style="font-weight:600;">Precio completo</span><span style="font-family:var(--mono);font-weight:700;color:var(--ink);">${fmtMXN(precioBase)}</span></div>
-              <div style="display:flex;justify-content:space-between;"><span style="font-weight:600;color:var(--orange);">% Descuento multianual</span><span style="font-family:var(--mono);font-weight:700;color:var(--orange);">${discEfectivo > 0 ? discEfectivo + '%' : 'Sin descuento'}</span></div>
-              ${descMonto > 0 ? `<div style="display:flex;justify-content:space-between;border-top:1px solid #e4e1d9;margin-top:3px;padding-top:3px;"><span style="font-weight:600;color:#16a34a;">Ahorro</span><span style="font-family:var(--mono);font-weight:700;color:#16a34a;">−${fmtMXN(descMonto)}</span></div>` : ''}
-            </div>
-          </div>
-        </div>`;
-      }
-
-      // Implementación
-      if (hasImpl) {
-        detailHTML += `<div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:16px;">🔧</span>
-          <div>
-            <div style="font-size:11px;font-weight:600;color:var(--ink);">Implementación (${currentImplHrs} hrs)${actImpDisc > 0 ? ` <span style="color:var(--orange);font-weight:700;">✕ ${actImpDisc}%</span>` : ''}</div>
-            <div style="font-size:13px;font-weight:700;color:var(--ink);">${fmtMXN(implAfter)}</div>
-          </div>
-        </div>`;
-      }
-
-      // Al renovar (precio lista) — incluye SH para planes SH
-      if (i >= 1) {
-        const renewalMonths  = planMonths[i];
-        const ed2            = editionBaseRates[currentEdition];
-        const renewListRate  = ed2.ratesY2 ? ed2.ratesY2[i] : ed2.rates[i];
-        const renewLicTotal  = renewListRate * currentUsers * renewalMonths;
-        const renewSHTotal   = currentEdition === 2 ? getSHCost(i) : 0;
-        const renewTotal     = renewLicTotal + renewSHTotal;
-        const renewTotalIVA  = isMX ? Math.round(renewTotal * 1.16 * 100) / 100 : renewTotal;
-        detailHTML += `<div style="display:flex;align-items:center;gap:6px;border-top:1px dashed var(--border);padding-top:8px;margin-top:2px;">
-          <span style="font-size:16px;">🔄</span>
-          <div>
-            <div style="font-size:11px;font-weight:600;color:var(--muted);">Al renovar (precio lista + IVA)</div>
-            <div style="font-size:13px;font-weight:700;color:var(--muted);">${fmtMXN(renewTotalIVA)}</div>
-            ${currentEdition === 2 && renewSHTotal > 0 ? `<div style="font-size:10px;color:var(--muted);">Lic. ${fmtMXN(Math.round(renewLicTotal*1.16*100)/100)} + SH ${fmtMXN(Math.round(renewSHTotal*1.16*100)/100)}</div>` : ''}
-          </div>
-        </div>`;
-      }
-
-      detailHTML += `</div>`;
-
-      // Select button
-      const btnBg    = isActive ? '#0d9488' : isBest ? 'var(--purple)' : 'transparent';
-      const btnColor = (isActive || isBest) ? '#fff' : 'var(--purple)';
-      const btnBorder= (isActive || isBest) ? 'none' : '1.5px solid var(--purple)';
-      const btnLabel = isActive ? '⚡ Elegir este plan' : 'Seleccionar';
-      const btnHTML  = `<div style="padding:10px 14px 14px;">
-        <button onclick="event.stopPropagation();setPlan(${i},null)" style="width:100%;padding:10px;border-radius:10px;background:${btnBg};color:${btnColor};border:${btnBorder};font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;">
-          ${btnLabel}
-        </button>
-      </div>`;
-
-      card.innerHTML = headerHTML + priceHTML + detailHTML + btnHTML;
-      grid.appendChild(card);
-    });
-  }
 
 
   function updateRecommendedBadge() {
