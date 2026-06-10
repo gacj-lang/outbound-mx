@@ -2818,7 +2818,7 @@ const ODOO_APPS = {
     {name:'Ventas',               svgFile:'sale',                 desc:'Pedidos, listas de precio, portal',                            longDesc:'Cierra más tratos con cotizaciones profesionales, acceso móvil y portal del cliente. Gestión de órdenes, seguimiento de contratos y herramientas completas para tu equipo comercial.'},
     {name:'PdV para tiendas',     svgFile:'point_of_sale',        desc:'POS táctil, offline, con inventario',                          longDesc:'Simplifica la gestión de tu tienda con escaneo de códigos de barras y hardware integrado. Funciona sin conexión a internet y sincroniza con inventario automáticamente.'},
     {name:'PdV para restaurantes',svgFile:'pos_restaurant',       desc:'POS para mesas, comandas y menú digital',                      longDesc:'Gestiona mesas, comandas y entregas con un sistema POS diseñado para food service. Menú digital, división de cuentas y sincronización con cocina en tiempo real.'},
-    {name:'Suscripciones',        svgFile:'sale_subscription',    desc:'Facturación recurrente y renovaciones automáticas',            longDesc:'Gestiona suscripciones y contratos de servicios recurrentes con renovación automática. Monitorea MRR, churn y salud de suscriptores desde un tablero central.'},
+    {name:'Suscripciones',        svgFile:'sale_subscriptions',    desc:'Facturación recurrente y renovaciones automáticas',            longDesc:'Gestiona suscripciones y contratos de servicios recurrentes con renovación automática. Monitorea MRR, churn y salud de suscriptores desde un tablero central.'},
     {name:'Alquiler',             svgFile:'sale_renting',         desc:'Contratos y disponibilidad de activos en renta',               longDesc:'Administra rentas de equipos, vehículos o propiedades con calendario de disponibilidad y contratos automáticos. Integrado con inventario y facturación.'},
   ],
   'Sitios Web':[
@@ -2826,8 +2826,8 @@ const ODOO_APPS = {
     {name:'Comercio electrónico', svgFile:'website_sale',         desc:'Tienda online integrada al ERP',                               longDesc:'Tienda online con editor visual que se integra con marketing, inventario y contabilidad. Gestiona productos, pasarelas de pago y envíos desde un solo lugar.'},
     {name:'Blog',                 svgFile:'website_blog',         desc:'Blog integrado al sitio web',                                  longDesc:'Publica contenido de valor desde Odoo con un editor intuitivo. Los artículos están integrados al sitio web y optimizados para SEO, con comentarios y suscripciones.'},
     {name:'Foro',                 svgFile:'website_forum',        desc:'Foro comunitario para clientes y usuarios',                    longDesc:'Crea una comunidad de usuarios con preguntas y respuestas, votos y reputación. Integrado al sitio web y a los tickets de soporte de Odoo.'},
-    {name:'Chat en vivo',         svgFile:'live_chat',            desc:'Chat en tiempo real con visitantes del sitio',                 longDesc:'Atiende a los visitantes de tu sitio web en tiempo real. Chatbots para respuestas automáticas, integración con el CRM y derivación a soporte al cliente.'},
-    {name:'eLearning',            svgFile:'slide',                desc:'Cursos y capacitación en línea',                               longDesc:'Publica cursos, videos y quizzes en una plataforma de aprendizaje integrada a tu sitio web. Certificaciones, seguimiento de progreso y acceso controlado por membresía.'},
+    {name:'Chat en vivo',         svgFile:'im_livechat',            desc:'Chat en tiempo real con visitantes del sitio',                 longDesc:'Atiende a los visitantes de tu sitio web en tiempo real. Chatbots para respuestas automáticas, integración con el CRM y derivación a soporte al cliente.'},
+    {name:'eLearning',            svgFile:'website_slides',                desc:'Cursos y capacitación en línea',                               longDesc:'Publica cursos, videos y quizzes en una plataforma de aprendizaje integrada a tu sitio web. Certificaciones, seguimiento de progreso y acceso controlado por membresía.'},
   ],
   'Cadena de suministro':[
     {name:'Inventario',           svgFile:'stock',                desc:'Stock, reabasto automático, trazabilidad',                     longDesc:'Seguimiento en tiempo real, reabastecimiento automático y estrategias de almacenamiento optimizadas. Compatible con múltiples métodos de recolección, transportistas y trazabilidad completa.'},
@@ -2842,13 +2842,13 @@ const ODOO_APPS = {
     {name:'Reclutamiento',        svgFile:'hr_recruitment',       desc:'Pipeline de candidatos y ofertas de empleo',                   longDesc:'Publica vacantes, gestiona solicitudes y conduce entrevistas desde un pipeline visual. Integrado con el sitio web de Odoo y con portales de empleo externos.'},
     {name:'Vacaciones',           svgFile:'hr_holidays',          desc:'Gestión de tiempo libre y aprobaciones',                       longDesc:'Centraliza las solicitudes de tiempo libre, días festivos y ausencias. Flujo de aprobaciones configurable y sincronización automática con nómina y asistencias.'},
     {name:'Evaluaciones',         svgFile:'hr_appraisal',         desc:'Evaluaciones de desempeño y planes de mejora',                 longDesc:'Realiza evaluaciones 360° o por objetivos con formularios configurables. Define planes de mejora, establece metas y da seguimiento al desarrollo de cada empleado.'},
-    {name:'Referencias',          svgFile:'referral',             desc:'Programa de referidos de empleados',                           longDesc:'Convierte a tus empleados en reclutadores con un programa de referidos con recompensas. Gamificación, tablero de puntos y bonificaciones integradas al flujo de reclutamiento.'},
+    {name:'Referencias',          svgFile:'hr_referral',             desc:'Programa de referidos de empleados',                           longDesc:'Convierte a tus empleados en reclutadores con un programa de referidos con recompensas. Gamificación, tablero de puntos y bonificaciones integradas al flujo de reclutamiento.'},
     {name:'Flotilla',             svgFile:'fleet',                desc:'Gestión de vehículos y mantenimiento',                         longDesc:'Resumen integral de vehículos, contratos, reparaciones, costos y conductores. Monitorea consumo de combustible, asigna responsables y controla el gasto total de tu flotilla.'},
   ],
   'Marketing':[
     {name:'Redes sociales',       svgFile:'social',               desc:'Publicaciones y seguimiento en redes sociales',                longDesc:'Gestiona y programa publicaciones en múltiples redes sociales desde Odoo. Monitorea alcance e interacciones y vincula campañas con el CRM para convertir seguidores en leads.'},
     {name:'Marketing por correo', svgFile:'mass_mailing',         desc:'Email, automatizaciones, segmentos',                           longDesc:'Crea correos electrónicos profesionales al instante y asegúrate de que lleguen a la audiencia correcta. Segmenta contactos y automatiza campañas completas de email marketing.'},
-    {name:'Marketing por SMS',    svgFile:'sms_marketing',        desc:'Campañas de SMS masivo y personalizado',                       longDesc:'Envía mensajes SMS personalizados a segmentos de clientes con altas tasas de apertura. Integrado con el CRM y la base de datos de contactos de Odoo.'},
+    {name:'Marketing por SMS',    svgFile:'mass_mailing_sms',        desc:'Campañas de SMS masivo y personalizado',                       longDesc:'Envía mensajes SMS personalizados a segmentos de clientes con altas tasas de apertura. Integrado con el CRM y la base de datos de contactos de Odoo.'},
     {name:'Eventos',              svgFile:'event',                desc:'Organización y registro de eventos',                           longDesc:'Crea y gestiona eventos con registro en línea, boletos, agenda y control de asistencia. Integrado con el sitio web, email marketing y CRM para capturar leads de cada evento.'},
     {name:'Automatización de marketing',svgFile:'marketing_automation',desc:'Flujos automatizados de nurturing',                  longDesc:'Diseña flujos de automatización basados en acciones y condiciones. Nutre leads automáticamente con emails, SMS y tareas en el CRM según el comportamiento del cliente.'},
     {name:'Encuestas',            svgFile:'survey',               desc:'Formularios y encuestas de satisfacción',                      longDesc:'Crea y publica encuestas, formularios de feedback o exámenes en línea. Resultados consolidados en tableros con gráficas, vinculados con contactos del CRM.'},
@@ -2870,7 +2870,7 @@ const ODOO_APPS = {
     {name:'WhatsApp',             svgFile:'whatsapp',             desc:'Mensajería WhatsApp Business integrada',                       longDesc:'Envía mensajes, confirmaciones y notificaciones por WhatsApp Business directamente desde Odoo. Integrado con CRM, ventas y soporte para centralizar toda la comunicación con clientes.'},
   ],
   'Personalización':[
-    {name:'Studio de Odoo',       svgFile:'studio',               desc:'Personalización visual sin código',                             longDesc:'Crea o modifica aplicaciones, vistas, campos y flujos de trabajo en Odoo sin programar. Diseña formularios, automatizaciones y reportes personalizados con un editor visual drag & drop.'},
+    {name:'Studio de Odoo',       svgFile:'web_studio',               desc:'Personalización visual sin código',                             longDesc:'Crea o modifica aplicaciones, vistas, campos y flujos de trabajo en Odoo sin programar. Diseña formularios, automatizaciones y reportes personalizados con un editor visual drag & drop.'},
   ],
 };
 // Array plano de todos los módulos — usar para búsquedas por nombre
@@ -3979,6 +3979,7 @@ window.gcGeneratePub=async function(){
   const btn=document.getElementById('gcPubBtn');
   btn.disabled=true; gcShowLoading('gcPubLoading',true);
   document.getElementById('gcPubOutput').classList.remove('show');
+  const _appNames=ODOO_APPS_FLAT.map(m=>m.name).join(', ');
   try{
     const copy=await gcCallClaude(`Genera el contenido para una imagen comercial de LinkedIn de Odoo México dirigida a la industria de ${ind}, Y el texto del post.
 INDUSTRIA TARGET: ${ind} | TONO: ${tono}
@@ -3991,12 +3992,14 @@ Responde con este JSON exacto (sin markdown):
   "highlight": "1-2 palabras DEL headline para resaltar (deben aparecer literalmente en headline)",
   "subheadline": "Frase secundaria de beneficio (máx 10 palabras)",
   "puntos": ["3 a 4 efectos WOW MUY específicos de la industria de ${ind} con Odoo, cada uno máx 7 palabras. Ej. construcción: 'Costeo de obra en tiempo real', 'Facturación por avance automática', 'Control de materiales por proyecto'"],
+  "apps": ["4 a 6 nombres EXACTOS de módulos Odoo relevantes para la industria de ${ind}, copiados LITERALMENTE de esta lista (no inventes nombres): ${_appNames}"],
   "post_text": "Texto completo del post de LinkedIn (150-280 palabras). Emojis estratégicos (3-5). Estructura: gancho potente en la primera línea, desarrollo, los puntos WOW, reflexión/CTA, y hashtags (#odoo #erp #${ind.toLowerCase().replace(/[^a-z]/g,'')}) en su propia línea al final. Español de México."
 }`);
     let parsed;
     try { parsed=JSON.parse(copy.replace(/```json?\n?/g,'').replace(/```/g,'').trim()); }
     catch(e){ parsed={headline:msg.substring(0,40),highlight:'',subheadline:'Odoo lo hace posible.',puntos:[]}; }
     if(!Array.isArray(parsed.puntos)) parsed.puntos=[];
+    if(!Array.isArray(parsed.apps)) parsed.apps=[];
     parsed._ind=ind;
     // Variación aleatoria de layout (C-LI1) — fondo claro + tipografía Odoo siempre
     const _liLayouts=[
@@ -4008,6 +4011,9 @@ Responde con este JSON exacto (sin markdown):
       {bg:'#fdf8f0',checkColor:'#FBB130',hlColor:'#FC787D',textRight:false},
     ];
     parsed._layout=_liLayouts[Math.floor(Math.random()*_liLayouts.length)];
+    // Variante del panel gráfico (arreglo de iconos) — se elige al azar para dar diversidad
+    parsed._graphicVariant=Math.floor(Math.random()*GC_GRAPHIC_VARIANTS);
+    parsed._gradIdx=Math.floor(Math.random()*GC_GRAPHIC_GRADS.length);
     cont.lastPubData=parsed;
     // Si el estilo es foto, busca una foto real de la industria
     cont.lastPhoto=null;
@@ -4033,6 +4039,72 @@ Responde con este JSON exacto (sin markdown):
     }
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcPubLoading',false);
+};
+
+// ── Panel gráfico (arreglo de iconos Odoo) — reemplaza la "foto real" cuando es Tarjeta gráfica ──
+const GC_GRAPHIC_GRADS=[
+  ['#714B67','#017E84'],['#017E84','#0E7490'],['#5B3E54','#FC787D'],
+  ['#1E3A5F','#017E84'],['#0F766E','#714B67'],['#714B67','#FBB130'],
+];
+const GC_GRAPHIC_VARIANTS=4;  // 0 mosaico · 1 constelación · 2 héroe · 3 lista
+const GC_MISSING_ICONS=new Set(['whatsapp']);  // módulos sin archivo SVG — se omiten del panel para no dejar huecos
+function gcGraphicPanel(data,f){
+  const R=Math.round(f.w*.018);
+  const grad=GC_GRAPHIC_GRADS[data._gradIdx||0]||GC_GRAPHIC_GRADS[0];
+  const variant=(data._graphicVariant||0)%GC_GRAPHIC_VARIANTS;
+  // Resolver módulos sugeridos por la IA a {name,file}; completar con genéricos si faltan
+  const fallback=['crm','account','sale','project','stock','hr','website','point_of_sale'];
+  const seen=new Set();
+  let items=(data.apps||[]).map(n=>({name:n,file:brAppIcon(n)})).filter(it=>{ if(!it.file||GC_MISSING_ICONS.has(it.file)||seen.has(it.file))return false; seen.add(it.file); return true; });
+  for(const fb of fallback){ if(items.length>=6)break; if(!seen.has(fb)){ items.push({name:'',file:fb}); seen.add(fb); } }
+  items=items.slice(0,6);
+  const ic=(file,size)=>`<img src="${ASSETS}/icons/apps/${file}.svg" crossorigin="anonymous" style="width:${size}px;height:${size}px;object-fit:contain;display:block" onerror="this.style.display='none'">`;
+  const card=(inner,pad,radius)=>`<div style="background:#fff;border-radius:${radius}px;padding:${pad}px;box-shadow:0 ${Math.round(f.w*.008)}px ${Math.round(f.w*.022)}px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center">${inner}</div>`;
+  const base=inner=>`<div style="width:100%;height:100%;border-radius:${R}px;background:linear-gradient(135deg,${grad[0]},${grad[1]});position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;box-sizing:border-box">${inner}</div>`;
+
+  if(variant===1){
+    // Constelación — círculos de tamaños variables + formas decorativas
+    const deco=`
+      <div style="position:absolute;width:40%;height:40%;border-radius:50%;background:rgba(255,255,255,.10);top:-9%;right:-7%"></div>
+      <div style="position:absolute;width:28%;height:28%;border-radius:50%;background:rgba(255,255,255,.08);bottom:-7%;left:-5%"></div>
+      <div style="position:absolute;width:14%;height:14%;border-radius:50%;border:${Math.round(f.w*.004)}px solid rgba(255,255,255,.20);top:16%;left:10%"></div>`;
+    const sizes=[Math.round(f.w*.085),Math.round(f.w*.06),Math.round(f.w*.045),Math.round(f.w*.06),Math.round(f.w*.045)];
+    const circle=(file,d)=>`<div style="width:${Math.round(d*1.7)}px;height:${Math.round(d*1.7)}px;border-radius:50%;background:#fff;box-shadow:0 ${Math.round(f.w*.008)}px ${Math.round(f.w*.02)}px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic(file,d)}</div>`;
+    const blobs=items.slice(0,5).map((it,i)=>circle(it.file,sizes[i%sizes.length])).join('');
+    return base(`${deco}<div style="display:flex;flex-wrap:wrap;gap:${Math.round(f.w*.02)}px;justify-content:center;align-items:center;padding:${Math.round(f.w*.04)}px;position:relative;z-index:2;max-width:90%">${blobs}</div>`);
+  }
+  if(variant===2){
+    // Héroe + satélites
+    const hero=Math.round(f.w*.11), sat=Math.round(f.w*.05);
+    const heroCard=card(ic(items[0].file,hero),Math.round(hero*.32),Math.round(hero*.26));
+    const sats=items.slice(1,5).map(it=>card(ic(it.file,sat),Math.round(sat*.36),Math.round(sat*.32))).join('');
+    return base(`<div style="display:flex;flex-direction:column;align-items:center;gap:${Math.round(f.w*.028)}px;padding:${Math.round(f.w*.03)}px">
+      ${heroCard}
+      <div style="display:flex;gap:${Math.round(f.w*.018)}px;justify-content:center;flex-wrap:wrap;max-width:92%">${sats}</div>
+    </div>`);
+  }
+  if(variant===3){
+    // Lista de capacidades — icono + nombre del módulo (usa los módulos sugeridos)
+    const size=Math.round(f.w*.045);
+    const named=items.filter(it=>it.name);
+    const rows=(named.length?named:items).slice(0,5).map(it=>`
+      <div style="display:flex;align-items:center;gap:${Math.round(f.w*.018)}px;background:rgba(255,255,255,.96);border-radius:${Math.round(f.w*.014)}px;padding:${Math.round(f.w*.016)}px ${Math.round(f.w*.022)}px;box-shadow:0 ${Math.round(f.w*.005)}px ${Math.round(f.w*.015)}px rgba(0,0,0,.14)">
+        ${ic(it.file,size)}
+        ${it.name?`<span style="font-family:'Inter',sans-serif;font-weight:600;font-size:${Math.round(f.w*.02)}px;color:#21272B;line-height:1.2">${it.name}</span>`:''}
+      </div>`).join('');
+    return base(`<div style="display:flex;flex-direction:column;gap:${Math.round(f.w*.016)}px;padding:${Math.round(f.w*.045)}px;width:100%;box-sizing:border-box">${rows}</div>`);
+  }
+  // variant 0 — Mosaico (grid de tarjetas con iconos)
+  const cell=Math.round(f.w*.072);
+  const cards=items.slice(0,6).map(it=>card(ic(it.file,cell),Math.round(cell*.34),Math.round(cell*.28))).join('');
+  return base(`<div style="display:flex;flex-wrap:wrap;gap:${Math.round(f.w*.022)}px;justify-content:center;align-content:center;padding:${Math.round(f.w*.035)}px;max-width:92%">${cards}</div>`);
+}
+window.gcOtraGrafica=function(){
+  const d=cont.lastPubData; if(!d)return;
+  const prev=d._graphicVariant;
+  for(let i=0;i<8&&((d._graphicVariant=Math.floor(Math.random()*GC_GRAPHIC_VARIANTS))===prev);i++){}
+  d._gradIdx=Math.floor(Math.random()*GC_GRAPHIC_GRADS.length);
+  renderGcImagePreview(d);
 };
 
 function renderGcImagePreview(data){
@@ -4073,9 +4145,9 @@ function renderGcImagePreview(data){
     <div style="font-family:'Caveat',cursive;font-weight:400;font-size:${subSize}px;color:#017E84;margin-bottom:${Math.round(f.w*.028)}px">${data.subheadline||''}</div>
     <div>${puntosHTML}</div>`;
 
-  // Foto con bordes redondeados
+  // Bloque visual: foto real (Pexels) o panel gráfico con arreglo de iconos Odoo
   const photoBlock=photo?`<img src="${photo.url}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;border-radius:${Math.round(f.w*.018)}px;display:block">`
-    :`<div style="width:100%;height:100%;border-radius:${Math.round(f.w*.018)}px;background:linear-gradient(135deg,#714B67,#017E84);display:flex;align-items:center;justify-content:center;color:white;font-family:'Caveat',cursive;font-size:${Math.round(f.w*.03)}px;text-align:center;padding:20px">Configura Pexels<br>para fotos reales</div>`;
+    :gcGraphicPanel(data,f);
 
   let canvasInner;
   if(landscape){
@@ -4096,7 +4168,7 @@ function renderGcImagePreview(data){
     <div class="gc-output-header">
       <span class="gc-output-label">${f.label}${photo?' · 📷 Foto real':' · 🎨 Gráfica'}</span>
       <div class="gc-output-actions">
-        ${photo?`<button class="gc-copy-btn gc-otrafoto-btn" onclick="gcOtraFoto()">🔄 Otra foto</button>`:''}
+        ${photo?`<button class="gc-copy-btn gc-otrafoto-btn" onclick="gcOtraFoto()">🔄 Otra foto</button>`:`<button class="gc-copy-btn" onclick="gcOtraGrafica()">🎲 Otra variante</button>`}
         <button class="gc-download-btn" onclick="gcDownloadImage()">⬇ Descargar PNG</button>
       </div>
     </div>
