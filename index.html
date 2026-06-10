@@ -6051,6 +6051,12 @@ function renderCsvBuilder(){
         </div>
         <div class="form-group" style="margin:0"><label>Account Executive</label>
           <input type="text" class="input" id="csvAE" value="${userId}" readonly style="background:var(--gray-50)"></div>
+        <div class="form-group" style="margin-top:14px;margin-bottom:0">
+          <label>Instrucciones adicionales para la extracción <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
+          <textarea class="input" id="csvContexto" style="min-height:58px;resize:vertical;font-size:13px"
+            placeholder="Ej. Solo incluir empresas con email · Solo páginas 3–15 del PDF · Ignorar contactos sin cargo · Solo CDMX y Monterrey..."></textarea>
+          <span style="font-size:11px;color:var(--gray-400)">Útil para delimitar documentos grandes o filtrar lo que Claude debe extraer.</span>
+        </div>
       </div>
       <div class="card" style="padding:24px;margin-bottom:20px">
         <h4 style="font-size:15px;font-weight:700;margin-bottom:8px">📥 Datos de prospectos</h4>
@@ -6112,6 +6118,7 @@ window.csvProcess=async function(){
   const rawData=document.getElementById('csvRawData')?.value.trim();
   const tags=document.getElementById('csvTags')?.value.trim();
   const ae=document.getElementById('csvAE')?.value.trim();
+  const contexto=document.getElementById('csvContexto')?.value.trim();
   if(!fuente){ showNotif('Indica la fuente del lead','error'); return; }
   if(!rawData&&!_csvFileAttachment){ showNotif('Pega datos o carga un archivo','error'); return; }
   const btn=document.getElementById('csvProcessBtn'); btn.disabled=true; gcShowLoading('csvLoading',true);
@@ -6123,7 +6130,7 @@ window.csvProcess=async function(){
     const result=await gcCallClaude(`Eres un extractor de datos de prospectos para Odoo CRM México.
 Analiza los siguientes datos y extrae cada prospecto como un objeto JSON.
 FUENTE: "${fuente}" | AE: "${ae}" | TAGS: "${tagsStr}"
-${dataSection}
+${contexto?`INSTRUCCIONES ADICIONALES: ${contexto}\n`:''}${dataSection}
 
 Para cada prospecto devuelve estos campos:
 - contact_name: nombre completo del contacto
