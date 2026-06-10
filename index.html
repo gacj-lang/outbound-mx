@@ -4747,6 +4747,7 @@ async function renderEmpresas(){
           <option value="">Todas las industrias</option>
           ${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
         </select>
+        ${(currentUserData?.role==='tl'||currentUserData?.role==='manager')?`<select id="empAccountFilter" class="input" style="max-width:180px" onchange="empFilter()"><option value="">Todas las cuentas</option></select>`:''}
       </div>
       <div id="empresasList"><div class="cdc-empty">Cargando empresas...</div></div>
     </div>`;
@@ -4757,18 +4758,25 @@ let _allEmpresas=[];
 async function empLoad(){
   const list=document.getElementById('empresasList'); if(!list) return;
   _allEmpresas=await searchCompanies();
-  // Enrich with document counts
+  // Enrich with document counts from Firestore collections
   for(const co of _allEmpresas){
-    co._docs={discovery:0,brochures:0,contenidos:0};
+    co._docs={discovery:0,pricing:0};
     if(db){
       try{
-        const [d,b]=await Promise.all([
+        const [d,p]=await Promise.all([
           getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',co.id))),
-          getDocs(query(collection(db,'brochureApprovals'),where('companyId','==',co.id)))
+          getDocs(query(collection(db,'pricingRecords'),where('companyId','==',co.id)))
         ]);
-        co._docs.discovery=d.size; co._docs.brochures=b.size;
+        co._docs.discovery=d.size; co._docs.pricing=p.size;
       } catch(e){}
     }
+  }
+  // Populate account filter for TL/manager
+  const accountSel=document.getElementById('empAccountFilter');
+  if(accountSel){
+    const accounts=[...new Set(_allEmpresas.map(c=>c.createdBy).filter(Boolean))].sort();
+    accountSel.innerHTML='<option value="">Todas las cuentas</option>'+
+      accounts.map(a=>{const g=a.includes('@')?a.split('@')[0]:a;return`<option value="${a}">${g}</option>`;}).join('');
   }
   empRender(_allEmpresas);
 }
@@ -4779,9 +4787,21 @@ function empRender(companies){
     ${companies.map(co=>{
       const icon=INDUSTRY_MAP[co.giro]||'industry_odoo_partner';
       const docs=co._docs||{};
+      const saved=co.memory?.contenidos?.saved||[];
+      const cWA=saved.filter(s=>s.tipo==='whatsapp').length;
+      const cLI=saved.filter(s=>s.tipo==='linkedin'||s.tipo==='linkedin_post').length;
+      const cCo=saved.filter(s=>s.tipo==='correo').length;
+      const cCC=saved.filter(s=>s.tipo==='cold_calling').length;
+      const cBr=saved.filter(s=>s.tipo==='brochure').length;
+      const gram=co.createdBy?(co.createdBy.includes('@')?co.createdBy.split('@')[0]:co.createdBy):null;
       const docTags=[
-        docs.discovery>0?`<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:99px;font-size:11px">🔍 ${docs.discovery} Discovery</span>`:'',
-        docs.brochures>0?`<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:99px;font-size:11px">📄 ${docs.brochures} Brochure</span>`:'',
+        docs.discovery>0?`<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:99px;font-size:11px;white-space:nowrap">🔍 ${docs.discovery} Discovery</span>`:'',
+        docs.pricing>0?`<span style="background:#f3e8ff;color:#7e22ce;padding:2px 8px;border-radius:99px;font-size:11px;white-space:nowrap">💰 ${docs.pricing} Pricing</span>`:'',
+        cWA>0?`<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:99px;font-size:11px;white-space:nowrap">💬 ${cWA} WhatsApp</span>`:'',
+        cLI>0?`<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:99px;font-size:11px;white-space:nowrap">💼 ${cLI} LinkedIn</span>`:'',
+        cCo>0?`<span style="background:#fef9c3;color:#713f12;padding:2px 8px;border-radius:99px;font-size:11px;white-space:nowrap">📧 ${cCo} Correo</span>`:'',
+        cCC>0?`<span style="background:#fce7f3;color:#9d174d;padding:2px 8px;border-radius:99px;font-size:11px;white-space:nowrap">📞 ${cCC} Cold calling</span>`:'',
+        cBr>0?`<span style="background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:99px;font-size:11px;white-space:nowrap">📄 ${cBr} Brochure</span>`:'',
       ].filter(Boolean).join(' ');
       const ctList=(co.contacts||[]);
       const contactsHtml=ctList.length?`<div style="border-top:1px solid var(--gray-100);margin-top:10px;padding-top:10px">
@@ -4806,9 +4826,9 @@ function empRender(companies){
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${docTags||'<span style="font-size:11px;color:var(--gray-400)">Sin documentos aún</span>'}</div>
         ${contactsHtml}
-        ${co.createdBy?`<div style="font-size:10.5px;color:var(--gray-400);margin-top:10px;display:flex;align-items:center;gap:5px">
-          <div style="width:18px;height:18px;border-radius:50%;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--purple)">${(co.createdBy||'?')[0].toUpperCase()}</div>
-          Creada por ${co.createdBy}</div>`:''}
+        ${gram?`<div style="font-size:10.5px;color:var(--gray-400);margin-top:10px;display:flex;align-items:center;gap:5px">
+          <div style="width:18px;height:18px;border-radius:50%;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--purple)">${gram[0].toUpperCase()}</div>
+          ${gram}</div>`:''}
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:10px">
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             ${co.website?`<a href="${co.website}" target="_blank" style="font-size:12px;color:var(--accent)" onclick="event.stopPropagation()">🌐 Web</a>`:''}
@@ -4825,9 +4845,11 @@ function empRender(companies){
 window.empFilter=function(){
   const search=(document.getElementById('empSearch')?.value||'').toLowerCase();
   const ind=document.getElementById('empIndFilter')?.value||'';
+  const acct=document.getElementById('empAccountFilter')?.value||'';
   let filtered=_allEmpresas;
   if(search) filtered=filtered.filter(c=>(c.nombre||'').toLowerCase().includes(search)||(c.giro||'').toLowerCase().includes(search));
   if(ind) filtered=filtered.filter(c=>(c.giro||'').toLowerCase()===ind.toLowerCase());
+  if(acct) filtered=filtered.filter(c=>c.createdBy===acct);
   empRender(filtered);
 };
 window.empOpenDetail=async function(id){
@@ -5929,10 +5951,13 @@ window.renderPricingHome=function renderPricingHome(){
   window.pricingToggle=function(mode){
     const anual=mode==='anual';
     const el=id=>document.getElementById(id);
+    // Update prices — scoped only to these 4 elements in the home widget, no side effects
     el('pPriceStd').textContent=fmt(anual?std.rates[1]:std.rates[0]);
-    el('pRefStd').textContent=anual?fmt(std.rates[0])+'/mes':fmt(std.ratesY2[0])+' lista';
+    el('pRefStd').textContent=anual?fmt(std.rates[0])+'/mes':'Anual: '+fmt(std.rates[1])+'/mes';
+    el('pRefStd').style.textDecoration=anual?'line-through':'none';
     el('pPricePer').textContent=fmt(anual?per.rates[1]:per.rates[0]);
-    el('pRefPer').textContent=anual?fmt(per.rates[0])+'/mes':fmt(per.ratesY2[0])+' lista';
+    el('pRefPer').textContent=anual?fmt(per.rates[0])+'/mes':'Anual: '+fmt(per.rates[1])+'/mes';
+    el('pRefPer').style.textDecoration=anual?'line-through':'none';
     const aBtn=el('pToggleA'),mBtn=el('pToggleM');
     if(!aBtn||!mBtn) return;
     aBtn.style.background=anual?'white':'transparent';
