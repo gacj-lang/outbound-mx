@@ -2893,7 +2893,9 @@ async function saveCompany(data){
       await updateDoc(doc(db,'companies',data.id),{...data,updatedAt:serverTimestamp()});
       return data.id;
     } else {
-      const ref=await addDoc(collection(db,'companies'),{...data,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+      const ref=await addDoc(collection(db,'companies'),{...data,
+        createdBy:currentUserData?.name||'', createdByUid:currentUserData?.uid||'', createdByGram:currentUserData?.gram||'',
+        createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
       return ref.id;
     }
   } catch(e){ console.error(e); showNotif('Error al guardar empresa: '+e.message,'error'); return null; }
@@ -4747,6 +4749,9 @@ function empRender(companies){
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${docTags||'<span style="font-size:11px;color:var(--gray-400)">Sin documentos aún</span>'}</div>
         ${contactsHtml}
+        ${co.createdBy?`<div style="font-size:10.5px;color:var(--gray-400);margin-top:10px;display:flex;align-items:center;gap:5px">
+          <div style="width:18px;height:18px;border-radius:50%;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--purple)">${(co.createdBy||'?')[0].toUpperCase()}</div>
+          Creada por ${co.createdBy}</div>`:''}
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:10px">
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             ${co.website?`<a href="${co.website}" target="_blank" style="font-size:12px;color:var(--accent)" onclick="event.stopPropagation()">🌐 Web</a>`:''}
@@ -4782,7 +4787,7 @@ window.empOpenDetail=async function(id){
     </div>
     <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--gray-200)">
-        ${[['Industria',co.giro],['Tamaño',co.tamaño],['Origen',co.origen],['Sitio web',co.website?`<a href="${co.website}" target="_blank">${co.website}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank">${co.linkedin}</a>`:'—']].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
+        ${[['Industria',co.giro],['Tamaño',co.tamaño],['Origen',co.origen],['Sitio web',co.website?`<a href="${co.website}" target="_blank">${co.website}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank">${co.linkedin}</a>`:'—'],['Creada por',co.createdBy||'—']].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
       </div>
       <div id="empDetailDocs"><div class="cdc-empty">Cargando documentos...</div></div>
     </div>
