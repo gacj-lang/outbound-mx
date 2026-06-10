@@ -2457,19 +2457,16 @@
   function updatePriceCard() {
     const ed      = editionBaseRates[currentEdition];
     const isMX    = currentCurrency.currency === 'MXN';
-    // Monthly rate (index 0) = base/list price per user
-    const baseRate = ed.rates[0];    // Y1 monthly rate (contract price)
-    const listRate = ed.ratesY2[0];  // Y2 rate = renewal / list price
-    const sym      = currentCurrency.symbol;
-    const locale   = currentCurrency.locale;
-
+    const anual   = currentPlanIdx >= 1;
+    const sym     = currentCurrency.symbol;
+    const locale  = currentCurrency.locale;
     const fmt = n => n.toLocaleString(locale, {minimumFractionDigits: 0, maximumFractionDigits: 2});
 
     const amountEl   = document.getElementById('pc-amount');
     const oldEl      = document.getElementById('pc-old');
+    const starEl     = document.querySelector('.pc-star');
     const currencyEl = document.getElementById('pc-currency');
     const subEl      = document.getElementById('pc-sub');
-    const card       = document.getElementById('price-card');
 
     if (!amountEl) return;
 
@@ -2478,11 +2475,22 @@
     const accent = colors[editionDetails[currentEdition].key] || 'var(--teal)';
     amountEl.style.color   = accent;
     currencyEl.style.color = accent;
-
     currencyEl.textContent = sym;
-    amountEl.textContent   = fmt(baseRate);
-    oldEl.textContent      = `${sym} ${fmt(listRate)}`;
-    subEl.innerHTML        = `per user / month<br>(excl. ${isMX ? 'IVA' : 'VAT'})`;
+
+    if (anual) {
+      // Anual: muestra tarifa anual con mensual tachada (igual al widget del home)
+      amountEl.textContent = fmt(ed.rates[1]);
+      oldEl.textContent    = `${sym} ${fmt(ed.rates[0])}/mes`;
+      oldEl.style.textDecoration = '';
+      if (starEl) starEl.style.display = '';
+    } else {
+      // Mensual: muestra tarifa mensual con referencia anual sin tachar
+      amountEl.textContent = fmt(ed.rates[0]);
+      oldEl.textContent    = `Anual: ${sym}${fmt(ed.rates[1])}/mes`;
+      oldEl.style.textDecoration = 'none';
+      if (starEl) starEl.style.display = 'none';
+    }
+    subEl.innerHTML = `per user / month<br>(excl. ${isMX ? 'IVA' : 'VAT'})`;
     updateRenewalMini();
   }
 
@@ -2790,6 +2798,7 @@
     renderTable();
     renderCharts();
     updatePayTermsVisibility();
+    updatePriceCard();
     // Sync price-card toggle
     const togM=document.getElementById('pc-tog-m'), togA=document.getElementById('pc-tog-a');
     if(togM&&togA){ togM.classList.toggle('active',i===0); togA.classList.toggle('active',i>=1); }
