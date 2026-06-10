@@ -601,6 +601,8 @@ input,select,textarea{font-family:inherit;}
 .m2o-input.has-value{border-color:var(--purple);background:var(--purple-light);font-weight:600;color:var(--purple);}
 .m2o-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px;border-radius:4px;}
 .m2o-clear:hover{color:var(--gray-700);background:var(--gray-100);}
+.m2o-edit{position:absolute;right:32px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:13px;line-height:1;padding:2px 4px;border-radius:4px;opacity:.7;}
+.m2o-edit:hover{opacity:1;background:var(--purple-light);}
 .m2o-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);box-shadow:var(--shadow-lg);z-index:200;max-height:220px;overflow-y:auto;display:none;}
 .m2o-dropdown.open{display:block;}
 .m2o-option{padding:9px 14px;cursor:pointer;font-size:14px;display:flex;flex-direction:column;gap:2px;border-bottom:1px solid var(--gray-50);}
@@ -953,6 +955,15 @@ function industryIconUrl(giro){ const k=Object.keys(ODOO_INDUSTRY_ICONS).find(k=
 function highlightUrl(n=1,bold=false){ return `${ASSETS}/highlights/${bold?'blue_highlight_bold':'blue_highlight'}_0${n}.svg`; }
 let CLAUDE_KEY_DEFAULT = ''; // Cargado desde Firestore — no guardar en código fuente
 let PEXELS_KEY = ''; // Banco de fotos para imágenes de LinkedIn — cargado desde Firestore config/app
+
+// ── Regla anti-alucinación (system prompt para TODAS las llamadas de IA) ──
+const ANTI_HALLUCINATION = `Eres un asistente de ventas de Odoo México. Reglas CRÍTICAS e innegociables:
+- NUNCA inventes datos, nombres, fechas, cifras, estadísticas, casos de éxito ni fuentes. Si un dato no te fue proporcionado, NO lo fabriques.
+- Si falta contexto o información para personalizar de verdad, NO generes relleno genérico: indica explícitamente y de forma breve qué información específica necesitas del Account Executive para hacerlo bien.
+- Solo afirma capacidades de Odoo que sean reales. Si no estás seguro de que Odoo haga algo, NO lo afirmes; habla en términos generales de lo que Odoo sí hace.
+- Si no sabes algo o no tienes información suficiente, dilo ("No tengo información suficiente para…") en vez de adivinar o inferir.
+- Escribe SIEMPRE en español de México, natural y profesional. Evita palabras altisonantes o grandilocuentes ("revolucionario", "solución líder", "potenciar sinergias"). Lenguaje claro y humano.
+- No dejes rastros de que el texto fue generado por IA.`;
 
 let app, auth, db, firebaseReady=false;
 let currentUser=null, currentUserData=null;
@@ -2555,7 +2566,7 @@ Sé directo, específico y accionable. Habla de tú al AE. No repitas los datos 
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,messages:[{role:'user',content:prompt}]})
+      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
     });
     const data=await res.json();
     if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
@@ -2598,7 +2609,7 @@ window.discAnalyzeClaude = async function(){
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:3000,messages:[{role:'user',content:discBuildClaudePrompt(transcript,recentSessions)}]})
+      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:3000,system:ANTI_HALLUCINATION,messages:[{role:'user',content:discBuildClaudePrompt(transcript,recentSessions)}]})
     });
     const data=await res.json();
     if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
@@ -3021,8 +3032,9 @@ function renderM2o(cid){
             autocomplete="off"
             onfocus="m2oEmpFocus('${cid}')"
             oninput="m2oEmpInput('${cid}',this.value)"
-            onblur="setTimeout(()=>m2oEmpBlur('${cid}'),180)">
-          ${co?`<button class="m2o-clear" onclick="m2oClearCo('${cid}')" tabindex="-1">×</button>`:''}
+            onblur="setTimeout(()=>m2oEmpBlur('${cid}'),180)"
+            style="${co?'padding-right:56px':''}">
+          ${co?`<button class="m2o-edit" onclick="m2oEditCo('${cid}')" tabindex="-1" title="Editar empresa">✏️</button><button class="m2o-clear" onclick="m2oClearCo('${cid}')" tabindex="-1">×</button>`:''}
           <div class="m2o-dropdown" id="m2oEmpDrop_${cid}"></div>
         </div>
         ${co&&!contacts.length?`<div style="font-size:11px;color:var(--gray-400);margin-top:4px">Sin contactos — agrega uno desde el campo de contacto</div>`:''}
@@ -3038,8 +3050,9 @@ function renderM2o(cid){
             ${!co?'disabled':''}"
             onfocus="m2oCtFocus('${cid}')"
             oninput="m2oCtInput('${cid}',this.value)"
-            onblur="setTimeout(()=>m2oCtBlur('${cid}'),180)">
-          ${ct?`<button class="m2o-clear" onclick="m2oClearCt('${cid}')" tabindex="-1">×</button>`:''}
+            onblur="setTimeout(()=>m2oCtBlur('${cid}'),180)"
+            style="${ct?'padding-right:56px':''}">
+          ${ct?`<button class="m2o-edit" onclick="m2oEditCt('${cid}')" tabindex="-1" title="Editar contacto">✏️</button><button class="m2o-clear" onclick="m2oClearCt('${cid}')" tabindex="-1">×</button>`:''}
           <div class="m2o-dropdown" id="m2oCtDrop_${cid}"></div>
         </div>
       </div>
@@ -3048,6 +3061,84 @@ function renderM2o(cid){
     <div id="m2oCreateCoForm_${cid}" style="display:none"></div>
     <div id="m2oCreateCtForm_${cid}" style="display:none"></div>`;
 }
+
+// ── Edición directa de empresa/contacto desde el picker (cualquier módulo) ──
+window.m2oEditCo=async function(cid){
+  const co=cpState.selectedCompany; if(!co){ showNotif('Selecciona una empresa primero','error'); return; }
+  const fresh=await getCompany(co.id)||co;
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='m2oEditCoPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:560px">
+    <div class="disc-popup-header"><div class="disc-popup-title">✏️ Editar empresa</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('m2oEditCoPopup').remove()">✕</button></div>
+    <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
+      <div class="form-group"><label>Nombre *</label><input class="input" id="m2oEcNombre" value="${(fresh.nombre||'').replace(/"/g,'&quot;')}"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label>Giro / Industria</label><select class="input" id="m2oEcGiro"><option value="">—</option>${Object.keys(INDUSTRY_MAP).map(k=>`<option ${fresh.giro===k?'selected':''}>${k}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Tamaño</label><select class="input" id="m2oEcTam"><option value="">—</option>${['1-10 empleados','11-50 empleados','51-200 empleados','200+ empleados'].map(v=>`<option ${fresh.tamaño===v?'selected':''}>${v}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Origen</label><select class="input" id="m2oEcOrig"><option value="">—</option>${['Ferias comerciales','Networking','Lusha','Apollo','LinkedIn','Bases de datos','Google','Otro'].map(v=>`<option ${fresh.origen===v?'selected':''}>${v}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Sitio web</label><input class="input" id="m2oEcWeb" value="${(fresh.website||'').replace(/"/g,'&quot;')}"></div>
+        <div class="form-group" style="grid-column:span 2"><label>LinkedIn empresa</label><input class="input" id="m2oEcLi" value="${(fresh.linkedin||'').replace(/"/g,'&quot;')}"></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="m2oSaveEditCo('${cid}','${co.id}')">Guardar cambios</button>
+    </div></div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+};
+window.m2oSaveEditCo=async function(cid,id){
+  const nombre=document.getElementById('m2oEcNombre')?.value.trim();
+  if(!nombre){ showNotif('El nombre es obligatorio','error'); return; }
+  const updated={nombre,giro:document.getElementById('m2oEcGiro')?.value||'',tamaño:document.getElementById('m2oEcTam')?.value||'',origen:document.getElementById('m2oEcOrig')?.value||'',website:document.getElementById('m2oEcWeb')?.value||'',linkedin:document.getElementById('m2oEcLi')?.value||''};
+  const saved=await saveCompany({id,...updated}); if(!saved) return;
+  // Actualizar cachés
+  const merged={...cpState.selectedCompany,...updated};
+  cpState.selectedCompany=merged;
+  const ci=cpState.companies.findIndex(c=>c.id===id); if(ci>=0) cpState.companies[ci]={...cpState.companies[ci],...updated};
+  if(typeof _allEmpresas!=='undefined'){ const ei=_allEmpresas.findIndex(c=>c.id===id); if(ei>=0) _allEmpresas[ei]={..._allEmpresas[ei],...updated}; }
+  if(cont.company?.id===id) cont.company={...cont.company,...updated};
+  if(pricingState.company?.id===id) pricingState.company={...pricingState.company,...updated};
+  document.getElementById('m2oEditCoPopup')?.remove();
+  renderM2o(cid);
+  if(typeof cpState.cb==='function') cpState.cb(merged,cpState.selectedContact);
+  showNotif('Empresa actualizada ✓','success');
+};
+window.m2oEditCt=async function(cid){
+  const co=cpState.selectedCompany, ct=cpState.selectedContact;
+  if(!co||!ct){ showNotif('Selecciona un contacto primero','error'); return; }
+  const idx=(co.contacts||[]).findIndex(c=>c.nombre===ct.nombre);
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='m2oEditCtPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:520px">
+    <div class="disc-popup-header"><div class="disc-popup-title">✏️ Editar contacto</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('m2oEditCtPopup').remove()">✕</button></div>
+    <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
+      <div class="form-group"><label>Nombre *</label><input class="input" id="m2oEtNombre" value="${(ct.nombre||'').replace(/"/g,'&quot;')}"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label>Cargo / Puesto</label><input class="input" id="m2oEtCargo" value="${(ct.cargo||'').replace(/"/g,'&quot;')}"></div>
+        <div class="form-group"><label>Correo</label><input class="input" id="m2oEtEmail" value="${(ct.correo||ct.email||'').replace(/"/g,'&quot;')}"></div>
+        <div class="form-group"><label>Teléfono / WhatsApp</label><input class="input" id="m2oEtPhone" value="${(ct.phone||'').replace(/"/g,'&quot;')}"></div>
+        <div class="form-group"><label>LinkedIn</label><input class="input" id="m2oEtLi" value="${(ct.linkedin||'').replace(/"/g,'&quot;')}"></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="m2oSaveEditCt('${cid}','${co.id}',${idx})">Guardar cambios</button>
+    </div></div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+};
+window.m2oSaveEditCt=async function(cid,coId,idx){
+  const co=cpState.selectedCompany; if(!co) return;
+  const nombre=document.getElementById('m2oEtNombre')?.value.trim();
+  if(!nombre){ showNotif('El nombre es obligatorio','error'); return; }
+  const updatedCt={nombre,cargo:document.getElementById('m2oEtCargo')?.value||'',correo:document.getElementById('m2oEtEmail')?.value||'',phone:document.getElementById('m2oEtPhone')?.value||'',linkedin:document.getElementById('m2oEtLi')?.value||''};
+  const contacts=[...(co.contacts||[])];
+  if(idx>=0) contacts[idx]=updatedCt; else contacts.push(updatedCt);
+  const saved=await saveCompany({...co,contacts}); if(!saved) return;
+  cpState.selectedCompany={...co,contacts};
+  cpState.selectedContact=updatedCt;
+  const ci=cpState.companies.findIndex(c=>c.id===coId); if(ci>=0) cpState.companies[ci]={...cpState.companies[ci],contacts};
+  if(typeof _allEmpresas!=='undefined'){ const ei=_allEmpresas.findIndex(c=>c.id===coId); if(ei>=0) _allEmpresas[ei]={..._allEmpresas[ei],contacts}; }
+  document.getElementById('m2oEditCtPopup')?.remove();
+  renderM2o(cid);
+  if(typeof cpState.cb==='function') cpState.cb(cpState.selectedCompany,updatedCt);
+  showNotif('Contacto actualizado ✓','success');
+};
 
 // ── Empresa dropdown ──
 window.m2oEmpFocus=function(cid){ m2oShowEmpDrop(cid,''); };
@@ -3420,7 +3511,7 @@ async function gcCallClaude(prompt, fileAttachment=null){
   const res=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers,
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:4000,messages:[{role:'user',content}]})
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:4000,system:ANTI_HALLUCINATION,messages:[{role:'user',content}]})
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
