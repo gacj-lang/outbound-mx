@@ -2802,18 +2802,78 @@ async function fetchIndustryPhoto(industria, page=1){
   }catch(e){ console.warn('fetchIndustryPhoto:',e.message); return null; }
 }
 
-// ── Odoo Apps catálogo completo (odoo.com/es/page/all-apps) ──
+// ── Odoo Apps catálogo completo — fuente única de verdad para toda la app ──
+// Cada módulo: { name, svgFile, desc, longDesc }
 const ODOO_APPS = {
-  'Finanzas':['Contabilidad','Facturación','Gastos','Hoja de cálculo (BI)','Documentos','Firma electrónica'],
-  'Ventas':['CRM','Ventas','PdV para tiendas','PdV para restaurantes','Suscripciones','Alquiler'],
-  'Sitios Web':['Creador de sitios web','Comercio electrónico','Blog','Foro','Chat en vivo','eLearning'],
-  'Cadena de suministro':['Inventario','Manufactura','PLM','Compras','Mantenimiento','Calidad'],
-  'Recursos humanos':['Empleados','Reclutamiento','Vacaciones','Evaluaciones','Referencias','Flotilla'],
-  'Marketing':['Redes sociales','Marketing por correo','Marketing por SMS','Eventos','Automatización de marketing','Encuestas'],
-  'Servicios':['Proyectos','Registro de horas','Servicio externo','Soporte al cliente','Planeación','Citas'],
-  'Productividad':['Conversaciones','Inteligencia artificial','IoT','VoIP','Artículos','WhatsApp'],
-  'Personalización':['Studio de Odoo']
+  'Finanzas':[
+    {name:'Contabilidad',         svgFile:'account',              desc:'CFDI 4.0, conciliación bancaria',                              longDesc:'Ahorra tiempo con entrada automática de datos y gestiona tus finanzas desde cualquier lugar. Reportes en tiempo real, toma de decisiones informada y CFDI 4.0 incluido.'},
+    {name:'Facturación',          svgFile:'account',              desc:'Timbrado automático, notas de crédito',                        longDesc:'Simplifica la creación de facturas integrándose con Ventas, Proyectos y otras aplicaciones. Timbrado automático, notas de crédito, múltiples monedas y facturación recurrente.'},
+    {name:'Gastos',               svgFile:'hr_expense',           desc:'Reporte y aprobación de gastos',                               longDesc:'Registra y aprueba gastos con un clic desde escritorio o celular. Se integra automáticamente con Contabilidad para asientos y reembolsos con seguimiento por empleado.'},
+    {name:'Hoja de cálculo (BI)', svgFile:'spreadsheet',          desc:'Reportes y dashboards con datos del ERP en vivo',              longDesc:'Construye reportes y dashboards conectados en tiempo real a los datos de tu Odoo. Tablas dinámicas, gráficas y fórmulas que se actualizan automáticamente sin exportar a Excel.'},
+    {name:'Documentos',           svgFile:'documents',            desc:'Gestión documental, firmas y versiones',                       longDesc:'Centraliza todos tus documentos en un espacio seguro integrado al ERP. Comparte, solicita firmas digitales, gestiona versiones y automatiza flujos de aprobación.'},
+    {name:'Firma electrónica',    svgFile:'sign',                 desc:'Firma documentos en línea',                                    longDesc:'Firma documentos en línea de forma segura y legalmente válida. Envía contratos, propuestas o acuerdos a múltiples signatarios y da seguimiento en tiempo real.'},
+  ],
+  'Ventas':[
+    {name:'CRM',                  svgFile:'crm',                  desc:'Pipeline, cotizaciones, portal del cliente',                   longDesc:'Mejora tu flujo de ventas con interfaz fácil de usar y compatibilidad móvil. Optimiza la gestión de leads, seguimiento de oportunidades y pronóstico de ventas.'},
+    {name:'Ventas',               svgFile:'sale',                 desc:'Pedidos, listas de precio, portal',                            longDesc:'Cierra más tratos con cotizaciones profesionales, acceso móvil y portal del cliente. Gestión de órdenes, seguimiento de contratos y herramientas completas para tu equipo comercial.'},
+    {name:'PdV para tiendas',     svgFile:'point_of_sale',        desc:'POS táctil, offline, con inventario',                          longDesc:'Simplifica la gestión de tu tienda con escaneo de códigos de barras y hardware integrado. Funciona sin conexión a internet y sincroniza con inventario automáticamente.'},
+    {name:'PdV para restaurantes',svgFile:'pos_restaurant',       desc:'POS para mesas, comandas y menú digital',                      longDesc:'Gestiona mesas, comandas y entregas con un sistema POS diseñado para food service. Menú digital, división de cuentas y sincronización con cocina en tiempo real.'},
+    {name:'Suscripciones',        svgFile:'sale_subscription',    desc:'Facturación recurrente y renovaciones automáticas',            longDesc:'Gestiona suscripciones y contratos de servicios recurrentes con renovación automática. Monitorea MRR, churn y salud de suscriptores desde un tablero central.'},
+    {name:'Alquiler',             svgFile:'sale_renting',         desc:'Contratos y disponibilidad de activos en renta',               longDesc:'Administra rentas de equipos, vehículos o propiedades con calendario de disponibilidad y contratos automáticos. Integrado con inventario y facturación.'},
+  ],
+  'Sitios Web':[
+    {name:'Creador de sitios web',svgFile:'website',              desc:'Sitio web corporativo con editor drag & drop',                 longDesc:'Diseña y publica tu sitio web sin código con el editor visual de Odoo. Páginas responsivas, SEO integrado, formularios de contacto y blog conectados al CRM.'},
+    {name:'Comercio electrónico', svgFile:'website_sale',         desc:'Tienda online integrada al ERP',                               longDesc:'Tienda online con editor visual que se integra con marketing, inventario y contabilidad. Gestiona productos, pasarelas de pago y envíos desde un solo lugar.'},
+    {name:'Blog',                 svgFile:'website_blog',         desc:'Blog integrado al sitio web',                                  longDesc:'Publica contenido de valor desde Odoo con un editor intuitivo. Los artículos están integrados al sitio web y optimizados para SEO, con comentarios y suscripciones.'},
+    {name:'Foro',                 svgFile:'website_forum',        desc:'Foro comunitario para clientes y usuarios',                    longDesc:'Crea una comunidad de usuarios con preguntas y respuestas, votos y reputación. Integrado al sitio web y a los tickets de soporte de Odoo.'},
+    {name:'Chat en vivo',         svgFile:'live_chat',            desc:'Chat en tiempo real con visitantes del sitio',                 longDesc:'Atiende a los visitantes de tu sitio web en tiempo real. Chatbots para respuestas automáticas, integración con el CRM y derivación a soporte al cliente.'},
+    {name:'eLearning',            svgFile:'slide',                desc:'Cursos y capacitación en línea',                               longDesc:'Publica cursos, videos y quizzes en una plataforma de aprendizaje integrada a tu sitio web. Certificaciones, seguimiento de progreso y acceso controlado por membresía.'},
+  ],
+  'Cadena de suministro':[
+    {name:'Inventario',           svgFile:'stock',                desc:'Stock, reabasto automático, trazabilidad',                     longDesc:'Seguimiento en tiempo real, reabastecimiento automático y estrategias de almacenamiento optimizadas. Compatible con múltiples métodos de recolección, transportistas y trazabilidad completa.'},
+    {name:'Manufactura',          svgFile:'mrp',                  desc:'Órdenes de producción, MRP, BOM',                              longDesc:'Planificación de capacidad en tiempo real, control de componentes y costos de producción. Simula órdenes, gestiona listas de materiales y planifica recursos de forma eficaz con MRP.'},
+    {name:'PLM',                  svgFile:'mrp_plm',              desc:'Gestión del ciclo de vida de productos',                       longDesc:'Controla las versiones de tus productos y gestiona las órdenes de cambio de ingeniería. Integrado con Manufactura para asegurar que la producción use siempre la versión correcta.'},
+    {name:'Compras',              svgFile:'purchase',             desc:'Órdenes de compra, portal de proveedores',                     longDesc:'Simplifica el aprovisionamiento con solicitudes de cotización automatizadas, contratos flexibles y facturación de proveedores. Compatible con multiempresa y reportes integrales de eficiencia.'},
+    {name:'Mantenimiento',        svgFile:'maintenance',          desc:'Mantenimiento preventivo y correctivo de equipos',             longDesc:'Programa y rastrea el mantenimiento de equipos con órdenes de trabajo preventivas y correctivas. Reduce tiempos muertos, gestiona refacciones e integra con Manufactura.'},
+    {name:'Calidad',              svgFile:'quality_control',      desc:'Control de calidad, inspecciones y no conformidades',          longDesc:'Define puntos de control de calidad en cada etapa de producción o recepción. Gestiona alertas, no conformidades y planes correctivos para garantizar estándares consistentes.'},
+  ],
+  'Recursos humanos':[
+    {name:'Empleados',            svgFile:'hr',                   desc:'Directorio, expedientes y nómina timbrada',                    longDesc:'Gestiona a todo tu personal desde un centro integral: asistencias, vacaciones y expedientes digitales. Genera recibos de nómina timbrados con cumplimiento de normas locales, impuestos y deducciones correctas.'},
+    {name:'Reclutamiento',        svgFile:'hr_recruitment',       desc:'Pipeline de candidatos y ofertas de empleo',                   longDesc:'Publica vacantes, gestiona solicitudes y conduce entrevistas desde un pipeline visual. Integrado con el sitio web de Odoo y con portales de empleo externos.'},
+    {name:'Vacaciones',           svgFile:'hr_holidays',          desc:'Gestión de tiempo libre y aprobaciones',                       longDesc:'Centraliza las solicitudes de tiempo libre, días festivos y ausencias. Flujo de aprobaciones configurable y sincronización automática con nómina y asistencias.'},
+    {name:'Evaluaciones',         svgFile:'hr_appraisal',         desc:'Evaluaciones de desempeño y planes de mejora',                 longDesc:'Realiza evaluaciones 360° o por objetivos con formularios configurables. Define planes de mejora, establece metas y da seguimiento al desarrollo de cada empleado.'},
+    {name:'Referencias',          svgFile:'referral',             desc:'Programa de referidos de empleados',                           longDesc:'Convierte a tus empleados en reclutadores con un programa de referidos con recompensas. Gamificación, tablero de puntos y bonificaciones integradas al flujo de reclutamiento.'},
+    {name:'Flotilla',             svgFile:'fleet',                desc:'Gestión de vehículos y mantenimiento',                         longDesc:'Resumen integral de vehículos, contratos, reparaciones, costos y conductores. Monitorea consumo de combustible, asigna responsables y controla el gasto total de tu flotilla.'},
+  ],
+  'Marketing':[
+    {name:'Redes sociales',       svgFile:'social',               desc:'Publicaciones y seguimiento en redes sociales',                longDesc:'Gestiona y programa publicaciones en múltiples redes sociales desde Odoo. Monitorea alcance e interacciones y vincula campañas con el CRM para convertir seguidores en leads.'},
+    {name:'Marketing por correo', svgFile:'mass_mailing',         desc:'Email, automatizaciones, segmentos',                           longDesc:'Crea correos electrónicos profesionales al instante y asegúrate de que lleguen a la audiencia correcta. Segmenta contactos y automatiza campañas completas de email marketing.'},
+    {name:'Marketing por SMS',    svgFile:'sms_marketing',        desc:'Campañas de SMS masivo y personalizado',                       longDesc:'Envía mensajes SMS personalizados a segmentos de clientes con altas tasas de apertura. Integrado con el CRM y la base de datos de contactos de Odoo.'},
+    {name:'Eventos',              svgFile:'event',                desc:'Organización y registro de eventos',                           longDesc:'Crea y gestiona eventos con registro en línea, boletos, agenda y control de asistencia. Integrado con el sitio web, email marketing y CRM para capturar leads de cada evento.'},
+    {name:'Automatización de marketing',svgFile:'marketing_automation',desc:'Flujos automatizados de nurturing',                  longDesc:'Diseña flujos de automatización basados en acciones y condiciones. Nutre leads automáticamente con emails, SMS y tareas en el CRM según el comportamiento del cliente.'},
+    {name:'Encuestas',            svgFile:'survey',               desc:'Formularios y encuestas de satisfacción',                      longDesc:'Crea y publica encuestas, formularios de feedback o exámenes en línea. Resultados consolidados en tableros con gráficas, vinculados con contactos del CRM.'},
+  ],
+  'Servicios':[
+    {name:'Proyectos',            svgFile:'project',              desc:'Tareas, Gantt, seguimiento de horas',                          longDesc:'Organiza tareas con vistas kanban, Gantt y lista para fomentar la colaboración. Monitorea horas trabajadas, da seguimiento a la rentabilidad y mejora la comunicación del equipo.'},
+    {name:'Registro de horas',    svgFile:'hr_timesheet',         desc:'Timesheets y horas facturables',                               longDesc:'Registra las horas trabajadas por proyecto, tarea o cliente desde cualquier dispositivo. Integrado con Proyectos y Facturación para convertir horas en facturas automáticamente.'},
+    {name:'Servicio externo',     svgFile:'industry_fsm',         desc:'Órdenes de trabajo para técnicos en campo',                    longDesc:'Despacha técnicos, gestiona órdenes de trabajo y da seguimiento en tiempo real. Los técnicos actualizan el estatus desde su celular y capturan firmas de conformidad al cierre.'},
+    {name:'Soporte al cliente',   svgFile:'helpdesk',             desc:'Tickets, SLA, portal de soporte',                              longDesc:'Plataforma de soporte por tickets con múltiples canales: correo, chat en vivo y formularios web. Personaliza la organización, aplica reglas SLA y mide los tiempos de respuesta.'},
+    {name:'Planeación',           svgFile:'planning',             desc:'Planificación de turnos y recursos',                           longDesc:'Planifica turnos, asigna recursos y gestiona la disponibilidad del equipo en un calendario visual. Los empleados reciben sus turnos por email y pueden confirmar o solicitar cambios.'},
+    {name:'Citas',                svgFile:'appointment',          desc:'Reservación de citas en línea',                                longDesc:'Permite a tus clientes agendar citas en línea según la disponibilidad real de tu equipo. Sincronizado con el calendario de Odoo y con recordatorios automáticos por email o SMS.'},
+  ],
+  'Productividad':[
+    {name:'Conversaciones',       svgFile:'mail',                 desc:'Mensajería interna y canales de equipo',                       longDesc:'Chat interno, canales por proyecto o departamento y mensajería directa entre empleados. Integrado en toda la app para discutir registros sin salir del flujo de trabajo.'},
+    {name:'Inteligencia artificial',svgFile:'mail_bot',           desc:'Asistente IA integrado en Odoo',                               longDesc:'Funcionalidades de inteligencia artificial integradas en Odoo para sugerencias predictivas, completado automático de registros y análisis de datos. Potencia la toma de decisiones sin salir del ERP.'},
+    {name:'IoT',                  svgFile:'iot',                  desc:'Integración con dispositivos físicos',                          longDesc:'Conecta dispositivos físicos —básculas, lectores de código de barras, impresoras e instrumentos de calidad— directamente a Odoo. Ideal para manufactura, POS y control de calidad.'},
+    {name:'VoIP',                 svgFile:'voip',                 desc:'Llamadas y call center integrado al CRM',                      longDesc:'Realiza y recibe llamadas directamente desde Odoo con integración VoIP. Las llamadas se registran automáticamente en el CRM con notas, duración e historial por cliente.'},
+    {name:'Artículos',            svgFile:'knowledge',            desc:'Base de conocimiento interna',                                 longDesc:'Crea y organiza una base de conocimiento con artículos, manuales y procedimientos. Los empleados acceden desde cualquier módulo de Odoo; los clientes la ven desde el portal de soporte.'},
+    {name:'WhatsApp',             svgFile:'whatsapp',             desc:'Mensajería WhatsApp Business integrada',                       longDesc:'Envía mensajes, confirmaciones y notificaciones por WhatsApp Business directamente desde Odoo. Integrado con CRM, ventas y soporte para centralizar toda la comunicación con clientes.'},
+  ],
+  'Personalización':[
+    {name:'Studio de Odoo',       svgFile:'studio',               desc:'Personalización visual sin código',                             longDesc:'Crea o modifica aplicaciones, vistas, campos y flujos de trabajo en Odoo sin programar. Diseña formularios, automatizaciones y reportes personalizados con un editor visual drag & drop.'},
+  ],
 };
+// Array plano de todos los módulos — usar para búsquedas por nombre
 const ODOO_APPS_FLAT=Object.values(ODOO_APPS).flat();
 
 // ── Contexto de industrias Odoo (odoo.com/es/all-industries) ──
@@ -4204,7 +4264,7 @@ function renderGcBrochure(){
             <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin-bottom:6px">${cat}</div>
             <div style="display:flex;flex-wrap:wrap;gap:6px">
               ${apps.map(a=>`<label style="display:flex;align-items:center;gap:5px;padding:5px 10px;border:1.5px solid var(--gray-200);border-radius:99px;cursor:pointer;font-size:12px;user-select:none">
-                <input type="checkbox" name="gcBrApp" value="${a}" style="accent-color:var(--purple)"> ${a}
+                <input type="checkbox" name="gcBrApp" value="${a.name}" style="accent-color:var(--purple)"> ${a.name}
               </label>`).join('')}
             </div>
           </div>`).join('')}
@@ -4247,56 +4307,9 @@ window.gcBrSelectRecommended=function(){
   else showNotif('Selecciona una empresa con industria primero','error');
 };
 
-// Mapea nombre de app (ODOO_APPS) a archivo de icono SVG real
+// Mapea nombre de app a svgFile usando ODOO_APPS_FLAT como fuente única
 function brAppIcon(name){
-  const n=(name||'').toLowerCase();
-  const map={
-    // Finanzas
-    'contabilidad':'account','facturación':'account','facturacion':'account',
-    'gastos':'hr_expense','hoja de cálculo':'spreadsheet','spreadsheet':'spreadsheet',
-    'documentos':'documents','firma electrónica':'sign','firma electronica':'sign','firma':'sign',
-    // Ventas
-    'crm':'crm','ventas':'sale','venta':'sale',
-    'pdv para tiendas':'point_of_sale','punto de venta':'point_of_sale','pos':'point_of_sale',
-    'pdv para restaurantes':'pos_restaurant','restaurante':'pos_restaurant',
-    'suscripciones':'sale_subscription','suscripción':'sale_subscription','suscripcion':'sale_subscription',
-    'alquiler':'sale_renting',
-    // Sitios Web
-    'creador de sitios':'website','sitio web':'website','website':'website',
-    'comercio electrónico':'website_sale','comercio electronico':'website_sale','ecommerce':'website_sale','e-commerce':'website_sale',
-    'blog':'website_blog','foro':'website_forum',
-    'chat en vivo':'live_chat','chat':'live_chat',
-    'elearning':'slide','elearning':'slide','aprendizaje':'slide',
-    // Cadena de suministro
-    'inventario':'stock','manufactura':'mrp','fabricación':'mrp','fabricacion':'mrp','producción':'mrp','produccion':'mrp',
-    'plm':'mrp_plm','compras':'purchase','compra':'purchase',
-    'mantenimiento':'maintenance','calidad':'quality_control',
-    // Recursos humanos
-    'empleados':'hr','recursos humanos':'hr','rrhh':'hr',
-    'reclutamiento':'hr_recruitment','vacaciones':'hr_holidays','tiempo libre':'hr_holidays',
-    'evaluaciones':'hr_appraisal','evaluacion':'hr_appraisal','referencias':'referral','flotilla':'fleet','flota':'fleet',
-    'nómina':'hr_payroll','nomina':'hr_payroll',
-    // Marketing
-    'redes sociales':'social','marketing por correo':'mass_mailing','email marketing':'mass_mailing',
-    'marketing por sms':'sms_marketing','sms':'sms_marketing',
-    'eventos':'event','automatización de marketing':'marketing_automation','automatizacion de marketing':'marketing_automation',
-    'encuestas':'survey',
-    // Servicios
-    'proyectos':'project','proyecto':'project',
-    'registro de horas':'hr_timesheet','horas':'hr_timesheet','timesheet':'hr_timesheet',
-    'servicio externo':'industry_fsm','campo':'industry_fsm',
-    'soporte al cliente':'helpdesk','soporte':'helpdesk','helpdesk':'helpdesk',
-    'planeación':'planning','planeacion':'planning','citas':'appointment','calendario':'calendar',
-    // Productividad
-    'conversaciones':'mail','discuss':'mail',
-    'inteligencia artificial':'mail_bot','iot':'iot','voip':'voip',
-    'artículos':'knowledge','articulos':'knowledge','knowledge':'knowledge',
-    'whatsapp':'whatsapp',
-    // Personalización
-    'studio':'studio',
-  };
-  for(const k in map){ if(n.includes(k)) return map[k]; }
-  return 'apps';
+  return ODOO_APPS_FLAT.find(m=>m.name.toLowerCase()===(name||'').toLowerCase())?.svgFile||'apps';
 }
 function brIconImg(name,size=28){
   const f=brAppIcon(name);
@@ -4483,21 +4496,6 @@ window.gcExportBrochure=async function(format){
 };
 
 
-// ── 6. Propuesta Comercial ──
-const ODOO_APPS_CATALOG=[
-  {id:'crm',name:'CRM',icon:'🎯',desc:'Pipeline de ventas, seguimiento de oportunidades y prospectos en tiempo real.'},
-  {id:'ventas',name:'Ventas',icon:'💰',desc:'Cotizaciones, pedidos y contratos. Integrado con inventario y contabilidad.'},
-  {id:'inventario',name:'Inventario',icon:'📦',desc:'Control de stock en tiempo real, lotes, trazabilidad y reabasto automático.'},
-  {id:'compras',name:'Compras',icon:'🛒',desc:'Órdenes de compra automáticas, gestión de proveedores y aprobaciones.'},
-  {id:'contabilidad',name:'Contabilidad',icon:'📊',desc:'CFDI timbrado, conciliación bancaria automática y estados financieros en tiempo real.'},
-  {id:'manufactura',name:'Fabricación',icon:'⚙️',desc:'Órdenes de producción, BOM, costeo y trazabilidad de producto terminado.'},
-  {id:'pos',name:'Punto de Venta',icon:'🏪',desc:'POS integrado con inventario. Funciona offline y sincroniza al reconectarse.'},
-  {id:'ecommerce',name:'eCommerce',icon:'🛍️',desc:'Tienda online integrada con inventario y contabilidad. Sin plugins adicionales.'},
-  {id:'proyecto',name:'Proyecto',icon:'📋',desc:'Gestión de proyectos, tareas, tiempo y costeo por proyecto.'},
-  {id:'rrhh',name:'RRHH',icon:'👥',desc:'Nómina timbrada, vacaciones, asistencias y expediente digital.'},
-  {id:'suscripciones',name:'Suscripciones',icon:'🔄',desc:'Facturación recurrente, renovaciones automáticas y control de churn.'},
-  {id:'servicio',name:'Servicio Externo',icon:'🔧',desc:'Gestión de técnicos en campo, órdenes de trabajo y seguimiento en tiempo real.'},
-];
 
 // ══════════════════════════════════════════
 // FRAMEWORK VISUAL MODULE
@@ -5091,30 +5089,6 @@ function renderPricing(){
   renderPricingHome();
 }
 
-// ── Módulos selector popup (after pricing is received) ──
-const PRICING_MODULE_LIST=[
-  {key:'crm',        svgFile:'crm',          emoji:'💼',name:'CRM',              desc:'Pipeline, cotizaciones, portal del cliente',                longDesc:'Mejora tu flujo de ventas con interfaz fácil de usar y compatibilidad móvil. Optimiza la gestión de leads, seguimiento de oportunidades y pronóstico de ventas.'},
-  {key:'ventas',     svgFile:'sale',          emoji:'🛍️',name:'Ventas',            desc:'Pedidos, listas de precio, portal',                          longDesc:'Cierra más tratos con cotizaciones profesionales, acceso móvil y portal del cliente. Gestión de órdenes, seguimiento de contratos y herramientas completas para tu equipo comercial.'},
-  {key:'inventario', svgFile:'stock',         emoji:'📦',name:'Inventario',        desc:'Stock, reabasto automático, trazabilidad',                   longDesc:'Seguimiento en tiempo real, reabastecimiento automático y estrategias de almacenamiento optimizadas. Compatible con múltiples métodos de recolección, transportistas y trazabilidad completa.'},
-  {key:'compras',    svgFile:'purchase',      emoji:'🛒',name:'Compras',           desc:'Órdenes de compra, portal de proveedores',                   longDesc:'Simplifica el aprovisionamiento con solicitudes de cotización automatizadas, contratos flexibles y facturación de proveedores. Compatible con multiempresa y con reportes integrales de eficiencia.'},
-  {key:'contabilidad',svgFile:'account',      emoji:'📊',name:'Contabilidad',      desc:'CFDI 4.0, conciliación bancaria',                            longDesc:'Ahorra tiempo con entrada automática de datos y gestiona tus finanzas desde cualquier lugar. Reportes en tiempo real, toma de decisiones informada y CFDI 4.0 incluido.'},
-  {key:'facturacion', svgFile:'account',      emoji:'🧾',name:'Facturación',       desc:'Timbrado automático, notas de crédito',                      longDesc:'Simplifica la creación de facturas integrándose con Ventas, Proyectos y otras aplicaciones. Timbrado automático, notas de crédito, múltiples monedas y facturación recurrente.'},
-  {key:'rrhh',       svgFile:'hr',            emoji:'👥',name:'Recursos Humanos',  desc:'Nómina timbrada, asistencias, vacaciones',                   longDesc:'Gestiona a todo tu personal desde un centro integral: asistencias, vacaciones y expedientes digitales. Genera recibos de nómina timbrados con cumplimiento de normas locales, impuestos y deducciones correctas.'},
-  {key:'manufactura', svgFile:'mrp',          emoji:'🏭',name:'Manufactura',       desc:'Órdenes de producción, MRP, BOM',                            longDesc:'Planificación de capacidad en tiempo real, control de componentes y costos de producción. Simula órdenes, gestiona listas de materiales y planifica recursos de forma eficaz con MRP.'},
-  {key:'proyectos',  svgFile:'project',       emoji:'📋',name:'Proyectos',         desc:'Tareas, Gantt, seguimiento de horas',                        longDesc:'Organiza tareas con vistas kanban, Gantt y lista para fomentar la colaboración. Monitorea horas trabajadas, da seguimiento a la rentabilidad y mejora la comunicación del equipo.'},
-  {key:'helpdesk',   svgFile:'helpdesk',      emoji:'🎧',name:'Helpdesk',          desc:'Tickets, SLA, portal de soporte',                            longDesc:'Plataforma de soporte por tickets con múltiples canales: correo, chat en vivo y formularios web. Personaliza la organización, aplica reglas SLA y mide los tiempos de respuesta.'},
-  {key:'ecommerce',  svgFile:'website',       emoji:'🌐',name:'E-commerce',        desc:'Tienda online integrada al ERP',                             longDesc:'Tienda online con editor visual que se integra con marketing, inventario y contabilidad. Gestiona productos, pasarelas de pago y envíos desde un solo lugar.'},
-  {key:'pos',        svgFile:'point_of_sale', emoji:'🏪',name:'Punto de Venta',    desc:'POS táctil, offline, con inventario',                        longDesc:'Simplifica la gestión de tu tienda con escaneo de códigos de barras y hardware integrado. Funciona sin conexión a internet y sincroniza con inventario automáticamente.'},
-  {key:'marketing',  svgFile:'mass_mailing',  emoji:'📣',name:'Marketing',         desc:'Email, automatizaciones, segmentos',                          longDesc:'Crea correos electrónicos profesionales al instante y asegúrate de que lleguen a la audiencia correcta. Segmenta contactos y automatiza campañas completas de email marketing.'},
-  {key:'flota',      svgFile:'fleet',         emoji:'🚗',name:'Flota',             desc:'Gestión de vehículos y mantenimiento',                        longDesc:'Resumen integral de vehículos, contratos, reparaciones, costos y conductores. Monitorea consumo de combustible, asigna responsables y controla el gasto total de tu flotilla.'},
-  {key:'firma',      svgFile:'sign',          emoji:'✍️',name:'Firma Electrónica', desc:'Aprobaciones y documentos firmados',                          longDesc:'Firma documentos en línea'},
-  {key:'gastos',     svgFile:'expenses',      emoji:'💳',name:'Gastos',            desc:'Reporte y aprobación de gastos',                             longDesc:'Registra y aprueba gastos con un clic desde escritorio o celular. Se integra automáticamente con Contabilidad para asientos y reembolsos con seguimiento por empleado.'},
-];
-// Helper to render module icon (SVG real si disponible, fallback emoji)
-function modIcon(m,size=20){
-  if(!m.svgFile) return `<span style="font-size:${size}px">${m.emoji}</span>`;
-  return `<img src="${ASSETS}/icons/apps/${m.svgFile}.svg" crossorigin="anonymous" style="width:${size}px;height:${size}px;object-fit:contain" onerror="this.outerHTML='<span style=font-size:${size}px>${m.emoji}</span>'">`;
-}
 
 window.pricingShowModuleSelector=function pricingShowModuleSelector(){
   const existing=document.getElementById('pricingModSel'); if(existing) existing.remove();
@@ -5134,12 +5108,12 @@ window.pricingShowModuleSelector=function pricingShowModuleSelector(){
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400);margin-bottom:5px">${cat}</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:5px">
               ${apps.map(app=>`
-                <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid ${prev.includes(app)?'var(--purple)':'var(--gray-200)'};border-radius:8px;cursor:pointer;background:${prev.includes(app)?'var(--purple-light)':'white'}"
+                <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid ${prev.includes(app.name)?'var(--purple)':'var(--gray-200)'};border-radius:8px;cursor:pointer;background:${prev.includes(app.name)?'var(--purple-light)':'white'}"
                   onmouseover="if(!this.querySelector('input').checked)this.style.borderColor='var(--purple)'" onmouseout="if(!this.querySelector('input').checked){this.style.borderColor='var(--gray-200)';this.style.background='white';}">
-                  <input type="checkbox" name="pricingMod" value="${app}" ${prev.includes(app)?'checked':''} style="accent-color:var(--purple);flex-shrink:0"
+                  <input type="checkbox" name="pricingMod" value="${app.name}" ${prev.includes(app.name)?'checked':''} style="accent-color:var(--purple);flex-shrink:0"
                     onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--gray-200)';this.closest('label').style.background=this.checked?'var(--purple-light)':'white'">
-                  ${brIconImg(app,14)}
-                  <span style="font-size:12px;font-weight:600">${app}</span>
+                  ${brIconImg(app.name,14)}
+                  <span style="font-size:12px;font-weight:600">${app.name}</span>
                 </label>`).join('')}
             </div>
           </div>`).join('')}
@@ -5295,7 +5269,7 @@ window.pricingGeneratePDF=function(){
 
   // Modules
   const selMods=(ps.selectedModules||[]);
-  const modCards=selMods.map(name=>{const ml=PRICING_MODULE_LIST.find(m=>m.name.toLowerCase()===name.toLowerCase());const d=ml?(ps.descMode==='long'&&ml.longDesc?ml.longDesc:ml.desc):'';return`
+  const modCards=selMods.map(name=>{const ml=ODOO_APPS_FLAT.find(m=>m.name.toLowerCase()===name.toLowerCase());const d=ml?(ps.descMode==='long'&&ml.longDesc?ml.longDesc:ml.desc):'';return`
     <div style="border:1.5px solid #714B67;background:#fdf8fc;border-radius:8px;padding:10px 11px">
       <div style="margin-bottom:4px">${brIconImg(name,18)}</div>
       <div style="font-size:11.5px;font-weight:700;color:#714B67">${name}</div>
@@ -5622,7 +5596,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   <div style="margin-bottom:16px">
     <div class="sec-label">Aplicaciones Odoo en el alcance de implementación</div>
     <div class="mod-grid">
-      ${selMods.map(name=>{const ml=PRICING_MODULE_LIST.find(m=>m.name.toLowerCase()===name.toLowerCase());const d=ml?(ps.descMode==='long'&&ml.longDesc?ml.longDesc:ml.desc):'';return`
+      ${selMods.map(name=>{const ml=ODOO_APPS_FLAT.find(m=>m.name.toLowerCase()===name.toLowerCase());const d=ml?(ps.descMode==='long'&&ml.longDesc?ml.longDesc:ml.desc):'';return`
         <div class="mod-card sel">
           <div style="margin-bottom:5px">${brIconImg(name,22)}</div>
           <div style="font-size:11.5px;font-weight:700;color:#714B67">${name}</div>
@@ -5754,12 +5728,12 @@ function renderPropuestaComercial(){
             <div style="margin-bottom:12px">
               <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400);margin-bottom:5px">${cat}</div>
               <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:5px">
-                ${apps.map(app=>{const sel=(ps.selectedModules||['CRM','Ventas','Inventario','Compras','Contabilidad','Facturación','Empleados']).includes(app);return`
+                ${apps.map(app=>{const sel=(ps.selectedModules||['CRM','Ventas','Inventario','Compras','Contabilidad','Facturación','Empleados']).includes(app.name);return`
                   <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid ${sel?'var(--purple)':'var(--gray-200)'};border-radius:8px;cursor:pointer;background:${sel?'var(--purple-light)':'white'}">
-                    <input type="checkbox" name="propMod" value="${app}" ${sel?'checked':''} style="accent-color:var(--purple);flex-shrink:0"
+                    <input type="checkbox" name="propMod" value="${app.name}" ${sel?'checked':''} style="accent-color:var(--purple);flex-shrink:0"
                       onchange="this.closest('label').style.borderColor=this.checked?'var(--purple)':'var(--gray-200)';this.closest('label').style.background=this.checked?'var(--purple-light)':'white'">
-                    ${brIconImg(app,14)}
-                    <span style="font-size:12px;font-weight:600">${app}</span>
+                    ${brIconImg(app.name,14)}
+                    <span style="font-size:12px;font-weight:600">${app.name}</span>
                   </label>`}).join('')}
               </div>
             </div>`).join('')}
