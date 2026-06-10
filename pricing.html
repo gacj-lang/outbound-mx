@@ -2477,19 +2477,12 @@
     currencyEl.style.color = accent;
     currencyEl.textContent = sym;
 
-    if (anual) {
-      // Anual: muestra tarifa anual con mensual tachada (igual al widget del home)
-      amountEl.textContent = fmt(ed.rates[1]);
-      oldEl.textContent    = `${sym} ${fmt(ed.rates[0])}/mes`;
-      oldEl.style.textDecoration = '';
-      if (starEl) starEl.style.display = '';
-    } else {
-      // Mensual: muestra tarifa mensual con referencia anual sin tachar
-      amountEl.textContent = fmt(ed.rates[0]);
-      oldEl.textContent    = `Anual: ${sym}${fmt(ed.rates[1])}/mes`;
-      oldEl.style.textDecoration = 'none';
-      if (starEl) starEl.style.display = 'none';
-    }
+    // planForCard: 0=Mensual, 1=Anual (todos los planes multianuales usan la misma tarifa que 1 año)
+    const planForCard = currentPlanIdx >= 1 ? 1 : 0;
+    amountEl.textContent = fmt(ed.rates[planForCard]);
+    oldEl.textContent    = `${sym} ${fmt(ed.ratesY2[planForCard])}`;
+    oldEl.style.textDecoration = '';  // siempre tachado (CSS lo define)
+    if (starEl) starEl.style.display = '';
     subEl.innerHTML = `per user / month<br>(excl. ${isMX ? 'IVA' : 'VAT'})`;
     updateRenewalMini();
   }

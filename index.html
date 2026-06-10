@@ -5916,7 +5916,7 @@ window.renderPricingHome=function renderPricingHome(){
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--success);margin-bottom:6px">Estándar</div>
               <div style="display:flex;align-items:baseline;gap:6px">
                 <div id="pPriceStd" style="font-size:34px;font-weight:800;color:var(--gray-900);line-height:1">${fmt(std.rates[1])}</div>
-                <div id="pRefStd" style="font-size:12px;color:var(--gray-400);text-decoration:line-through">${fmt(std.rates[0])}/mes</div>
+                <div id="pRefStd" style="font-size:12px;color:var(--gray-400);text-decoration:line-through">${fmt(std.ratesY2[1])}/mes</div>
               </div>
               <div style="font-size:12px;color:var(--gray-400);margin-top:4px">por usuario / mes</div>
             </div>
@@ -5932,7 +5932,7 @@ window.renderPricingHome=function renderPricingHome(){
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--purple);margin-bottom:6px">Personalizado</div>
               <div style="display:flex;align-items:baseline;gap:6px">
                 <div id="pPricePer" style="font-size:34px;font-weight:800;color:var(--gray-900);line-height:1">${fmt(per.rates[1])}</div>
-                <div id="pRefPer" style="font-size:12px;color:var(--gray-400);text-decoration:line-through">${fmt(per.rates[0])}/mes</div>
+                <div id="pRefPer" style="font-size:12px;color:var(--gray-400);text-decoration:line-through">${fmt(per.ratesY2[1])}/mes</div>
               </div>
               <div style="font-size:12px;color:var(--gray-400);margin-top:4px">por usuario / mes</div>
             </div>
@@ -5951,13 +5951,15 @@ window.renderPricingHome=function renderPricingHome(){
   window.pricingToggle=function(mode){
     const anual=mode==='anual';
     const el=id=>document.getElementById(id);
-    // Update prices — scoped only to these 4 elements in the home widget, no side effects
-    el('pPriceStd').textContent=fmt(anual?std.rates[1]:std.rates[0]);
-    el('pRefStd').textContent=anual?fmt(std.rates[0])+'/mes':'Anual: '+fmt(std.rates[1])+'/mes';
-    el('pRefStd').style.textDecoration=anual?'line-through':'none';
-    el('pPricePer').textContent=fmt(anual?per.rates[1]:per.rates[0]);
-    el('pRefPer').textContent=anual?fmt(per.rates[0])+'/mes':'Anual: '+fmt(per.rates[1])+'/mes';
-    el('pRefPer').style.textDecoration=anual?'line-through':'none';
+    // pi: índice del plan — 1=Anual, 0=Mensual (igual que rates[]/ratesY2[])
+    const pi=anual?1:0;
+    // Main price: tarifa Y1 de primera contratación; Tachado: tarifa Y2/lista/renovación
+    el('pPriceStd').textContent=fmt(std.rates[pi]);
+    el('pRefStd').textContent=fmt(std.ratesY2[pi])+'/mes';
+    el('pRefStd').style.textDecoration='line-through';
+    el('pPricePer').textContent=fmt(per.rates[pi]);
+    el('pRefPer').textContent=fmt(per.ratesY2[pi])+'/mes';
+    el('pRefPer').style.textDecoration='line-through';
     const aBtn=el('pToggleA'),mBtn=el('pToggleM');
     if(!aBtn||!mBtn) return;
     aBtn.style.background=anual?'white':'transparent';
