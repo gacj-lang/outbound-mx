@@ -5093,22 +5093,22 @@ function renderPricing(){
 
 // ── Módulos selector popup (after pricing is received) ──
 const PRICING_MODULE_LIST=[
-  {key:'crm',       svgFile:'crm',          emoji:'💼',name:'CRM',           desc:'Pipeline, cotizaciones, portal del cliente'},
-  {key:'ventas',    svgFile:'sale',          emoji:'🛍️',name:'Ventas',         desc:'Pedidos, listas de precio, portal'},
-  {key:'inventario',svgFile:'stock',         emoji:'📦',name:'Inventario',     desc:'Stock, reabasto automático, trazabilidad'},
-  {key:'compras',   svgFile:'purchase',      emoji:'🛒',name:'Compras',        desc:'Órdenes de compra, portal de proveedores'},
-  {key:'contabilidad',svgFile:'account',     emoji:'📊',name:'Contabilidad',   desc:'CFDI 4.0, conciliación bancaria'},
-  {key:'facturacion', svgFile:'account',     emoji:'🧾',name:'Facturación',    desc:'Timbrado automático, notas de crédito'},
-  {key:'rrhh',      svgFile:'hr',            emoji:'👥',name:'Recursos Humanos',desc:'Nómina timbrada, asistencias, vacaciones'},
-  {key:'manufactura',svgFile:'mrp',          emoji:'🏭',name:'Manufactura',    desc:'Órdenes de producción, MRP, BOM'},
-  {key:'proyectos', svgFile:'project',       emoji:'📋',name:'Proyectos',      desc:'Tareas, Gantt, seguimiento de horas'},
-  {key:'helpdesk',  svgFile:'helpdesk',      emoji:'🎧',name:'Helpdesk',       desc:'Tickets, SLA, portal de soporte'},
-  {key:'ecommerce', svgFile:'website',       emoji:'🌐',name:'E-commerce',     desc:'Tienda online integrada al ERP'},
-  {key:'pos',       svgFile:'point_of_sale', emoji:'🏪',name:'Punto de Venta', desc:'POS táctil, offline, con inventario'},
-  {key:'marketing', svgFile:'mass_mailing',  emoji:'📣',name:'Marketing',      desc:'Email, automatizaciones, segmentos'},
-  {key:'flota',     svgFile:'fleet',         emoji:'🚗',name:'Flota',          desc:'Gestión de vehículos y mantenimiento'},
-  {key:'firma',     svgFile:'sign',          emoji:'✍️',name:'Firma Electrónica',desc:'Aprobaciones y documentos firmados'},
-  {key:'gastos',    svgFile:'expenses',      emoji:'💳',name:'Gastos',         desc:'Reporte y aprobación de gastos'},
+  {key:'crm',        svgFile:'crm',          emoji:'💼',name:'CRM',              desc:'Pipeline, cotizaciones, portal del cliente',                longDesc:'Mejora tu flujo de ventas con interfaz fácil de usar y compatibilidad móvil. Optimiza la gestión de leads, seguimiento de oportunidades y pronóstico de ventas.'},
+  {key:'ventas',     svgFile:'sale',          emoji:'🛍️',name:'Ventas',            desc:'Pedidos, listas de precio, portal',                          longDesc:'Cierra más tratos con cotizaciones profesionales, acceso móvil y portal del cliente. Gestión de órdenes, seguimiento de contratos y herramientas completas para tu equipo comercial.'},
+  {key:'inventario', svgFile:'stock',         emoji:'📦',name:'Inventario',        desc:'Stock, reabasto automático, trazabilidad',                   longDesc:'Seguimiento en tiempo real, reabastecimiento automático y estrategias de almacenamiento optimizadas. Compatible con múltiples métodos de recolección, transportistas y trazabilidad completa.'},
+  {key:'compras',    svgFile:'purchase',      emoji:'🛒',name:'Compras',           desc:'Órdenes de compra, portal de proveedores',                   longDesc:'Simplifica el aprovisionamiento con solicitudes de cotización automatizadas, contratos flexibles y facturación de proveedores. Compatible con multiempresa y con reportes integrales de eficiencia.'},
+  {key:'contabilidad',svgFile:'account',      emoji:'📊',name:'Contabilidad',      desc:'CFDI 4.0, conciliación bancaria',                            longDesc:'Ahorra tiempo con entrada automática de datos y gestiona tus finanzas desde cualquier lugar. Reportes en tiempo real, toma de decisiones informada y CFDI 4.0 incluido.'},
+  {key:'facturacion', svgFile:'account',      emoji:'🧾',name:'Facturación',       desc:'Timbrado automático, notas de crédito',                      longDesc:'Simplifica la creación de facturas integrándose con Ventas, Proyectos y otras aplicaciones. Timbrado automático, notas de crédito, múltiples monedas y facturación recurrente.'},
+  {key:'rrhh',       svgFile:'hr',            emoji:'👥',name:'Recursos Humanos',  desc:'Nómina timbrada, asistencias, vacaciones',                   longDesc:'Gestiona a todo tu personal desde un centro integral: asistencias, vacaciones y expedientes digitales. Genera recibos de nómina timbrados con cumplimiento de normas locales, impuestos y deducciones correctas.'},
+  {key:'manufactura', svgFile:'mrp',          emoji:'🏭',name:'Manufactura',       desc:'Órdenes de producción, MRP, BOM',                            longDesc:'Planificación de capacidad en tiempo real, control de componentes y costos de producción. Simula órdenes, gestiona listas de materiales y planifica recursos de forma eficaz con MRP.'},
+  {key:'proyectos',  svgFile:'project',       emoji:'📋',name:'Proyectos',         desc:'Tareas, Gantt, seguimiento de horas',                        longDesc:'Organiza tareas con vistas kanban, Gantt y lista para fomentar la colaboración. Monitorea horas trabajadas, da seguimiento a la rentabilidad y mejora la comunicación del equipo.'},
+  {key:'helpdesk',   svgFile:'helpdesk',      emoji:'🎧',name:'Helpdesk',          desc:'Tickets, SLA, portal de soporte',                            longDesc:'Plataforma de soporte por tickets con múltiples canales: correo, chat en vivo y formularios web. Personaliza la organización, aplica reglas SLA y mide los tiempos de respuesta.'},
+  {key:'ecommerce',  svgFile:'website',       emoji:'🌐',name:'E-commerce',        desc:'Tienda online integrada al ERP',                             longDesc:'Tienda online con editor visual que se integra con marketing, inventario y contabilidad. Gestiona productos, pasarelas de pago y envíos desde un solo lugar.'},
+  {key:'pos',        svgFile:'point_of_sale', emoji:'🏪',name:'Punto de Venta',    desc:'POS táctil, offline, con inventario',                        longDesc:'Simplifica la gestión de tu tienda con escaneo de códigos de barras y hardware integrado. Funciona sin conexión a internet y sincroniza con inventario automáticamente.'},
+  {key:'marketing',  svgFile:'mass_mailing',  emoji:'📣',name:'Marketing',         desc:'Email, automatizaciones, segmentos',                          longDesc:'Crea correos electrónicos profesionales al instante y asegúrate de que lleguen a la audiencia correcta. Segmenta contactos y automatiza campañas completas de email marketing.'},
+  {key:'flota',      svgFile:'fleet',         emoji:'🚗',name:'Flota',             desc:'Gestión de vehículos y mantenimiento',                        longDesc:'Resumen integral de vehículos, contratos, reparaciones, costos y conductores. Monitorea consumo de combustible, asigna responsables y controla el gasto total de tu flotilla.'},
+  {key:'firma',      svgFile:'sign',          emoji:'✍️',name:'Firma Electrónica', desc:'Aprobaciones y documentos firmados',                          longDesc:'Firma documentos en línea'},
+  {key:'gastos',     svgFile:'expenses',      emoji:'💳',name:'Gastos',            desc:'Reporte y aprobación de gastos',                             longDesc:'Registra y aprueba gastos con un clic desde escritorio o celular. Se integra automáticamente con Contabilidad para asientos y reembolsos con seguimiento por empleado.'},
 ];
 // Helper to render module icon (SVG real si disponible, fallback emoji)
 function modIcon(m,size=20){
@@ -5140,6 +5140,15 @@ window.pricingShowModuleSelector=function pricingShowModuleSelector(){
             </div>
           </label>`).join('')}
       </div>
+      <div id="pDescToggle" data-mode="short" style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:9px 14px;background:var(--gray-50);border-radius:8px;border:1px solid var(--gray-100)">
+        <span style="font-size:12px;color:var(--gray-500);flex-shrink:0">Descripción en propuesta PDF:</span>
+        <div style="background:var(--gray-200);border-radius:99px;padding:3px;display:inline-flex">
+          <button id="pDescBtnShort" onclick="window._pSetDesc('short')"
+            style="background:white;border:none;border-radius:99px;padding:4px 14px;font-size:12px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)">Breve</button>
+          <button id="pDescBtnLong" onclick="window._pSetDesc('long')"
+            style="background:transparent;border:none;border-radius:99px;padding:4px 14px;font-size:12px;cursor:pointer;color:var(--gray-500)">Completa</button>
+        </div>
+      </div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-ghost" onclick="document.getElementById('pricingModSel').remove();showModule('propuesta')">Ir a Propuesta Comercial →</button>
         <button class="btn btn-primary" onclick="pricingSaveModsAndPDF()">📄 Generar propuesta PDF</button>
@@ -5147,10 +5156,22 @@ window.pricingShowModuleSelector=function pricingShowModuleSelector(){
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  window._pSetDesc=function(mode){
+    const tog=document.getElementById('pDescToggle'); if(tog) tog.dataset.mode=mode;
+    const isL=mode==='long';
+    const s=document.getElementById('pDescBtnShort'), l=document.getElementById('pDescBtnLong');
+    if(!s||!l) return;
+    s.style.background=isL?'transparent':'white'; s.style.boxShadow=isL?'none':'0 1px 3px rgba(0,0,0,.08)';
+    s.style.fontWeight=isL?'500':'700'; s.style.color=isL?'var(--gray-500)':'';
+    l.style.background=isL?'white':'transparent'; l.style.boxShadow=isL?'0 1px 3px rgba(0,0,0,.08)':'none';
+    l.style.fontWeight=isL?'700':'500'; l.style.color=isL?'':'var(--gray-500)';
+  };
+  window._pSetDesc(pricingState.descMode||'short');
 }
 
 window.pricingSaveModsAndPDF=async function(){
   pricingState.selectedModules=[...document.querySelectorAll('input[name="pricingMod"]:checked')].map(i=>i.value);
+  pricingState.descMode=document.getElementById('pDescToggle')?.dataset.mode||'short';
   document.getElementById('pricingModSel')?.remove();
   showNotif('Pricing guardado ✓','success');
   // ── Guardar en memoria de empresa ──
@@ -5274,7 +5295,7 @@ window.pricingGeneratePDF=function(){
     <div style="border:1.5px solid #714B67;background:#fdf8fc;border-radius:8px;padding:10px 11px">
       <div style="font-size:16px;margin-bottom:4px">${m.icon}</div>
       <div style="font-size:11.5px;font-weight:700;color:#714B67">${m.name}</div>
-      <div style="font-size:10px;color:#aaa;margin-top:2px;line-height:1.35">${m.desc}</div>
+      <div style="font-size:10px;color:#aaa;margin-top:2px;line-height:1.35">${ps.descMode==='long'&&m.longDesc?m.longDesc:m.desc}</div>
     </div>`).join('');
 
   // SH section
@@ -5601,7 +5622,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
         <div class="mod-card sel">
           <div style="margin-bottom:5px">${modIcon(m,22)}</div>
           <div style="font-size:11.5px;font-weight:700;color:#714B67">${m.name}</div>
-          <div style="font-size:9.5px;color:#9ca3af;margin-top:2px;line-height:1.35">${m.desc}</div>
+          <div style="font-size:9.5px;color:#9ca3af;margin-top:2px;line-height:1.35">${ps.descMode==='long'&&m.longDesc?m.longDesc:m.desc}</div>
         </div>`).join('')}
     </div>
     <div style="font-size:8.5px;color:#d1d5db;margin-top:5px">Módulos incluidos en las ${r.implHrs||50} horas de consultoría. Módulos adicionales se cotizan por separado.</div>
