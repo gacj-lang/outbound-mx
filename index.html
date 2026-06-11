@@ -5049,6 +5049,7 @@ window.empOpenDetail=async function(id){
               <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
                 <span style="font-size:11px;color:var(--gray-400)">${fmtISO(s.date)}</span>
                 <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="navigator.clipboard.writeText(this.closest('div').parentElement.querySelector('.emp-saved-text').dataset.full).then(()=>showNotif('Copiado ✓','success'))">📋</button>
+                ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" style="padding:2px 8px;font-size:11px" onclick="empDeleteSavedContent('${id}',${i})">🗑</button>`:''}
               </div>
             </div>
             <div class="emp-saved-text" data-full="${_esc(s.texto||'')}" style="font-size:12.5px;color:var(--gray-700);line-height:1.6;white-space:pre-wrap;max-height:64px;overflow:hidden;cursor:pointer" onclick="this.style.maxHeight=this.style.maxHeight==='none'?'64px':'none'">${_esc(s.texto||'')}</div>
@@ -6536,6 +6537,36 @@ window.deleteRecord=async function(collectionName,id,onSuccess){
     } else {
       showNotif('Error: '+e.message,'error');
     }
+  }
+};
+// Elimina un contenido guardado del array memory.contenidos.saved[] de la empresa — solo manager
+window.empDeleteSavedContent=async function(id,index){
+  if(currentUserData?.role!=='manager'){ showNotif('Solo el manager puede eliminar','error'); return; }
+  if(!confirm('¿Eliminar este contenido guardado? Esta acción no se puede deshacer.')) return;
+  if(!db){ showNotif('Sin conexión a Firebase','error'); return; }
+  try{
+    const ref=doc(db,'companies',id);
+    const snap=await getDoc(ref);
+    if(!snap.exists()){ showNotif('Empresa no encontrada','error'); return; }
+    const mem=snap.data().memory||{};
+    const cont0=mem.contenidos||{};
+    const saved=[...(cont0.saved||[])];
+    if(index<0||index>=saved.length){ showNotif('Contenido ya no existe','error'); empOpenDetail(id); return; }
+    saved.splice(index,1);
+    const updated={...mem,contenidos:{...cont0,saved},lastUpdated:new Date().toISOString()};
+    await updateDoc(ref,{'memory':updated,'updatedAt':serverTimestamp()});
+    // sincronizar caches locales
+    if(cpState?.selectedCompany?.id===id) cpState.selectedCompany.memory=updated;
+    if(cont?.company?.id===id) cont.company.memory=updated;
+    const idx=_allEmpresas.findIndex(e=>e.id===id);
+    if(idx>=0) _allEmpresas[idx]={..._allEmpresas[idx],memory:updated};
+    showNotif('Contenido eliminado ✓','success');
+    empOpenDetail(id);
+  } catch(e){
+    console.error('empDeleteSavedContent:',e);
+    if(e.code==='permission-denied'||e.message?.includes('permission')){
+      showNotif('Error de permisos — revisa las reglas de Firestore en la consola de Firebase','error');
+    } else { showNotif('Error: '+e.message,'error'); }
   }
 };
 window.deleteCompany=async function(id){
