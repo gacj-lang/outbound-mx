@@ -3608,13 +3608,26 @@ function gcShowLoading(id,show){
 let _gcVariants=[];
 const _esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
+// Separa el texto generado en variantes — tolera markdown (**VARIANTE 1:**), distintas
+// palabras (Variante/Opción/Versión/Mensaje), con/sin dos puntos, y marcador en línea propia o inline.
+function gcParseVariants(content){
+  const marker=/^[\s>*_#·•\-]*\**\s*(?:VARIANTE|VERSI[ÓO]N|OPCI[ÓO]N|MENSAJE|OPTION)\s*#?\s*[1-9]\b\s*[:.)\-–]*\s*\**\s*/i;
+  const parts=[]; let cur=null;
+  for(const ln of String(content||'').split('\n')){
+    const m=ln.match(marker);
+    if(m){ if(cur!==null) parts.push(cur); cur=ln.slice(m[0].length); }
+    else if(cur!==null){ cur+='\n'+ln; }
+    // las líneas antes del primer marcador (texto introductorio) se ignoran
+  }
+  if(cur!==null) parts.push(cur);
+  const cleaned=parts.map(p=>p.replace(/\*+$/,'').trim()).filter(Boolean);
+  return cleaned.length>=2 ? cleaned : [String(content||'').trim()];
+}
 function gcShowOutput(wrapId,content,variants=false,saveCtx=null){
   const wrap=document.getElementById(wrapId); if(!wrap) return;
   wrap.classList.add('show');
   if(variants){
-    const parts=content.split(/\n(?=VARIANTE [123]|Variante [123]|Version [123]|VERSIÓN [123])/i)
-      .filter(p=>p.trim())
-      .map(p=>p.replace(/^(VARIANTE|Variante|Version|VERSIÓN) [123]:?\s*/i,'').trim());
+    const parts=gcParseVariants(content);
     _gcVariants=parts;
     window._gcSaveCtx=saveCtx||{tipo:'mensaje'};
     const LIMIT=180;
@@ -3863,7 +3876,8 @@ Reglas generales:
 - Evita palabras grandilocuentes: 'solución integral', 'de clase mundial', 'líder del mercado', 'potencializar', 'disruptivo', 'robusto', 'plataforma de vanguardia', 'ecosistema', 'sinergias'
 - Cada variante con un ángulo claramente distinto
 - Español de México natural, directo, sin sonar a vendedor de catálogo
-- Formato EXACTO: "VARIANTE 1:\\n[texto]\\n\\nVARIANTE 2:\\n[texto]\\n\\nVARIANTE 3:\\n[texto]"`);
+- NO uses markdown (nada de **negritas**, ## títulos ni viñetas con *)
+- Formato EXACTO, cada marcador al inicio de su propia línea, sin adornos: "VARIANTE 1:\\n[texto]\\n\\nVARIANTE 2:\\n[texto]\\n\\nVARIANTE 3:\\n[texto]"`);
     gcShowOutput('gcTplOutput',text,true,{tipo:channel,momento,momLabel});
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
       contenido:{tipo:channel,topic:ctx||momLabel,momento,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
