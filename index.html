@@ -3606,7 +3606,7 @@ function gcShowLoading(id,show){
 }
 // Almacén temporal de variantes para guardar/copiar
 let _gcVariants=[];
-const _esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const _esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 // Separa el texto generado en variantes — tolera markdown (**VARIANTE 1:**), distintas
 // palabras (Variante/Opción/Versión/Mensaje), con/sin dos puntos, y marcador en línea propia o inline.
