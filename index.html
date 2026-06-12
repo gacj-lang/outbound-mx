@@ -1307,77 +1307,107 @@ async function analyticsLoad(){
     catch(e){ console.warn('analytics team:',e); }
     scope={role,all:false,grams,uids};
   } else scope={role,all:false,grams:new Set([me.gram].filter(Boolean)),uids:new Set([me.uid].filter(Boolean))};
-  // Discoveries con query por rol (patrón de la app, compatible con reglas/índices)
-  let dq;
-  if(role==='manager') dq=query(collection(db,'discoveryRecords'),orderBy('createdAt','desc'));
-  else if(role==='tl') dq=query(collection(db,'discoveryRecords'),where('tlId','==',me.uid));
-  else dq=query(collection(db,'discoveryRecords'),where('aeUid','==',me.uid));
-  let discoveries=[],companies=[];
-  try{ const s=await getDocs(dq); discoveries=s.docs.map(d=>d.data()); }catch(e){ console.warn('analytics disc:',e); }
+  // Query por rol (patrón de la app, compatible con reglas/índices)
+  const roleQuery=coll=> role==='manager' ? query(collection(db,coll),orderBy('createdAt','desc'))
+    : role==='tl' ? query(collection(db,coll),where('tlId','==',me.uid))
+    : query(collection(db,coll),where('aeUid','==',me.uid));
+  const loadColl=async coll=>{ try{ const s=await getDocs(roleQuery(coll)); return s.docs.map(d=>d.data()); }catch(e){ console.warn('analytics '+coll+':',e); return []; } };
+  const [discoveries,pricings,csvs,propuestas]=await Promise.all([
+    loadColl('discoveryRecords'), loadColl('pricingRecords'), loadColl('csvSessions'), loadColl('propuestaRecords')
+  ]);
+  let companies=[];
   try{ companies=await searchCompanies(); }catch(e){ console.warn('analytics cos:',e); }
-  _analyticsRaw={scope,discoveries,companies};
+  _analyticsRaw={scope,discoveries,pricings,csvs,propuestas,companies};
   analyticsCompute();
 }
 
 function analyticsCompute(){
   const body=document.getElementById('analyticsBody'); if(!body||!_analyticsRaw) return;
-  const {scope,discoveries,companies}=_analyticsRaw;
+  const {scope,discoveries,pricings,csvs,propuestas,companies}=_analyticsRaw;
   const range=_analyticsState.range, now=Date.now();
   const cutoff = range==='all'?0: now - range*30*86400000;
   const within=ms=> cutoff===0 ? true : ms>=cutoff;
   const inScope=(gram,uid)=> scope.all || (uid&&scope.uids.has(uid)) || (gram&&scope.grams.has(gram));
 
+  // Mapa uid→gram/nombre desde registros que tienen ambos (resuelve pricings viejos sin aeGram)
+  const uidGram={}, uidName={};
+  const learn=(uid,gram,name)=>{ if(uid&&gram&&!uidGram[uid])uidGram[uid]=gram; if(uid&&name&&!uidName[uid])uidName[uid]=name; };
+  [discoveries,csvs,propuestas].forEach(arr=>arr.forEach(d=>learn(d.aeUid,d.aeGram,d.aeName)));
+  companies.forEach(c=>learn(c.createdByUid,c.createdByGram,c.createdBy));
+
   const people={};
-  const P=(gram,name)=>{ const key=gram||'__none__'; let p=people[key];
-    if(!p) p=people[key]={gram:gram||'',name:name||(gram||'Sin asignar'),disc:0,emp:0,cont:0,canal:{}};
-    if(name&&(!p.name||p.name===p.gram||p.name==='Sin asignar'))p.name=name; return p; };
+  const P=(gram,name,uid)=>{ const g=gram||(uid&&uidGram[uid])||''; const key=g||uid||'__none__'; let p=people[key];
+    const resolved=name||(uid&&uidName[uid])||'';
+    if(!p) p=people[key]={gram:g,name:resolved||g||'Sin asignar',disc:0,pric:0,prop:0,csv:0,opp:0,cont:0,emp:0,canal:{}};
+    if(resolved&&(!p.name||p.name===p.gram||p.name==='Sin asignar'))p.name=resolved; return p; };
   const canalTotals={}; _A_CANALES.forEach(c=>canalTotals[c.key]=0); canalTotals.otro=0;
 
-  // Buckets mensuales
+  // Buckets mensuales (tendencia: Discoveries vs Contenidos)
   const monthCount = range==='all'?12:range;
   const buckets=[], bmap={}, dnow=new Date(now);
   for(let i=monthCount-1;i>=0;i--){ const d=new Date(dnow.getFullYear(),dnow.getMonth()-i,1); const key=d.getFullYear()+'-'+d.getMonth(); buckets.push(bmap[key]={key,label:d.toLocaleDateString('es-MX',{month:'short'}),disc:0,cont:0}); }
   const bucketFor=ms=>{ if(!ms) return null; const d=new Date(ms); return bmap[d.getFullYear()+'-'+d.getMonth()]||null; };
 
-  discoveries.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; P(d.aeGram,d.aeName).disc++; const b=bucketFor(ms); if(b)b.disc++; });
+  // Colecciones ya scopeadas por rol en la query
+  discoveries.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; P(d.aeGram,d.aeName,d.aeUid).disc++; const b=bucketFor(ms); if(b)b.disc++; });
+  pricings.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; P(d.aeGram,d.aeName,d.aeUid).pric++; });
+  propuestas.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; P(d.aeGram,d.aeName,d.aeUid).prop++; });
+  csvs.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; const p=P(d.aeGram,d.aeName,d.aeUid); p.csv++; p.opp+=(d.rowCount||0); });
+  // companies/contenido: leídos completos, se scopean en cliente
   companies.forEach(co=>{
     const cg=co.createdByGram, cu=co.createdByUid;
-    if(inScope(cg,cu)){ const ms=_aTsMs(co.createdAt); if(within(ms)) P(cg,co.createdBy).emp++; }
+    if(inScope(cg,cu)){ const ms=_aTsMs(co.createdAt); if(within(ms)) P(cg,co.createdBy,cu).emp++; }
     const saved=co.memory?.contenidos?.saved||[];
     saved.forEach(s=>{ const g=s.aeGram; if(!inScope(g,null)) return; const ms=_aTsMs(s.date); if(!within(ms)) return; const p=P(g,s.aeName); p.cont++;
       const canal=_aNormCanal(s.tipo), ck=_A_CANALES.find(c=>c.key===canal)?canal:'otro'; p.canal[ck]=(p.canal[ck]||0)+1; canalTotals[ck]=(canalTotals[ck]||0)+1;
       const b=bucketFor(ms); if(b)b.cont++; });
   });
 
-  const rows=Object.values(people).filter(p=>p.disc||p.emp||p.cont).map(p=>({...p,total:p.disc+p.emp+p.cont})).sort((a,b)=>b.total-a.total);
-  const totDisc=rows.reduce((s,p)=>s+p.disc,0), totEmp=rows.reduce((s,p)=>s+p.emp,0), totCont=rows.reduce((s,p)=>s+p.cont,0);
+  const rows=Object.values(people).filter(p=>p.disc||p.pric||p.prop||p.csv||p.cont||p.emp)
+    .map(p=>({...p,total:p.disc+p.pric+p.prop+p.csv+p.cont+p.emp})).sort((a,b)=>b.total-a.total);
+  const T={disc:0,pric:0,prop:0,csv:0,opp:0,cont:0,emp:0};
+  rows.forEach(p=>{ T.disc+=p.disc; T.pric+=p.pric; T.prop+=p.prop; T.csv+=p.csv; T.opp+=p.opp; T.cont+=p.cont; T.emp+=p.emp; });
 
-  body.innerHTML = analyticsKPIs(totDisc,totEmp,totCont,rows.length)
+  body.innerHTML = analyticsKPIs(T,rows.length)
     + analyticsPeople(rows)
+    + analyticsProspeccion(rows)
     + analyticsTrend(buckets)
     + analyticsContent(canalTotals,rows);
 }
 
 function _aSection(title,inner){ return `<div class="card" style="padding:20px;margin-bottom:22px"><h3 style="font-size:15px;font-weight:700;margin-bottom:14px">${title}</h3>${inner}</div>`; }
-function _aStat(label,value,color){ return `<div class="card" style="flex:1;min-width:150px;padding:18px 20px"><div style="font-size:28px;font-weight:800;color:${color};line-height:1">${value}</div><div style="font-size:12.5px;color:var(--gray-500);margin-top:4px">${label}</div></div>`; }
-function analyticsKPIs(d,e,c,n){ return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px">
-  ${_aStat('Discoveries',d,'#714B67')}${_aStat('Empresas creadas',e,'#017E84')}${_aStat('Contenidos generados',c,'#FBB130')}${_aStat('Personas activas',n,'#FC787D')}</div>`; }
+function _aStat(label,value,color){ return `<div class="card" style="flex:1;min-width:140px;padding:18px 20px"><div style="font-size:28px;font-weight:800;color:${color};line-height:1">${value}</div><div style="font-size:12.5px;color:var(--gray-500);margin-top:4px">${label}</div></div>`; }
+function _aStatSub(label,value,sub,color){ return `<div class="card" style="flex:1;min-width:140px;padding:18px 20px"><div style="font-size:28px;font-weight:800;color:${color};line-height:1">${value}</div><div style="font-size:12.5px;color:var(--gray-500);margin-top:4px">${label}</div><div style="font-size:11px;color:var(--gray-400);margin-top:2px">${sub}</div></div>`; }
+function analyticsKPIs(T,n){ return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px">
+  ${_aStat('Discoveries',T.disc,'#714B67')}${_aStat('Pricings',T.pric,'#017E84')}${_aStat('Propuestas',T.prop,'#FBB130')}${_aStat('Contenidos',T.cont,'#FC787D')}${_aStat('Empresas',T.emp,'#0A66C2')}${_aStatSub('Solicitudes CSV',T.csv,T.opp+' oportunidades','#9333ea')}</div>`; }
+
+function analyticsProspeccion(rows){
+  const list=rows.filter(r=>r.csv||r.opp).sort((a,b)=>b.opp-a.opp);
+  if(!list.length) return '';
+  const maxOpp=Math.max(1,...list.map(r=>r.opp));
+  const inner=list.map(r=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 4px;border-top:1px solid var(--gray-100)">
+    <div style="flex:1;min-width:0"><span style="font-size:13px;font-weight:600">${r.name}</span> <span style="font-size:11px;color:var(--gray-400)">· ${r.csv} solicitud${r.csv===1?'':'es'}</span></div>
+    <div style="flex:1;height:10px;background:var(--gray-100);border-radius:99px;overflow:hidden;max-width:220px"><div style="height:100%;width:${Math.round(r.opp/maxOpp*100)}%;background:#9333ea"></div></div>
+    <div style="width:130px;text-align:right;font-size:13px;font-weight:700">${r.opp} <span style="font-weight:400;color:var(--gray-400);font-size:11px">oportunidades</span></div></div>`).join('');
+  return _aSection('🧩 Prospección (CSV Builder)',inner);
+}
 
 function analyticsPeople(rows){
   if(!rows.length) return _aSection('👥 Actividad por persona','<div class="cdc-empty">Sin actividad en el periodo seleccionado</div>');
   const max=Math.max(1,...rows.map(r=>r.total));
-  const grid='display:grid;grid-template-columns:1.6fr 64px 64px 64px 1.2fr;gap:8px;align-items:center';
-  const head=`<div style="${grid};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400);padding:0 4px 8px">
-    <div>Persona</div><div style="text-align:right">Disc.</div><div style="text-align:right">Emp.</div><div style="text-align:right">Cont.</div><div style="text-align:right">Total</div></div>`;
+  const grid='display:grid;grid-template-columns:minmax(150px,1.6fr) 48px 48px 48px 48px 48px 48px minmax(110px,1fr);gap:8px;align-items:center';
+  const num=v=>`<div style="text-align:right;font-size:13px">${v}</div>`;
+  const head=`<div style="${grid};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--gray-400);padding:0 4px 8px">
+    <div>Persona</div><div style="text-align:right">Disc</div><div style="text-align:right">Pric</div><div style="text-align:right">Prop</div><div style="text-align:right">CSV</div><div style="text-align:right">Cont</div><div style="text-align:right">Emp</div><div style="text-align:right">Total</div></div>`;
   const rowsH=rows.map(r=>`<div style="${grid};padding:8px 4px;border-top:1px solid var(--gray-100)">
     <div style="display:flex;align-items:center;gap:8px;min-width:0">
       <div style="width:24px;height:24px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(r.name||'?')[0].toUpperCase()}</div>
       <div style="min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</div><div style="font-size:11px;color:var(--gray-400)">${r.gram}</div></div></div>
-    <div style="text-align:right;font-size:13px">${r.disc}</div><div style="text-align:right;font-size:13px">${r.emp}</div><div style="text-align:right;font-size:13px">${r.cont}</div>
+    ${num(r.disc)}${num(r.pric)}${num(r.prop)}${num(r.csv)}${num(r.cont)}${num(r.emp)}
     <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
-      <div style="flex:1;height:8px;background:var(--gray-100);border-radius:99px;overflow:hidden;max-width:110px"><div style="height:100%;width:${Math.round(r.total/max*100)}%;background:var(--purple)"></div></div>
+      <div style="flex:1;height:8px;background:var(--gray-100);border-radius:99px;overflow:hidden;max-width:80px"><div style="height:100%;width:${Math.round(r.total/max*100)}%;background:var(--purple)"></div></div>
       <span style="font-size:13px;font-weight:700;min-width:22px;text-align:right">${r.total}</span></div></div>`).join('');
-  return _aSection('👥 Actividad por persona',head+rowsH);
+  return _aSection('👥 Actividad por persona',`<div style="overflow-x:auto"><div style="min-width:680px">${head}${rowsH}</div></div>`);
 }
 
 function analyticsTrend(buckets){
@@ -5444,7 +5474,7 @@ function renderPricing(){
     // Save record to Firestore
     if(db) try{
       await addDoc(collection(db,'pricingRecords'),{
-        aeUid:currentUserData?.uid, aeName:currentUserData?.name||'',
+        aeUid:currentUserData?.uid, aeName:currentUserData?.name||'', aeGram:currentUserData?.gram||'', tlId:currentUserData?.tlId||null,
         companyId:pricingState.company?.id||null, companyName:pricingState.company?.nombre||d.clientName||'',
         edition:d.editionName, users:d.users, planIdx:d.planIdx,
         mensualRef:d.mensualRef, implHrs:d.implHrs, implPrice:d.implPrice, total:d.total,
@@ -6184,7 +6214,7 @@ window.propLoadLastPricing=async function(){
   } catch(e){ showNotif('Error: '+e.message,'error'); }
 };
 
-window.propGenerarPDF=function(){
+window.propGenerarPDF=async function(){
   // Sync current state before generating
   const mods=[...document.querySelectorAll('input[name="propMod"]:checked')].map(i=>i.value);
   pricingState.selectedModules=mods;
@@ -6193,6 +6223,12 @@ window.propGenerarPDF=function(){
   if(_propState.company){ pricingState.company=_propState.company; pricingState.contact=_propState.contact||null; }
   if(!pricingState.company){ showNotif('Selecciona una empresa primero','error'); return; }
   if(!pricingState.result){ showNotif('Carga un pricing primero','error'); return; }
+  // Registrar la propuesta (para Analytics) — el conteo arranca desde aquí
+  if(db) try{ await addDoc(collection(db,'propuestaRecords'),{
+    aeUid:currentUserData?.uid, aeName:currentUserData?.name||'', aeGram:currentUserData?.gram||'', tlId:currentUserData?.tlId||null,
+    companyId:pricingState.company?.id||null, companyName:pricingState.company?.nombre||'',
+    edition:pricingState.result?.editionName||'', total:pricingState.result?.total||null,
+    createdAt:serverTimestamp() }); }catch(e){}
   pricingGeneratePDF();
 };
 
@@ -6627,7 +6663,7 @@ window.csvSaveSession=async function(){
   if(!csvRows.length){ showNotif('Sin datos para guardar','error'); return; }
   try{
     await addDoc(collection(db,'csvSessions'),{
-      aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram,
+      aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram, tlId:currentUserData?.tlId||null,
       fuente:document.getElementById('csvFuente')?.value||'', rowCount:csvRows.length, rows:csvRows,
       createdAt:serverTimestamp(),
     });
