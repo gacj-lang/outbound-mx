@@ -972,6 +972,16 @@ const ANTI_HALLUCINATION = `Eres un asistente de ventas de Odoo México. Reglas 
 - Escribe SIEMPRE en español de México, natural y profesional. Evita palabras altisonantes o grandilocuentes ("revolucionario", "solución líder", "potenciar sinergias"). Lenguaje claro y humano.
 - No dejes rastros de que el texto fue generado por IA.`;
 
+// Recursos OFICIALES de Odoo — URLs reales y verificadas. NUNCA inventar enlaces específicos;
+// usar solo estas páginas índice (la de clientes es filtrable por industria).
+const ODOO_RESOURCES = [
+  {label:'Casos de éxito de clientes (filtrable por industria)', url:'https://www.odoo.com/customers'},
+  {label:'Blog oficial (reseñas, casos, guías de negocio)',      url:'https://www.odoo.com/blog'},
+  {label:'YouTube oficial en español (demos y tutoriales)',      url:'https://www.youtube.com/@OdooSpanish'},
+  {label:'Sitio oficial de Odoo',                                url:'https://www.odoo.com'},
+];
+const odooResourcesBlock = ()=>`RECURSOS OFICIALES DE ODOO (usa SOLO estos enlaces reales — NUNCA inventes una URL específica de un caso o video):\n${ODOO_RESOURCES.map(r=>`- ${r.label}: ${r.url}`).join('\n')}`;
+
 let app, auth, db, firebaseReady=false;
 let currentUser=null, currentUserData=null;
 let pendingUsersUnsub=null, allUsersUnsub=null;
@@ -3278,12 +3288,22 @@ function buildMemoryContext(company){
   if(pr.selectedApps?.length) parts.push(`APPS PARA IMPLEMENTACIÓN: ${pr.selectedApps.join(', ')}`);
   if(pr.implNotes)         parts.push(`NOTAS DE IMPLEMENTACIÓN: ${pr.implNotes}`);
 
-  // Contenidos recientes
+  // Contenidos recientes (resumen de tipos)
   const ct=m.contenidos?.recent||[];
   if(ct.length){
     const tipos=ct.map(c=>c.tipo||c.type).filter(Boolean);
     parts.push(`CONTENIDOS GENERADOS PREVIOS: ${[...new Set(tipos)].join(', ')} (${ct.length} interacciones)`);
     if(ct[0]?.topic) parts.push(`Último tema abordado: ${ct[0].topic}`);
+  }
+  // Historial de contenidos guardados (textos previos) — para NO repetir ángulos y mejorar la continuidad
+  const saved=m.contenidos?.saved||[];
+  if(saved.length){
+    const recientes=saved.slice(0,3).map((s,i)=>{
+      const enc=`${s.tipo||'mensaje'}${s.momLabel?` · ${String(s.momLabel).split('—')[0].trim()}`:''}`;
+      const txt=String(s.texto||'').replace(/\s+/g,' ').trim().slice(0,220);
+      return `  ${i+1}) [${enc}] ${txt}${(s.texto||'').length>220?'…':''}`;
+    }).join('\n');
+    parts.push(`MENSAJES YA ENVIADOS A ESTA EMPRESA (no los repitas; usa un ángulo distinto y da continuidad):\n${recientes}`);
   }
 
   // Touchpoints
@@ -4082,22 +4102,25 @@ window.gcGenerateTemplate=async function(){
 - Tuteo informal pero profesional, español de México
 - Máx 1-2 emojis por mensaje
 - "corto": máx 3 líneas · "equilibrado": 5-8 líneas · "largo": 10-15 líneas
-- CTA claro al final, firmado con "${aeNombre}" de forma natural`,
+- El AE puede presentarse de forma natural en la PRIMERA línea (ej. "Soy ${aeNombre} de Odoo")
+- CTA claro al final — termina con la pregunta/CTA, SIN firma ni nombre suelto al cierre`,
     correo:`CANAL: Correo electrónico
 - Cada variante incluye ASUNTO (máx 50 caracteres, con intriga sin clickbait) + cuerpo
 - Personalización real en las primeras 2 líneas
 - Pain-first: menciona el problema antes de la solución
 - CTA único y claro · P.D. al final con hook adicional (efectivo en LATAM)
+- Termina con el CTA o la P.D., SIN firma de cierre ('Saludos', 'Atentamente', ni el nombre suelto)
 - Formato: "ASUNTO: [asunto]\\n---\\n[cuerpo]" dentro de cada variante`,
     linkedin:`CANAL: LinkedIn
 - ${momento==='primer_toque'?'NOTA DE CONEXIÓN: MÁXIMO 300 caracteres contando espacios — no excedas':'Mensaje post-conexión conversacional'}
 - NO empieces con "Hola [nombre]" directo — usa un hook primero
 - Demuestra que investigaste a la persona (sin ser invasivo)
-- Evita frases de vendedor ("solución perfecta", "empresa líder")`,
+- Evita frases de vendedor ("solución perfecta", "empresa líder")
+- Termina con el CTA, SIN firma ni nombre suelto al cierre`,
   }[channel];
 
   try{
-    const text=await gcCallClaude(`Eres un experto en outbound B2B para México y LATAM. Genera 3 variantes de mensaje para un Account Executive de Odoo.
+    const text=await gcCallClaude(`Eres un experto en outbound B2B para México y LATAM, especializado en venta consultiva de plataformas SaaS tipo ERP (como Odoo). Genera 3 variantes de mensaje para un Account Executive de Odoo.
 
 ${gcCompanyContext()}
 NOMBRE DEL AE (remitente): ${aeNombre}
@@ -4109,9 +4132,16 @@ TONO: ${cont.tone} | LONGITUD: ${cont.length}
 
 ${channelRules}
 
+${odooResourcesBlock()}
+
 Reglas generales:
+- Tono de venta CONSULTIVA: interés genuino en el negocio del cliente, no en vender. Haz preguntas, aporta perspectiva, no presiones.
+- Sigue buenas prácticas de outbound B2B para SaaS/ERP: gancho relevante al inicio, enfoque pain-first (el problema antes de la solución), brevedad, un solo CTA claro y de bajo compromiso.
+- NO inventes datos, cifras, nombres ni hechos sobre la empresa. Si NO tienes información específica de la empresa (giro, dolores, sistemas, etc.), hazlo más GENÉRICO en vez de fabricar detalles. Mejor general y honesto que específico e inventado.
+- REVISA el historial de la empresa (memoria y mensajes ya enviados arriba): da continuidad, NO repitas el mismo ángulo ni frases ya usadas, y sube el nivel respecto a lo anterior.
+- Si el momento del toque es un SEGUIMIENTO y aporta valor, puedes incluir UN enlace oficial de la lista de RECURSOS (el más relevante a su industria/caso). Usa la URL EXACTA de la lista; NUNCA inventes un enlace específico a un caso o video concreto. No fuerces el enlace si no encaja natural.
 - NO menciones a Claude ni a ninguna IA
-- NO incluyas firma ni línea de despedida al final (sin 'Saludos', 'Quedo a tus órdenes', 'Atentamente', etc.)
+- NO incluyas firma ni línea de despedida al final (sin 'Saludos', 'Quedo a tus órdenes', 'Atentamente', ni tu nombre suelto en una línea al cierre). El mensaje termina en el CTA.
 - Evita palabras grandilocuentes: 'solución integral', 'de clase mundial', 'líder del mercado', 'potencializar', 'disruptivo', 'robusto', 'plataforma de vanguardia', 'ecosistema', 'sinergias'
 - Cada variante con un ángulo claramente distinto
 - Español de México natural, directo, sin sonar a vendedor de catálogo
