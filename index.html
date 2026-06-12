@@ -927,7 +927,7 @@ const MODULES = [
   { id:'gencontenidos', icon:'✉️', label:'Generación de contenidos', phase:5, ready:true  },
   { id:'csv',           icon:'📋', label:'CSV Builder',              phase:3, ready:true  },
   { id:'pricing',       icon:'💰', label:'Pricing',                  phase:6, ready:true  },
-  { id:'analytics',     icon:'📊', label:'Analytics',                phase:7, ready:false },
+  { id:'analytics',     icon:'📊', label:'Analytics',                phase:7, ready:true  },
 ];
 const ASSETS = 'https://gacj-lang.github.io/outbound-mx/assets';
 
@@ -1243,7 +1243,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
     pricing:renderPricing, csv:renderCsvBuilder,
     gencontenidos:renderGenContenidos,
     propuesta:renderPropuestaComercial,
-    analytics:()=>renderComingSoon('Analytics','📊','Fase 7','Métricas de uso por AE, TL y equipo.'),
+    analytics:renderAnalytics,
     manager:renderManagerPanel, settings:renderSettings,
     framework:renderFrameworkVisual,
   };
@@ -1259,6 +1259,165 @@ async function loadPendingCountForHome(){
     ?`<div class="alert-banner alert-warning" onclick="showModule('manager')" style="cursor:pointer">⏳ <strong>${snap.size} usuario${snap.size>1?'s':''} pendiente${snap.size>1?'s':''}</strong> de aprobación<span class="alert-cta">Ver →</span></div>`
     :`<div class="alert-banner alert-success">✓ No hay usuarios pendientes</div>`;
 }
+// ══════════════════════════════════════════
+// ANALYTICS — métricas de uso por AE / TL / equipo
+// Alcance por rol: manager=todo · tl=su equipo (tlId) · ae=lo suyo (aeUid)
+// ══════════════════════════════════════════
+const _analyticsState={range:6};
+let _analyticsRaw=null;
+const _A_CANALES=[
+  {key:'whatsapp',    label:'WhatsApp',     color:'#25D366'},
+  {key:'correo',      label:'Correo',       color:'#FBB130'},
+  {key:'linkedin',    label:'LinkedIn',     color:'#0A66C2'},
+  {key:'cold_calling',label:'Cold calling', color:'#FC787D'},
+  {key:'brochure',    label:'Brochure',     color:'#714B67'},
+];
+const _aTsMs=ts=>{ if(!ts) return 0; if(typeof ts==='number') return ts; if(ts.toMillis){ try{return ts.toMillis()}catch(e){} } if(ts.seconds) return ts.seconds*1000; const p=Date.parse(ts); return isNaN(p)?0:p; };
+const _aNormCanal=t=>{ t=(t||'').toLowerCase(); return t==='linkedin_post'?'linkedin':t; };
+
+async function renderAnalytics(){
+  const content=document.getElementById('moduleContent');
+  content.innerHTML=`
+    <div style="max-width:1100px;margin:0 auto;padding:24px">
+      <div class="page-header" style="margin-bottom:20px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div><h2>📊 Analytics</h2><p>Métricas de uso por AE, TL y equipo.</p></div>
+        <select id="aRange" class="input" style="max-width:170px" onchange="analyticsSetRange(this.value)">
+          <option value="3">Últimos 3 meses</option>
+          <option value="6" selected>Últimos 6 meses</option>
+          <option value="12">Últimos 12 meses</option>
+          <option value="all">Todo el tiempo</option>
+        </select>
+      </div>
+      <div id="analyticsBody"><div class="cdc-empty">Cargando métricas…</div></div>
+    </div>`;
+  await analyticsLoad();
+}
+window.analyticsSetRange=function(v){ _analyticsState.range = v==='all'?'all':parseInt(v,10); analyticsCompute(); };
+
+async function analyticsLoad(){
+  const body=document.getElementById('analyticsBody');
+  if(!db){ if(body) body.innerHTML='<div class="cdc-empty">Requiere conexión a Firebase</div>'; return; }
+  const me=currentUserData||{}; const role=me.role;
+  // Alcance por rol
+  let scope;
+  if(role==='manager') scope={role,all:true};
+  else if(role==='tl'){
+    const grams=new Set([me.gram].filter(Boolean)), uids=new Set([me.uid].filter(Boolean));
+    try{ const s=await getDocs(query(collection(db,'users'),where('tlId','==',me.uid))); s.docs.forEach(d=>{const u=d.data(); if(u.gram)grams.add(u.gram); if(u.uid)uids.add(u.uid);}); }
+    catch(e){ console.warn('analytics team:',e); }
+    scope={role,all:false,grams,uids};
+  } else scope={role,all:false,grams:new Set([me.gram].filter(Boolean)),uids:new Set([me.uid].filter(Boolean))};
+  // Discoveries con query por rol (patrón de la app, compatible con reglas/índices)
+  let dq;
+  if(role==='manager') dq=query(collection(db,'discoveryRecords'),orderBy('createdAt','desc'));
+  else if(role==='tl') dq=query(collection(db,'discoveryRecords'),where('tlId','==',me.uid));
+  else dq=query(collection(db,'discoveryRecords'),where('aeUid','==',me.uid));
+  let discoveries=[],companies=[];
+  try{ const s=await getDocs(dq); discoveries=s.docs.map(d=>d.data()); }catch(e){ console.warn('analytics disc:',e); }
+  try{ companies=await searchCompanies(); }catch(e){ console.warn('analytics cos:',e); }
+  _analyticsRaw={scope,discoveries,companies};
+  analyticsCompute();
+}
+
+function analyticsCompute(){
+  const body=document.getElementById('analyticsBody'); if(!body||!_analyticsRaw) return;
+  const {scope,discoveries,companies}=_analyticsRaw;
+  const range=_analyticsState.range, now=Date.now();
+  const cutoff = range==='all'?0: now - range*30*86400000;
+  const within=ms=> cutoff===0 ? true : ms>=cutoff;
+  const inScope=(gram,uid)=> scope.all || (uid&&scope.uids.has(uid)) || (gram&&scope.grams.has(gram));
+
+  const people={};
+  const P=(gram,name)=>{ const g=gram||'—'; const p=people[g]||(people[g]={gram:g,name:name||g,disc:0,emp:0,cont:0,canal:{}}); if(name&&p.name===p.gram)p.name=name; return p; };
+  const canalTotals={}; _A_CANALES.forEach(c=>canalTotals[c.key]=0); canalTotals.otro=0;
+
+  // Buckets mensuales
+  const monthCount = range==='all'?12:range;
+  const buckets=[], bmap={}, dnow=new Date(now);
+  for(let i=monthCount-1;i>=0;i--){ const d=new Date(dnow.getFullYear(),dnow.getMonth()-i,1); const key=d.getFullYear()+'-'+d.getMonth(); buckets.push(bmap[key]={key,label:d.toLocaleDateString('es-MX',{month:'short'}),disc:0,cont:0}); }
+  const bucketFor=ms=>{ if(!ms) return null; const d=new Date(ms); return bmap[d.getFullYear()+'-'+d.getMonth()]||null; };
+
+  discoveries.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; P(d.aeGram,d.aeName).disc++; const b=bucketFor(ms); if(b)b.disc++; });
+  companies.forEach(co=>{
+    const cg=co.createdByGram, cu=co.createdByUid;
+    if(inScope(cg,cu)){ const ms=_aTsMs(co.createdAt); if(within(ms)) P(cg,co.createdBy).emp++; }
+    const saved=co.memory?.contenidos?.saved||[];
+    saved.forEach(s=>{ const g=s.aeGram; if(!inScope(g,null)) return; const ms=_aTsMs(s.date); if(!within(ms)) return; const p=P(g,s.aeName); p.cont++;
+      const canal=_aNormCanal(s.tipo), ck=_A_CANALES.find(c=>c.key===canal)?canal:'otro'; p.canal[ck]=(p.canal[ck]||0)+1; canalTotals[ck]=(canalTotals[ck]||0)+1;
+      const b=bucketFor(ms); if(b)b.cont++; });
+  });
+
+  const rows=Object.values(people).filter(p=>p.disc||p.emp||p.cont).map(p=>({...p,total:p.disc+p.emp+p.cont})).sort((a,b)=>b.total-a.total);
+  const totDisc=rows.reduce((s,p)=>s+p.disc,0), totEmp=rows.reduce((s,p)=>s+p.emp,0), totCont=rows.reduce((s,p)=>s+p.cont,0);
+
+  body.innerHTML = analyticsKPIs(totDisc,totEmp,totCont,rows.length)
+    + analyticsPeople(rows)
+    + analyticsTrend(buckets)
+    + analyticsContent(canalTotals,rows);
+}
+
+function _aSection(title,inner){ return `<div class="card" style="padding:20px;margin-bottom:22px"><h3 style="font-size:15px;font-weight:700;margin-bottom:14px">${title}</h3>${inner}</div>`; }
+function _aStat(label,value,color){ return `<div class="card" style="flex:1;min-width:150px;padding:18px 20px"><div style="font-size:28px;font-weight:800;color:${color};line-height:1">${value}</div><div style="font-size:12.5px;color:var(--gray-500);margin-top:4px">${label}</div></div>`; }
+function analyticsKPIs(d,e,c,n){ return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px">
+  ${_aStat('Discoveries',d,'#714B67')}${_aStat('Empresas creadas',e,'#017E84')}${_aStat('Contenidos generados',c,'#FBB130')}${_aStat('Personas activas',n,'#FC787D')}</div>`; }
+
+function analyticsPeople(rows){
+  if(!rows.length) return _aSection('👥 Actividad por persona','<div class="cdc-empty">Sin actividad en el periodo seleccionado</div>');
+  const max=Math.max(1,...rows.map(r=>r.total));
+  const grid='display:grid;grid-template-columns:1.6fr 64px 64px 64px 1.2fr;gap:8px;align-items:center';
+  const head=`<div style="${grid};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400);padding:0 4px 8px">
+    <div>Persona</div><div style="text-align:right">Disc.</div><div style="text-align:right">Emp.</div><div style="text-align:right">Cont.</div><div style="text-align:right">Total</div></div>`;
+  const rowsH=rows.map(r=>`<div style="${grid};padding:8px 4px;border-top:1px solid var(--gray-100)">
+    <div style="display:flex;align-items:center;gap:8px;min-width:0">
+      <div style="width:24px;height:24px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(r.name||'?')[0].toUpperCase()}</div>
+      <div style="min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</div><div style="font-size:11px;color:var(--gray-400)">${r.gram}</div></div></div>
+    <div style="text-align:right;font-size:13px">${r.disc}</div><div style="text-align:right;font-size:13px">${r.emp}</div><div style="text-align:right;font-size:13px">${r.cont}</div>
+    <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
+      <div style="flex:1;height:8px;background:var(--gray-100);border-radius:99px;overflow:hidden;max-width:110px"><div style="height:100%;width:${Math.round(r.total/max*100)}%;background:var(--purple)"></div></div>
+      <span style="font-size:13px;font-weight:700;min-width:22px;text-align:right">${r.total}</span></div></div>`).join('');
+  return _aSection('👥 Actividad por persona',head+rowsH);
+}
+
+function analyticsTrend(buckets){
+  const totalAll=buckets.reduce((s,b)=>s+b.disc+b.cont,0);
+  if(!totalAll) return _aSection('📈 Tendencia en el tiempo','<div class="cdc-empty">Sin actividad en el periodo seleccionado</div>');
+  const max=Math.max(1,...buckets.flatMap(b=>[b.disc,b.cont]));
+  const n=buckets.length, W=720, H=200, padL=26, padB=24, padT=12, plotH=H-padB-padT, plotW=W-padL-8;
+  const gw=plotW/n, bw=Math.min(16,gw/3.2);
+  const y=v=>padT+plotH-(v/max*plotH);
+  let bars='',labels='';
+  buckets.forEach((b,i)=>{ const cx=padL+gw*i+gw/2;
+    bars+=`<rect x="${(cx-bw-2).toFixed(1)}" y="${y(b.disc).toFixed(1)}" width="${bw.toFixed(1)}" height="${(padT+plotH-y(b.disc)).toFixed(1)}" rx="2" fill="#714B67"></rect>`;
+    bars+=`<rect x="${(cx+2).toFixed(1)}" y="${y(b.cont).toFixed(1)}" width="${bw.toFixed(1)}" height="${(padT+plotH-y(b.cont)).toFixed(1)}" rx="2" fill="#017E84"></rect>`;
+    labels+=`<text x="${cx.toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#9ca3af">${b.label}</text>`; });
+  const svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:100%;height:auto;font-family:Inter,sans-serif">
+    <line x1="${padL}" y1="${y(0)}" x2="${W}" y2="${y(0)}" stroke="#e5e7eb"></line>
+    <text x="0" y="${(y(max)+4).toFixed(1)}" font-size="10" fill="#9ca3af">${max}</text>${bars}${labels}</svg>`;
+  const legend=`<div style="display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--gray-500)">
+    <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#714B67"></span>Discoveries</span>
+    <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#017E84"></span>Contenidos</span></div>`;
+  return _aSection('📈 Tendencia en el tiempo',svg+legend);
+}
+
+function analyticsContent(canalTotals,rows){
+  const total=Object.values(canalTotals).reduce((a,b)=>a+b,0);
+  if(!total) return _aSection('✉️ Producción de contenido','<div class="cdc-empty">Sin contenido generado en el periodo seleccionado</div>');
+  const list=_A_CANALES.concat([{key:'otro',label:'Otro',color:'#9ca3af'}]).filter(c=>(canalTotals[c.key]||0)>0);
+  const max=Math.max(1,...list.map(c=>canalTotals[c.key]||0));
+  const canalBars=list.map(c=>{ const v=canalTotals[c.key]||0; return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="width:96px;font-size:12.5px;color:var(--gray-700);flex-shrink:0">${c.label}</div>
+      <div style="flex:1;height:14px;background:var(--gray-100);border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.round(v/max*100)}%;background:${c.color}"></div></div>
+      <div style="width:36px;text-align:right;font-size:12.5px;font-weight:700">${v}</div></div>`; }).join('');
+  const top=rows.filter(r=>r.cont).sort((a,b)=>b.cont-a.cont).slice(0,8);
+  const peopleRows=top.map(r=>{ const chips=_A_CANALES.filter(c=>r.canal[c.key]).map(c=>`<span style="font-size:11px;background:${c.color}22;color:${c.color};padding:2px 7px;border-radius:99px">${c.label} ${r.canal[c.key]}</span>`).join(' ');
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 4px;border-top:1px solid var(--gray-100)">
+      <div style="font-size:13px;font-weight:600">${r.name} <span style="color:var(--gray-400);font-weight:400">· ${r.cont}</span></div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">${chips}</div></div>`; }).join('');
+  return _aSection('✉️ Producción de contenido',
+    `<div style="margin-bottom:10px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em">Por canal</div>${canalBars}
+     <div style="margin:18px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em">Por persona</div>${peopleRows}`);
+}
+
 function renderComingSoon(title,icon,phase,desc){
   document.getElementById('moduleContent').innerHTML=`
     <div class="coming-soon-wrap">
