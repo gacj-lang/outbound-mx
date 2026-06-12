@@ -4601,6 +4601,45 @@ function renderGcColdCalling(){
   gcInitCP('cc');
 }
 
+// Render visual del guion de cold calling (pasos numerados + objeciones en tarjetas)
+function gcRenderColdScript(data){
+  const e=_esc;
+  const secs=Array.isArray(data.secciones)?data.secciones:[];
+  const objs=Array.isArray(data.objeciones)?data.objeciones:[];
+  const steps=secs.map((s,i)=>`
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--purple);color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px">
+          <span style="font-size:14px;font-weight:700;color:var(--gray-900)">${e(s.titulo||'')}</span>
+          ${s.duracion?`<span style="font-size:11px;font-weight:600;color:var(--purple);background:var(--purple-light);padding:2px 8px;border-radius:99px">⏱ ${e(s.duracion)}</span>`:''}
+        </div>
+        ${s.guion?`<div style="background:var(--gray-50);border-left:3px solid var(--purple);border-radius:0 8px 8px 0;padding:10px 14px;font-size:13.5px;line-height:1.6;color:var(--gray-900)">🗣️ ${e(s.guion)}</div>`:''}
+        ${s.nota?`<div style="font-size:12px;color:var(--gray-500);margin-top:6px;font-style:italic">⏸ ${e(s.nota)}</div>`:''}
+      </div>
+    </div>`).join('');
+  const objCards=objs.map(o=>`
+    <div style="border:1.5px solid var(--gray-200);border-radius:10px;padding:12px 14px;margin-bottom:8px">
+      <div style="font-size:12.5px;font-weight:700;color:#92400e;background:#fef3c7;display:inline-block;padding:3px 11px;border-radius:99px;margin-bottom:7px">🚫 "${e(o.objecion||'')}"</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--gray-700)">${e(o.respuesta||'')}</div>
+    </div>`).join('');
+  return `<div style="padding:4px 2px">
+    ${steps}
+    ${objs.length?`<div style="margin-top:20px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:10px">🛡️ Manejo de objeciones</div>${objCards}</div>`:''}
+    ${data.cierre?`<div style="background:var(--purple-light);border-radius:10px;padding:14px 16px;margin-top:14px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--purple);margin-bottom:5px">🎯 Cierre / CTA</div>
+      <div style="font-size:13.5px;line-height:1.6;color:var(--gray-900)">${e(data.cierre)}</div></div>`:''}
+  </div>`;
+}
+// Versión en texto plano del guion — para copiar y guardar en la empresa
+function gcColdScriptToText(data,companyName){
+  let out=`GUION DE COLD CALLING${companyName?` — ${companyName}`:''}\n`;
+  (data.secciones||[]).forEach((s,i)=>{ out+=`\n${i+1}. ${s.titulo||''}${s.duracion?` (${s.duracion})`:''}\n`; if(s.guion)out+=`"${s.guion}"\n`; if(s.nota)out+=`[${s.nota}]\n`; });
+  if((data.objeciones||[]).length){ out+=`\nMANEJO DE OBJECIONES\n`; (data.objeciones||[]).forEach(o=>{ out+=`• "${o.objecion||''}": ${o.respuesta||''}\n`; }); }
+  if(data.cierre) out+=`\nCIERRE / CTA\n${data.cierre}\n`;
+  return out.trim();
+}
+window.gcCopyColdScript=function(){ navigator.clipboard.writeText(window._gcColdText||'').then(()=>showNotif('Guion copiado ✓','success')); };
 window.gcGenerateColdCalling=async function(){
   if(!cont.company){ showNotif('Selecciona una empresa primero','error'); return; }
   const obj=document.getElementById('gcCcObjetivo')?.value||'agendar_demo';
@@ -4612,7 +4651,7 @@ window.gcGenerateColdCalling=async function(){
   btn.disabled=true; gcShowLoading('gcCcLoading',true);
   document.getElementById('gcCcOutput').classList.remove('show');
   try{
-    const text=await gcCallClaude(`Eres un experto en ventas B2B y cold calling para mercados LATAM. Genera un guion completo de apertura de llamada en frío para un Account Executive de Odoo México.
+    const raw=await gcCallClaude(`Eres un experto en ventas B2B y cold calling para mercados LATAM. Genera un guion de apertura de llamada en frío para un Account Executive de Odoo México.
 
 ${gcCompanyContext()}
 CARGO DEL PROSPECTO: ${cargo||'Director/Gerente'}
@@ -4622,33 +4661,43 @@ CONTEXTO PREVIO: ${ctx||'ninguno'}
 ${apptLink?`LINK PARA AGENDAR: ${apptLink}`:''}
 TONO: ${cont.tone}
 
-Genera el guion con estas secciones:
-1. **APERTURA** (5-10 segundos): Presentación natural, no vendedora
-2. **HOOK DE INDUSTRIA** (15-20 segundos): Una pregunta o dato que detona curiosidad específica para su industria/empresa
-3. **PROPÓSITO CLARO** (15 segundos): Por qué llamas, qué quieres lograr
-4. **MANEJO DE OBJECIONES**: 3 objeciones comunes con respuestas naturales
-   - "No tengo tiempo"
-   - "Ya tenemos sistema"
-   - "Mándame un correo"
-5. **CIERRE**: CTA para agendar${apptLink?` usando el link: ${apptLink}`:''}
-
 ${odooResourcesBlock()}
 
+Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin texto adicional) con esta estructura EXACTA:
+{
+  "secciones": [
+    {"titulo":"Apertura","duracion":"5-10 seg","guion":"lo que el AE dice en voz alta — presentación natural, no vendedora","nota":"indicación breve para el AE, ej. 'Pausa, deja que responda' (opcional)"},
+    {"titulo":"Hook de industria","duracion":"15-20 seg","guion":"pregunta o perspectiva que detona curiosidad para su industria","nota":"Escuchar activamente"},
+    {"titulo":"Propósito","duracion":"15 seg","guion":"por qué llamas y qué quieres lograr","nota":""}
+  ],
+  "objeciones": [
+    {"objecion":"No tengo tiempo","respuesta":"respuesta natural, máx 2-3 oraciones"},
+    {"objecion":"Ya tenemos sistema","respuesta":"..."},
+    {"objecion":"Mándame un correo","respuesta":"... y ofrece UN recurso oficial relevante de la lista (URL EXACTA, nunca inventes un enlace)"}
+  ],
+  "cierre":"CTA para agendar${apptLink?`, usando el link ${apptLink}`:''}"
+}
+
 Reglas:
-- Español de México, natural y conversacional
-- Tono de venta CONSULTIVA: interés genuino en su operación, no en vender; haz preguntas y aporta perspectiva, sin presionar
-- NO inventes datos, cifras ni nombres de la empresa. Si NO hay información específica, mantén el hook a nivel de la industria (genérico) en vez de fabricar detalles
+- "guion" es lo que el AE DICE en voz alta: primera persona, español de México natural y conversacional, NO sonar a script
+- Tono de venta CONSULTIVA: interés genuino en su operación, preguntas, sin presionar
+- NO inventes datos, cifras ni nombres de la empresa. Si NO hay info específica, mantén el hook a nivel de industria (genérico)
 - Revisa el historial de la empresa (memoria arriba): da continuidad, no repitas lo ya dicho
-- En la objeción "Mándame un correo", ofrece enviar UN recurso oficial relevante de la lista (URL EXACTA, nunca inventes un enlace específico)
-- No sonar a script — sonar a conversación real
-- Cada respuesta a objeción max 2-3 oraciones
-- Formato claro con las secciones marcadas`);
-    gcShowOutput('gcCcOutput',text,false);
+- "nota" son indicaciones para el AE (no se dicen en voz alta): breves y opcionales
+- JSON válido, comillas dobles, sin comas finales, sin markdown`);
+    let data; try{ data=_parseJSON(raw); }catch(e){ data=null; }
+    const plain = data ? gcColdScriptToText(data, cont.company?.nombre) : raw;
+    window._gcColdText = plain;
+    const out=document.getElementById('gcCcOutput'); out.classList.add('show');
+    out.innerHTML=`<div class="gc-output-header">
+        <span class="gc-output-label">📞 Guion de Cold Calling${cont.company?.nombre?` · ${_esc(cont.company.nombre)}`:''}</span>
+        <div class="gc-output-actions"><button class="gc-copy-btn" onclick="gcCopyColdScript()">📋 Copiar</button></div>
+      </div>${ data ? gcRenderColdScript(data) : `<div class="gc-variant-card"><div class="gc-variant-text" style="white-space:pre-wrap">${_esc(raw)}</div></div>` }`;
     if(cont.company?.id){
       gcShowSavedBadge('gcCcOutput');
       updateCompanyMemory(cont.company.id,'contenido',{
         contenido:{tipo:'cold_calling',topic:obj,cargo,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
-        savedContent:{tipo:'cold_calling',momLabel:'Cold calling',contacto:cont.contact?.nombre||'',texto:text},
+        savedContent:{tipo:'cold_calling',momLabel:'Cold calling',contacto:cont.contact?.nombre||'',texto:plain},
         touchpoint:{type:'cold_calling',summary:`Cold calling script · ${cont.contact?.nombre||cont.company?.nombre||''}`}
       });
     }
