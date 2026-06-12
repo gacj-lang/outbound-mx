@@ -167,7 +167,7 @@ input,select,textarea{font-family:inherit;}
 .module-card.ready-module{border-color:var(--purple-light);}
 .module-icon{font-size:28px;margin-bottom:4px;}
 .module-label{font-size:15px;font-weight:600;}
-.module-phase{font-size:11px;color:var(--gray-400);font-weight:500;}
+.module-desc{font-size:12px;color:var(--gray-500);line-height:1.4;}
 .module-status{font-size:11px;padding:2px 8px;border-radius:99px;display:inline-block;margin-top:4px;}
 .module-status.coming{background:var(--gray-100);color:var(--gray-500);}
 .module-status.ready{background:var(--success-light);color:var(--success);}
@@ -923,11 +923,11 @@ const AE_LIST = {
 };
 const MANAGER = { gram:'gacj', name:'Geovani Ariel Jiménez Cruz', email:'gacj@odoo.com' };
 const MODULES = [
-  { id:'discovery',     icon:'🔍', label:'Discovery Guide',          phase:2, ready:true  },
-  { id:'gencontenidos', icon:'✉️', label:'Generación de contenidos', phase:5, ready:true  },
-  { id:'csv',           icon:'📋', label:'CSV Builder',              phase:3, ready:true  },
-  { id:'pricing',       icon:'💰', label:'Pricing',                  phase:6, ready:true  },
-  { id:'analytics',     icon:'📊', label:'Analytics',                phase:7, ready:true  },
+  { id:'discovery',     icon:'🔍', label:'Discovery Guide',          desc:'Califica prospectos con preguntas guiadas y detecta sus necesidades.', ready:true  },
+  { id:'gencontenidos', icon:'✉️', label:'Generación de contenidos', desc:'Crea mensajes e imágenes para WhatsApp, correo y LinkedIn.',          ready:true  },
+  { id:'csv',           icon:'📋', label:'CSV Builder',              desc:'Construye y exporta listas de prospectos en CSV.',                    ready:true  },
+  { id:'pricing',       icon:'💰', label:'Pricing',                  desc:'Cotiza licencias, implementación e IVA de Odoo.',                     ready:true  },
+  { id:'analytics',     icon:'📊', label:'Analytics',                desc:'Métricas de uso y actividad del equipo.',                            ready:true  },
 ];
 const ASSETS = 'https://gacj-lang.github.io/outbound-mx/assets';
 
@@ -5057,7 +5057,7 @@ function renderHome(){
           <button class="module-card${m.ready?' ready-module':''}" onclick="showModule('${m.id}')">
             <div class="module-icon">${m.icon}</div>
             <div class="module-label">${m.label}</div>
-            <div class="module-phase">Fase ${m.phase}</div>
+            <div class="module-desc">${m.desc||''}</div>
             <div class="module-status ${m.ready?'ready':'coming'}">${m.ready?'✓ Disponible':'Próximamente'}</div>
           </button>`).join('')}
       </div>
