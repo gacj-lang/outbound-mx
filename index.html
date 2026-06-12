@@ -194,13 +194,16 @@ input,select,textarea{font-family:inherit;}
 .page-header h2{font-size:22px;font-weight:700;margin-bottom:4px;}
 .page-header p{color:var(--gray-500);font-size:14px;}
 .manager-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
-.user-card{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--gray-100);gap:12px;}
+.user-card{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--gray-100);gap:12px;flex-wrap:wrap;}
 .user-card:last-child{border-bottom:none;}
-.user-card-info{display:flex;align-items:center;gap:10px;min-width:0;}
+.user-card-info{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 220px;overflow:hidden;}
+.user-card-info > div{min-width:0;}
 .user-card-info strong{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .user-card-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.role-select{padding:5px 8px;border-radius:var(--radius-sm);border:1.5px solid var(--gray-200);font-size:13px;color:var(--gray-700);background:white;}
+.role-select{padding:5px 8px;border-radius:var(--radius-sm);border:1.5px solid var(--gray-200);font-size:13px;color:var(--gray-700);background:white;max-width:100%;}
 .role-select:focus{outline:none;border-color:var(--purple);}
+.role-select.role-pick{width:62px;flex-shrink:0;}
+.role-select.tl-select{max-width:210px;min-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .team-section{}
 .section-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);padding:8px 20px;}
 .empty-state{padding:24px 20px;color:var(--gray-400);font-size:14px;text-align:center;}
@@ -1137,11 +1140,11 @@ function renderTeamList(users){
   const row=(u)=>`<div class="user-card">
     <div class="user-card-info"><div class="user-avatar sm">${u.name[0]}</div><div><strong>${u.name}</strong><div class="user-meta">${u.gram}${u.appointmentLink?` · 📅`:''}</div></div></div>
     <div class="user-card-actions">
-      <select class="role-select" onchange="assignRole('${u.uid}',this.value)">
+      <select class="role-select role-pick" onchange="assignRole('${u.uid}',this.value)">
         <option value="ae" ${u.role==='ae'?'selected':''}>AE</option>
         <option value="tl" ${u.role==='tl'?'selected':''}>TL</option>
       </select>
-      <select class="role-select" onchange="assignTL('${u.uid}',this.value)">
+      <select class="role-select tl-select" onchange="assignTL('${u.uid}',this.value)">
         ${tlOpts.replace(`value="${u.tlId||''}"`,`value="${u.tlId||''}" selected`)}
       </select>
       <button class="btn btn-ghost btn-sm" onclick="openEditUserPopup('${u.uid}')" title="Editar usuario">✏️</button>
