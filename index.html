@@ -1450,14 +1450,6 @@ function analyticsContent(canalTotals,rows){
      <div style="margin:18px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em">Por persona</div>${peopleRows}`);
 }
 
-function renderComingSoon(title,icon,phase,desc){
-  document.getElementById('moduleContent').innerHTML=`
-    <div class="coming-soon-wrap">
-      <div class="coming-soon-icon">${icon}</div><h2>${title}</h2>
-      <div class="coming-badge">${phase}</div><p>${desc}</p>
-      <div class="coming-soon-note">En desarrollo — se habilitará en la siguiente fase.</div>
-    </div>`;
-}
 function renderManagerPanel(){
   document.getElementById('moduleContent').innerHTML=`
     <div class="manager-wrap">
@@ -3965,7 +3957,7 @@ async function gcSaveContentToCompany(companyId,entry){
   if(!snap.exists()) throw new Error('Empresa no encontrada');
   const mem=snap.data().memory||{};
   const cont0=mem.contenidos||{};
-  const saved=[{...entry,aeName:currentUserData?.name||'',aeGram:currentUserData?.gram||'',date:new Date().toISOString()},...(cont0.saved||[])].slice(0,50);
+  const saved=[{...entry,aeName:currentUserData?.name||'',aeGram:currentUserData?.gram||'',date:new Date().toISOString()},...(cont0.saved||[])].slice(0,60);
   const updated={...mem,contenidos:{...cont0,saved},lastUpdated:new Date().toISOString()};
   await updateDoc(ref,{'memory':updated,'updatedAt':serverTimestamp()});
   if(cpState.selectedCompany?.id===companyId) cpState.selectedCompany.memory=updated;
