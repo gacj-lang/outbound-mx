@@ -1328,7 +1328,9 @@ function analyticsCompute(){
   const inScope=(gram,uid)=> scope.all || (uid&&scope.uids.has(uid)) || (gram&&scope.grams.has(gram));
 
   const people={};
-  const P=(gram,name)=>{ const g=gram||'—'; const p=people[g]||(people[g]={gram:g,name:name||g,disc:0,emp:0,cont:0,canal:{}}); if(name&&p.name===p.gram)p.name=name; return p; };
+  const P=(gram,name)=>{ const key=gram||'__none__'; let p=people[key];
+    if(!p) p=people[key]={gram:gram||'',name:name||(gram||'Sin asignar'),disc:0,emp:0,cont:0,canal:{}};
+    if(name&&(!p.name||p.name===p.gram||p.name==='Sin asignar'))p.name=name; return p; };
   const canalTotals={}; _A_CANALES.forEach(c=>canalTotals[c.key]=0); canalTotals.otro=0;
 
   // Buckets mensuales
