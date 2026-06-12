@@ -5231,6 +5231,7 @@ window.empFilter=function(){
 };
 window.empOpenDetail=async function(id){
   const co=_allEmpresas.find(c=>c.id===id); if(!co) return;
+  document.getElementById('empDetailPopup')?.remove();  // evita popups duplicados al re-renderizar (p.ej. tras eliminar)
   const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='empDetailPopup';
   overlay.innerHTML=`<div class="disc-popup-box" style="max-width:760px">
     <div class="disc-popup-header">
@@ -5286,18 +5287,27 @@ window.empOpenDetail=async function(id){
 
       if(savedContent.length){
         const chLabel={whatsapp:'💬 WhatsApp',correo:'📧 Correo',linkedin:'👤 LinkedIn',cold_calling:'📞 Cold Calling',brochure:'📄 Brochure'};
-        sections.push(`<div style="margin-bottom:16px">${secHead(`✉️ Contenido guardado (${savedContent.length})`)}
-          ${savedContent.map((s,i)=>`<div style="padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
-              <div style="font-size:12px;font-weight:700;color:var(--purple)">${chLabel[s.tipo]||s.tipo||'Mensaje'}${s.momLabel?` · ${s.momLabel.split('—')[0].trim()}`:''}${s.variante?` · V${s.variante}`:''}</div>
-              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                <span style="font-size:11px;color:var(--gray-400)">${fmtISO(s.date)}</span>
-                <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="navigator.clipboard.writeText(this.closest('div').parentElement.querySelector('.emp-saved-text').dataset.full).then(()=>showNotif('Copiado ✓','success'))">📋</button>
-                ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" style="padding:2px 8px;font-size:11px" onclick="empDeleteSavedContent('${id}',${i})">🗑</button>`:''}
+        const isMgr=currentUserData?.role==='manager';
+        const bulkBar=isMgr?`<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-500);cursor:pointer">
+            <input type="checkbox" id="empScAll" onchange="empToggleAllContent(this.checked)"> Seleccionar todos</label>
+          <button id="empScDelBtn" class="btn btn-ghost-danger btn-sm" style="padding:3px 10px;font-size:11px;display:none" onclick="empDeleteSelectedContent('${id}')">🗑 Eliminar seleccionados (<span id="empScCount">0</span>)</button>
+        </div>`:'';
+        sections.push(`<div style="margin-bottom:16px">${secHead(`✉️ Contenido guardado (${savedContent.length})`)}${bulkBar}
+          ${savedContent.map((s,i)=>`<div class="emp-sc-item" style="display:flex;gap:10px;padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px">
+            ${isMgr?`<input type="checkbox" class="emp-sc-check" data-idx="${i}" onchange="empUpdateContentSelection()" style="margin-top:3px;cursor:pointer;flex-shrink:0">`:''}
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+                <div style="font-size:12px;font-weight:700;color:var(--purple)">${chLabel[s.tipo]||s.tipo||'Mensaje'}${s.momLabel?` · ${s.momLabel.split('—')[0].trim()}`:''}${s.variante?` · V${s.variante}`:''}</div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                  <span style="font-size:11px;color:var(--gray-400)">${fmtISO(s.date)}</span>
+                  <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="navigator.clipboard.writeText(this.closest('.emp-sc-item').querySelector('.emp-saved-text').dataset.full).then(()=>showNotif('Copiado ✓','success'))">📋</button>
+                  ${isMgr?`<button class="btn btn-ghost-danger btn-sm" style="padding:2px 8px;font-size:11px" onclick="empDeleteSavedContent('${id}',${i})">🗑</button>`:''}
+                </div>
               </div>
+              <div class="emp-saved-text" data-full="${_esc(s.texto||'')}" style="font-size:12.5px;color:var(--gray-700);line-height:1.6;white-space:pre-wrap;max-height:64px;overflow:hidden;cursor:pointer" onclick="this.style.maxHeight=this.style.maxHeight==='none'?'64px':'none'">${_esc(s.texto||'')}</div>
+              ${s.contacto?`<div style="font-size:11px;color:var(--gray-400);margin-top:4px">Para: ${s.contacto} · ${s.aeName||''}</div>`:''}
             </div>
-            <div class="emp-saved-text" data-full="${_esc(s.texto||'')}" style="font-size:12.5px;color:var(--gray-700);line-height:1.6;white-space:pre-wrap;max-height:64px;overflow:hidden;cursor:pointer" onclick="this.style.maxHeight=this.style.maxHeight==='none'?'64px':'none'">${_esc(s.texto||'')}</div>
-            ${s.contacto?`<div style="font-size:11px;color:var(--gray-400);margin-top:4px">Para: ${s.contacto} · ${s.aeName||''}</div>`:''}
           </div>`).join('')}</div>`);
       }
 
@@ -6816,6 +6826,47 @@ window.empDeleteSavedContent=async function(id,index){
     console.error('empDeleteSavedContent:',e);
     if(e.code==='permission-denied'||e.message?.includes('permission')){
       showNotif('Error de permisos — revisa las reglas de Firestore en la consola de Firebase','error');
+    } else { showNotif('Error: '+e.message,'error'); }
+  }
+};
+// Selección múltiple de contenidos guardados (solo manager)
+window.empUpdateContentSelection=function(){
+  const checks=[...document.querySelectorAll('.emp-sc-check')];
+  const sel=checks.filter(c=>c.checked).length;
+  const btn=document.getElementById('empScDelBtn'), cnt=document.getElementById('empScCount'), all=document.getElementById('empScAll');
+  if(cnt) cnt.textContent=sel;
+  if(btn) btn.style.display=sel?'inline-flex':'none';
+  if(all) all.checked=sel>0&&sel===checks.length;
+};
+window.empToggleAllContent=function(checked){
+  document.querySelectorAll('.emp-sc-check').forEach(c=>{c.checked=checked;});
+  empUpdateContentSelection();
+};
+window.empDeleteSelectedContent=async function(id){
+  if(currentUserData?.role!=='manager'){ showNotif('Solo el manager puede eliminar','error'); return; }
+  const idxs=[...document.querySelectorAll('.emp-sc-check:checked')].map(c=>parseInt(c.dataset.idx,10)).filter(n=>!isNaN(n));
+  if(!idxs.length){ showNotif('Selecciona al menos un contenido','error'); return; }
+  if(!confirm(`¿Eliminar ${idxs.length} contenido(s) seleccionado(s)? Esta acción no se puede deshacer.`)) return;
+  if(!db){ showNotif('Sin conexión a Firebase','error'); return; }
+  try{
+    const ref=doc(db,'companies',id);
+    const snap=await getDoc(ref);
+    if(!snap.exists()){ showNotif('Empresa no encontrada','error'); return; }
+    const mem=snap.data().memory||{};
+    const cont0=mem.contenidos||{};
+    const set=new Set(idxs);
+    const saved=(cont0.saved||[]).filter((_,i)=>!set.has(i));
+    const updated={...mem,contenidos:{...cont0,saved},lastUpdated:new Date().toISOString()};
+    await updateDoc(ref,{'memory':updated,'updatedAt':serverTimestamp()});
+    if(cpState?.selectedCompany?.id===id) cpState.selectedCompany.memory=updated;
+    if(cont?.company?.id===id) cont.company.memory=updated;
+    const ci=_allEmpresas.findIndex(e=>e.id===id); if(ci>=0) _allEmpresas[ci]={..._allEmpresas[ci],memory:updated};
+    showNotif(`${idxs.length} contenido(s) eliminado(s) ✓`,'success');
+    empOpenDetail(id);
+  } catch(e){
+    console.error('empDeleteSelectedContent:',e);
+    if(e.code==='permission-denied'||e.message?.includes('permission')){
+      showNotif('Error de permisos — revisa las reglas de Firestore','error');
     } else { showNotif('Error: '+e.message,'error'); }
   }
 };
