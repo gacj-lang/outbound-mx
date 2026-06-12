@@ -4276,8 +4276,15 @@ Responde con este JSON exacto (sin markdown):
   "subheadline": "Frase secundaria de beneficio (máx 10 palabras)",
   "puntos": ["3 a 4 efectos WOW MUY específicos de la industria de ${ind} con Odoo, cada uno máx 7 palabras. Ej. construcción: 'Costeo de obra en tiempo real', 'Facturación por avance automática', 'Control de materiales por proyecto'"],
   "apps": ["4 a 6 nombres EXACTOS de módulos Odoo relevantes para la industria de ${ind}, copiados LITERALMENTE de esta lista (no inventes nombres): ${_appNames}"],
-  "post_text": "Texto completo del post de LinkedIn (150-280 palabras). Emojis estratégicos (3-5). Estructura: gancho potente en la primera línea, desarrollo, los puntos WOW, reflexión/CTA, y hashtags (#odoo #erp #${ind.toLowerCase().replace(/[^a-z]/g,'')}) en su propia línea al final. Español de México."
-}`);
+  "post_text": "Texto completo del post de LinkedIn (150-280 palabras). Emojis estratégicos (3-5). Estructura: gancho potente en la primera línea, desarrollo, los puntos WOW, reflexión/CTA, y hashtags (#odoo #erp #${ind.toLowerCase().replace(/[^a-z]/g,'')}) en su propia línea al final. Español de México. Tono de aporte de valor y venta consultiva, sin frases grandilocuentes."
+}
+
+${odooResourcesBlock()}
+
+Reglas:
+- NO inventes cifras ni estadísticas. Usa SOLO la ESTADÍSTICA proporcionada arriba; si dice 'ninguna', no incluyas ningún número inventado.
+- Puedes incluir en post_text UN enlace oficial de la lista de RECURSOS si aporta valor (URL EXACTA, nunca inventes un enlace específico). No lo fuerces.
+- Habla solo de capacidades reales de Odoo.`);
     let parsed;
     try { parsed=JSON.parse(copy.replace(/```json?\n?/g,'').replace(/```/g,'').trim()); }
     catch(e){ parsed={headline:msg.substring(0,40),highlight:'',subheadline:'Odoo lo hace posible.',puntos:[]}; }
@@ -4625,8 +4632,14 @@ Genera el guion con estas secciones:
    - "Mándame un correo"
 5. **CIERRE**: CTA para agendar${apptLink?` usando el link: ${apptLink}`:''}
 
+${odooResourcesBlock()}
+
 Reglas:
 - Español de México, natural y conversacional
+- Tono de venta CONSULTIVA: interés genuino en su operación, no en vender; haz preguntas y aporta perspectiva, sin presionar
+- NO inventes datos, cifras ni nombres de la empresa. Si NO hay información específica, mantén el hook a nivel de la industria (genérico) en vez de fabricar detalles
+- Revisa el historial de la empresa (memoria arriba): da continuidad, no repitas lo ya dicho
+- En la objeción "Mándame un correo", ofrece enviar UN recurso oficial relevante de la lista (URL EXACTA, nunca inventes un enlace específico)
 - No sonar a script — sonar a conversación real
 - Cada respuesta a objeción max 2-3 oraciones
 - Formato claro con las secciones marcadas`);
