@@ -982,6 +982,22 @@ const ODOO_RESOURCES = [
 ];
 const odooResourcesBlock = ()=>`RECURSOS OFICIALES DE ODOO (usa SOLO estos enlaces reales — NUNCA inventes una URL específica de un caso o video):\n${ODOO_RESOURCES.map(r=>`- ${r.label}: ${r.url}`).join('\n')}`;
 
+// Casos de éxito REALES de clientes Odoo (del blog oficial). Empresa, resultado y URL verificados.
+// NO inventar testimonios: el brochure inserta uno de estos automáticamente.
+const ODOO_CASES = [
+  {empresa:'The Golden Hog', pais:'EE. UU.', resumen:'unificó sus operaciones de retail y servicio de alimentos con visibilidad total y crecimiento escalable.', tags:['retail','restaurante','comercializadora','ecommerce'], url:'https://www.odoo.com/es/blog/customer-reviews-6/the-golden-hog-optimizes-retail-and-food-service-operations-with-odoo-unified-visibility-and-scalable-growth-2275'},
+  {empresa:'Custom', pais:'Colombia', resumen:'optimizó la gestión de proyectos logísticos con visibilidad financiera en tiempo real.', tags:['logística','servicios','distribución','construcción'], url:'https://www.odoo.com/es/blog/customer-reviews-6/custom-optimiza-la-gestion-de-proyectos-logisticos-con-odoo-visibilidad-financiera-en-tiempo-real-2276'},
+  {empresa:'Lider Energy', pais:'Argentina', resumen:'digitalizó su gestión comercial y de inventarios para acompañar su expansión.', tags:['distribución','comercializadora','manufactura','servicios'], url:'https://www.odoo.com/es/blog/customer-reviews-6/lider-energy-digitaliza-la-gestion-comercial-y-de-inventarios-con-odoo-para-acompanar-su-expansion-energetica-2261'},
+  {empresa:'Delta Brand', pais:'India', resumen:'pasó de operaciones fragmentadas a un sistema único e integrado con todos sus departamentos.', tags:['manufactura','comercializadora','agricultura'], url:'https://www.odoo.com/es/blog/customer-reviews-6/delta-brand-success-story-2285'},
+  {empresa:'Sandro Desii', pais:'España', resumen:'una empresa de alimentos con +60 años llevó su producción artesanal a un sistema integral con Odoo.', tags:['restaurante','manufactura','turismo'], url:'https://www.odoo.com/es/blog/customer-reviews-6/sandro-desii-and-odoo-the-recipe-for-success-2284'},
+];
+function pickOdooCase(giro){
+  const g=(giro||'').toLowerCase();
+  const map={'construcción':['construcción','logística','servicios'],'retail':['retail','comercializadora'],'restaurante':['restaurante','retail'],'comercializadora':['comercializadora','distribución'],'manufactura':['manufactura','comercializadora'],'software/it':['servicios'],'servicios':['servicios','logística'],'distribución':['distribución','comercializadora'],'ecommerce':['ecommerce','retail'],'salud':['distribución','logística'],'educación':['servicios'],'inmobiliaria':['servicios'],'logística':['logística','distribución'],'agricultura':['agricultura','manufactura'],'turismo':['restaurante','servicios']};
+  const wanted=map[g]||['servicios'];
+  return ODOO_CASES.find(c=>c.tags.some(t=>wanted.includes(t)))||ODOO_CASES[0];
+}
+
 let app, auth, db, firebaseReady=false;
 let currentUser=null, currentUserData=null;
 let pendingUsersUnsub=null, allUsersUnsub=null;
@@ -4814,15 +4830,16 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin texto adicional, sin markdo
   "headline_highlight": "string — 1-2 palabras DEL headline que se resaltarán (deben aparecer literalmente en headline)",
   "subtitulo": "string — máx 16 palabras, complementa con la solución",
   "intro": "string — 1 párrafo de 3-4 líneas sobre el problema de esta industria y cómo Odoo lo resuelve",
-  "apps": [ { "nombre": "string (uno de: ${apps.join(', ')})", "beneficio": "string — beneficio clave específico para esta industria en 1 línea", "impacto": "string — impacto cuantificable en 1 frase corta" } ],
+  "apps": [ { "nombre": "string (uno de: ${apps.join(', ')})", "beneficio": "string — beneficio clave específico para esta industria en 1 línea", "impacto": "string — beneficio operativo concreto en 1 frase (NO inventes cifras ni porcentajes)" } ],
   "diferenciadores": [ "string", "string", "string" ],
-  "testimonial": { "cita": "string — testimonio creíble en 1-2 oraciones", "autor": "string — nombre ficticio realista", "empresa": "string — empresa mexicana ficticia del mismo giro" },
   "cta": "string — frase de cierre consultiva + llamada a acción"
 }
+NO generes testimonios ni nombres de clientes: el brochure inserta automáticamente un caso de éxito REAL de Odoo.
 Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de México. JSON válido, comillas dobles, sin comas finales.`);
     let data;
     try{ data=_parseJSON(raw); }
     catch(err){ showNotif('La IA no devolvió un formato válido, reintenta','error'); btn.disabled=false; gcShowLoading('gcBrLoading',false); return; }
+    data._caso=pickOdooCase(cont.company?.giro);  // caso de éxito REAL (no inventado), relevante a la industria
 
     const giro=cont.company?.giro||'';
     const indIcon=industryIconUrl(giro);
@@ -4891,11 +4908,12 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
               </div>
             </div>
 
-            <!-- Testimonial -->
-            ${data.testimonial?.cita?`
+            <!-- Caso de éxito REAL (Odoo customer reviews) -->
+            ${data._caso?`
             <div style="border-left:4px solid #FBB130;padding:6px 0 6px 20px;margin-bottom:32px">
-              <div style="font-size:15px;font-style:italic;color:#21272B;line-height:1.6;margin-bottom:10px">"${data.testimonial.cita}"</div>
-              <div style="font-size:12px;color:#9ca3af;font-weight:600">— ${data.testimonial.autor||''}${data.testimonial.empresa?`, ${data.testimonial.empresa}`:''}</div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:6px">Caso real de Odoo</div>
+              <div style="font-size:15px;color:#21272B;line-height:1.55;margin-bottom:8px"><strong>${data._caso.empresa}</strong>${data._caso.pais?` · ${data._caso.pais}`:''} ${data._caso.resumen}</div>
+              <a href="${data._caso.url}" target="_blank" style="font-size:12px;color:#714B67;font-weight:700;text-decoration:none">Ver caso completo en odoo.com →</a>
             </div>`:''}
 
             <!-- CTA -->
