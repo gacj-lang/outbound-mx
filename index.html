@@ -1647,7 +1647,7 @@ window.saveClaudeKey=function(){
 // DISCOVERY MODULE
 // ══════════════════════════════════════════
 const IND_NAMES={ construccion:'Construcción',retail:'Retail',restaurante:'Restaurante',comercializadora:'Comercializadora',manufactura:'Manufactura',software:'Software/IT',servicios:'Servicios',distribucion:'Distribución',ecommerce:'Ecommerce',salud:'Salud',educacion:'Educación',inmobiliaria:'Inmobiliaria',logistica:'Logística',agricultura:'Agricultura',turismo:'Turismo',otra:'Otra' };
-const TV_NAMES={ cotizacion:'Cotización',suscripcion:'Suscripción',alquiler:'Alquiler',ecommerce:'Ecommerce',pos:'Punto de venta' };
+const TV_NAMES={ cotizacion:'Cotización',suscripcion:'Suscripción',alquiler:'Alquiler',ecommerce:'Ecommerce',pos:'Punto de venta',campo:'Venta en campo' };
 
 const APPS_DB={
   construccion:[{name:'Proyecto',reason:'Costeo de obra, avance y tareas en tiempo real'},{name:'Compras',reason:'OCs ligadas a obra, trazabilidad de materiales'},{name:'Inventario',reason:'Materiales y herramientas por almacén u obra'},{name:'Contabilidad',reason:'Margen por proyecto, facturación por estimaciones'},{name:'Ventas',reason:'Presupuestos de obra profesionales'},{name:'RRHH',reason:'Nómina fija y trabajadores eventuales'}],
@@ -1656,7 +1656,7 @@ const APPS_DB={
   comercializadora:[{name:'Ventas',reason:'Listas de precio por cliente, pedidos recurrentes'},{name:'Inventario',reason:'Lotes, caducidad, consignación'},{name:'Compras',reason:'OCs automáticas por stock mínimo'},{name:'Contabilidad',reason:'Cobranza, alertas de vencimiento, margen por cliente'},{name:'CRM',reason:'Seguimiento de cartera activa'}],
   otra:[{name:'Ventas',reason:'Cotizaciones, pedidos, seguimiento comercial'},{name:'Inventario',reason:'Control de stock en tiempo real'},{name:'Contabilidad',reason:'Facturación CFDI, visibilidad financiera'},{name:'CRM',reason:'Pipeline de ventas y prospectos'}],
 };
-const TV_APPS={ cotizacion:{name:'Ventas',reason:'Cotizaciones multi-línea, conversión automática a pedido'},suscripcion:{name:'Suscripciones',reason:'Facturación recurrente, renovaciones, pagos vencidos'},alquiler:{name:'Alquiler',reason:'Disponibilidad de activos, depósitos, logística'},ecommerce:{name:'eCommerce',reason:'Tienda online multi-canal, conciliación automática'},pos:{name:'Punto de Venta',reason:'POS multi-caja, métodos de pago, integración inventario'} };
+const TV_APPS={ cotizacion:{name:'Ventas',reason:'Cotizaciones multi-línea, conversión automática a pedido'},suscripcion:{name:'Suscripciones',reason:'Facturación recurrente, renovaciones, pagos vencidos'},alquiler:{name:'Alquiler',reason:'Disponibilidad de activos, depósitos, logística'},ecommerce:{name:'eCommerce',reason:'Tienda online multi-canal, conciliación automática'},pos:{name:'Punto de Venta',reason:'POS multi-caja, métodos de pago, integración inventario'},campo:{name:'Ventas (móvil)',reason:'Toma de pedido en ruta, inventario por vehículo, cobro y CFDI en campo'} };
 
 const WOW_DB={
   comercial:[
@@ -1734,6 +1734,118 @@ const WOW_DB={
   ]
 };
 
+// ══ Discovery Guide v2 — catálogos ══
+const DG_IND_ICON={ construccion:'🏗',retail:'🏪',restaurante:'🍽',comercializadora:'📦',manufactura:'🏭',software:'💻',servicios:'🤝',distribucion:'🚚',ecommerce:'🛒',salud:'⚕️',educacion:'📚',inmobiliaria:'🏘',logistica:'📦',agricultura:'🌾',turismo:'✈️',otra:'✏️' };
+const DG_VENTA_ICON={ cotizacion:'📋',suscripcion:'🔄',alquiler:'🔑',ecommerce:'🛒',pos:'🏪',campo:'🚐' };
+const DG_PROD_LABEL={ fisico:'Productos físicos', servicios:'Servicios', mixto:'Mixtos (productos + servicios)' };
+// Preguntas críticas ⭐ por industria (alto valor para demo/cierre — tuneadas a Odoo). Viven en Operativo.
+const DG_IND_CRIT={
+  comercializadora:['¿Cómo concilian inventario entre sucursales o almacenes?','¿Manejan consignación o inventario en poder de terceros?'],
+  retail:['¿Qué pasa con la caja si se cae el internet?','¿Cómo unifican stock entre tienda física y venta en línea?'],
+  restaurante:['¿Descuentan inventario por receta/escandallo al vender?','¿Controlan cocina (KDS) y mermas de preparación?'],
+  manufactura:['¿Cómo planean la producción y las órdenes de trabajo?','¿Lista de materiales (BOM) multinivel o subensambles?','¿Trazabilidad de insumo a producto terminado?'],
+  construccion:['¿Cómo controlan el avance físico por obra?','¿Cómo asignan compras y materiales a cada obra?'],
+  servicios:['¿Cómo controlan la calidad y los entregables del servicio?','¿Subcontratan parte del servicio?'],
+  distribucion:['¿Manejan rutas de entrega y las optimizan?','¿Controlan inventario en tránsito entre almacenes?'],
+  ecommerce:['¿Cómo gestionan envíos, guías y devoluciones?','¿Manejan multi-almacén para los pedidos online?'],
+  salud:['¿Trazabilidad regulatoria de medicamentos o insumos?','¿Agenda de citas conectada a la operación?'],
+  software:['¿Cómo dan soporte y miden SLAs/tickets?','¿Gestionan proyectos de implementación?'],
+  inmobiliaria:['¿Gestionan mantenimiento de las unidades?','¿Control de disponibilidad y ocupación?'],
+  logistica:['¿Manejan rutas, flota y entregas con evidencia?','¿Controlan inventario en tránsito y multi-almacén?'],
+  educacion:['¿Agenda académica y control de grupos?','¿Seguimiento académico de los alumnos?'],
+  turismo:['¿Cómo gestionan disponibilidad y cupos?','¿Coordinan proveedores y servicios del paquete?'],
+  agricultura:['¿Trazabilidad de campo por lote y temporada?','¿Control de insumos y mermas de cosecha?'],
+  otra:['¿Cuál es el proceso que más se rompe o más trabajo manual genera hoy?']
+};
+const DG_NONPROFIT_CRIT=['¿Gestionan eventos, campañas y voluntarios?','¿Cómo coordinan sus programas o proyectos sociales?'];
+// Críticas por tipo de venta (van en Comercial)
+// Preguntas críticas por tipo de venta — separadas por área (com=comercial, op=operativo, adm=administrativo)
+const DG_VENTA_CRIT={
+  cotizacion:{com:['¿Cuánto tardan de cotización a pedido y dónde se atora?','¿Manejan versiones o revisiones de la cotización?']},
+  suscripcion:{com:['¿Cómo manejan altas, bajas y renovaciones?'],adm:['¿Facturación recurrente automática y pagos vencidos?']},
+  alquiler:{com:['¿Cómo cotizan disponibilidad y depósitos?'],op:['¿Control de entregas, devoluciones y estado del activo?']},
+  ecommerce:{op:['¿El inventario se sincroniza con la tienda online?'],adm:['¿Conciliación automática de pagos online?']},
+  pos:{op:['¿Operan offline si se cae el internet?','¿El POS descuenta inventario en tiempo real?'],adm:['¿Cierre de caja por turno/sucursal?']},
+  campo:{com:['¿Cómo toman el pedido en ruta (papel/app)?'],op:['¿Manejan inventario por vehículo/camioneta?'],adm:['¿Cobran y facturan en el punto de entrega?']}
+};
+// Preguntas clave de información — GENERALES por área (sí o sí en toda llamada)
+const DG_COM_GENERAL=[
+  {t:'¿Manejan listas de precios?',s:'por cliente, volumen o canal'},
+  {t:'¿Operan con diferentes monedas?',s:'USD/MXN, exportación'},
+  {t:'¿Ticket promedio y volumen de ventas al mes?'}
+];
+const DG_OP_GENERAL=[];
+const DG_ADM_GENERAL=[
+  {t:'¿Emiten CFDI internamente o con despacho?'},
+  {t:'¿Contabilidad interna o con despacho externo?'},
+  {t:'¿Tienen visibilidad de su rentabilidad y márgenes hoy?'},
+  {t:'¿Manejan crédito a clientes?',s:'límites y cobranza de cuentas por cobrar'},
+  {t:'¿Consolidan información de varias empresas o sucursales?'}
+];
+// Preguntas críticas por INDUSTRIA — Comercial
+const DG_COM_CRIT={
+  comercializadora:['¿Pedidos recurrentes o contratos marco?','¿Venden por catálogo, mostrador o representantes?'],
+  retail:['¿Venden también en línea?','¿Programa de lealtad o promociones?'],
+  restaurante:['¿Delivery propio o por plataformas?','¿Manejan reservaciones?'],
+  manufactura:['¿Venden producto configurable o a medida?','¿Cotizan por proyecto?'],
+  construccion:['¿Licitaciones o cartera fija?','¿Presupuestos por obra con versiones?'],
+  servicios:['¿Venden por proyecto, hora o iguala?','¿Manejan contratos recurrentes?'],
+  distribucion:['¿Venta por ruta o preventa?','¿Pedido mínimo por zona o cliente?'],
+  logistica:['¿Tarifas por ruta, zona o peso?','¿Contratos de servicio recurrentes?'],
+  ecommerce:['¿Cuántos canales online (web, marketplace, redes)?','¿Venta B2B y B2C?'],
+  salud:['¿Venden a particulares, aseguradoras o instituciones?','¿Manejan convenios?'],
+  software:['¿Venden licencias, suscripciones o proyectos?','¿Expansión/upsell de cuentas?'],
+  inmobiliaria:['¿Manejan cartera de unidades y apartados?','¿Comisiones a asesores?'],
+  educacion:['¿Inscripciones y colegiaturas por ciclo?','¿Becas o descuentos?'],
+  turismo:['¿Venden paquetes y reservaciones?','¿Temporadas y tarifas dinámicas?'],
+  agricultura:['¿Venta a granel, contratos o intermediarios?','¿Precios por temporada o mercado?'],
+  otra:[]
+};
+// Preguntas críticas por INDUSTRIA — Administrativo
+const DG_ADM_CRIT={
+  comercializadora:['¿Margen real por cliente o producto?','¿Rotación y rentabilidad del inventario?'],
+  retail:['¿Cierre de caja por sucursal?','¿Comisiones automáticas a vendedores?'],
+  restaurante:['¿Costo y margen real por platillo?','¿Tratamiento contable de propinas?'],
+  manufactura:['¿Costeo de producción real vs. estándar (materiales y MO)?','¿Margen por producto fabricado?'],
+  construccion:['¿Costeo analítico por obra?','¿Facturación por estimaciones de avance?'],
+  servicios:['¿Facturación por horas trabajadas?','¿Rentabilidad por proyecto?'],
+  distribucion:['¿Conciliación de cobranza por ruta/repartidor?','¿Liquidación de vendedores en ruta?'],
+  logistica:['¿Costeo por viaje o ruta?','¿Conciliación con transportistas?'],
+  ecommerce:['¿Conciliación automática de ventas online?','¿Contabilidad por canal?'],
+  salud:['¿Facturación a aseguradoras e instituciones?','¿Conciliación de copagos y reembolsos?'],
+  software:['¿Reconocimiento de ingreso diferido?','¿Seguimiento de MRR y churn?'],
+  inmobiliaria:['¿Estado de cuenta por unidad?','¿Depósitos y garantías por contrato?'],
+  educacion:['¿Control de morosidad de colegiaturas?','¿Becas y descuentos en contabilidad?'],
+  turismo:['¿Anticipos y saldos por reservación?','¿Conciliación con proveedores?'],
+  agricultura:['¿Costeo por cultivo o temporada?','¿Apoyos o subsidios en contabilidad?'],
+  otra:[]
+};
+// Sin fines de lucro — por área
+const DG_NONPROFIT_COM=['¿Cómo captan donantes, socios o aliados?','¿Manejan campañas de recaudación?'];
+const DG_NONPROFIT_ADM=['¿Emiten recibos deducibles (donataria autorizada)?','¿Reportan el uso de fondos por proyecto o donante?'];
+// Operativo responsivo al tipo de producto
+const DG_OPERATIVO={
+  fisico:{ opener:'Cuéntenme cómo se mueve un producto en su operación — desde que lo compran o reciben hasta que lo entregan al cliente.',
+    guide:[{t:'¿Fabrican, compran para revender, o ambos?'},{t:'Compra / abasto y recepción'},{t:'Cómo gestionan el inventario',s:'suele ser el dolor más tangible'},{t:'Almacenes y ubicaciones'},{t:'Preparación y entrega al cliente'}],
+    fields:[{one:{id:'op-inv-sys',l:'Sistema de inventario actual',ph:'Ej. Excel, WMS, ninguno…'}},{two:[{id:'op-almacenes',l:'Almacenes',ph:'#'},{id:'op-skus',l:'SKUs aprox.',ph:'#'}]}],
+    chips:['Inventario a mano','Quiebres de stock','Mermas / caducidad','Doble captura','Sin trazabilidad'] },
+  servicios:{ opener:'Como su entrega es un servicio, cuéntenme cómo planean el trabajo, lo asignan a su gente y lo entregan al cliente.',
+    guide:[{t:'Cómo planean y asignan el trabajo',s:'agenda, proyectos, personal'},{t:'Registro de horas / esfuerzo',s:'timesheets'},{t:'Entregables y avance del proyecto'},{t:'Cómo facturan el servicio',s:'hito, recurrente, por hora'}],
+    fields:[{one:{id:'op-proj-sys',l:'Herramienta de proyectos actual',ph:'Ej. Excel, Trello, ninguna…'}},{two:[{id:'op-personas',l:'Personas operativas',ph:'#'},{id:'op-horas',l:'¿Registran horas?',sel:['—','No','En Excel','En sistema']}]}],
+    chips:['Planeación en Excel','Sin registro de horas','Rentabilidad a ciegas','Reprocesos','Depende de personas clave'] },
+  mixto:{ opener:'Manejan productos y servicios, así que veamos ambos: cómo mueven el producto y cómo entregan el servicio asociado.',
+    guide:[{t:'¿Fabrican, compran para revender, o ambos?'},{t:'Inventario y abasto del producto'},{t:'Cómo planean y asignan el servicio'},{t:'Registro de horas y entregables'},{t:'Entrega y facturación combinada',s:'producto + servicio'}],
+    fields:[{one:{id:'op-mix-sys',l:'Sistemas actuales (inventario y proyectos)',ph:'Ej. Excel para ambos…'}},{two:[{id:'op-almacenes',l:'Almacenes',ph:'#'},{id:'op-personas',l:'Personas operativas',ph:'#'}]}],
+    chips:['Inventario a mano','Sin registro de horas','Producto y servicio desconectados','Doble captura','Sin trazabilidad'] }
+};
+const DG_PROD_CHARS=['Perecederos / caducidad','Lote / número de serie','Venta en unidades y/o paquetes','Usa código de barras'];
+const DG_ORIGEN=['Nacionales','Importados','Ambos'];
+const DG_NONPROFIT_WOW=[
+  {type:'gen',title:'Recibos deducibles automáticos',desc:'Emite el CFDI de donativo al registrar la donación.',wow:'✦ El donante recibe su recibo deducible al instante, sin trámite.'},
+  {type:'gen',title:'Contabilidad por fondo / proyecto',desc:'Cada peso se asigna a un fondo; reportas su uso a donantes y consejo.',wow:'✦ "¿En qué se usó el donativo de X?" → reporte exacto en segundos.'},
+  {type:'gen',title:'Gestión de eventos y voluntarios',desc:'Registro de eventos, campañas y coordinación de voluntarios.',wow:'✦ Una sola plataforma para recaudar, ejecutar y reportar.'}
+];
+
 // ── Discovery state ──
 const disc = {
   formActive: false,
@@ -1744,7 +1856,8 @@ const disc = {
   selections: {},
   companyId: null,
   callEnded: false,
-  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; }
+  ui: { section:0, sub:{flujo:1}, wow:null },
+  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; this.ui={section:0,sub:{flujo:1},wow:null}; }
 };
 // Expose disc setters for inline HTML handlers
 window.discSetStatus = (v) => {
@@ -1879,19 +1992,7 @@ window.openDiscoveryForm = async function(recordId){
     wrapEl.addEventListener('input',()=>discAutosave());
     wrapEl.addEventListener('change',()=>discAutosave());
   }
-  // Mount company picker for discovery
-  mountCompanyPicker('discM2oWrap',(co,ct)=>{
-    disc.selections['emp-nombre']=co?.nombre||'';
-    disc.companyId=co?.id||null;
-    const nb=document.getElementById('discEmpresaBadge');
-    const ni=document.getElementById('d-emp-nombre');
-    if(nb){ nb.textContent=co?'📄 '+co.nombre:''; nb.style.display=co?'inline-block':'none'; }
-    if(ni) ni.value=co?.nombre||'';
-  }).then(()=>{
-    if(existingData?.companyId){
-      getCompany(existingData.companyId).then(co=>{ if(co){ cpState.selectedCompany=co; renderM2o('discM2oWrap'); } });
-    }
-  });
+  // El company picker se monta dentro de la sección Situación (dgMountPicker) en cada render.
   // Show start popup only for NEW sessions
   if(!recordId) discShowStartPopup();
 };
@@ -1955,596 +2056,687 @@ window.discCloseStartPopup = function(){
   if(p){ p.style.opacity='0'; p.style.transform='scale(.97)'; setTimeout(()=>p.remove(), 200); }
 };
 
+const DG_CSS=`
+.dg-modebar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 22px;background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:20}
+.dg-mb-left{display:flex;align-items:center;gap:14px}
+.dg-back{background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:7px 14px;font-size:13px;color:#374151;cursor:pointer;font-weight:600}
+.dg-mb-title{font-size:15px;font-weight:700;color:#21272B}
+.dg-emp-badge{font-size:12px;font-weight:600;background:#f3eef2;color:#4a2f44;padding:3px 9px;border-radius:999px}
+.dg-ind-label{font-size:12px;color:#9ca3af}
+.dg-mb-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dg-modetoggle{display:inline-flex;background:#f3f4f6;border-radius:10px;padding:3px}
+.dg-mode-btn{border:none;background:none;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:700;color:#6b7280;cursor:pointer}
+.dg-mode-btn.active{background:#714B67;color:#fff}
+.dg-autosave{font-size:12px;font-weight:600;color:#9ca3af;white-space:nowrap}
+.dg-status{font-size:12px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-weight:600;color:#374151}
+.dg-end-btn{background:#fff;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer}
+.dg-call,.dg-postcall{max-width:920px;margin:0 auto;padding:22px 18px}
+.dg-scope{display:flex;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:13px;padding:10px 16px;border-radius:10px;margin-bottom:14px;font-weight:500}
+.dg-rail{display:flex;gap:8px;margin-bottom:22px}
+.dg-seg{flex:1;cursor:pointer;text-align:center}
+.dg-bar{height:5px;border-radius:3px;background:#e5e7eb;transition:.2s}
+.dg-seg.done .dg-bar{background:#16a34a}.dg-seg.on .dg-bar{background:#714B67}
+.dg-seglab{font-size:12px;color:#9ca3af;font-weight:600;margin-top:7px}
+.dg-seg.on .dg-seglab{color:#714B67}.dg-seg.done .dg-seglab{color:#16a34a}
+.dg-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);overflow:hidden}
+.dg-card-head{padding:22px 28px 18px;border-bottom:1px solid #f3f4f6}
+.dg-sec-title{font-size:22px;font-weight:700;display:flex;align-items:center;gap:11px;color:#21272B}
+.dg-sec-goal{font-size:13.5px;color:#6b7280;margin-top:7px;line-height:1.5}
+.dg-cfgstrip{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.dg-cfgpill{font-size:11.5px;font-weight:600;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;padding:4px 10px;border-radius:999px}
+.dg-subtabs{display:flex;gap:8px;padding:16px 28px 0;flex-wrap:wrap}
+.dg-subtab{font-size:13px;font-weight:600;padding:9px 15px;border-radius:999px;background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:6px}
+.dg-subtab.on{background:#714B67;color:#fff;border-color:#714B67}
+.dg-subtab .sdone{color:#16a34a}.dg-subtab.on .sdone{color:#fff}
+.dg-card-body{padding:20px 28px 26px}
+.dg-cfg2{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px 20px;margin-bottom:22px}
+.dg-cfg-head{display:flex;align-items:center;gap:9px;margin-bottom:18px;padding-bottom:13px;border-bottom:1px solid #f3f4f6}
+.dg-cfg-head .dot{width:30px;height:30px;border-radius:8px;background:#f3eef2;display:flex;align-items:center;justify-content:center;font-size:15px}
+.dg-cfg-head .t{font-size:14.5px;font-weight:700;color:#21272B}
+.dg-cfg-head .sub{font-size:12px;color:#9ca3af;margin-left:auto}
+.dg-cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.dg-cfg-grid .full{grid-column:1/-1}
+@media(max-width:680px){.dg-cfg-grid{grid-template-columns:1fr}}
+.dg-flbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af;margin-bottom:9px;display:block}
+.dg-select{width:100%;padding:11px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;background:#fff;font-weight:600;color:#21272B;cursor:pointer}
+.dg-opts{display:flex;flex-wrap:wrap;gap:6px}
+.dg-opt{font-size:12.5px;padding:7px 13px;border-radius:999px;background:#fff;color:#374151;border:1.5px solid #d1d5db;cursor:pointer;font-weight:500;user-select:none}
+.dg-opt:hover{border-color:#714B67}
+.dg-opt.on{background:#714B67;color:#fff;border-color:#714B67}
+.dg-seg-ctrl{display:flex;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#fff}
+.dg-seg-ctrl button{flex:1;border:none;background:#fff;padding:10px 6px;font-size:12.5px;font-weight:600;color:#6b7280;cursor:pointer;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;align-items:center;gap:4px}
+.dg-seg-ctrl button:last-child{border-right:none}
+.dg-seg-ctrl button.on{background:#714B67;color:#fff}
+.dg-seg-ctrl .ic{font-size:17px}
+.dg-switch-row{display:flex;gap:10px;flex-wrap:wrap}
+.dg-switch{display:flex;align-items:center;gap:11px;padding:11px 15px;border:1px solid #e5e7eb;border-radius:11px;cursor:pointer;font-size:13px;font-weight:600;color:#374151;background:#fff;flex:1;min-width:230px}
+.dg-switch.on{border-color:#714B67;background:#f3eef2;color:#4a2f44}
+.dg-knob{width:38px;height:22px;border-radius:999px;background:#d1d5db;position:relative;transition:.15s;flex-shrink:0}
+.dg-switch.on .dg-knob{background:#714B67}
+.dg-knob::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}
+.dg-switch.on .dg-knob::after{left:18px}
+.dg-opener{background:linear-gradient(135deg,#fbf7fa,#f3eef2);border:1px solid #ecdfe8;border-left:4px solid #714B67;border-radius:10px;padding:14px 18px;margin-bottom:22px}
+.dg-opener-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#714B67;margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.dg-opener em{font-style:italic;color:#4a2f44;font-size:14.5px;line-height:1.55}
+.dg-opener .tip{margin-top:9px;font-size:12px;color:#6b7280}
+.dg-subopener{background:#f3eef2;border-radius:8px;padding:11px 14px;margin-bottom:16px;font-size:13.5px;color:#4a2f44;line-height:1.5}
+.dg-wow-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;border:1.5px solid #7c3aed;background:#faf5ff;color:#7c3aed;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px}
+.dg-wow-btn:hover{background:#7c3aed;color:#fff}
+.dg-wow-panel{display:grid;grid-template-columns:1fr 1fr;gap:10px;background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1.5px solid #c4b5fd;border-radius:12px;padding:14px;margin-bottom:18px}
+@media(max-width:680px){.dg-wow-panel{grid-template-columns:1fr}}
+.dg-wi{background:#fff;border-radius:10px;padding:12px 14px;border:1px solid #e9d5ff}
+.dg-wtag{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em}
+.dg-wt-ind{background:#fff7ed;color:#c2410c}.dg-wt-tv{background:#eff6ff;color:#1d4ed8}.dg-wt-gen{background:#f0fdf4;color:#15803d}
+.dg-wi-title{font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px}
+.dg-wi-desc{font-size:12px;color:#6b7280;line-height:1.5;margin-bottom:7px}
+.dg-wi-wow{font-size:11.5px;font-weight:600;color:#7c3aed;background:#f5f3ff;padding:5px 9px;border-radius:6px;display:block;line-height:1.45}
+.dg-cols{display:grid;grid-template-columns:1.15fr 1fr;gap:24px}
+@media(max-width:780px){.dg-cols{grid-template-columns:1fr}}
+.dg-collbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:12px}
+.dg-gitem{display:flex;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:6px}
+.dg-gitem:hover{background:#f9fafb}
+.dg-gitem.done{background:#f0fdf4;border-color:#bbf7d0}
+.dg-gitem.crit{background:#fffbeb;border-color:#fde68a}
+.dg-gitem.crit.done{background:#f0fdf4;border-color:#bbf7d0}
+.dg-gcheck{width:20px;height:20px;border-radius:50%;border:2px solid #d1d5db;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;margin-top:1px}
+.dg-gitem.done .dg-gcheck{background:#16a34a;border-color:#16a34a}
+.dg-gtext{font-size:14px;color:#21272B;line-height:1.4}
+.dg-gitem.done .dg-gtext{color:#9ca3af;text-decoration:line-through}
+.dg-gtext .star{color:#FBB130}
+.dg-gtext small{display:block;color:#9ca3af;font-size:12px;margin-top:2px;text-decoration:none}
+.dg-gitem.crit .dg-gtext small{color:#92400e}
+.dg-databox{background:#f9fafb;border-radius:10px;padding:16px}
+.dg-field{margin-bottom:11px}
+.dg-field label{font-size:12px;color:#6b7280;font-weight:600;display:block;margin-bottom:5px}
+.dg-field input,.dg-field select,.dg-field textarea{width:100%;padding:9px 11px;border:1px solid #e5e7eb;border-radius:8px;font-size:13.5px;background:#fff;font-family:inherit}
+.dg-drow{display:flex;gap:9px}.dg-drow .dg-field{flex:1}
+.dg-chips{display:flex;flex-wrap:wrap;gap:7px}
+.dg-chip{font-size:13px;padding:6px 12px;border-radius:999px;background:#fff;color:#374151;border:1.5px solid #d1d5db;cursor:pointer;font-weight:500;user-select:none}
+.dg-chip:hover{border-color:#714B67}
+.dg-chip.sel{background:#714B67;color:#fff;border-color:#714B67}
+.dg-chip.qual.sel{background:#0f766e;border-color:#0f766e}
+.dg-chiplbl{font-size:12px;color:#6b7280;font-weight:600;margin:14px 0 8px}
+.dg-prodchars{background:#fffaf0;border:1px solid #fde9c8;border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.dg-prodchars h5{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#b45309;margin-bottom:10px}
+.dg-pc-checks{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.dg-pc-check{display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer}
+.dg-pc-check input{width:16px;height:16px;accent-color:#714B67}
+.dg-nav{display:flex;align-items:center;gap:12px;margin-top:24px}
+.dg-nav button{cursor:pointer;border-radius:10px;font-weight:600;font-size:15px}
+.dg-prev{padding:13px 20px;background:#fff;border:1px solid #e5e7eb;color:#6b7280}
+.dg-prev:disabled{opacity:.4;cursor:default}
+.dg-next{flex:1;padding:14px;background:#714B67;border:none;color:#fff}
+.dg-next:hover{background:#4a2f44}
+/* postcall */
+.dg-pc-grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start;margin-bottom:16px}
+@media(max-width:820px){.dg-pc-grid2{grid-template-columns:1fr}}
+.dg-pc-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.03);margin-bottom:16px;overflow:hidden}
+.dg-pc-h{display:flex;align-items:center;gap:9px;padding:15px 20px;border-bottom:1px solid #f3f4f6}
+.dg-pc-h .dot{width:30px;height:30px;border-radius:8px;background:#f3eef2;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.dg-pc-h .t{font-size:14.5px;font-weight:700;color:#21272B}
+.dg-pc-h .sub{font-size:12px;color:#9ca3af;margin-left:auto}
+.dg-pc-b{padding:18px 20px}
+.dg-kv{display:grid;grid-template-columns:1fr 1fr;gap:12px 22px}
+@media(max-width:520px){.dg-kv{grid-template-columns:1fr}}
+.dg-kv .row{display:flex;flex-direction:column;gap:3px;border-bottom:1px dashed #f3f4f6;padding-bottom:9px}
+.dg-kv .k{font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.dg-kv .v{font-size:14px;color:#21272B;font-weight:600}
+.dg-kv .v.empty{color:#d1d5db;font-weight:500;font-style:italic}
+.dg-tagrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.dg-tag{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:#f3eef2;color:#4a2f44}
+.dg-ringwrap{display:flex;align-items:center;gap:16px;margin-bottom:6px}
+.dg-crow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #f3f4f6;font-size:13.5px}
+.dg-crow:first-child{border-top:none}
+.dg-cdot{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;flex-shrink:0}
+.dg-cdot.full{background:#16a34a}.dg-cdot.part{background:#d97706}.dg-cdot.none{background:#d1d5db}
+.dg-cname{font-weight:600;color:#374151}
+.dg-cstat{margin-left:auto;font-size:12px;font-weight:600}
+.dg-cstat.full{color:#16a34a}.dg-cstat.part{color:#d97706}.dg-cstat.none{color:#9ca3af}
+.dg-brow{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid #f3f4f6}
+.dg-brow:first-child{border-top:none}
+.dg-bicon{width:34px;height:34px;border-radius:9px;background:#f9fafb;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.dg-binfo{flex:1}
+.dg-bt{font-size:13.5px;font-weight:700;color:#21272B;display:flex;align-items:center;flex-wrap:wrap;gap:2px}
+.dg-bd{font-size:12px;color:#6b7280;margin-top:1px}
+.dg-fw{font-size:9.5px;font-weight:700;color:#9ca3af;background:#f9fafb;border:1px solid #f3f4f6;padding:2px 6px;border-radius:5px;margin-left:7px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.dg-bchip{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px}
+.dg-bchip.ok{background:#dcfce7;color:#15803d}.dg-bchip.part{background:#fef3c7;color:#92400e}.dg-bchip.no{background:#fee2e2;color:#b91c1c}
+.dg-verdict{margin-top:14px;display:flex;align-items:center;justify-content:space-between;background:#dcfce7;border-radius:10px;padding:12px 16px}
+.dg-verdict.media{background:#fef3c7}.dg-verdict.baja{background:#fee2e2}
+.dg-vt{font-size:12px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.04em}
+.dg-verdict.media .dg-vt{color:#92400e}.dg-verdict.baja .dg-vt{color:#b91c1c}
+.dg-vv{font-size:18px;font-weight:800;color:#15803d}
+.dg-verdict.media .dg-vv{color:#92400e}.dg-verdict.baja .dg-vv{color:#b91c1c}
+.dg-dolorbox{background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;border-radius:10px;padding:13px 16px;margin-bottom:16px}
+.dg-dolorbox .dl{font-size:11px;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.dg-dolorbox .dv{font-size:14.5px;color:#21272B;line-height:1.5;font-weight:500}
+.dg-siggroup{margin-bottom:12px}
+.dg-siglbl{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px}
+.dg-sig{font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:999px;background:#fff7ed;color:#b45309;border:1px solid #fed7aa;display:inline-block;margin:0 7px 7px 0}
+.dg-wowcard{background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1px solid #c4b5fd}
+.dg-wowgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:680px){.dg-wowgrid{grid-template-columns:1fr}}
+`;
+
 function buildDiscoveryFormHTML(data){
   const empresa=data?.empresa||data?.selections?.['emp-nombre']||'';
   return `<div class="disc-wrap" id="discWrap">
-
-  <!-- MODE BAR -->
-  <div class="disc-mode-bar" id="discModeBar">
-    <div class="disc-mode-bar-left">
-      <button class="disc-back-btn" onclick="showModule('discovery')">← Sesiones</button>
+  <style>${DG_CSS}</style>
+  <div class="dg-modebar">
+    <div class="dg-mb-left">
+      <button class="dg-back" onclick="showModule('discovery')">← Sesiones</button>
       <div>
-        <div class="disc-mode-title">🔍 Discovery Guide</div>
+        <div class="dg-mb-title">🔍 Discovery Guide</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-          <span class="disc-empresa-badge" id="discEmpresaBadge" style="${empresa?'':'display:none'}">${empresa?'📄 '+empresa:''}</span>
-          <span class="disc-ind-label" id="discIndLabel">Selecciona industria para comenzar</span>
+          <span class="dg-emp-badge" id="discEmpresaBadge" style="${empresa?'':'display:none'}">${empresa?'📄 '+empresa:''}</span>
+          <span class="dg-ind-label" id="discIndLabel">Configura la sesión para comenzar</span>
         </div>
       </div>
-      <div class="disc-bant-bar" id="discBantBar">
-        <div class="disc-bant-item" id="dbi-situacion" onclick="discScrollTo('dcard-situacion')"><div class="disc-bant-dot" id="dbant-situacion"></div><span class="disc-bant-label">Situación</span></div>
-        <div class="disc-bant-sep"></div>
-        <div class="disc-bant-item" id="dbi-comercial" onclick="discScrollToFlujo('comercial')"><div class="disc-bant-dot" id="dbant-comercial"></div><span class="disc-bant-label">Comercial</span></div>
-        <div class="disc-bant-item" id="dbi-operativo" onclick="discScrollToFlujo('operativo')"><div class="disc-bant-dot" id="dbant-operativo"></div><span class="disc-bant-label">Operativo</span></div>
-        <div class="disc-bant-item" id="dbi-admin" onclick="discScrollToFlujo('administrativo')"><div class="disc-bant-dot" id="dbant-admin"></div><span class="disc-bant-label">Administrativo</span></div>
-        <div class="disc-bant-sep"></div>
-        <div class="disc-bant-item" id="dbi-dolor" onclick="discScrollTo('dcard-dolor')"><div class="disc-bant-dot" id="dbant-d"></div><span class="disc-bant-label">Dolor</span></div>
-        <div class="disc-bant-item" id="dbi-budget" onclick="discScrollTo('dcard-budget')"><div class="disc-bant-dot" id="dbant-b"></div><span class="disc-bant-label">Budget</span></div>
-        <div class="disc-bant-item" id="dbi-timeline" onclick="discScrollTo('dcard-timeline')"><div class="disc-bant-dot" id="dbant-t"></div><span class="disc-bant-label">Timeline</span></div>
-      </div>
     </div>
-    <div class="disc-mode-bar-right">
-      <div class="disc-mode-toggle">
-        <button class="disc-mode-btn active" id="dmbEscucha" onclick="discSetMode('escucha')">🎧 En llamada</button>
-        <button class="disc-mode-btn" id="dmbPostcall" onclick="discSetMode('postcall')">📋 Post-call</button>
+    <div class="dg-mb-right">
+      <div class="dg-modetoggle">
+        <button class="dg-mode-btn active" id="dmbEscucha" onclick="discSetMode('escucha')">🎧 En llamada</button>
+        <button class="dg-mode-btn" id="dmbPostcall" onclick="discSetMode('postcall')">📋 Post-call</button>
       </div>
-      <span id="discAutosaveInd" style="font-size:12px;font-weight:600;color:var(--gray-400);white-space:nowrap">Autoguardado activo</span>
-      <select class="disc-status-select" id="discStatusSelHeader" onchange="discSetStatus(this.value)" style="font-size:12px;padding:6px 10px">
-        <option value="borrador">Borrador</option>
-        <option value="en_proceso">En proceso</option>
-        <option value="completado">Completada</option>
-        <option value="archivado">Archivada</option>
+      <span id="discAutosaveInd" class="dg-autosave">Autoguardado activo</span>
+      <select class="dg-status" id="discStatusSelHeader" onchange="discSetStatus(this.value)">
+        <option value="borrador">Borrador</option><option value="en_proceso">En proceso</option><option value="completado">Completada</option><option value="archivado">Archivada</option>
       </select>
-      <button class="btn btn-ghost btn-sm" id="discQuickSave" onclick="discSaveRecord()" style="font-size:12px;padding:6px 14px;border-color:var(--success);color:var(--success)">💾 Guardar</button>
-      <button class="disc-end-btn" id="discEndBtn" onclick="discEndCall()">⏹ Finalizar llamada</button>
+      <button class="dg-end-btn" id="discEndBtn" onclick="discEndCall()">⏹ Finalizar</button>
     </div>
   </div>
 
-  <!-- SELECTORS BAR -->
-  <div class="disc-sel-bar" id="discSelBar">
-    <div>
-      <div class="disc-sel-label">Industria</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <span class="disc-chip" onclick="discSelectInd('construccion',this)">🏗 Construcción</span>
-        <span class="disc-chip" onclick="discSelectInd('retail',this)">🏪 Retail</span>
-        <span class="disc-chip" onclick="discSelectInd('restaurante',this)">🍽 Restaurante</span>
-        <span class="disc-chip" onclick="discSelectInd('comercializadora',this)">📦 Comercializadora</span>
-        <span class="disc-chip" onclick="discSelectInd('manufactura',this)">🏭 Manufactura</span>
-        <span class="disc-chip" onclick="discSelectInd('software',this)">💻 Software/IT</span>
-        <span class="disc-chip" onclick="discSelectInd('servicios',this)">🤝 Servicios</span>
-        <span class="disc-chip" onclick="discSelectInd('distribucion',this)">🚚 Distribución</span>
-        <span class="disc-chip" onclick="discSelectInd('ecommerce',this)">🛒 Ecommerce</span>
-        <span class="disc-chip" onclick="discSelectInd('salud',this)">⚕️ Salud</span>
-        <span class="disc-chip" onclick="discSelectInd('educacion',this)">📚 Educación</span>
-        <span class="disc-chip" onclick="discSelectInd('inmobiliaria',this)">🏘 Inmobiliaria</span>
-        <span class="disc-chip" onclick="discSelectInd('logistica',this)">📦 Logística</span>
-        <span class="disc-chip" onclick="discSelectInd('turismo',this)">✈️ Turismo</span>
-        <span class="disc-chip" onclick="discSelectInd('otra',this)">✏️ Otra</span>
-      </div>
-    </div>
-    <div>
-      <div class="disc-sel-label">Tipo de venta</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <span class="disc-tvchip" onclick="discToggleTV('cotizacion',this)">📋 Cotización</span>
-        <span class="disc-tvchip" onclick="discToggleTV('suscripcion',this)">🔄 Suscripción</span>
-        <span class="disc-tvchip" onclick="discToggleTV('alquiler',this)">🔑 Alquiler</span>
-        <span class="disc-tvchip" onclick="discToggleTV('ecommerce',this)">🛒 Ecommerce</span>
-        <span class="disc-tvchip" onclick="discToggleTV('pos',this)">🏪 POS</span>
-      </div>
-    </div>
+  <div id="discEscuchaArea" class="dg-call">
+    <div id="dgScope"></div>
+    <div class="dg-rail" id="dgRail"></div>
+    <div id="dgSectionHost"></div>
   </div>
 
-  <!-- ESCUCHA AREA -->
-  <div id="discEscuchaArea">
-  <div class="disc-topic-grid">
+  <div id="discPostcallArea" class="dg-postcall" style="display:none">
+    <div id="dgPostHost"></div>
 
-    <!-- SITUACIÓN -->
-    <div class="disc-topic-row-1">
-    <div style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-radius:var(--radius);border:1px solid #bae6fd;padding:14px 18px;margin-bottom:12px;font-size:13px;line-height:1.6;color:#0c4a6e">
-      <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px">🗺️ Situación General — Cómo introducirlo</div>
-      <em>"Para poder entender su empresa y ofrecerles la mejor solución, me gustaría que compartiéramos algunos datos generales. No necesito el detalle por ahora — pero sí son datos críticos para mí: ¿cuántas personas trabajan con ustedes, qué sistemas usan hoy y cómo está estructurada la operación?"</em>
-      <div style="margin-top:6px;font-size:12px;color:#0369a1">💡 Mantén un tono ligero y conversacional. El objetivo es crear rapport y escuchar, no interrogar.</div>
-    </div>
-    <div class="disc-topic-card" id="dcard-situacion">
-      <div class="disc-topic-header"><span class="disc-topic-icon">🏢</span><span class="disc-covered-badge">✓ Cubierto</span></div>
-      <div class="disc-topic-name">Situación General</div>
-      <div class="disc-topic-sub">Datos de la empresa — captura mientras presentan</div>
-      <div class="disc-topic-question">"Para entender bien cómo podríamos ayudarles, cuéntame sobre la empresa — ¿a qué se dedican y cómo está estructurada la operación?"</div>
-      <div class="disc-emp-fields">
-        <div class="disc-emp-fields-label">Datos de la empresa</div>
-        <div class="disc-emp-field" style="margin-bottom:10px"><div id="discM2oWrap"></div></div>
-        <div class="disc-emp-field" style="display:none"><label>Nombre</label><input class="disc-emp-input" id="d-emp-nombre" type="text" oninput="discSaveEmpresa()"></div>
-        <div class="disc-emp-row">
-          <div class="disc-emp-field"><label>Razones sociales</label><input class="disc-emp-input" id="d-emp-razones" type="number" min="1" placeholder="# de razones" oninput="discSaveEmpresa()"></div>
-          <div class="disc-emp-field"><label>Empleados totales</label><input class="disc-emp-input" id="d-emp-empleados" type="number" min="1" placeholder="# de empleados" oninput="discSaveEmpresa()"></div>
-        </div>
-        <div class="disc-emp-field"><label>Sistemas actuales</label><input class="disc-emp-input" id="d-emp-sistemas" type="text" placeholder="Ej. SAP, Excel, sistema a la medida..." oninput="discSaveEmpresa()"></div>
-        <div class="disc-emp-row">
-          <div class="disc-emp-field"><label>Usuarios con acceso a sistema</label><input class="disc-emp-input" id="d-emp-usuarios" type="number" min="0" placeholder="# de usuarios" oninput="discSaveEmpresa()"></div>
-          <div class="disc-emp-field"><label>Presupuesto sistemas / mes</label><input class="disc-emp-input" id="d-emp-presupuesto" type="text" placeholder="Ej. $15,000 MXN" oninput="discSaveEmpresa()"></div>
-        </div>
-        <div class="disc-emp-field">
-          <label>Facturación mensual aproximada</label>
-          <select class="disc-emp-select" id="d-emp-facturacion" onchange="discSaveEmpresa()">
-            <option value="">— Selecciona un rango —</option>
-            <option>Menos de $500K MXN</option><option>$500K – $2M MXN</option><option>$2M – $5M MXN</option>
-            <option>$5M – $15M MXN</option><option>$15M – $50M MXN</option><option>$50M – $150M MXN</option><option>Más de $150M MXN</option>
-          </select>
-        </div>
-      </div>
-      <div class="disc-pill-section">
-        <div class="disc-pill-label">Tipo de producto</div>
-        <div class="disc-quick-pills" id="dpill-tipo-empresa">
-          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa');discToggleProdOpts(this.textContent)">Productos físicos</span>
-          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa');discToggleProdOpts(this.textContent)">Mixtos (productos + servicios)</span>
-          <span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'tipo-empresa');discToggleProdOpts('servicios')">Servicios</span>
-        </div>
-      </div>
-      <!-- Sub-opciones para productos físicos / mixtos -->
-      <div id="disc-prod-opts" style="display:none;margin:8px 0 4px;padding:10px 12px;background:var(--accent-light);border-radius:var(--radius-sm)">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:8px">Características del producto</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="perecederos" onchange="discAutosave()" style="accent-color:var(--accent)"> Perecederos / caducidad</label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="lote" onchange="discAutosave()" style="accent-color:var(--accent)"> Lote / número de serie</label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="unidades_paquetes" onchange="discAutosave()" style="accent-color:var(--accent)"> Venta en unidades y/o paquetes</label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" name="discProdOpt" value="codigo_barras" onchange="discAutosave()" style="accent-color:var(--accent)"> Usa código de barras</label>
-        </div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:6px">Origen del producto</div>
-        <div class="disc-quick-pills">
-          <span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'origen-prod')">Nacionales</span>
-          <span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'origen-prod')">Importados</span>
-          <span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'origen-prod')">Ambos</span>
-        </div>
-      </div>
-      <button class="disc-mark-btn" onclick="discMarkCovered('dcard-situacion',this)">Marcar como cubierto</button>
-    </div>
-    </div>
-
-    <!-- FLUJOS -->
-    <div style="background:linear-gradient(135deg,#fffbeb,#fef9c3);border-radius:var(--radius);border:1px solid #fde68a;padding:14px 18px;margin-bottom:12px;font-size:13px;line-height:1.6;color:#78350f">
-      <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px">🔄 Flujos de la empresa — Cómo introducirlo</div>
-      <em>"Ahora me gustaría entender un poco más cómo opera su empresa en el día a día. Para que sea más ordenado, me gustaría dividirlo en tres partes: primero su proceso comercial — cómo consiguen y atienden clientes; luego el operativo — cómo gestionan sus productos o servicios; y finalmente el administrativo — lo financiero, contable y de RRHH. ¿Les parece?"</em>
-      <div style="margin-top:6px;font-size:12px;color:#92400e">💡 Deja que hablen. Tu rol es escuchar y anotar — las preguntas de posicionamiento son para cuando necesites profundizar un área específica.</div>
-    </div>
-    <div class="disc-topic-card disc-flujos-card" id="dcard-flujos">
-      <div class="disc-flujos-toggle" onclick="discToggleFlujos()">
-        <div class="disc-flujos-toggle-left">
-          <span style="font-size:22px">🔄</span>
-          <div><div class="disc-flujos-title">Flujos de la empresa</div><div style="font-size:12px;color:#6b7280">Comercial · Operativo · Administrativo</div></div>
-          <div style="display:flex;gap:6px;margin-left:8px" id="dfi-indicators">
-            <span id="dfi-comercial" style="display:none;font-size:11px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:999px;font-weight:700">💼 Cubierto</span>
-            <span id="dfi-operativo" style="display:none;font-size:11px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:999px;font-weight:700">⚙️ Cubierto</span>
-            <span id="dfi-administrativo" style="display:none;font-size:11px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:999px;font-weight:700">📑 Cubierto</span>
-          </div>
-        </div>
-        <span class="disc-flujos-chevron open" id="dflujos-chevron">▼</span>
-      </div>
-      <div class="disc-flujos-body" id="dflujos-body">
-        <div class="disc-flujos-tabs">
-          <div class="disc-flujos-tab active" id="dtab-comercial" onclick="discSwitchTab('comercial')">💼 Comercial</div>
-          <div class="disc-flujos-tab" id="dtab-operativo" onclick="discSwitchTab('operativo')">⚙️ Operativo</div>
-          <div class="disc-flujos-tab" id="dtab-administrativo" onclick="discSwitchTab('administrativo')">📑 Administrativo</div>
-        </div>
-        <!-- COMERCIAL -->
-        <div class="disc-flujos-panel active" id="dpanel-comercial">
-          <div class="disc-topic-question">"Cuéntame cómo consiguen clientes y cómo es el proceso desde que llega un prospecto hasta que firman — ¿cómo lo tienen hoy?"</div>
-          <div class="disc-flujos-inner">
-            <div>
-              <div class="disc-flujos-col-title">Preguntas clave de posicionamiento</div>
-              <div class="disc-listen-items">
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cuánto tiempo tarda hacer una cotización?</strong> <span style="font-size:11px;color:#9ca3af">(hook: Odoo = 3 minutos desde el celular)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cómo saben si un cliente abrió su propuesta?</strong> <span style="font-size:11px;color:#9ca3af">(hook: tracking en tiempo real)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Dónde queda el historial cuando un vendedor sale?</strong> <span style="font-size:11px;color:#9ca3af">(hook: todo en el CRM, nada en el teléfono)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Sus clientes pueden ver el estado de su pedido?</strong> <span style="font-size:11px;color:#9ca3af">(hook: portal de cliente self-service)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cuántas oportunidades tienen activas y cuál es el % de cierre?</strong> <span style="font-size:11px;color:#9ca3af">(hook: IA de pipeline)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿De dónde vienen la mayoría de sus clientes?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Ticket promedio y cuántas ventas al mes?</div>
-              </div>
-            </div>
-            <div>
-              <div class="disc-flujos-col-title">Por industria / tipo de venta</div>
-              <div class="disc-listen-items">
-                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Licitaciones o cartera fija?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Cuánto tiempo tarda un presupuesto?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Cuántas cajas/puntos de venta?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Venden también en línea?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-restaurante" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿En qué plataformas de delivery están?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-comercializadora" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Precios distintos por tipo de cliente?</div>
-                <div class="disc-listen-item disc-tv-listen disc-tv-cotizacion" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿Cuántas versiones de cotización por cliente?</div>
-                <div class="disc-listen-item disc-tv-listen disc-tv-suscripcion" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿Renovaciones automáticas o manuales?</div>
-                <div class="disc-listen-item disc-tv-listen disc-tv-ecommerce" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿En qué plataforma tienen su tienda?</div>
-                <div class="disc-listen-item disc-tv-listen disc-tv-pos" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿Cuántas cajas? ¿El POS está integrado?</div>
-              </div>
+    <div class="dg-pc-card">
+      <div class="dg-pc-h"><span class="dot">📝</span><span class="t">Nota de discovery (IA)</span><span class="sub">desde la transcripción</span></div>
+      <div class="dg-pc-b">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Transcripción de Google Meet</div>
+        <textarea class="disc-transcript-ta" id="discTranscriptInput" oninput="discAutosave()" placeholder="Pega aquí la transcripción completa de la llamada..." style="width:100%;min-height:80px;max-height:140px;resize:vertical;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:13px;font-family:inherit"></textarea>
+        <button class="disc-gemini-btn" id="discAnalyzeBtn" onclick="discAnalyzeClaude()" style="margin-top:10px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+          Generar nota con IA
+        </button>
+        <div class="disc-gemini-loading" id="discGeminiLoading"><div class="disc-spinner"></div></div>
+        <div id="discGeminiOutputWrap" style="display:none;margin-top:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div><div style="font-size:13px;font-weight:600">Nota para CRM</div><div id="discEngineLabel" style="font-size:11px;color:#9ca3af;margin-top:2px"></div></div>
+            <div style="display:flex;gap:8px">
+              <button class="disc-copy-btn" onclick="discCopyOutput()">📋 Copiar</button>
+              <button class="disc-copy-btn" style="border-color:var(--accent);color:var(--accent)" onclick="discShowPopup('discGeminiOutput','Nota para CRM')">↗ Ver todo</button>
+              <button class="disc-copy-btn" style="border-color:#714B67;color:#714B67" onclick="discAnalyzeClaude()">↺ Regenerar</button>
             </div>
           </div>
-          <div id="dwow-panel-comercial" class="disc-wow-panel"></div>
-          <div class="disc-flujos-covered-row">
-            <button class="disc-wow-btn" onclick="discToggleWow('comercial',this)">✨ WoW Effects</button>
-            <button class="disc-mark-btn" style="width:auto;padding:7px 20px;margin:0" onclick="discMarkFlujo('comercial',this)">Marcar Comercial como cubierto</button>
-          </div>
-        </div>
-        <!-- OPERATIVO -->
-        <div class="disc-flujos-panel" id="dpanel-operativo">
-          <div class="disc-topic-question">"Cuéntame cómo es el día a día operativo — desde que compran o producen hasta que le llega algo al cliente."</div>
-          <div class="disc-flujos-inner">
-            <div>
-              <div class="disc-flujos-col-title">Preguntas clave de posicionamiento</div>
-              <div class="disc-listen-items">
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Les ha pasado quedarse sin stock y perder una venta?</strong> <span style="font-size:11px;color:#9ca3af">(hook: reabasto automático)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cuánto tiempo dedican al conteo físico de inventario?</strong> <span style="font-size:11px;color:#9ca3af">(hook: app de almacén en celular)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>Si hay un problema con un producto, ¿pueden saber de qué lote vino?</strong> <span style="font-size:11px;color:#9ca3af">(hook: trazabilidad completa)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Sus operadores trabajan con papel o sistema?</strong> <span style="font-size:11px;color:#9ca3af">(hook: digitalización del almacén)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cómo saben qué comprar y cuándo?</strong> <span style="font-size:11px;color:#9ca3af">(hook: MRP / reabasto por mínimos)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Fabrican, compran para revender, o ambos?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Cómo manejan devoluciones?</div>
-              </div>
-            </div>
-            <div>
-              <div class="disc-flujos-col-title">Por industria / tipo de venta</div>
-              <div class="disc-listen-items">
-                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Cuántas obras activas en paralelo?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Costeo de materiales y MO por obra?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Inventario centralizado o por tienda?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-restaurante" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Costean recetas por platillo?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-comercializadora" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Manejan lotes o fechas de caducidad?</div>
-                <div class="disc-listen-item disc-tv-listen disc-tv-alquiler" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿Cómo controlan estado y mantenimiento de activos?</div>
-                <div class="disc-listen-item disc-tv-listen disc-tv-ecommerce" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿El inventario se sincroniza con la tienda online?</div>
-                <div class="disc-listen-item disc-tv-listen disc-tv-pos" style="display:none"><div class="disc-listen-dot" style="background:#1d4ed8"></div>¿El POS actualiza inventario en tiempo real?</div>
-              </div>
-            </div>
-          </div>
-          <div id="dwow-panel-operativo" class="disc-wow-panel"></div>
-          <div class="disc-flujos-covered-row">
-            <button class="disc-wow-btn" onclick="discToggleWow('operativo',this)">✨ WoW Effects</button>
-            <button class="disc-mark-btn" style="width:auto;padding:7px 20px;margin:0" onclick="discMarkFlujo('operativo',this)">Marcar Operativo como cubierto</button>
-          </div>
-        </div>
-        <!-- ADMINISTRATIVO -->
-        <div class="disc-flujos-panel" id="dpanel-administrativo">
-          <div class="disc-topic-question">"En el lado administrativo — ¿cómo está la contabilidad, el manejo de nómina y qué visibilidad financiera tienen hoy?"</div>
-          <div class="disc-flujos-inner">
-            <div>
-              <div class="disc-flujos-col-title">Preguntas clave — Finanzas</div>
-              <div class="disc-listen-items">
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Pueden ver hoy mismo cuánto ganaron este mes?</strong> <span style="font-size:11px;color:#9ca3af">(hook: dashboard financiero en tiempo real)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cuánto le toma a su contador conciliar el banco?</strong> <span style="font-size:11px;color:#9ca3af">(hook: conciliación automática)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Tienen clientes que se atrasan en pagar? ¿Cómo les cobran?</strong> <span style="font-size:11px;color:#9ca3af">(hook: cobranza automatizada)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Emiten CFDI internamente o subcontratan?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Contador interno, externo o despacho?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Costeo por proyecto o contabilidad global?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Concilian ventas por caja al cierre del día?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-restaurante" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Conocen el costo real de cada platillo?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-comercializadora" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Control de crédito y límites por cliente?</div>
-              </div>
-            </div>
-            <div>
-              <div class="disc-flujos-col-title">Preguntas clave — RH</div>
-              <div class="disc-listen-items">
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Cuánto tiempo les toma hacer la nómina cada quincena?</strong> <span style="font-size:11px;color:#9ca3af">(hook: nómina timbrada en Odoo)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div><strong>¿Tienen mucha rotación? ¿Cuánto les cuesta un alta/baja?</strong> <span style="font-size:11px;color:#9ca3af">(hook: onboarding digital)</span></div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Controlan asistencias y horas extra?</div>
-                <div class="disc-listen-item"><div class="disc-listen-dot"></div>¿Vacaciones y permisos centralizados?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-construccion" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Controlan horas por obra y cuadrilla?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-retail" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Turnos rotativos por tienda?</div>
-                <div class="disc-listen-item disc-ind-listen disc-ind-restaurante" style="display:none"><div class="disc-listen-dot" style="background:#f97316"></div>¿Alta rotación de personal como dolor recurrente?</div>
-              </div>
-            </div>
-          </div>
-          <div id="dwow-panel-administrativo" class="disc-wow-panel"></div>
-          <div class="disc-flujos-covered-row">
-            <button class="disc-wow-btn" onclick="discToggleWow('administrativo',this)">✨ WoW Effects</button>
-            <button class="disc-mark-btn" style="width:auto;padding:7px 20px;margin:0" onclick="discMarkFlujo('administrativo',this)">Marcar Administrativo como cubierto</button>
-          </div>
+          <div class="disc-gemini-output show disc-output-compact" id="discGeminiOutput"></div>
+          <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar nota en historial</button>
         </div>
       </div>
     </div>
 
-    <!-- DOLOR · BUDGET · TIMELINE -->
-    <div class="disc-topic-row-3">
-
-    <!-- DOLOR guidance -->
-    <div style="grid-column:1/-1;background:linear-gradient(135deg,#fdf2f8,#fce7f3);border-radius:var(--radius);border:1px solid #fbcfe8;padding:14px 18px;margin-bottom:12px;font-size:13px;line-height:1.6;color:#831843">
-      <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px">🎯 Dolor · Presupuesto · Timeline — Cómo cerrarlo</div>
-      <em>"Con todo lo que me cuentan, puedo ver que hay áreas donde Odoo podría hacer una diferencia real. Antes de recomendarles algo específico, me ayudaría saber: ¿ya tienen pensado un presupuesto para esto? ¿Y quién estaría involucrado en la decisión final?"</em>
-      <div style="margin-top:6px;font-size:12px;color:#9d174d">💡 Estas tarjetas se llenan de manera orgánica — el dolor emerge de los flujos, el budget y timeline al final cuando ya hay confianza.</div>
-    </div>
-
-    <!-- DOLOR -->
-    <div class="disc-topic-card" id="dcard-dolor">
-      <div class="disc-topic-header"><span class="disc-topic-icon">🎯</span><span class="disc-covered-badge">✓ Cubierto</span></div>
-      <div class="disc-topic-name">Dolor</div>
-      <div class="disc-topic-sub">Escucha — no preguntes directamente</div>
-      <div class="disc-topic-question">"Con todo lo que me platicas de [retomar algo] — ¿eso les ha generado algún problema concreto en el día a día?"</div>
-      <div class="disc-listen-for">
-        <div class="disc-listen-label">Dolores detectados — toca los que mencionen</div>
-        <div class="disc-quick-pills" id="ddolor-chips">
-          <span class="disc-qpill" data-dolor="Sistemas no integrados" onclick="discToggleDolor(this)">Sistemas no integrados</span>
-          <span class="disc-qpill" data-dolor="Todo en Excel" onclick="discToggleDolor(this)">Todo en Excel</span>
-          <span class="disc-qpill" data-dolor="Inventario descontrolado" onclick="discToggleDolor(this)">Inventario descontrolado</span>
-          <span class="disc-qpill" data-dolor="Sin visibilidad financiera" onclick="discToggleDolor(this)">Sin visibilidad financiera</span>
-          <span class="disc-qpill" data-dolor="Facturación tardía" onclick="discToggleDolor(this)">Facturación tardía</span>
-          <span class="disc-qpill" data-dolor="Sin margen por proyecto" onclick="discToggleDolor(this)">Sin margen por proyecto</span>
-          <span class="disc-qpill" data-dolor="Procesos manuales / reprocesos" onclick="discToggleDolor(this)">Procesos manuales / reprocesos</span>
-          <span class="disc-qpill" data-dolor="No saben cuánto ganan realmente" onclick="discToggleDolor(this)">No saben cuánto ganan realmente</span>
+    <div class="dg-pc-card">
+      <div class="dg-pc-h"><span class="dot">🎯</span><span class="t">Recomendaciones para cerrar</span><span class="sub">no requiere transcripción</span></div>
+      <div class="dg-pc-b">
+        <button class="disc-gemini-btn" id="discRecoBtn" onclick="discGenerateReco()" style="background:linear-gradient(135deg,#714B67,#9b6b8a)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Generar recomendaciones con IA
+        </button>
+        <div class="disc-gemini-loading" id="discRecoLoading"><div class="disc-spinner"></div></div>
+        <div id="discRecoOutputWrap" style="display:none;margin-top:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div id="discRecoLabel" style="font-size:11px;color:#9ca3af"></div>
+            <div style="display:flex;gap:8px">
+              <button class="disc-copy-btn" onclick="discCopyReco()">📋 Copiar</button>
+              <button class="disc-copy-btn" style="border-color:var(--accent);color:var(--accent)" onclick="discShowPopup('discRecoOutput','Recomendaciones IA')">↗ Ver todo</button>
+              <button class="disc-copy-btn" style="border-color:#714B67;color:#714B67" onclick="discGenerateReco()">↺ Actualizar</button>
+            </div>
+          </div>
+          <div class="disc-gemini-output show disc-output-compact" id="discRecoOutput"></div>
+          <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar recomendaciones</button>
         </div>
       </div>
-      <hr class="disc-section-divider">
-      <div class="disc-pill-section">
-        <div class="disc-pill-label">¿El dolor afecta...</div>
-        <div class="disc-quick-pills">
-          <span class="disc-qpill" data-color="r" onclick="discPillMulti(this,'implicacion')">Sus finanzas / margen</span>
-          <span class="disc-qpill" data-color="r" onclick="discPillMulti(this,'implicacion')">Su crecimiento</span>
-          <span class="disc-qpill" data-color="y" onclick="discPillMulti(this,'implicacion')">Relación con clientes</span>
-          <span class="disc-qpill" data-color="y" onclick="discPillMulti(this,'implicacion')">Solo tiempo / operación</span>
-        </div>
-      </div>
-      <button class="disc-mark-btn" onclick="discMarkCovered('dcard-dolor',this)">Marcar como cubierto</button>
     </div>
 
-    <!-- BUDGET -->
-    <div class="disc-topic-card" id="dcard-budget">
-      <div class="disc-topic-header"><span class="disc-topic-icon">💰</span><span class="disc-covered-badge">✓ Cubierto</span></div>
-      <div class="disc-topic-name">Budget &amp; Decisores</div>
-      <div class="disc-topic-sub">Al final, cuando ya hay confianza</div>
-      <div class="disc-topic-question">"Para recomendarte la mejor opción, ¿ya tienen contemplado un presupuesto? ¿Y cómo funciona el proceso de decisión?"</div>
-      <div class="disc-pill-section"><div class="disc-pill-label">Estado del presupuesto</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'budget')">Tienen presupuesto</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'budget')">En evaluación</span><span class="disc-qpill" data-color="r" onclick="discPillSingle(this,'budget')">No definido</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'budget')">Pendiente aprobación</span></div></div>
-      <div class="disc-pill-section"><div class="disc-pill-label">Modelo de pago preferido</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'modelo-pago')">Suscripción mensual</span><span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'modelo-pago')">Suscripción anual</span><span class="disc-qpill" data-color="b" onclick="discPillSingle(this,'modelo-pago')">Sin preferencia</span></div></div>
-      <hr class="disc-section-divider">
-      <div class="disc-pill-section"><div class="disc-pill-label">¿Con quién hablas?</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'decisor')">El que decide</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'decisor')">Influenciador</span><span class="disc-qpill" data-color="r" onclick="discPillSingle(this,'decisor')">No sé quién decide</span></div></div>
-      <div class="disc-pill-section"><div class="disc-pill-label">Proceso de aprobación</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'aprobacion')">Decide solo</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'aprobacion')">Validación interna</span><span class="disc-qpill" data-color="r" onclick="discPillSingle(this,'aprobacion')">Junta directiva</span></div></div>
-      <button class="disc-mark-btn" onclick="discMarkCovered('dcard-budget',this)">Marcar como cubierto</button>
+    <div class="dg-pc-card">
+      <div class="dg-pc-h"><span class="dot">📱</span><span class="t">Apps de Odoo recomendadas</span><span class="sub">por industria + tipo de venta</span></div>
+      <div class="dg-pc-b"><div id="discAppsContainer"><div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div></div></div>
     </div>
 
-    <!-- TIMELINE -->
-    <div class="disc-topic-card" id="dcard-timeline">
-      <div class="disc-topic-header"><span class="disc-topic-icon">⏱️</span><span class="disc-covered-badge">✓ Cubierto</span></div>
-      <div class="disc-topic-name">Timeline &amp; Fit</div>
-      <div class="disc-topic-sub">¿Cuándo y por qué Odoo?</div>
-      <div class="disc-topic-question">"¿Para cuándo necesitarían tener esto funcionando? ¿Hay alguna fecha que haga urgente resolverlo?"</div>
-      <div class="disc-pill-section"><div class="disc-pill-label">¿Cuándo arrancan?</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'timeline')">Menos de 1 mes</span><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'timeline')">1 – 3 meses</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'timeline')">3 – 6 meses</span><span class="disc-qpill" data-color="r" onclick="discPillSingle(this,'timeline')">Más de 6 meses</span></div></div>
-      <div class="disc-pill-section"><div class="disc-pill-label">Evento detonante</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'detonante')">Cierre fiscal</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'detonante')">Sistema actual que falla</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'detonante')">Expansión / nueva sucursal</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'detonante')">Cambio de dirección</span></div></div>
-      <hr class="disc-section-divider">
-      <div class="disc-pill-section"><div class="disc-pill-label">¿Odoo resuelve su caso?</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="g" onclick="discPillSingle(this,'fit')">Obvio — es perfecto para ellos</span><span class="disc-qpill" data-color="y" onclick="discPillSingle(this,'fit')">Probable — con algunos ajustes</span><span class="disc-qpill" data-color="r" onclick="discPillSingle(this,'fit')">Incierto — hay gaps importantes</span></div></div>
-      <div class="disc-pill-section"><div class="disc-pill-label">¿Qué quieren lograr?</div><div class="disc-quick-pills"><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'vision')">Control total de la operación</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'vision')">Info en tiempo real</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'vision')">Eliminar Excel</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'vision')">Escalar sin cambiar sistema</span><span class="disc-qpill" data-color="b" onclick="discPillMulti(this,'vision')">Ver márgenes reales</span></div></div>
-      <button class="disc-mark-btn" onclick="discMarkCovered('dcard-timeline',this)">Marcar como cubierto</button>
-    </div>
-
-    </div><!-- end topic-row-3 -->
-  </div><!-- end topic-grid -->
-  </div><!-- end escucha-area -->
-
-  <!-- POST-CALL AREA -->
-  <div class="disc-postcall-area" id="discPostcallArea">
-
-    <!-- Save card -->
-    <div class="disc-pc-card" style="background:linear-gradient(135deg,#fff7ed,#fffbeb);border-color:#fed7aa">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div>
-          <div class="disc-pc-title" style="color:#c2410c">💾 Guardar sesión</div>
-          <div class="disc-pc-sub" style="margin-bottom:0">Se guarda solo automáticamente mientras trabajas.</div>
-        </div>
+    <div class="dg-pc-card" style="background:linear-gradient(135deg,#fff7ed,#fffbeb);border-color:#fed7aa">
+      <div class="dg-pc-b" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div><div style="font-size:14.5px;font-weight:700;color:#c2410c">💾 Guardar sesión</div><div style="font-size:12px;color:#9a7b00">Se guarda solo automáticamente mientras trabajas.</div></div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <select class="disc-status-select" id="discStatusSel" onchange="discSetStatus(this.value)">
-            <option value="borrador">Borrador</option>
-            <option value="en_proceso">En proceso</option>
-            <option value="completado">Completada</option>
-            <option value="archivado">Archivada</option>
+            <option value="borrador">Borrador</option><option value="en_proceso">En proceso</option><option value="completado">Completada</option><option value="archivado">Archivada</option>
           </select>
           <button class="disc-save-btn" id="discSaveBtn" onclick="discSaveRecord()">💾 Guardar ahora</button>
         </div>
       </div>
     </div>
-
-    <!-- Summary -->
-    <div class="disc-pc-card"><div class="disc-pc-title">📊 Resumen de selecciones</div><div class="disc-pc-sub">Generado automáticamente de lo capturado durante la llamada</div><div id="discSummaryContent"></div></div>
-
-    <!-- NOTA CRM (moved up) -->
-    <div class="disc-pc-card">
-      <div class="disc-pc-title">📋 Nota para el CRM</div>
-      <div class="disc-pc-sub">Pega la transcripción de Google Meet para generar la nota estructurada que copiarás a Odoo CRM.</div>
-
-      <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Transcripción de Google Meet</div>
-      <textarea class="disc-transcript-ta" id="discTranscriptInput" oninput="discAutosave()" placeholder="Pega aquí la transcripción completa de la llamada...&#10;&#10;(En Google Meet: Actividades → Transcribir → Ver transcripción → Copiar todo)" style="min-height:80px;max-height:120px;resize:vertical"></textarea>
-
-      <button class="disc-gemini-btn" id="discAnalyzeBtn" onclick="discAnalyzeClaude()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
-        Generar nota para CRM
-      </button>
-
-      <div class="disc-gemini-loading" id="discGeminiLoading"><div class="disc-spinner"></div></div>
-
-      <div id="discGeminiOutputWrap" style="display:none;margin-top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div>
-            <div style="font-size:13px;font-weight:600">Nota para CRM</div>
-            <div id="discEngineLabel" style="font-size:11px;color:var(--gray-400);margin-top:2px"></div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="disc-copy-btn" onclick="discCopyOutput()">📋 Copiar</button>
-            <button class="disc-copy-btn" style="border-color:var(--accent);color:var(--accent)" onclick="discShowPopup('discGeminiOutput','Nota para CRM')">↗ Ver todo</button>
-            <button class="disc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="discAnalyzeClaude()">↺ Regenerar</button>
-          </div>
-        </div>
-        <div class="disc-gemini-output show disc-output-compact" id="discGeminiOutput"></div>
-        <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar nota en historial</button>
-      </div>
-    </div>
-
-    <!-- Apps (moved up) -->
-    <div class="disc-pc-card"><div class="disc-pc-title">📱 Apps de Odoo recomendadas</div><div class="disc-pc-sub">Basadas en industria y tipo de venta seleccionados</div><div id="discAppsContainer"><div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div></div></div>
-
-    <!-- RECOMENDACIONES (moved to end) -->
-    <div class="disc-pc-card">
-      <div class="disc-pc-title">🎯 Recomendaciones para este cliente</div>
-      <div class="disc-pc-sub">Estrategia sugerida basada en el perfil del prospecto y el historial del equipo. No requiere transcripción.</div>
-
-      <button class="disc-gemini-btn" id="discRecoBtn" onclick="discGenerateReco()" style="background:linear-gradient(135deg,var(--purple),var(--purple-mid))">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Generar recomendaciones con IA
-      </button>
-      <div class="disc-gemini-loading" id="discRecoLoading"><div class="disc-spinner"></div></div>
-
-      <div id="discRecoOutputWrap" style="display:none;margin-top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div id="discRecoLabel" style="font-size:11px;color:var(--gray-400)"></div>
-          <div style="display:flex;gap:8px">
-            <button class="disc-copy-btn" onclick="discCopyReco()">📋 Copiar</button>
-            <button class="disc-copy-btn" style="border-color:var(--accent);color:var(--accent)" onclick="discShowPopup('discRecoOutput','Recomendaciones IA')">↗ Ver todo</button>
-            <button class="disc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="discGenerateReco()">↺ Actualizar</button>
-          </div>
-        </div>
-        <div class="disc-gemini-output show disc-output-compact" id="discRecoOutput"></div>
-        <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar recomendaciones</button>
-      </div>
-    </div>
-
-  </div><!-- end postcall -->
-  </div><!-- end disc-wrap -->`;
+  </div>
+  </div>`;
 }
+
+// ── Section model ──
+const DG_SECTION_META=[{id:'situacion',t:'Situación'},{id:'flujo',t:'Flujo'},{id:'dolor',t:'Dolor'},{id:'budget',t:'Budget'},{id:'timeline',t:'Timeline'}];
+
+function dgBuildSections(){
+  const s=disc.selections;
+  const indId=disc.currentInd||'otra';
+  const prod=s.producto||'fisico';
+  const op=DG_OPERATIVO[prod]||DG_OPERATIVO.fisico;
+  const _mapT=arr=>(arr||[]).map(x=>typeof x==='string'?{t:x}:x);
+  const ventaArea=ak=>[...disc.activeTV].flatMap(v=>(DG_VENTA_CRIT[v]?.[ak]||[]));
+  const comCrit=[..._mapT(DG_COM_GENERAL),..._mapT(s.sinFines?DG_NONPROFIT_COM:(DG_COM_CRIT[indId]||DG_COM_CRIT.otra)),..._mapT(ventaArea('com'))];
+  const opCrit =[..._mapT(DG_OP_GENERAL),..._mapT(s.sinFines?DG_NONPROFIT_CRIT:(DG_IND_CRIT[indId]||DG_IND_CRIT.otra)),..._mapT(ventaArea('op'))];
+  const admCrit=[..._mapT(DG_ADM_GENERAL),..._mapT(s.sinFines?DG_NONPROFIT_ADM:(DG_ADM_CRIT[indId]||DG_ADM_CRIT.otra)),..._mapT(ventaArea('adm'))];
+
+  return [
+    {id:'situacion',icon:'🗺️',title:'Situación',goal:'Conoce la empresa a grandes rasgos y crea rapport. Aquí defines el tipo de operación.',config:true,
+      opener:'Para entender bien cómo podríamos ayudarles, cuéntenme sobre la empresa — ¿a qué se dedican y cómo está estructurada la operación?',
+      tip:'Tono ligero. Deja que presenten; tú anota y configura arriba lo que detectes.',
+      guide:[{t:'A qué se dedican y cómo está estructurada la operación'},{t:'Tamaño',s:'empleados, razones sociales, sucursales'},{t:'Qué sistemas usan hoy',s:'ERP, Excel, a la medida…'},{t:'Qué venden',s:'producto o servicio'}],
+      crit:[], empFields:true,
+      chips:(s.sinFines?['Donataria autorizada','Depende de donativos','Reporta a consejo','Sistemas desconectados']:['Multi-sucursal','Sistemas desconectados','Crecimiento reciente','Recaptura de datos'])},
+
+    {id:'flujo',icon:'🔄',title:'Flujo de la empresa',goal:'Cómo operan día a día, dividido en comercial · operativo · administrativo.',
+      opener:'Ahora me gustaría entender cómo operan en el día a día. Para que sea ordenado, lo dividimos en tres: comercial, operativo y administrativo. ¿Les parece?',
+      tip:'Esta es la apertura general. Cada parte tiene además su propia pregunta de entrada.',
+      subs:[
+        {id:'comercial',icon:'💼',label:'Comercial',area:'comercial',
+          opener:'¿Cómo consiguen y atienden a sus clientes hoy, desde el primer contacto hasta la postventa?',
+          guide:[{t:'Cómo consiguen clientes',s:'canales, prospección'},{t:'Proceso de venta',s:'de cotización a cierre'},{t:'Seguimiento y postventa'}],crit:comCrit,
+          fields:[{one:{id:'com-crm',l:'CRM / sistema comercial',ph:'Ej. ninguno, Excel, HubSpot…'}},{two:[{id:'com-vend',l:'Vendedores',ph:'#'},{id:'com-ciclo',l:'Ciclo de venta',ph:'Ej. 2 semanas'}]}],
+          chips:['Sin CRM','Cotiza a mano','Seguimiento informal','Sin métricas de venta']},
+        {id:'operativo',icon:'⚙️',label:'Operativo',area:'operativo',prodChars:true,opNote:true,
+          opener:op.opener,guide:op.guide,crit:opCrit,fields:op.fields,chips:op.chips},
+        {id:'admin',icon:'📑',label:'Administrativo',area:'administrativo',
+          opener:'¿Cómo llevan la parte administrativa — facturación, contabilidad y nómina?',
+          guide:[{t:'Facturación',s:'manual o sistema'},{t:'Contabilidad y conciliación'},{t:'Finanzas, RRHH y nómina'}],
+          crit:admCrit,
+          fields:[{one:{id:'adm-sys',l:'Sistema contable',ph:'Ej. CONTPAQi, Aspel, despacho…'}},{two:[{id:'adm-fact',l:'Facturas / mes',ph:'#'},{id:'adm-nom',l:'Nómina',ph:'# empleados'}]}],
+          chips:['Facturación manual','Cierre lento','Sin reportes al día','Info desconectada']}]},
+
+    {id:'dolor',icon:'🎯',title:'Dolor',goal:'Que ELLOS prioricen lo que más les duele. Aquí nace el ángulo de la propuesta.',
+      opener:'De todo lo que hemos platicado, ¿qué es lo que más les quita tiempo o les cuesta dinero hoy?',
+      tip:'No sugieras el dolor — deja que lo nombren con sus palabras.',
+      guide:[{t:'El dolor #1 en sus propias palabras'},{t:'Impacto',s:'dinero, tiempo o clientes'},{t:'Quién lo sufre y con qué frecuencia'},{t:'Qué han intentado para resolverlo'}],crit:[],
+      dolorText:true, chips:['Dolor alto','Impacto en ventas','Afecta varias áreas','Ya intentaron resolverlo','Urgente']},
+
+    {id:'budget',icon:'💰',title:'Budget',goal:(s.sinFines?'Cómo asignan presupuesto por fondo/proyecto y quién aprueba en el consejo.':'Cuánto invierten hoy y cómo deciden una compra de software.'),
+      opener:(s.sinFines?'¿Cómo asignan su presupuesto — por proyecto, fondo o donante — y quién lo aprueba en el consejo?':'¿Cuánto destinan hoy a sus sistemas, y cómo evalúan una nueva inversión de este tipo?'),
+      tip:'Conecta el costo del dolor con la inversión: no es gasto, es ahorro.',
+      guide:[{t:(s.sinFines?'Presupuesto disponible por fondo/proyecto':'Cuánto invierten hoy en sistemas / mes')},{t:'Quién decide y quién aprueba'},{t:'Cómo es su proceso de compra/aprobación'}],crit:[],
+      picks:[{group:'budget',label:'Estado del presupuesto',opts:['Tienen presupuesto','En evaluación','No definido','Pendiente aprobación']},{group:'decisor',label:'¿Con quién hablas?',opts:['El que decide','Influenciador','No sé quién decide']}],
+      fields:[{one:{id:'bud-monto',l:(s.sinFines?'Presupuesto / fondo':'Presupuesto sistemas / mes'),ph:'Ej. $15,000'}}],
+      quals:[{k:'champion',l:'Champion identificado'},{k:'criterios',l:'Criterios de decisión claros'},{k:'metrics',l:'Métricas de impacto cuantificadas'},{k:'proceso',l:'Proceso de decisión claro'}]},
+
+    {id:'timeline',icon:'📅',title:'Timeline',goal:'Define urgencia y siguientes pasos. Cierra con un compromiso concreto.',
+      opener:'¿Para cuándo les gustaría tener esto resuelto, y hay algo en el calendario que los presione a moverse?',
+      tip:'Sin fecha no hay urgencia. Acuerda un próximo paso antes de colgar.',
+      guide:[{t:'Para cuándo quieren resolverlo'},{t:'Qué evento los presiona',s:'temporada, auditoría, crecimiento'},{t:'Próximo paso acordado',s:'demo, propuesta, 2ª reunión'}],crit:[],
+      picks:[{group:'timeline',label:'¿Cuándo arrancan?',opts:['Menos de 1 mes','1 – 3 meses','3 – 6 meses','Más de 6 meses']},{group:'fit',label:'¿Odoo resuelve su caso?',opts:['Obvio — es perfecto para ellos','Probable — con algunos ajustes','Incierto — hay gaps importantes']}],
+      fields:[{one:{id:'tl-next',l:'Próximo paso',ph:'Ej. Demo el martes'}}]}
+  ];
+}
+
+// ── Render: rail ──
+function dgRenderRail(){
+  const host=document.getElementById('dgRail'); if(!host) return;
+  const cur=disc.ui.section;
+  host.innerHTML=DG_SECTION_META.map((s,i)=>{
+    const cls=i===cur?'on':(i<cur?'done':'');
+    return `<div class="dg-seg ${cls}" onclick="dgGo(${i})"><div class="dg-bar"></div><div class="dg-seglab">${s.t}</div></div>`;
+  }).join('');
+  const sc=document.getElementById('dgScope');
+  if(sc) sc.innerHTML=disc.selections.puntual?`<div class="dg-scope">🎯 <b style="margin:0 4px">Solución puntual</b> — el cliente no busca todo el ERP. Enfócate en su necesidad específica.</div>`:'';
+}
+
+function _dgEsc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function dgGuideHTML(items,crit,ns){
+  let h='';
+  (items||[]).forEach((g,i)=>{ h+=dgItem(g,`${ns}-g${i}`,false); });
+  (crit||[]).forEach((g,i)=>{ h+=dgItem(g,`${ns}-c${i}`,true); });
+  return h;
+}
+function dgItem(g,key,isCrit){
+  const done=disc.selections.cov&&disc.selections.cov[key];
+  return `<div class="dg-gitem ${isCrit?'crit':''} ${done?'done':''}" onclick="dgCov('${key}')"><div class="dg-gcheck">✓</div><div class="dg-gtext">${isCrit?'<span class="star">⭐ </span>':''}${g.t}${g.s?`<small>${g.s}</small>`:''}</div></div>`;
+}
+function dgFieldHTML(f){
+  const v=_dgEsc(disc.selections.fld?.[f.id]||'');
+  if(f.sel){ const opts=f.sel.map(o=>`<option ${v===o?'selected':''}>${o}</option>`).join(''); return `<div class="dg-field"><label>${f.l}</label><select data-fld="${f.id}" onchange="dgFld(this)">${opts}</select></div>`; }
+  return `<div class="dg-field"><label>${f.l}</label><input data-fld="${f.id}" value="${v}" placeholder="${f.ph||''}" oninput="dgFld(this)"></div>`;
+}
+function dgFieldsHTML(fields){
+  return (fields||[]).map(f=>{ if(f.one) return dgFieldHTML(f.one); if(f.two) return `<div class="dg-drow">${f.two.map(dgFieldHTML).join('')}</div>`; return ''; }).join('');
+}
+function dgChipsHTML(chips,ns,label){
+  const c=(chips||[]).map((t,i)=>{ const key=`${ns}-${i}`; const on=disc.selections.chip&&disc.selections.chip[key]; return `<span class="dg-chip ${on?'sel':''}" onclick="dgChip('${key}','${_dgEsc(t).replace(/'/g,'&#39;')}')">${t}</span>`; }).join('');
+  return `<div class="dg-chiplbl">${label||'Toca lo que detectes'}</div><div class="dg-chips">${c}</div>`;
+}
+function dgPicksHTML(picks){
+  return (picks||[]).map(p=>{ const sel=disc.selections[p.group]; const opts=p.opts.map(o=>`<span class="dg-chip ${sel===o?'sel':''}" onclick="dgPick('${p.group}','${o.replace(/'/g,"&#39;")}')">${o}</span>`).join(''); return `<div class="dg-chiplbl">${p.label}</div><div class="dg-chips">${opts}</div>`; }).join('');
+}
+function dgQualsHTML(quals){
+  if(!quals||!quals.length) return '';
+  const q=quals.map(x=>{ const on=disc.selections.qual&&disc.selections.qual[x.k]; return `<span class="dg-chip qual ${on?'sel':''}" onclick="dgQual('${x.k}')">${on?'✓ ':''}${x.l}</span>`; }).join('');
+  return `<div class="dg-chiplbl">Calificación del cliente (MEDDIC + BANT)</div><div class="dg-chips">${q}</div>`;
+}
+function dgProdCharsHTML(){
+  if((disc.selections.producto||'fisico')==='servicios') return '';
+  const opts=disc.selections.prodOpts||[];
+  const checks=DG_PROD_CHARS.map(c=>`<label class="dg-pc-check"><input type="checkbox" name="discProdOpt" value="${c}" ${opts.includes(c)?'checked':''} onchange="dgProdChar(this)"> ${c}</label>`).join('');
+  const orig=disc.selections['origen-prod'];
+  const origChips=DG_ORIGEN.map(o=>`<span class="dg-chip ${orig===o?'sel':''}" onclick="dgPick('origen-prod','${o}')">${o}</span>`).join('');
+  return `<div class="dg-prodchars"><h5>📦 Características del producto</h5><div class="dg-pc-checks">${checks}</div><div class="dg-chiplbl" style="margin-top:0">Origen del producto</div><div class="dg-chips">${origChips}</div></div>`;
+}
+function dgCfgStripHTML(){
+  const v=[...disc.activeTV].map(x=>TV_NAMES[x]).join(', ')||'—';
+  return [`📦 ${IND_NAMES[disc.currentInd]||'Sin industria'}`,`🧱 ${DG_PROD_LABEL[disc.selections.producto||'fisico']}`,`💳 ${v}`,disc.selections.sinFines?'🤝 Sin fines de lucro':null,disc.selections.puntual?'🎯 Solución puntual':null].filter(Boolean).map(t=>`<span class="dg-cfgpill">${t}</span>`).join('');
+}
+function dgCfgCardHTML(){
+  const optI=Object.entries(IND_NAMES).map(([k,l])=>`<option value="${k}" ${disc.currentInd===k?'selected':''}>${DG_IND_ICON[k]||''}  ${l}</option>`).join('');
+  const cur=disc.currentInd||'';
+  const prod=[['fisico','📦','Físico'],['servicios','🛠','Servicios'],['mixto','🧩','Mixto']].map(([k,ic,l])=>`<button class="${(disc.selections.producto||'fisico')===k?'on':''}" onclick="dgCfgProd('${k}')"><span class="ic">${ic}</span>${l}</button>`).join('');
+  const optV=Object.keys(TV_NAMES).map(k=>`<span class="dg-opt ${disc.activeTV.has(k)?'on':''}" onclick="dgCfgVenta('${k}')">${DG_VENTA_ICON[k]||''} ${TV_NAMES[k]}</span>`).join('');
+  return `<div class="dg-cfg2">
+    <div class="dg-cfg-head"><span class="dot">⚙️</span><span class="t">Configuración de la sesión</span><span class="sub">moldea preguntas, flujo y efectos WOW</span></div>
+    <div class="dg-cfg-grid">
+      <div><span class="dg-flbl">Industria</span><select class="dg-select" onchange="dgCfgInd(this.value)"><option value="" ${cur?'':'selected'} disabled>— Selecciona —</option>${optI}</select></div>
+      <div><span class="dg-flbl">Tipo de producto · define el flujo operativo</span><div class="dg-seg-ctrl">${prod}</div></div>
+      <div class="full"><span class="dg-flbl">Tipo de venta · elige uno o varios</span><div class="dg-opts">${optV}</div></div>
+      <div class="full"><span class="dg-flbl">Calificación especial</span><div class="dg-switch-row">
+        <div class="dg-switch ${disc.selections.sinFines?'on':''}" onclick="dgCfgFlag('sinFines')"><div class="dg-knob"></div><span>🤝 Asociación sin fines de lucro</span></div>
+        <div class="dg-switch ${disc.selections.puntual?'on':''}" onclick="dgCfgFlag('puntual')"><div class="dg-knob"></div><span>🎯 Solución puntual · no todo el ERP</span></div>
+      </div></div>
+    </div>
+  </div>`;
+}
+function dgEmpFieldsHTML(){
+  const s=disc.selections;
+  const val=k=>_dgEsc(s[k]||'');
+  return `<div id="discM2oWrap"></div>
+    <div class="dg-field" style="display:none"><label>Nombre</label><input id="d-emp-nombre" type="text" value="${val('emp-nombre')}" oninput="discSaveEmpresa()"></div>
+    <div class="dg-drow">
+      <div class="dg-field"><label>Razones sociales</label><input id="d-emp-razones" type="number" min="1" value="${val('emp-razones')}" placeholder="#" oninput="discSaveEmpresa()"></div>
+      <div class="dg-field"><label>Empleados</label><input id="d-emp-empleados" type="number" min="1" value="${val('emp-empleados')}" placeholder="#" oninput="discSaveEmpresa()"></div>
+    </div>
+    <div class="dg-field"><label>Sistemas actuales</label><input id="d-emp-sistemas" type="text" value="${val('emp-sistemas')}" placeholder="Ej. SAP, Excel, a la medida…" oninput="discSaveEmpresa()"></div>
+    <div class="dg-drow">
+      <div class="dg-field"><label>Usuarios con sistema</label><input id="d-emp-usuarios" type="number" min="0" value="${val('emp-usuarios')}" placeholder="#" oninput="discSaveEmpresa()"></div>
+      <div class="dg-field"><label>${s.sinFines?'Ingreso anual (donativos)':'Facturación / mes'}</label>
+        <select id="d-emp-facturacion" onchange="discSaveEmpresa()">
+          <option value="" ${!s['emp-facturacion']?'selected':''}>— Rango —</option>
+          ${['Menos de $500K MXN','$500K – $2M MXN','$2M – $5M MXN','$5M – $15M MXN','$15M – $50M MXN','$50M – $150M MXN','Más de $150M MXN'].map(o=>`<option ${s['emp-facturacion']===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="dg-field" style="display:none"><label>Presupuesto sistemas/mes</label><input id="d-emp-presupuesto" type="text" value="${val('emp-presupuesto')}" oninput="discSaveEmpresa()"></div>`;
+}
+
+// ── Render: section ──
+function dgRenderSection(){
+  const host=document.getElementById('dgSectionHost'); if(!host) return;
+  const secs=dgBuildSections();
+  const idx=Math.max(0,Math.min(disc.ui.section,secs.length-1));
+  const sec=secs[idx];
+  let subtabs='', body='';
+
+  let openerLbl = sec.subs?'Apertura general del bloque':'Cómo abrir la conversación';
+  body += sec.config?dgCfgCardHTML():'';
+  body += `<div class="dg-opener"><div class="dg-opener-lbl">🎙 ${openerLbl}</div><em>"${sec.opener}"</em><div class="tip">💡 ${sec.tip}</div></div>`;
+
+  let guide,data,wow='',subOpener='';
+  if(sec.subs){
+    const k=disc.ui.sub[sec.id]||0;
+    subtabs=sec.subs.map((t,ti)=>{
+      const gN=(t.guide?.length||0),cN=(t.crit?.length||0);
+      const all=(gN+cN)>0 && [...Array(gN)].every((_,gi)=>disc.selections.cov?.[`${sec.id}-${ti}-g${gi}`]) && [...Array(cN)].every((_,ci)=>disc.selections.cov?.[`${sec.id}-${ti}-c${ci}`]);
+      return `<div class="dg-subtab ${ti===k?'on':''}" onclick="dgSub('${sec.id}',${ti})">${t.icon} ${t.label}${all?' <span class="sdone">✓</span>':''}</div>`;
+    }).join('');
+    const t=sec.subs[k], ns=`${sec.id}-${k}`;
+    subOpener=`<div class="dg-subopener"><b>Pregunta de apertura · ${t.label}:</b> "${t.opener}"${t.opNote?'  <span style="color:#9a7b00">· se adapta al tipo de producto</span>':''}</div>`;
+    wow=dgWowHTML(t.area,`${sec.id}-${t.id}`);
+    guide=dgGuideHTML(t.guide,t.crit,ns);
+    data=(t.prodChars?dgProdCharsHTML():'')+`<div class="dg-databox">${dgFieldsHTML(t.fields)}${dgChipsHTML(t.chips,ns,'Detecté en '+t.label.toLowerCase())}</div>`;
+  } else {
+    const ns=sec.id;
+    guide=dgGuideHTML(sec.guide,sec.crit,ns);
+    let inner='';
+    if(sec.empFields) inner+=dgEmpFieldsHTML();
+    if(sec.dolorText){ const dv=_dgEsc(disc.selections.fld?.['dol-principal']||''); inner+=`<div class="dg-field"><label>Dolor principal (en sus palabras)</label><textarea data-fld="dol-principal" rows="2" oninput="dgFld(this)" placeholder="Resúmelo en una frase">${dv}</textarea></div>`; }
+    inner+=dgFieldsHTML(sec.fields);
+    inner+=dgPicksHTML(sec.picks);
+    inner+=dgQualsHTML(sec.quals);
+    inner+=dgChipsHTML(sec.chips,ns,sec.id==='dolor'?'Características del dolor':(sec.id==='budget'?'Señales de budget':(sec.id==='timeline'?'Señales de timeline':'Señales generales')));
+    data=`<div class="dg-databox">${inner}</div>`;
+  }
+
+  body += subtabs?`<div class="dg-subtabs">${subtabs}</div>`:'';
+  body += subOpener + wow;
+  body += `<div class="dg-cols"><div><div class="dg-collbl">✅ Guía — qué cubrir <span style="color:#FBB130">(⭐ = preguntas clave de información)</span></div>${guide}</div><div><div class="dg-collbl">📌 Datos a obtener</div>${data}</div></div>`;
+  body += `<div class="dg-nav"><button class="dg-prev" ${idx===0?'disabled':''} onclick="dgGo(${idx-1})">← Anterior</button><button class="dg-next" onclick="dgGo(${idx+1})">${idx===secs.length-1?'Ir a Post-call →':'Siguiente sección →'}</button></div>`;
+
+  host.innerHTML=`<div class="dg-card"><div class="dg-card-head"><div class="dg-sec-title"><span>${sec.icon}</span><span>${sec.title}</span></div><div class="dg-sec-goal">${sec.goal}</div>${sec.config?'':`<div class="dg-cfgstrip">${dgCfgStripHTML()}</div>`}</div><div class="dg-card-body">${body}</div></div>`;
+
+  if(sec.config) dgMountPicker();
+}
+
+function dgWowItems(area){
+  if(disc.selections.sinFines && area==='administrativo') return DG_NONPROFIT_WOW;
+  return (WOW_DB[area]||[]).filter(w=>w.type==='gen'||(w.type==='ind'&&w.ind===disc.currentInd)||(w.type==='tv'&&disc.activeTV.has(w.tv)));
+}
+function dgWowHTML(area,key){
+  const items=dgWowItems(area); const open=disc.ui.wow===key;
+  let panel='';
+  if(open){
+    const cards=items.map(w=>{ const tag=w.type==='ind'?`<span class="dg-wtag dg-wt-ind">${IND_NAMES[disc.currentInd]||'Industria'}</span>`:w.type==='tv'?`<span class="dg-wtag dg-wt-tv">${TV_NAMES[w.tv]||'Venta'}</span>`:`<span class="dg-wtag dg-wt-gen">General</span>`; return `<div class="dg-wi">${tag}<div class="dg-wi-title">${w.title}</div><div class="dg-wi-desc">${w.desc}</div><div class="dg-wi-wow">${w.wow}</div></div>`; }).join('');
+    panel=`<div class="dg-wow-panel">${cards||'<div style="color:#7c3aed;font-size:13px;padding:8px">Selecciona industria y/o tipo de venta para ver efectos específicos.</div>'}</div>`;
+  }
+  return `<button class="dg-wow-btn" onclick="dgWow('${key}')">✨ Efectos WOW de Odoo · ${items.length} ${open?'▴':'▾'}</button>${panel}`;
+}
+
+// ── Render: post-call synthesis ──
+function dgCoverage(){
+  const secs=dgBuildSections();
+  const rows=[];
+  const sit=secs[0]; rows.push(_dgCovRow('Situación', sit.guide,sit.crit,'situacion'));
+  const fl=secs[1];
+  fl.subs.forEach((t,ti)=>rows.push(_dgCovRow('Flujo · '+t.label,t.guide,t.crit,`flujo-${ti}`)));
+  ['dolor','budget','timeline'].forEach((id,n)=>{ const sx=secs[2+n]; rows.push(_dgCovRow(sx.title,sx.guide,sx.crit,id)); });
+  return rows;
+}
+function _dgCovRow(label,guide,crit,ns){
+  const total=(guide?.length||0)+(crit?.length||0); let done=0;
+  (guide||[]).forEach((_,i)=>{ if(disc.selections.cov?.[`${ns}-g${i}`]) done++; });
+  (crit||[]).forEach((_,i)=>{ if(disc.selections.cov?.[`${ns}-c${i}`]) done++; });
+  const st=total===0?'none':(done>=total?'full':(done>0?'part':'none'));
+  return {label,done,total,st};
+}
+function dgChipsByArea(){
+  const groups={General:[],Comercial:[],Operativo:[],Administrativo:[],Dolor:[]};
+  const chip=disc.selections.chip||{};
+  Object.entries(chip).forEach(([k,v])=>{
+    let g='General';
+    if(k.startsWith('flujo-0')) g='Comercial'; else if(k.startsWith('flujo-1')) g='Operativo'; else if(k.startsWith('flujo-2')) g='Administrativo'; else if(k.startsWith('dolor')) g='Dolor';
+    if(v) groups[g].push(v);
+  });
+  return groups;
+}
+function dgQualRows(){
+  const s=disc.selections, q=s.qual||{};
+  const dolores=Object.values(s.chip||{});
+  const r=(t,fw,d,chip,txt)=>({t,fw,d,chip,txt});
+  const need=dolores.length>0?'ok':'no';
+  const metrics=q.metrics?'ok':(s.fld?.['dol-principal']?'part':'no');
+  const bud=s.budget==='Tienen presupuesto'?'ok':((s.budget==='En evaluación'||s.budget==='Pendiente aprobación'||s.fld?.['bud-monto'])?'part':'no');
+  const econ=(q.econ||s.decisor==='El que decide')?'ok':(s.decisor==='Influenciador'?'part':'no');
+  const champ=q.champion?'ok':'no';
+  const crit=q.criterios?'ok':'no';
+  const proc=(s.timeline&&q.proceso)?'ok':(s.timeline?'part':'no');
+  const cl={ok:'ok',part:'part',no:'no'}, lbl={ok:'Sí',part:'Parcial',no:'Falta'};
+  return [
+    r('Dolor / Necesidad','Pain · Need',dolores.length?dolores.slice(0,3).join(', '):'Sin señales aún',cl[need],need==='ok'?'Alto':lbl[need]),
+    r('Métricas de impacto','Metrics',s.fld?.['dol-principal']?'Dolor descrito · cuantificar':'Sin cuantificar',cl[metrics],lbl[metrics]),
+    r('Presupuesto','Budget',s.fld?.['bud-monto']||s.budget||'Sin definir',cl[bud],lbl[bud]),
+    r('Comprador económico','Econ. buyer · Authority',s.decisor||(q.econ?'Identificado':'Sin identificar'),cl[econ],lbl[econ]),
+    r('Champion','Champion',q.champion?'Identificado':'Sin identificar',cl[champ],lbl[champ]),
+    r('Criterios de decisión','Decision criteria',q.criterios?'Explorados':'Sin explorar',cl[crit],lbl[crit]),
+    r('Proceso y tiempos','Decision process · Timeline',s.timeline||'Sin fecha',cl[proc],lbl[proc])
+  ];
+}
+function dgRenderPostcall(){
+  const host=document.getElementById('dgPostHost'); if(!host) return;
+  const s=disc.selections;
+  // resumen
+  const kv=[
+    {k:'Empleados',v:s['emp-empleados']},{k:'Usuarios con sistema',v:s['emp-usuarios']},
+    {k:'Razones sociales',v:s['emp-razones']},{k:(s.sinFines?'Ingreso (donativos)':'Facturación / mes'),v:s['emp-facturacion']},
+    {k:'Sistemas actuales',v:s['emp-sistemas']},{k:'Tipo de venta',v:s['tipo_venta']}
+  ];
+  const kvHTML=kv.map(r=>`<div class="row"><span class="k">${r.k}</span><span class="v ${r.v?'':'empty'}">${r.v?_dgEsc(r.v):'—'}</span></div>`).join('');
+  const tags=[DG_PROD_LABEL[s.producto||'fisico'],s['origen-prod'],...(s.prodOpts||[]),s.sinFines?'Sin fines de lucro':null].filter(Boolean);
+  const tagHTML=tags.length?`<div class="dg-tagrow">${tags.map(t=>`<span class="dg-tag">${_dgEsc(t)}</span>`).join('')}</div>`:'';
+  // completitud
+  const cov=dgCoverage();
+  const totals=cov.reduce((a,c)=>({d:a.d+c.done,t:a.t+c.total}),{d:0,t:0});
+  const pct=totals.t?Math.round(100*totals.d/totals.t):0;
+  const off=207-207*pct/100;
+  const faltan=cov.filter(c=>c.st!=='full').map(c=>c.label);
+  const covRows=cov.map(c=>`<div class="dg-crow"><span class="dg-cdot ${c.st}">${c.st==='full'?'✓':(c.st==='part'?'◐':'○')}</span><span class="dg-cname">${c.label}</span><span class="dg-cstat ${c.st}">${c.st==='full'?'Completo':(c.st==='part'?'Parcial':'Falta')}</span></div>`).join('');
+  // MEDDIC+BANT
+  const ql=dgQualRows();
+  const icons={'Dolor / Necesidad':'🔥','Métricas de impacto':'📊','Presupuesto':'💰','Comprador económico':'👤','Champion':'🤝','Criterios de decisión':'📋','Proceso y tiempos':'🔄'};
+  const qHTML=ql.map(x=>`<div class="dg-brow"><div class="dg-bicon">${icons[x.t]}</div><div class="dg-binfo"><div class="dg-bt">${x.t} <span class="dg-fw">${x.fw}</span></div><div class="dg-bd">${_dgEsc(x.d)}</div></div><span class="dg-bchip ${x.chip}">${x.txt}</span></div>`).join('');
+  const oks=ql.filter(x=>x.chip==='ok').length;
+  const verdict=oks>=5?{c:'',t:'Alta'}:(oks>=3?{c:'media',t:'Media'}:{c:'baja',t:'Baja'});
+  const gaps=ql.filter(x=>x.chip==='no').map(x=>x.t.toLowerCase());
+  // señales
+  const groups=dgChipsByArea();
+  const dolorTxt=s.fld?.['dol-principal'];
+  const sigHTML=Object.entries(groups).filter(([g,a])=>a.length).map(([g,a])=>`<div class="dg-siggroup"><div class="dg-siglbl">${g}</div>${a.map(t=>`<span class="dg-sig">${_dgEsc(t)}</span>`).join('')}</div>`).join('')||'<div style="color:#9ca3af;font-size:13px">Sin señales capturadas aún.</div>';
+  // WOW demo
+  const wowSet=[]; const seen=new Set();
+  ['comercial','operativo','administrativo'].forEach(area=>{ dgWowItems(area).forEach(w=>{ if((w.type==='ind'||w.type==='tv')&&!seen.has(w.title)){ seen.add(w.title); wowSet.push({...w,area}); } }); });
+  if(wowSet.length<4){ ['operativo','comercial','administrativo'].forEach(area=>{ dgWowItems(area).forEach(w=>{ if(w.type==='gen'&&!seen.has(w.title)&&wowSet.length<6){ seen.add(w.title); wowSet.push({...w,area}); } }); }); }
+  const areaLbl={comercial:'Comercial',operativo:'Operativo',administrativo:'Administrativo'};
+  const wowHTML=wowSet.slice(0,6).map(w=>`<div class="dg-wi"><span class="dg-wtag dg-wt-ind">${areaLbl[w.area]}</span><div class="dg-wi-title">${w.title}</div><div class="dg-wi-wow">${w.wow}</div></div>`).join('')||'<div style="color:#7c3aed;font-size:13px;padding:8px">Selecciona industria y tipo de venta para recomendaciones.</div>';
+
+  host.innerHTML=`
+  <div class="dg-pc-grid2">
+    <div>
+      <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">🏢</span><span class="t">Resumen de la empresa</span><span class="sub">autollenado</span></div>
+        <div class="dg-pc-b"><div class="dg-kv">${kvHTML}</div>${tagHTML}</div></div>
+    </div>
+    <div>
+      <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">📊</span><span class="t">Completitud</span></div>
+        <div class="dg-pc-b">
+          <div class="dg-ringwrap">
+            <svg width="72" height="72" viewBox="0 0 78 78"><circle cx="39" cy="39" r="33" fill="none" stroke="#e5e7eb" stroke-width="9"/><circle cx="39" cy="39" r="33" fill="none" stroke="#714B67" stroke-width="9" stroke-linecap="round" stroke-dasharray="207" stroke-dashoffset="${off.toFixed(0)}" transform="rotate(-90 39 39)"/><text x="39" y="45" text-anchor="middle" font-size="19" font-weight="800" fill="#21272B">${pct}%</text></svg>
+            <div style="font-size:12.5px;color:#6b7280;line-height:1.5">${pct>=70?'Cubriste lo esencial.':'Discovery en progreso.'}${faltan.length?`<br><b style="color:#d97706">Faltan: ${faltan.slice(0,3).join(', ')}.</b>`:''}</div>
+          </div>${covRows}
+        </div></div>
+    </div>
+  </div>
+
+  <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">🎯</span><span class="t">Conocimiento del cliente</span><span class="sub">MEDDIC + BANT</span></div>
+    <div class="dg-pc-b">${qHTML}<div class="dg-verdict ${verdict.c}"><div><span class="dg-vt">Oportunidad</span>${gaps.length?`<div style="font-size:11.5px;margin-top:3px;font-weight:600;opacity:.85">Falta documentar: ${gaps.slice(0,3).join(', ')}</div>`:''}</div><span class="dg-vv">${verdict.t}</span></div></div></div>
+
+  <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">🔎</span><span class="t">Dolor y señales detectadas</span></div>
+    <div class="dg-pc-b">${dolorTxt?`<div class="dg-dolorbox"><div class="dl">⚠ Dolor principal (en sus palabras)</div><div class="dv">"${_dgEsc(dolorTxt)}"</div></div>`:''}${sigHTML}</div></div>
+
+  <div class="dg-pc-card dg-wowcard"><div class="dg-pc-h"><span class="dot">✨</span><span class="t">Efectos WOW para la demo</span><span class="sub">según industria + lo detectado</span></div>
+    <div class="dg-pc-b"><div class="dg-wowgrid">${wowHTML}</div></div></div>`;
+}
+
+// ── Navigation & capture handlers ──
+function dgRender(){ dgRenderRail(); dgRenderSection(); }
+window.dgGo=function(n){ const max=DG_SECTION_META.length; if(n>=max){ discSetMode('postcall'); return; } if(n<0) return; disc.ui.section=n; dgRender(); const el=document.getElementById('dgRail'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); };
+window.dgSub=function(id,ti){ disc.ui.sub[id]=ti; disc.ui.wow=null; dgRenderSection(); };
+window.dgWow=function(key){ disc.ui.wow=disc.ui.wow===key?null:key; dgRenderSection(); };
+window.dgCov=function(key){ if(!disc.selections.cov) disc.selections.cov={}; disc.selections.cov[key]=!disc.selections.cov[key]; if(!disc.selections.cov[key]) delete disc.selections.cov[key]; dgRender(); discAutosave(); };
+window.dgChip=function(key,label){ if(!disc.selections.chip) disc.selections.chip={}; if(disc.selections.chip[key]) delete disc.selections.chip[key]; else disc.selections.chip[key]=label; disc.selections.dolores=Object.values(disc.selections.chip); dgRenderSection(); discAutosave(); };
+window.dgPick=function(group,label){ disc.selections[group]=disc.selections[group]===label?'':label; dgRenderSection(); discAutosave(); };
+window.dgQual=function(k){ if(!disc.selections.qual) disc.selections.qual={}; disc.selections.qual[k]=!disc.selections.qual[k]; dgRenderSection(); discAutosave(); };
+window.dgFld=function(el){ if(!disc.selections.fld) disc.selections.fld={}; disc.selections.fld[el.dataset.fld]=el.value; discAutosave(); };
+window.dgProdChar=function(){ disc.selections.prodOpts=[...document.querySelectorAll('input[name="discProdOpt"]:checked')].map(i=>i.value); discAutosave(); };
+window.dgCfgInd=function(val){ disc.currentInd=val; disc.selections.industria=IND_NAMES[val]||''; const l=document.getElementById('discIndLabel'); if(l) l.textContent=(IND_NAMES[val]||'')+' · En llamada'; dgRender(); discUpdateApps(); discAutosave(); };
+window.dgCfgProd=function(val){ disc.selections.producto=val; disc.selections['tipo-empresa']=DG_PROD_LABEL[val]; dgRenderSection(); discAutosave(); };
+window.dgCfgVenta=function(k){ if(disc.activeTV.has(k)){ if(disc.activeTV.size>1) disc.activeTV.delete(k); } else disc.activeTV.add(k); disc.selections.tipo_venta=[...disc.activeTV].map(x=>TV_NAMES[x]).join(', '); dgRenderSection(); discUpdateApps(); discAutosave(); };
+window.dgCfgFlag=function(k){ disc.selections[k]=!disc.selections[k]; dgRender(); discAutosave(); };
 
 // ── Form init & restore ──
 function discInitForm(data){
+  disc.selections=Object.assign({}, data?.selections||{});
+  ['chip','cov','fld','qual'].forEach(k=>{ if(!disc.selections[k]||typeof disc.selections[k]!=='object') disc.selections[k]={}; });
+  if(!Array.isArray(disc.selections.prodOpts)) disc.selections.prodOpts=[];
   if(data){
     disc.recordId=data.id;
     disc.status=data.status||'borrador';
     disc.currentInd=data.industria||null;
     disc.companyId=data.companyId||null;
     disc.activeTV=new Set(Array.isArray(data.tipoVenta)?data.tipoVenta:[]);
-    disc.selections=Object.assign({},data.selections||{});
-    // Restore empresa fields
-    const fmap={'d-emp-nombre':'emp-nombre','d-emp-razones':'emp-razones','d-emp-empleados':'emp-empleados','d-emp-sistemas':'emp-sistemas','d-emp-usuarios':'emp-usuarios','d-emp-presupuesto':'emp-presupuesto','d-emp-facturacion':'emp-facturacion'};
-    Object.entries(fmap).forEach(([elId,selKey])=>{ const el=document.getElementById(elId); if(el) el.value=disc.selections[selKey]||''; });
-    // Restore industry chip
-    if(disc.currentInd){
-      document.querySelectorAll('.disc-chip').forEach(c=>{ if(c.getAttribute('onclick')?.includes("'"+disc.currentInd+"'")) c.classList.add('active'); });
-      document.querySelectorAll('.disc-ind-listen.disc-ind-'+disc.currentInd).forEach(i=>i.style.display='flex');
-      const lbl=document.getElementById('discIndLabel'); if(lbl) lbl.textContent=IND_NAMES[disc.currentInd]+' · En llamada';
+    if(!disc.selections.producto){
+      const t=disc.selections['tipo-empresa']||'';
+      disc.selections.producto = t.startsWith('Servicios')?'servicios':(t.startsWith('Mixtos')?'mixto':'fisico');
     }
-    // Restore TV chips
-    disc.activeTV.forEach(tv=>{
-      document.querySelectorAll('.disc-tvchip').forEach(c=>{ if(c.getAttribute('onclick')?.includes("'"+tv+"'")) c.classList.add('active'); });
-      document.querySelectorAll('.disc-tv-listen.disc-tv-'+tv).forEach(i=>i.style.display='flex');
-    });
-    // Restore empresa badge
-    const nb=document.getElementById('discEmpresaBadge');
-    const nom=disc.selections['emp-nombre']||'';
-    if(nb&&nom){ nb.textContent='📄 '+nom; nb.style.display='inline-block'; }
-    // Restore status select (ambos: header + post-call)
-    const ss=document.getElementById('discStatusSel'); if(ss) ss.value=disc.status;
     const ssh=document.getElementById('discStatusSelHeader'); if(ssh) ssh.value=disc.status;
-    // Restore pills
-    discRestorePills();
-    discRestoreCovered();
-    // Restore AI notes if any
-    if(data.geminiNote){ const o=document.getElementById('discGeminiOutput'); const w=document.getElementById('discGeminiOutputWrap'); if(o&&w){ o.textContent=data.geminiNote; o.classList.add('show'); w.style.display='block'; } }
-    if(data.recoNote){ const o=document.getElementById('discRecoOutput'); const w=document.getElementById('discRecoOutputWrap'); if(o&&w){ o.textContent=data.recoNote; o.classList.add('show'); w.style.display='block'; const l=document.getElementById('discRecoLabel'); if(l) l.textContent='Recomendaciones guardadas'; } }
-    // Restore transcript
+    const ss=document.getElementById('discStatusSel'); if(ss) ss.value=disc.status;
+    if(disc.currentInd){ const l=document.getElementById('discIndLabel'); if(l) l.textContent=(IND_NAMES[disc.currentInd]||'')+' · En llamada'; }
+    const nb=document.getElementById('discEmpresaBadge'), nom=disc.selections['emp-nombre']||'';
+    if(nb&&nom){ nb.textContent='📄 '+nom; nb.style.display='inline-block'; }
+    if(data.geminiNote){ const o=document.getElementById('discGeminiOutput'),w=document.getElementById('discGeminiOutputWrap'); if(o&&w){ o.textContent=data.geminiNote; o.classList.add('show'); w.style.display='block'; } }
+    if(data.recoNote){ const o=document.getElementById('discRecoOutput'),w=document.getElementById('discRecoOutputWrap'); if(o&&w){ o.textContent=data.recoNote; o.classList.add('show'); w.style.display='block'; const l=document.getElementById('discRecoLabel'); if(l) l.textContent='Recomendaciones guardadas'; } }
     if(data.transcript){ const ta=document.getElementById('discTranscriptInput'); if(ta) ta.value=data.transcript; }
   }
-  // Restaurar modo y estado del botón según si la llamada ya fue finalizada
+  disc.ui={section:0,sub:{flujo:1},wow:null};
+  dgRender(); dgRenderPostcall();
   if(data?.callEnded){
-    disc.callEnded=true;
-    discSetMode('postcall');
-    const btn=document.getElementById('discEndBtn');
-    if(btn){ btn.textContent='✓ Llamada finalizada'; btn.style.background='#16a34a'; btn.style.cursor='default'; btn.onclick=null; }
-  } else {
-    disc.callEnded=false;
-    discSetMode('escucha');
-  }
+    disc.callEnded=true; discSetMode('postcall');
+    const btn=document.getElementById('discEndBtn'); if(btn){ btn.textContent='✓ Finalizada'; btn.style.background='#16a34a'; btn.style.color='#fff'; btn.style.borderColor='#16a34a'; btn.style.cursor='default'; btn.onclick=null; }
+  } else { disc.callEnded=false; discSetMode('escucha'); }
 }
 
-function discRestorePills(){
-  const s=disc.selections;
-  // Single pills
-  ['tipo-empresa','origen-prod','budget','modelo-pago','decisor','aprobacion','timeline','fit'].forEach(group=>{
-    if(!s[group]) return;
-    document.querySelectorAll('.disc-quick-pills .disc-qpill').forEach(p=>{
-      if(p.getAttribute('onclick')?.includes("'"+group+"'")&&p.textContent.trim()===s[group]){
-        const c='selected-'+(p.dataset.color||'b'); p.classList.add(c);
-      }
-    });
-  });
-  // Dolor
-  if(Array.isArray(s['dolores'])){ s['dolores'].forEach(d=>{ document.querySelectorAll('.disc-qpill[data-dolor]').forEach(p=>{ if(p.dataset.dolor===d) p.classList.add('selected-r'); }); }); }
-  // Multi
-  ['implicacion','detonante','vision'].forEach(group=>{
-    const vals=Array.isArray(s[group])?s[group]:[];
-    vals.forEach(v=>{ document.querySelectorAll('.disc-quick-pills .disc-qpill').forEach(p=>{ if(p.getAttribute('onclick')?.includes("'"+group+"'")&&p.textContent.trim()===v){ p.classList.add('selected-'+(p.dataset.color||'b')); } }); });
-  });
-}
-
-function discRestoreCovered(){
-  const s=disc.selections;
-  // Restore covered cards
-  (s.coveredCards||[]).forEach(cardId=>{
-    const card=document.getElementById(cardId); if(!card) return;
-    card.classList.add('covered');
-    const btn=card.querySelector('.disc-mark-btn'); if(btn) btn.textContent='✓ Cubierto';
-    const map={'dcard-situacion':'situacion','dcard-dolor':'d','dcard-budget':'b','dcard-timeline':'t'};
-    const key=map[cardId]; if(key) discSetBarDot('dbant-'+key,'dbi-'+key,true);
-  });
-  // Restore covered flujos
-  (s.coveredFlujos||[]).forEach(name=>{
-    const tab=document.getElementById('dtab-'+name); if(tab) tab.classList.add('covered-tab');
-    const fi=document.getElementById('dfi-'+name); if(fi) fi.style.display='inline-block';
-    const dm={'comercial':'dbant-comercial','operativo':'dbant-operativo','administrativo':'dbant-admin'};
-    const di={'comercial':'dbi-comercial','operativo':'dbi-operativo','administrativo':'dbi-admin'};
-    discSetBarDot(dm[name],di[name],true);
-    const panel=document.getElementById('dpanel-'+name);
-    if(panel){
-      const btn=panel.querySelector('.disc-mark-btn');
-      if(btn){
-        const lbl=name.charAt(0).toUpperCase()+name.slice(1);
-        btn.textContent='✓ '+lbl+' cubierto';
-        btn.style.borderStyle='solid'; btn.style.background='#dcfce7';
-        btn.style.color='#16a34a'; btn.style.borderColor='#86efac';
-      }
-    }
+function dgMountPicker(){
+  if(typeof mountCompanyPicker!=='function') return;
+  mountCompanyPicker('discM2oWrap',(co,ct)=>{
+    disc.selections['emp-nombre']=co?.nombre||'';
+    disc.companyId=co?.id||null;
+    const nb=document.getElementById('discEmpresaBadge');
+    const ni=document.getElementById('d-emp-nombre');
+    if(nb){ nb.textContent=co?'📄 '+co.nombre:''; nb.style.display=co?'inline-block':'none'; }
+    if(ni) ni.value=co?.nombre||'';
+    discAutosave();
+  }).then(()=>{
+    if(disc.companyId&&typeof getCompany==='function'){ getCompany(disc.companyId).then(co=>{ if(co&&typeof cpState!=='undefined'){ cpState.selectedCompany=co; renderM2o('discM2oWrap'); } }); }
   });
 }
 
 // ── Form actions ──
 window.discSetMode=function(mode){
   const ea=document.getElementById('discEscuchaArea');
-  const sb=document.getElementById('discSelBar');
   const pa=document.getElementById('discPostcallArea');
   const me=document.getElementById('dmbEscucha');
   const mp=document.getElementById('dmbPostcall');
   if(ea) ea.style.display=mode==='escucha'?'block':'none';
-  if(sb) sb.style.display=mode==='escucha'?'flex':'none';
-  if(pa){ pa.style.display=mode==='postcall'?'block':'none'; }
-  if(me) me.className='disc-mode-btn'+(mode==='escucha'?' active':'');
-  if(mp) mp.className='disc-mode-btn'+(mode==='postcall'?' postcall-active':'');
-  if(mode==='postcall'){ discGenerateSummary(); discUpdateApps(); }
+  if(pa) pa.style.display=mode==='postcall'?'block':'none';
+  if(me) me.className='dg-mode-btn'+(mode==='escucha'?' active':'');
+  if(mp) mp.className='dg-mode-btn'+(mode==='postcall'?' active':'');
+  if(mode==='postcall'){ dgRenderPostcall(); discUpdateApps(); }
 };
 window.discEndCall=function(){
   disc.callEnded=true;
   const btn=document.getElementById('discEndBtn');
-  if(btn){
-    btn.textContent='✓ Llamada finalizada';
-    btn.style.background='#16a34a';
-    btn.style.cursor='default';
-    btn.onclick=null; // ya no se puede volver a presionar
-    setTimeout(()=>discSetMode('postcall'),800);
-  }
+  if(btn){ btn.textContent='✓ Finalizada'; btn.style.background='#16a34a'; btn.style.color='#fff'; btn.style.borderColor='#16a34a'; btn.style.cursor='default'; btn.onclick=null; setTimeout(()=>discSetMode('postcall'),600); }
   discAutosave();
-};
-window.discSelectInd=function(id,el){
-  disc.currentInd=id;
-  document.querySelectorAll('.disc-chip').forEach(c=>c.classList.remove('active'));
-  el.classList.add('active');
-  document.querySelectorAll('.disc-ind-listen').forEach(i=>i.style.display='none');
-  document.querySelectorAll('.disc-ind-listen.disc-ind-'+id).forEach(i=>i.style.display='flex');
-  const lbl=document.getElementById('discIndLabel'); if(lbl) lbl.textContent=IND_NAMES[id]+' · En llamada';
-  disc.selections['industria']=IND_NAMES[id];
-  discUpdateApps();
-};
-window.discToggleTV=function(id,el){
-  if(disc.activeTV.has(id)){ disc.activeTV.delete(id); el.classList.remove('active'); }
-  else { disc.activeTV.add(id); el.classList.add('active'); }
-  document.querySelectorAll('.disc-tv-listen').forEach(i=>i.style.display='none');
-  disc.activeTV.forEach(tv=>document.querySelectorAll('.disc-tv-listen.disc-tv-'+tv).forEach(i=>i.style.display='flex'));
-  disc.selections['tipo_venta']=[...disc.activeTV].map(k=>TV_NAMES[k]).join(', ');
-  discUpdateApps();
 };
 // Lee los campos de empresa a disc.selections (SIN disparar autosave — evita bucles)
 function discReadEmpFields(){
@@ -2558,120 +2750,6 @@ window.discSaveEmpresa=function(){
   if(nb){ nb.textContent='📄 '+nom; nb.style.display=nom?'inline-block':'none'; }
   discAutosave();
 };
-window.discToggleProdOpts=function(tipo){
-  const el=document.getElementById('disc-prod-opts');
-  if(!el) return;
-  el.style.display=(tipo==='servicios')?'none':'block';
-};
-window.discPillSingle=function(el,group){
-  el.closest('.disc-quick-pills').querySelectorAll('.disc-qpill').forEach(p=>{ p.className='disc-qpill'; });
-  el.classList.add('selected-'+(el.dataset.color||'b'));
-  disc.selections[group]=el.textContent.trim();
-  discUpdateBANT();
-  discAutosave();
-};
-window.discPillMulti=function(el,group){
-  const cls='selected-'+(el.dataset.color||'b');
-  el.classList.toggle(cls);
-  if(!disc.selections[group]) disc.selections[group]=[];
-  const val=el.textContent.trim();
-  if(el.classList.contains(cls)){ if(!disc.selections[group].includes(val)) disc.selections[group].push(val); }
-  else disc.selections[group]=disc.selections[group].filter(v=>v!==val);
-  discAutosave();
-};
-window.discToggleDolor=function(el){
-  el.classList.toggle('selected-r');
-  if(!disc.selections['dolores']) disc.selections['dolores']=[];
-  const val=el.dataset.dolor||el.textContent.trim();
-  if(el.classList.contains('selected-r')){ if(!disc.selections['dolores'].includes(val)) disc.selections['dolores'].push(val); }
-  else disc.selections['dolores']=disc.selections['dolores'].filter(v=>v!==val);
-  const c=document.getElementById('dcard-dolor'); if(c) c.style.borderColor=disc.selections['dolores']?.length?'#f97316':'';
-  discUpdateBANT();
-  discAutosave();
-};
-window.discMarkCovered=function(cardId,btn){
-  const card=document.getElementById(cardId); if(!card) return;
-  card.classList.toggle('covered');
-  const cov=card.classList.contains('covered');
-  btn.textContent=cov?'✓ Cubierto':'Marcar como cubierto';
-  const map={'dcard-situacion':'situacion','dcard-dolor':'d','dcard-budget':'b','dcard-timeline':'t'};
-  const key=map[cardId]; if(key) discSetBarDot('dbant-'+key,'dbi-'+key,cov);
-  // Persist covered state
-  if(!disc.selections.coveredCards) disc.selections.coveredCards=[];
-  if(cov){ if(!disc.selections.coveredCards.includes(cardId)) disc.selections.coveredCards.push(cardId); }
-  else disc.selections.coveredCards=disc.selections.coveredCards.filter(c=>c!==cardId);
-  discAutosave();
-};
-window.discMarkFlujo=function(name,btn){
-  const cov=!btn.textContent.startsWith('✓');
-  const lbl=name.charAt(0).toUpperCase()+name.slice(1);
-  btn.textContent=cov?'✓ '+lbl+' cubierto':'Marcar '+lbl+' como cubierto';
-  btn.style.borderStyle=cov?'solid':'dashed'; btn.style.background=cov?'#dcfce7':'transparent';
-  // Persist covered state
-  if(!disc.selections.coveredFlujos) disc.selections.coveredFlujos=[];
-  if(cov){ if(!disc.selections.coveredFlujos.includes(name)) disc.selections.coveredFlujos.push(name); }
-  else disc.selections.coveredFlujos=disc.selections.coveredFlujos.filter(f=>f!==name);
-  btn.style.color=cov?'#16a34a':'#9ca3af'; btn.style.borderColor=cov?'#86efac':'#d1d5db';
-  const fi=document.getElementById('dfi-'+name); if(fi) fi.style.display=cov?'inline-block':'none';
-  const tab=document.getElementById('dtab-'+name); if(tab) tab.classList.toggle('covered-tab',cov);
-  const dm={'comercial':'dbant-comercial','operativo':'dbant-operativo','administrativo':'dbant-admin'};
-  const di={'comercial':'dbi-comercial','operativo':'dbi-operativo','administrativo':'dbi-admin'};
-  discSetBarDot(dm[name],di[name],cov);
-  discAutosave();
-};
-function discSetBarDot(dotId,itemId,cov){
-  const dot=document.getElementById(dotId); if(dot){ dot.classList.toggle('covered',cov); dot.classList.toggle('filled',false); }
-  const item=document.getElementById(itemId); if(item) item.classList.toggle('covered',cov);
-}
-function discUpdateBANT(){
-  const s=disc.selections;
-  const setDot=(id,active)=>{ const d=document.getElementById('dbant-'+id); if(d) d.classList.toggle('filled',!!active); };
-  setDot('d',s.dolores?.length>0); setDot('b',!!s.budget); setDot('t',!!s.timeline);
-}
-window.discToggleFlujos=function(){
-  const body=document.getElementById('dflujos-body'); const chev=document.getElementById('dflujos-chevron');
-  const open=body.style.display!=='none';
-  body.style.display=open?'none':'block'; chev.classList.toggle('open',!open);
-};
-window.discSwitchTab=function(name){
-  ['comercial','operativo','administrativo'].forEach(t=>{
-    document.getElementById('dtab-'+t)?.classList.toggle('active',t===name);
-    document.getElementById('dpanel-'+t)?.classList.toggle('active',t===name);
-  });
-};
-window.discScrollTo=function(id){ const el=document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); };
-window.discScrollToFlujo=function(name){ discScrollTo('dcard-flujos'); discSwitchTab(name); };
-window.discToggleWow=function(flujo,btn){
-  const panel=document.getElementById('dwow-panel-'+flujo);
-  if(panel.classList.contains('open')){ panel.classList.remove('open'); btn.textContent='✨ WoW Effects'; return; }
-  const items=(WOW_DB[flujo]||[]).filter(w=>w.type==='gen'||(w.type==='ind'&&w.ind===disc.currentInd)||(w.type==='tv'&&disc.activeTV.has(w.tv)));
-  const tagLabel={gen:'General',ind:IND_NAMES[disc.currentInd]||'Industria',tv:'Tipo de venta'};
-  panel.innerHTML=items.length===0?'<div style="color:#7c3aed;font-size:13px;text-align:center;padding:12px">Selecciona industria y/o tipo de venta para ver efectos específicos.</div>':`
-    <div class="disc-wow-panel-title">✨ Efectos WoW de Odoo</div>
-    <div class="disc-wow-items">${items.map(w=>`<div class="disc-wow-item"><span class="disc-wow-tag disc-wow-tag-${w.type}">${tagLabel[w.type]}</span><div class="disc-wow-item-title">${w.title}</div><div class="disc-wow-item-desc">${w.desc}</div><div class="disc-wow-item-wow">${w.wow}</div></div>`).join('')}</div>`;
-  panel.classList.add('open'); btn.textContent='✕ Cerrar WoW';
-};
-function discGenerateSummary(){
-  const s=disc.selections;
-  const c=document.getElementById('discSummaryContent'); if(!c) return;
-  const empF=[
-    {k:'Empresa',v:s['emp-nombre']},{k:'Razones sociales',v:s['emp-razones']},{k:'Empleados',v:s['emp-empleados']},
-    {k:'Sistemas actuales',v:s['emp-sistemas']},{k:'Usuarios en sistema',v:s['emp-usuarios']},
-    {k:'Presupuesto sistemas',v:s['emp-presupuesto']},{k:'Facturación mensual',v:s['emp-facturacion']},
-  ].filter(r=>r.v);
-  const rows=[
-    {k:'Industria',v:s['industria']},{k:'Tipo de venta',v:s['tipo_venta']},{k:'Tipo de empresa',v:s['tipo-empresa']},
-    {k:'Budget',v:s['budget']},{k:'Modelo de pago',v:s['modelo-pago']},{k:'¿Con el decisor?',v:s['decisor']},
-    {k:'Proceso aprobación',v:s['aprobacion']},{k:'Timeline',v:s['timeline']},{k:'Fit con Odoo',v:s['fit']},
-    {k:'Dolores detectados',v:s['dolores']?.join(', ')},{k:'Implicación',v:Array.isArray(s['implicacion'])?s['implicacion'].join(', '):s['implicacion']},
-    {k:'Visión',v:Array.isArray(s['vision'])?s['vision'].join(', '):s['vision']},{k:'Detonante',v:Array.isArray(s['detonante'])?s['detonante'].join(', '):s['detonante']},
-  ].filter(r=>r.v);
-  if(!empF.length&&!rows.length){ c.innerHTML='<div style="color:#9ca3af;font-size:13px;text-align:center;padding:16px">No hay datos registrados.</div>'; return; }
-  const bgMap={'Tienen presupuesto':'#f0fdf4','En evaluación':'#fffbeb','No definido':'#fef2f2','El que decide':'#f0fdf4','Influenciador':'#fffbeb','No sé quién decide':'#fef2f2','Menos de 1 mes':'#f0fdf4','1 – 3 meses':'#f0fdf4','3 – 6 meses':'#fffbeb','Más de 6 meses':'#fef2f2','Obvio — es perfecto para ellos':'#f0fdf4','Probable — con algunos ajustes':'#fffbeb','Incierto — hay gaps importantes':'#fef2f2'};
-  const tcMap={'Tienen presupuesto':'#16a34a','En evaluación':'#d97706','No definido':'#dc2626','El que decide':'#16a34a','Influenciador':'#d97706','No sé quién decide':'#dc2626','Menos de 1 mes':'#16a34a','1 – 3 meses':'#16a34a','3 – 6 meses':'#d97706','Más de 6 meses':'#dc2626','Obvio — es perfecto para ellos':'#16a34a','Probable — con algunos ajustes':'#d97706','Incierto — hay gaps importantes':'#dc2626'};
-  c.innerHTML=(empF.length?`<div style="margin-bottom:16px"><div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Datos de la empresa</div>${empF.map(r=>`<div class="disc-summary-row"><span class="disc-summary-key">${r.k}</span><span class="disc-summary-val">${r.v}</span></div>`).join('')}</div><hr style="border:none;border-top:1px solid #f3f4f6;margin-bottom:14px">`:'')+
-  (rows.length?`<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px">Calificación</div>${rows.map(r=>{ const bg=bgMap[r.v]||'#f3f4f6',tc=tcMap[r.v]||'#374151'; return `<div class="disc-summary-row"><span class="disc-summary-key">${r.k}</span><span class="disc-summary-val-pill" style="background:${bg};color:${tc};border:1px solid ${tc}22">${r.v}</span></div>`; }).join('')}`:'');
-}
 function discUpdateApps(){
   const c=document.getElementById('discAppsContainer'); if(!c) return;
   const apps=[]; const seen=new Set();
@@ -2679,6 +2757,7 @@ function discUpdateApps(){
   disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!seen.has(TV_APPS[tv].name)){ apps.push(TV_APPS[tv]); seen.add(TV_APPS[tv].name); }});
   c.innerHTML=apps.length===0?'<div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div>':`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">${apps.map(a=>`<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;background:#f9fafb"><div style="font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px">Odoo ${a.name}</div><div style="font-size:11.5px;color:#6b7280;line-height:1.5">${a.reason}</div></div>`).join('')}</div>`;
 }
+
 
 // ── AI Analysis (Claude) ──
 
@@ -2719,48 +2798,45 @@ DATOS CAPTURADOS DURANTE LA LLAMADA:
 - Usuarios en sistema: ${s['emp-usuarios']||'nd'}, Presupuesto sistemas/mes: ${s['emp-presupuesto']||'nd'}
 - Facturación mensual: ${s['emp-facturacion']||'nd'}
 - Industria: ${s['industria']||'nd'}, Tipo de venta: ${s['tipo_venta']||'nd'}
-- Dolores detectados: ${s['dolores']?.join(', ')||'nd'}
+- Tipo de producto: ${s['tipo-empresa']||'nd'}${s.sinFines?' · ASOCIACIÓN SIN FINES DE LUCRO':''}${s.puntual?' · busca SOLUCIÓN PUNTUAL (no todo el ERP)':''}
+- Señales/dolores detectados: ${s['dolores']?.join(', ')||'nd'}
+- Dolor principal (en sus palabras): ${s.fld?.['dol-principal']||'nd'}
 - Budget: ${s['budget']||'nd'}, Decisor: ${s['decisor']||'nd'}
 - Timeline: ${s['timeline']||'nd'}, Fit con Odoo: ${s['fit']||'nd'}
-- Visión del prospecto: ${Array.isArray(s['vision'])?s['vision'].join(', '):(s['vision']||'nd')}
+- Calificación MEDDIC capturada: Comprador económico=${(s.qual?.econ||s['decisor']==='El que decide')?'sí':'no'} | Champion=${s.qual?.champion?'sí':'no'} | Criterios de decisión=${s.qual?.criterios?'sí':'no'} | Métricas cuantificadas=${s.qual?.metrics?'sí':'no'} | Proceso de decisión claro=${s.qual?.proceso?'sí':'no'}
 - Apps recomendadas: ${apps.join(', ')||'por definir'}
 
 TRANSCRIPCIÓN COMPLETA:
 ${transcript}
 
-Genera la nota de discovery para el CRM con exactamente estas secciones:
+El objetivo es DOCUMENTAR al cliente con información de calidad para que cualquiera del equipo lo entienda sin haber estado en la llamada. Genera la nota con exactamente estas secciones:
 
-1. RESUMEN EJECUTIVO
-   Máximo 3 líneas: quiénes son, su dolor principal y nivel de oportunidad.
+1. EMPRESA Y CONTEXTO
+   Qué hacen, tamaño (empleados, razones sociales), sistemas actuales y cómo están conectados (o no).
 
-2. SITUACIÓN DEL NEGOCIO
-   Complementa los datos capturados con lo que dijo el prospecto en la llamada.
+2. OPERACIÓN ACTUAL
+   Tres viñetas: Comercial (cómo venden), Operativo (cómo entregan), Administrativo (facturación/contabilidad/nómina). Usa lo de la transcripción.
 
-3. CÓMO VENDEN
-   Canal de adquisición, proceso de cotización, ticket promedio, CRM actual.
+3. DOLOR E IMPACTO
+   El dolor #1 con cita textual entre comillas si la hubo. A quién afecta y su impacto (dinero/tiempo). Si no se cuantificó, dilo explícitamente.
 
-4. CÓMO OPERAN
-   Inventario, proveedores, logística, producción si aplica.
+4. CALIFICACIÓN (MEDDIC + BANT)
+   Una línea por dimensión, marcando lo que SÍ se sabe y lo que FALTA documentar:
+   Necesidad | Métricas de impacto | Presupuesto | Comprador económico | Champion | Criterios de decisión | Proceso y tiempos.
 
-5. CÓMO ADMINISTRAN
-   Contabilidad, CFDI, nómina, visibilidad financiera.
+5. ENCAJE CON ODOO (LLEVAR A LA DEMO)
+   Para cada módulo relevante: nombre → dolor específico que resuelve → efecto WOW clave.
 
-6. DOLORES CONFIRMADOS
-   Lista numerada. Incluye citas textuales entre comillas cuando el prospecto lo mencionó explícitamente.
+6. PENDIENTES POR DOCUMENTAR
+   Lista concreta de lo que falta confirmar para avanzar el deal (deriva de los "FALTA" de la calificación).
 
-7. CALIFICACIÓN BANT
-   Budget: [estado] | Autoridad: [decisor] | Necesidad: [nivel 1-3] | Timeline: [plazo]
-
-8. PRÓXIMOS PASOS
-   Acciones concretas con responsable y fecha sugerida.
-
-9. MÓDULOS ODOO RECOMENDADOS
-   Para cada módulo: nombre → dolor específico que resuelve → WoW effect clave.
+7. PRÓXIMO PASO
+   Acción concreta con responsable y fecha sugerida.
 ${recentSessions.length>0?`
-10. PATRONES DEL EQUIPO
-    Compara esta sesión con el historial de ${IND_NAMES[disc.currentInd]||'la industria'}. ¿Hay dolores recurrentes? ¿Qué diferencia a este prospecto?`:''}
+8. PATRONES DEL EQUIPO
+   Compara con el historial de ${IND_NAMES[disc.currentInd]||'la industria'}. ¿Dolores recurrentes? ¿Qué diferencia a este prospecto?`:''}
 
-Escribe en español de México, tono profesional pero directo. Sé conciso y accionable. No repitas información entre secciones.`;
+Escribe en español de México, tono profesional pero directo. NO inventes datos: si algo no está en lo capturado ni en la transcripción, escribe "No documentado". Sé conciso y accionable. No repitas información entre secciones.`;
 }
 
 
