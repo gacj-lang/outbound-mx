@@ -3282,6 +3282,9 @@
     // Tarifas por año para el documento
     const rateY1 = ed.rates[currentPlanIdx];
     const rateY2 = ed.ratesY2 ? ed.ratesY2[currentPlanIdx] : rateY1;
+    // Descuentos seleccionados por plan (0 si el candado está bloqueado)
+    const licDiscByPlanOut  = discLicUnlocked  ? licDiscByPlan.slice()  : licDiscByPlan.map(() => 0);
+    const implDiscByPlanOut = discImplUnlocked ? implDiscByPlan.slice() : implDiscByPlan.map(() => 0);
     window.parent.postMessage({
       type: 'outbound_pricing',
       total, users: currentUsers,
@@ -3292,6 +3295,7 @@
       implNotes, payTermIdx, payStartDate,
       isSH, shWorkers, shStaging, shStorage, shCost,
       rateY1, rateY2,
+      licDiscByPlan: licDiscByPlanOut, implDiscByPlan: implDiscByPlanOut, implPriceList: currentImplPrice,
     }, '*');
   }
 
