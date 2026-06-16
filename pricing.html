@@ -3261,6 +3261,65 @@
         syncClientName(e.data.name || '');
       }
     }
+    // Restaurar una sesión de pricing guardada (desde Registros de Pricing)
+    if (e.data?.type === 'load_config') {
+      const c = e.data;
+      try {
+        // Edición
+        if (typeof c.editionIdx === 'number') {
+          const etabs = document.querySelectorAll('.etab');
+          setEdition(c.editionIdx, etabs[c.editionIdx] || etabs[1]);
+        }
+        // Usuarios
+        if (c.users) {
+          currentUsers = c.users;
+          const ui = document.getElementById('user-count'); if (ui) ui.value = c.users;
+        }
+        // Odoo.SH
+        if (c.isSH) {
+          if (typeof c.shWorkers === 'number') { shWorkers = c.shWorkers; const el = document.getElementById('sh-workers'); if (el) el.value = c.shWorkers; }
+          if (typeof c.shStaging === 'number') { shStaging = c.shStaging; const el = document.getElementById('sh-staging'); if (el) el.value = c.shStaging; }
+          if (typeof c.shStorage === 'number') { shStorage = c.shStorage; const el = document.getElementById('sh-storage'); if (el) el.value = c.shStorage; }
+        }
+        // Implementación
+        const implSel = document.getElementById('impl-dropdown');
+        if (c.implHrs && c.implHrs > 0) {
+          if (implSel) implSel.value = String(c.implHrs);
+          setImplFromDropdown(String(c.implHrs));
+        } else if (c.implPrice && c.implPrice > 0) {
+          if (implSel) implSel.value = 'otro';
+          setImplFromDropdown('otro');
+          const ph = document.getElementById('impl-custom-hrs'), pp = document.getElementById('impl-custom-price');
+          if (ph) ph.value = c.implHrs || '';
+          if (pp) pp.value = c.implPrice || '';
+          if (typeof setImplCustom === 'function') setImplCustom();
+        }
+        if (c.implNotes) { const n = document.getElementById('impl-notes-text'); if (n) n.value = c.implNotes; }
+        // Descuentos (licencias e implementación)
+        if (Array.isArray(c.licDiscByPlan)) {
+          licDiscByPlan = c.licDiscByPlan.slice();
+          const wantL = licDiscByPlan.some(d => d > 0);
+          if (wantL !== discLicUnlocked) toggleLock('lic');
+        }
+        if (Array.isArray(c.implDiscByPlan)) {
+          implDiscByPlan = c.implDiscByPlan.slice();
+          const wantI = implDiscByPlan.some(d => d > 0);
+          if (wantI !== discImplUnlocked) toggleLock('impl');
+        }
+        // Plan (re-renderiza con todo lo anterior aplicado)
+        if (typeof c.planIdx === 'number') setPlan(c.planIdx, null);
+        // Términos de pago
+        if (typeof c.payTermIdx === 'number' && c.payTermIdx >= 0) {
+          const pt = document.getElementById('pt-select');
+          if (pt) { pt.value = String(c.payTermIdx); if (typeof selectPayTerm === 'function') selectPayTerm(c.payTermIdx); }
+        }
+        if (c.payStartDate) { const d = document.getElementById('pt-start-date'); if (d) d.value = c.payStartDate; }
+        // Cliente
+        if (c.clientName) { const ci = document.getElementById('client-name-input'); if (ci) { ci.value = c.clientName; syncClientName(c.clientName); } }
+        // Re-render final
+        renderTable(); updateTotal(currentPlanIdx); if (typeof renderCharts === 'function') renderCharts();
+      } catch (err) { console.warn('load_config error', err); }
+    }
   });
 
   function sendToOutbound() {

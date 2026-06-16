@@ -5708,7 +5708,8 @@ function renderPricing(){
         edition:d.editionName, users:d.users, planIdx:d.planIdx,
         mensualRef:d.mensualRef, implHrs:d.implHrs, implPrice:d.implPrice, total:d.total,
         licDiscByPlan:Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null, implDiscByPlan:Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null, implPriceList:d.implPriceList||d.implPrice||null,
-        isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0,
+        isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0, shCost:d.shCost||0,
+        payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', implNotes:d.implNotes||'',
         createdAt:serverTimestamp()
       });
     } catch(e2){}
@@ -6699,14 +6700,21 @@ window.pricingExitFullscreen=function(){
   if(strip) strip.style.display='';
 };
 
+window._pricingRecordsCache={};
 window.renderPricingRecords=async function(){
   const content=document.getElementById('moduleContent');
   content.style.padding='28px';
+  const isMgr=currentUserData?.role==='manager';
   content.innerHTML=`<div style="max-width:800px;margin:0 auto">
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
       <button class="btn btn-ghost btn-sm" onclick="renderPricingHome()">← Volver</button>
       <h2 style="font-size:22px;font-weight:700">📋 Registros de Pricing</h2>
     </div>
+    <p style="font-size:13px;color:var(--gray-500);margin-bottom:18px">Haz clic en un registro para reabrirlo y regenerar su propuesta comercial.</p>
+    ${isMgr?`<div id="pricingBulkBar" style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="pricingSelectAll" onchange="pricingToggleAll(this)"> Seleccionar todo</label>
+      <button class="btn btn-ghost-danger btn-sm" id="pricingDelSelBtn" onclick="pricingDeleteSelected()" disabled>🗑 Eliminar seleccionados (<span id="pricingSelCount">0</span>)</button>
+    </div>`:''}
     <div id="pricingRecordsList"><div class="cdc-empty">Cargando registros...</div></div>
   </div>`;
   if(!db){ document.getElementById('pricingRecordsList').innerHTML='<div class="cdc-empty">Sin conexión a Firebase</div>'; return; }
@@ -6718,24 +6726,79 @@ window.renderPricingRecords=async function(){
     const snap=await getDocs(q);
     const el=document.getElementById('pricingRecordsList');
     if(snap.empty){ el.innerHTML='<div class="cdc-empty">Sin registros todavía</div>'; return; }
+    window._pricingRecordsCache={};
     const fmt=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0}):'—';
     el.innerHTML=snap.docs.map(d=>{
-      const r=d.data();
+      const r=d.data(); window._pricingRecordsCache[d.id]=r;
       const date=r.createdAt?.toDate?r.createdAt.toDate().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'—';
-      return `<div class="card" style="padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:15px;font-weight:700">${r.companyName||'Sin empresa'}</div>
-          <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${r.edition||'—'} · ${r.users||0} usuarios · ${PRICING_DATA.planLabels[r.planIdx||1]||'—'}</div>
-          <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${r.aeName||''} · ${date}</div>
+      return `<div class="card" title="Abrir y regenerar propuesta" style="padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;cursor:pointer" onclick="pricingOpenRecord('${d.id}')">
+        <div style="display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1">
+          ${isMgr?`<input type="checkbox" class="pricingRecChk" value="${d.id}" onclick="event.stopPropagation();pricingUpdateSel()" style="margin-top:4px;width:16px;height:16px;accent-color:var(--purple)">`:''}
+          <div style="min-width:0">
+            <div style="font-size:15px;font-weight:700">${r.companyName||'Sin empresa'}</div>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${r.edition||'—'} · ${r.users||0} usuarios · ${PRICING_DATA.planLabels[r.planIdx||1]||'—'}</div>
+            <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${r.aeName||''} · ${date}</div>
+          </div>
         </div>
-        <div style="text-align:right;flex-shrink:0">
+        <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end">
           <div style="font-size:16px;font-weight:700;color:var(--purple)">${fmt(r.total)}</div>
           <div style="font-size:11px;color:var(--gray-400)">Total c/IVA</div>
           <div style="font-size:11px;color:var(--gray-500);margin-top:2px">Impl: ${fmt(r.implPrice)}</div>
+          ${isMgr?`<button class="btn btn-ghost-danger btn-sm" style="margin-top:8px;padding:4px 10px" onclick="event.stopPropagation();deleteRecord('pricingRecords','${d.id}',renderPricingRecords)" title="Eliminar registro">🗑</button>`:''}
         </div>
       </div>`;
     }).join('');
   } catch(e){ document.getElementById('pricingRecordsList').innerHTML=`<div class="cdc-empty">Error: ${e.message}</div>`; }
+};
+
+// Reabrir un registro guardado → abre el simulador (iframe) con TODO restaurado
+window.pricingOpenRecord=function(id){
+  const r=window._pricingRecordsCache?.[id];
+  if(!r){ showNotif('Registro no encontrado','error'); return; }
+  const ed=PRICING_DATA.editions.find(e=>e.name===r.edition)||PRICING_DATA.editions[1];
+  const editionIdx=PRICING_DATA.editions.indexOf(ed);
+  // Empresa (para que la propuesta y el iframe la tengan)
+  pricingState.company=r.companyId?{id:r.companyId,nombre:r.companyName||''}:(r.companyName?{nombre:r.companyName}:null);
+  pricingState.contact=null;
+  renderPricingIframe();
+  const cfg={
+    type:'load_config',
+    editionIdx, planIdx:r.planIdx??1, users:r.users||1,
+    implHrs:r.implHrs||0, implPrice:r.implPriceList||r.implPrice||0,
+    licDiscByPlan:Array.isArray(r.licDiscByPlan)?r.licDiscByPlan:[0,0,0,0,0,0],
+    implDiscByPlan:Array.isArray(r.implDiscByPlan)?r.implDiscByPlan:[0,0,0,0,0,0],
+    isSH:r.isSH||false, shWorkers:r.shWorkers||1, shStaging:r.shStaging||0, shStorage:r.shStorage||0,
+    payTermIdx:r.payTermIdx??-1, payStartDate:r.payStartDate||'', implNotes:r.implNotes||'',
+    clientName:r.companyName||''
+  };
+  const iframe=document.getElementById('pricingFrame');
+  if(iframe){
+    const send=()=>{ try{ iframe.contentWindow?.postMessage(cfg,'*'); }catch(_){} };
+    iframe.addEventListener('load',()=>setTimeout(send,300),{once:true});
+    setTimeout(send,1400); // reintento por si el iframe ya estaba cargado
+  }
+};
+
+window.pricingToggleAll=function(cb){ document.querySelectorAll('.pricingRecChk').forEach(c=>c.checked=cb.checked); pricingUpdateSel(); };
+window.pricingUpdateSel=function(){
+  const n=document.querySelectorAll('.pricingRecChk:checked').length;
+  const c=document.getElementById('pricingSelCount'); if(c) c.textContent=n;
+  const b=document.getElementById('pricingDelSelBtn'); if(b) b.disabled=(n===0);
+};
+window.pricingDeleteSelected=async function(){
+  if(currentUserData?.role!=='manager'){ showNotif('Solo el manager puede eliminar','error'); return; }
+  const ids=[...document.querySelectorAll('.pricingRecChk:checked')].map(c=>c.value);
+  if(!ids.length) return;
+  if(!confirm(`¿Eliminar ${ids.length} registro(s)? Esta acción no se puede deshacer.`)) return;
+  if(!db){ showNotif('Sin conexión a Firebase','error'); return; }
+  try{
+    for(const id of ids){ await deleteDoc(doc(db,'pricingRecords',id)); }
+    showNotif(`${ids.length} registro(s) eliminado(s) ✓`,'success');
+    renderPricingRecords();
+  } catch(e){
+    if(e.code==='permission-denied'||e.message?.includes('permission')) showNotif('Error de permisos — revisa las reglas de Firestore','error');
+    else showNotif('Error: '+e.message,'error');
+  }
 };
 
 
