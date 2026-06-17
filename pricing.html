@@ -1385,6 +1385,7 @@
   let currentPlanIdx = 5;
   let currentImplPrice = 0;   // default: sin paquete
   let currentImplHrs   = 0;
+  let pricingReady     = false;  // true tras INIT → habilita autoguardado
 
   // Odoo SH variables
   let shWorkers = 1;
@@ -2027,6 +2028,7 @@
     updateCtxMessage(i);
     updatePDFHeader();
     updateFXTable();
+    if (pricingReady) scheduleAutosave();
   }
 
   function setImplFromDropdown(val) {
@@ -2876,6 +2878,7 @@
   renderCharts();
   // Fetch FX rates automatically on load
   fetchFXRates();
+  pricingReady = true;  // a partir de aquí, cada cambio dispara autoguardado
 
   // ── TÉRMINOS DE PAGO ─────────────────────────────────────────────────────
   let payTermsUnlocked = false;
@@ -3261,6 +3264,10 @@
         syncClientName(e.data.name || '');
       }
     }
+    // Guardado manual solicitado desde la app (botón 💾 Guardar)
+    if (e.data?.type === 'request_save') {
+      window.parent.postMessage({ type: 'pricing_autosave', manual: true, ...getPricingPayload() }, '*');
+    }
     // Restaurar una sesión de pricing guardada (desde Registros de Pricing)
     if (e.data?.type === 'load_config') {
       const c = e.data;
@@ -3322,30 +3329,24 @@
     }
   });
 
-  function sendToOutbound() {
+  function getPricingPayload() {
     const ed = editionBaseRates[currentEdition];
     const mensualRef = ed.rates[currentPlanIdx] * currentUsers;
     const total = getCurrentTotalRaw();
     const clientName = document.getElementById('client-name-input')?.value?.trim() || '';
-    // Notas de implementación
     const implNotes = document.getElementById('impl-notes-text')?.value?.trim() || '';
-    // Términos de pago
     const payTermIdx  = parseInt(document.getElementById('pt-select')?.value ?? '-1');
     const payStartDate = document.getElementById('pt-start-date')?.value || '';
-    // Variables SH (si aplica)
-    const isSH = currentEdition === 'sh';
+    const isSH = currentEdition === 2;   // índice 2 = Odoo.SH
     const shWorkers = parseInt(document.getElementById('sh-workers')?.value || '1');
     const shStaging = parseInt(document.getElementById('sh-staging')?.value || '0');
     const shStorage = parseInt(document.getElementById('sh-storage')?.value || '0');
     const shCost = isSH ? getSHCost(currentPlanIdx) : 0;
-    // Tarifas por año para el documento
     const rateY1 = ed.rates[currentPlanIdx];
     const rateY2 = ed.ratesY2 ? ed.ratesY2[currentPlanIdx] : rateY1;
-    // Descuentos seleccionados por plan (0 si el candado está bloqueado)
     const licDiscByPlanOut  = discLicUnlocked  ? licDiscByPlan.slice()  : licDiscByPlan.map(() => 0);
     const implDiscByPlanOut = discImplUnlocked ? implDiscByPlan.slice() : implDiscByPlan.map(() => 0);
-    window.parent.postMessage({
-      type: 'outbound_pricing',
+    return {
       total, users: currentUsers,
       editionName: ed.name, editionIdx: currentEdition,
       planIdx: currentPlanIdx, planLabel: plans[currentPlanIdx]?.label || '',
@@ -3355,7 +3356,18 @@
       isSH, shWorkers, shStaging, shStorage, shCost,
       rateY1, rateY2,
       licDiscByPlan: licDiscByPlanOut, implDiscByPlan: implDiscByPlanOut, implPriceList: currentImplPrice,
-    }, '*');
+    };
+  }
+  function sendToOutbound() {
+    window.parent.postMessage({ type: 'outbound_pricing', ...getPricingPayload() }, '*');
+  }
+  // Autoguardado con debounce — se dispara en cada cambio (vía updateTotal)
+  let pricingAutosaveT = null;
+  function scheduleAutosave() {
+    clearTimeout(pricingAutosaveT);
+    pricingAutosaveT = setTimeout(() => {
+      window.parent.postMessage({ type: 'pricing_autosave', ...getPricingPayload() }, '*');
+    }, 1500);
   }
 
 </script>

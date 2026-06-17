@@ -5679,47 +5679,82 @@ function renderPricing(){
   // Setup postMessage listener for pricing result
   if(window._pricingMsgHandler) window.removeEventListener('message',window._pricingMsgHandler);
   window._pricingMsgHandler=async function(e){
-    if(e.data?.type!=='outbound_pricing') return;
+    const type=e.data?.type;
+    if(type!=='outbound_pricing' && type!=='pricing_autosave') return;
     const d=e.data;
-    const fmt=n=>n.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
-    pricingState.result={...d,mensualRef:d.mensualRef,impl:d.implPrice,subtotal:0,iva:0,total:d.total};
-    pricingState.users=d.users; pricingState.planIdx=d.planIdx;
-    pricingState._mensualRef='$'+fmt(d.mensualRef);
-    pricingState._impl='$'+fmt(d.implPrice);
-    // Capture all new fields
-    pricingState.implNotes=d.implNotes||'';
-    pricingState.payTermIdx=d.payTermIdx??-1;
-    pricingState.payStartDate=d.payStartDate||'';
-    pricingState.isSH=d.isSH||false;
-    pricingState.shWorkers=d.shWorkers||1;
-    pricingState.shStaging=d.shStaging||0;
-    pricingState.shStorage=d.shStorage||0;
-    pricingState.shCost=d.shCost||0;
-    pricingState.rateY1=d.rateY1||0;
-    pricingState.rateY2=d.rateY2||0;
-    pricingState.licDiscByPlan=Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null;
-    pricingState.implDiscByPlan=Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null;
-    pricingState.implPriceList=d.implPriceList||d.implPrice||0;
-    // Save record to Firestore
-    if(db) try{
-      await addDoc(collection(db,'pricingRecords'),{
-        aeUid:currentUserData?.uid, aeName:currentUserData?.name||'', aeGram:currentUserData?.gram||'', tlId:currentUserData?.tlId||null,
-        companyId:pricingState.company?.id||null, companyName:pricingState.company?.nombre||d.clientName||'',
-        edition:d.editionName, users:d.users, planIdx:d.planIdx,
-        mensualRef:d.mensualRef, implHrs:d.implHrs, implPrice:d.implPrice, total:d.total,
-        licDiscByPlan:Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null, implDiscByPlan:Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null, implPriceList:d.implPriceList||d.implPrice||null,
-        isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0, shCost:d.shCost||0,
-        payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', implNotes:d.implNotes||'',
-        createdAt:serverTimestamp()
-      });
-    } catch(e2){}
-    // Instead of going to propuesta, show PDF popup so AE selects modules first
-    pricingShowModuleSelector();
+    applyPricingMsg(d);
+    await pricingUpsertRecord(d,{silent:type==='pricing_autosave'});
+    if(type==='outbound_pricing') pricingShowModuleSelector();
   };
   window.addEventListener('message',window._pricingMsgHandler);
   renderPricingHome();
 }
 
+// Aplica el mensaje del simulador a pricingState (usado por autosave y por generar propuesta)
+function applyPricingMsg(d){
+  const fmt=n=>Number(n||0).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0});
+  pricingState.result={...d,mensualRef:d.mensualRef,impl:d.implPrice,subtotal:0,iva:0,total:d.total};
+  pricingState.users=d.users; pricingState.planIdx=d.planIdx;
+  pricingState._mensualRef='$'+fmt(d.mensualRef);
+  pricingState._impl='$'+fmt(d.implPrice);
+  pricingState.implNotes=d.implNotes||'';
+  pricingState.payTermIdx=d.payTermIdx??-1;
+  pricingState.payStartDate=d.payStartDate||'';
+  pricingState.isSH=d.isSH||false;
+  pricingState.shWorkers=d.shWorkers||1;
+  pricingState.shStaging=d.shStaging||0;
+  pricingState.shStorage=d.shStorage||0;
+  pricingState.shCost=d.shCost||0;
+  pricingState.rateY1=d.rateY1||0;
+  pricingState.rateY2=d.rateY2||0;
+  pricingState.licDiscByPlan=Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null;
+  pricingState.implDiscByPlan=Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null;
+  pricingState.implPriceList=d.implPriceList||d.implPrice||0;
+}
+
+// Upsert del registro de pricing (autoguardado / guardado manual). Usa pricingState.recordId.
+async function pricingUpsertRecord(d,opts={}){
+  if(!db) return;
+  const statusEl=document.getElementById('pricingSaveStatus');
+  const hasClient=!!(pricingState.company?.id || pricingState.company?.nombre || (d.clientName||'').trim());
+  if(!hasClient){
+    if(d.manual) showNotif('Selecciona una empresa antes de guardar','error');
+    if(statusEl && d.manual){ statusEl.textContent='Selecciona una empresa'; statusEl.style.color='var(--gray-400)'; }
+    return;
+  }
+  if(statusEl){ statusEl.textContent='Guardando…'; statusEl.style.color='var(--gray-400)'; }
+  const rec={
+    aeUid:currentUserData?.uid, aeName:currentUserData?.name||'', aeGram:currentUserData?.gram||'', tlId:currentUserData?.tlId||null,
+    companyId:pricingState.company?.id||null, companyName:pricingState.company?.nombre||d.clientName||'',
+    edition:d.editionName, users:d.users, planIdx:d.planIdx,
+    mensualRef:d.mensualRef, implHrs:d.implHrs, implPrice:d.implPrice, total:d.total,
+    licDiscByPlan:Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null, implDiscByPlan:Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null, implPriceList:d.implPriceList||d.implPrice||null,
+    isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0, shCost:d.shCost||0,
+    payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', implNotes:d.implNotes||'',
+    updatedAt:serverTimestamp()
+  };
+  try{
+    if(pricingState.recordId){
+      await updateDoc(doc(db,'pricingRecords',pricingState.recordId),rec);
+    } else {
+      rec.createdAt=serverTimestamp();
+      const ref=await addDoc(collection(db,'pricingRecords'),rec);
+      pricingState.recordId=ref.id;
+    }
+    const hhmm=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    if(statusEl){ statusEl.textContent='✓ Guardado '+hhmm; statusEl.style.color='var(--success)'; }
+    if(d.manual) showNotif('Pricing guardado ✓','success');
+  }catch(err){
+    if(statusEl){ statusEl.textContent='⚠ Error al guardar'; statusEl.style.color='var(--danger)'; }
+    if(err.code==='permission-denied'||err.message?.includes('permission')) showNotif('Error de permisos — revisa las reglas de Firestore','error');
+    else if(d.manual) showNotif('Error al guardar: '+(err.message||''),'error');
+  }
+}
+window.pricingManualSave=function(){
+  const iframe=document.getElementById('pricingFrame');
+  if(iframe?.contentWindow) iframe.contentWindow.postMessage({type:'request_save'},'*');
+  else showNotif('Abre el simulador de pricing primero','error');
+};
 
 window.pricingShowModuleSelector=function pricingShowModuleSelector(){
   const existing=document.getElementById('pricingModSel'); if(existing) existing.remove();
@@ -5904,7 +5939,7 @@ window.pricingGeneratePDF=function(){
         ${isSel?'<span style="font-size:9px;background:#017E84;color:white;padding:1px 6px;border-radius:3px;margin-left:5px">✓ Esta propuesta</span>':''}
       </td>
       <td style="font-family:monospace">${fmtN(r1)}</td>
-      <td style="font-family:monospace">${i===0?'—':fmtN(r2)}</td>
+      <td style="font-family:monospace">${i===0?'—':(ld>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(r2)}</s> ${fmtN(Math.round(r2*(1-ld/100)))} <span style="font-size:9px;color:#714B67;font-weight:700">−${ld}%</span>`:fmtN(r2))}</td>
       <td style="font-family:monospace">${ld>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(licList)}</s> `:''}${fmtN(licNet)}${ld>0?` <span style="font-size:9px;color:#714B67;font-weight:700">−${ld}%</span>`:''}${saving>0?`<br><span style="font-size:9px;color:#16a34a">Ahorro ${fmtN(saving)}</span>`:''}</td>
       <td style="font-family:monospace">${i===0?'—':(idsc>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(implListRow)}</s> ${fmtN(implNet)} <span style="font-size:9px;color:#714B67;font-weight:700">−${idsc}%</span>`:fmtN(implNet))}</td>
       <td style="font-family:monospace;font-weight:700">${fmtN(tot)}</td>
@@ -6641,7 +6676,8 @@ window.showImplPopup=function(){
   render();
 };
 
-window.renderPricingIframe=function(){
+window.renderPricingIframe=function(opts={}){
+  if(!opts.keepRecord) pricingState.recordId=null;   // sesión nueva → nuevo registro
   const content=document.getElementById('moduleContent');
   content.style.padding='0';
   content.innerHTML=`
@@ -6649,6 +6685,8 @@ window.renderPricingIframe=function(){
       <button class="btn btn-ghost btn-sm" onclick="renderPricingHome()" style="flex-shrink:0">← Inicio</button>
       <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);white-space:nowrap">Empresa</span>
       <div id="pricingM2o" style="flex:1;min-width:260px"></div>
+      <span id="pricingSaveStatus" style="font-size:12px;font-weight:600;color:var(--gray-400);white-space:nowrap">Autoguardado activo</span>
+      <button class="btn btn-ghost btn-sm" onclick="pricingManualSave()" style="flex-shrink:0;border-color:var(--success);color:var(--success)">💾 Guardar</button>
       <button class="btn btn-ghost btn-sm" onclick="showImplPopup()" style="flex-shrink:0">📐 Impl.</button>
       <button class="btn btn-ghost btn-sm" onclick="pricingEnterFullscreen()" style="flex-shrink:0">⛶ Presentar</button>
     </div>
@@ -6760,7 +6798,8 @@ window.pricingOpenRecord=function(id){
   // Empresa (para que la propuesta y el iframe la tengan)
   pricingState.company=r.companyId?{id:r.companyId,nombre:r.companyName||''}:(r.companyName?{nombre:r.companyName}:null);
   pricingState.contact=null;
-  renderPricingIframe();
+  renderPricingIframe({keepRecord:true});
+  pricingState.recordId=id;   // las ediciones actualizan ESTE registro (no crean uno nuevo)
   const cfg={
     type:'load_config',
     editionIdx, planIdx:r.planIdx??1, users:r.users||1,
