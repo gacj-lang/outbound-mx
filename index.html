@@ -4509,11 +4509,27 @@ function gcBuildText(data,f,sz,layout,tone){
       <div style="width:${Math.round(sz.p*1.5)}px;height:${Math.round(sz.p*1.5)}px;border-radius:50%;background:${layout.checkColor};color:white;font-size:${Math.round(sz.p*.9)}px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;margin-top:1px${dark?';box-shadow:0 2px 6px rgba(0,0,0,.3)':''}">✓</div>
       <div style="font-size:${sz.p}px;font-weight:600;color:${ptColor};line-height:1.3${shS}">${p}</div>
     </div>`).join('');
-  return `
+  return `<div class="gc-img-text" style="width:100%">
     <img src="${ASSETS}/logos/${logo}" crossorigin="anonymous" style="height:${Math.round(f.w*.05)}px;width:auto;display:block;margin-bottom:${Math.round(f.w*.03)}px" onerror="this.outerHTML='<div style=&quot;font-size:${Math.round(f.w*.05)}px;font-weight:800;color:${dark?'#fff':'#714B67'}&quot;>odoo</div>'">
     <div style="font-family:'Caveat',cursive;font-weight:700;font-size:${sz.h}px;line-height:1.05;color:${hColor};margin-bottom:${Math.round(f.w*.018)}px${sh}">${headlineHTML}</div>
     <div style="font-family:'Caveat',cursive;font-weight:400;font-size:${sz.s}px;color:${subColor};margin-bottom:${Math.round(f.w*.028)}px${shS}">${data.subheadline||''}</div>
-    <div>${puntosHTML}</div>`;
+    <div>${puntosHTML}</div></div>`;
+}
+// Auto-ajuste: si el bloque de texto no cabe en su tarjeta, lo escala para que nunca se corte
+function gcFitImgText(){
+  document.querySelectorAll('#gcImageCanvas .gc-img-text').forEach(el=>{
+    el.style.transform=''; el.style.width='100%';
+    const parent=el.parentElement; if(!parent) return;
+    const cs=getComputedStyle(parent);
+    const avail=parent.clientHeight-(parseFloat(cs.paddingTop)||0)-(parseFloat(cs.paddingBottom)||0);
+    const need=el.offsetHeight;
+    if(avail>0 && need>avail+1){
+      const r=Math.max(0.5, avail/need);
+      el.style.transformOrigin='center';
+      el.style.transform='scale('+r+')';
+      el.style.width=(100/r)+'%';
+    }
+  });
 }
 
 // Composiciones para foto real — distintas "plantillas" para que no se sienta siempre el mismo molde
@@ -4598,6 +4614,7 @@ function renderGcImagePreview(data){
       <span class="gc-output-label">${f.label}${photo?' · 📷 Foto real':' · 🎨 Gráfica'}</span>
       <div class="gc-output-actions">
         ${photo?`<button class="gc-copy-btn gc-otrafoto-btn" onclick="gcOtraFoto()">🔄 Otra foto</button>`:`<button class="gc-copy-btn" onclick="gcOtraGrafica()">🎲 Otra variante</button>`}
+        ${cont.company?`<button class="gc-copy-btn gc-saveimg-btn" onclick="gcSaveImageToCompany()">💾 Guardar en empresa</button>`:''}
         <button class="gc-download-btn" onclick="gcDownloadImage()">⬇ Descargar PNG</button>
       </div>
     </div>
@@ -4620,6 +4637,9 @@ function renderGcImagePreview(data){
       <div id="gcLiPostText" style="font-size:14px;color:var(--gray-700);line-height:1.7;white-space:pre-wrap">${data.post_text}</div>
     </div>`:''}
     `;
+  // Auto-ajuste para que el texto nunca se salga de su tarjeta (mide tras pintar y al cargar la fuente)
+  gcFitImgText(); setTimeout(gcFitImgText,120);
+  if(document.fonts?.ready) document.fonts.ready.then(gcFitImgText);
 }
 
 window.gcDownloadImage=async function(){
@@ -4644,6 +4664,71 @@ window.gcDownloadImage=async function(){
     showNotif('Error al generar imagen: '+e.message,'error');
   }
   if(btn){ btn.disabled=false; btn.textContent='⬇ Descargar PNG'; }
+};
+
+// Sube la imagen al Storage y la guarda en la memoria de la empresa (para consultar/re-descargar)
+window.gcSaveImageToCompany=async function(){
+  if(!cont.company?.id){ showNotif('Selecciona una empresa para guardar','error'); return; }
+  const canvas=document.getElementById('gcImageCanvas');
+  if(!canvas){ showNotif('No hay imagen para guardar','error'); return; }
+  const btn=document.querySelector('.gc-saveimg-btn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Guardando...'; }
+  try{
+    const html=canvas.outerHTML;   // se reconstruye y re-descarga desde la ficha (sin Storage)
+    const fileName=`linkedin-${cont.format||'imagen'}-${(cont.company?.nombre||'odoo').replace(/[^a-zA-Z0-9]/g,'-').toLowerCase()}`;
+    const txt=document.getElementById('gcLiPostText')?.textContent?.trim()||'Imagen para LinkedIn';
+    await updateCompanyMemory(cont.company.id,'contenido',{
+      contenido:{tipo:'imagen',topic:'Imagen LinkedIn',fecha:new Date().toISOString()},
+      savedContent:{tipo:'imagen',momLabel:'Imagen LinkedIn',contacto:cont.contact?.nombre||'',texto:txt,html,nombreArchivo:fileName},
+      touchpoint:{type:'imagen',summary:`Imagen LinkedIn · ${cont.company?.nombre||''}`}
+    });
+    showNotif('Imagen guardada en la empresa ✓','success');
+  } catch(e){ showNotif('Error al guardar: '+e.message,'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='💾 Guardar en empresa'; } }
+};
+
+// Reabre un material guardado (brochure/imagen) reconstruyendo su HTML, para consultar y re-descargar
+window.gcReopenMaterial=function(companyId, idx){
+  const cache=window._empSavedCache;
+  const s=(cache&&cache.id===companyId)?cache.items?.[idx]:null;
+  if(!s||!s.html){ showNotif('No hay material guardado para reabrir','error'); return; }
+  const isBrochure=s.tipo==='brochure';
+  document.getElementById('gcReopenModal')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='gcReopenModal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML=`<div style="background:white;border-radius:14px;max-width:880px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--gray-200)">
+      <div style="font-size:15px;font-weight:700">${isBrochure?'📄 Brochure':'🖼 Imagen'} guardado</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${isBrochure
+          ? `<button class="btn btn-primary btn-sm" onclick="gcExportBrochure('pdf')">⬇ PDF</button><button class="btn btn-ghost btn-sm" onclick="gcExportBrochure('imagen')">🖼 Imagen</button>`
+          : `<button class="btn btn-primary btn-sm" onclick="gcDownloadElPng('gcImageCanvas','${(s.nombreArchivo||'imagen').replace(/'/g,'')}')">⬇ Descargar PNG</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('gcReopenModal').remove()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div id="gcReopenBody" style="overflow:auto;padding:20px;background:var(--gray-50);display:flex;justify-content:center"></div>
+  </div>`;
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  document.getElementById('gcReopenBody').innerHTML=s.html;
+  // La imagen viene con transform:scale (vista en miniatura del generador) — la ajustamos para que quepa
+  if(!isBrochure){
+    const c=document.getElementById('gcImageCanvas');
+    if(c){ const w=parseFloat(c.style.width)||1080; const fit=Math.min(1, 760/w); c.style.transform='scale('+fit+')'; c.style.transformOrigin='top left'; c.parentElement.style.height=((parseFloat(c.style.height)||w)*fit+8)+'px'; }
+  }
+};
+// Descarga un elemento del DOM como PNG (re-renderiza a resolución completa)
+window.gcDownloadElPng=async function(elId, name){
+  const el=document.getElementById(elId); if(!el){ showNotif('No hay imagen','error'); return; }
+  const orig=el.style.transform; el.style.transform='none';
+  try{
+    const c=await html2canvas(el,{scale:2,useCORS:true,allowTaint:false,imageTimeout:20000,logging:false,backgroundColor:null});
+    const link=document.createElement('a'); link.download=(name||'material')+'.png'; link.href=c.toDataURL('image/png');
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    showNotif('PNG descargado ✓','success');
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+  finally{ el.style.transform=orig; }
 };
 
 // ── Cold Calling ──
@@ -5008,9 +5093,12 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
     window._gcBrData=data;
     if(cont.company?.id){
       const brTexto=`${data.headline||''}\n${data.subtitulo||''}\n\n${data.intro||''}\n\nApps: ${(data.apps||[]).map(a=>a.nombre).join(', ')}\n\n${(data.diferenciadores||[]).join(' · ')}\n\nCTA: ${brGetCtaText(cont.brCta)}`;
+      // Guarda el HTML del brochure para reconstruirlo y re-descargarlo desde la ficha (sin Storage)
+      const brHtml=document.getElementById('gcBrPreview')?.outerHTML||'';
+      const brFileName=`brochure-${(cont.company?.nombre||'odoo').replace(/[^a-zA-Z0-9]/g,'-').toLowerCase()}`;
       updateCompanyMemory(cont.company.id,'contenido',{
         contenido:{tipo:'brochure',apps:apps.slice(0,5).join(', '),headline:data.headline||'',fecha:new Date().toISOString()},
-        savedContent:{tipo:'brochure',momLabel:'Brochure',contacto:cont.contact?.nombre||'',texto:brTexto,headline:data.headline||''},
+        savedContent:{tipo:'brochure',momLabel:'Brochure',contacto:cont.contact?.nombre||'',texto:brTexto,headline:data.headline||'',html:brHtml,nombreArchivo:brFileName},
         touchpoint:{type:'brochure',summary:`Brochure · ${data.headline||apps.slice(0,3).join(', ')}`}
       });
       showNotif('Brochure generado y guardado en la empresa ✓','success');
@@ -5517,6 +5605,7 @@ window.empOpenDetail=async function(id){
       ]);
       const disc=[...discR.docs].sort(byDate), broch=[...brochR.docs].sort(byDate), csv=[...csvR.docs].sort(byDate), price=[...priceR.docs].sort(byDate);
       const savedContent=(freshCo?.exists?.()?freshCo.data().memory?.contenidos?.saved:null)||co.memory?.contenidos?.saved||[];
+      window._empSavedCache={id, items:savedContent};
       const sections=[];
       const fmtDate=ts=>ts?.toDate?.()?ts.toDate().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'—';
       const fmtISO=s=>{try{return new Date(s).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})}catch(e){return''}};
@@ -5537,7 +5626,7 @@ window.empOpenDetail=async function(id){
         ${broch.map(d=>{const r=d.data();return docRow(r.empresa||co.nombre,`${r.aeName||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),'',`deleteRecord('brochureApprovals','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
 
       if(savedContent.length){
-        const chLabel={whatsapp:'💬 WhatsApp',correo:'📧 Correo',linkedin:'👤 LinkedIn',cold_calling:'📞 Cold Calling',brochure:'📄 Brochure'};
+        const chLabel={whatsapp:'💬 WhatsApp',correo:'📧 Correo',linkedin:'👤 LinkedIn',cold_calling:'📞 Cold Calling',brochure:'📄 Brochure',imagen:'🖼 Imagen'};
         const isMgr=currentUserData?.role==='manager';
         const bulkBar=isMgr?`<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-500);cursor:pointer">
@@ -5552,6 +5641,7 @@ window.empOpenDetail=async function(id){
                 <div style="font-size:12px;font-weight:700;color:var(--purple)">${chLabel[s.tipo]||s.tipo||'Mensaje'}${s.momLabel?` · ${s.momLabel.split('—')[0].trim()}`:''}${s.variante?` · V${s.variante}`:''}</div>
                 <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
                   <span style="font-size:11px;color:var(--gray-400)">${fmtISO(s.date)}</span>
+                  ${s.html?`<button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;border-color:var(--success);color:var(--success)" onclick="gcReopenMaterial('${id}',${i})" title="Ver / descargar material">📄 Ver</button>`:''}
                   <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" onclick="navigator.clipboard.writeText(this.closest('.emp-sc-item').querySelector('.emp-saved-text').dataset.full).then(()=>showNotif('Copiado ✓','success'))">📋</button>
                   ${isMgr?`<button class="btn btn-ghost-danger btn-sm" style="padding:2px 8px;font-size:11px" onclick="empDeleteSavedContent('${id}',${i})">🗑</button>`:''}
                 </div>
