@@ -444,15 +444,14 @@ input,select,textarea{font-family:inherit;}
 .disc-gemini-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
 .disc-gemini-output{background:#f8f9fa;border:1px solid #e5e7eb;border-radius:10px;padding:20px;font-family:'Inter',monospace;font-size:12.5px;line-height:1.8;color:#1f2937;white-space:pre-wrap;min-height:80px;margin-top:12px;display:none;}
 .disc-gemini-output.show{display:block;}
-.disc-output-compact{max-height:120px;overflow:hidden;position:relative;}
-.disc-output-compact::after{content:'';position:absolute;bottom:0;left:0;right:0;height:32px;background:linear-gradient(transparent,#f8f9fa);pointer-events:none;}
+.disc-output-compact{max-height:520px;overflow-y:auto;position:relative;}
 /* ── TEXT POPUP ── */
 .disc-popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:24px;}
 .disc-popup-box{background:white;border-radius:16px;width:100%;max-width:680px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2);}
 .disc-popup-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--gray-200);}
 .disc-popup-title{font-size:15px;font-weight:700;}
 .disc-popup-actions{display:flex;gap:8px;align-items:center;}
-.disc-popup-body{padding:24px;overflow-y:auto;flex:1;font-family:'Inter',monospace;font-size:12.5px;line-height:1.8;white-space:pre-wrap;color:#1f2937;}
+.disc-popup-body{padding:24px;overflow-y:auto;flex:1;font-family:'Inter',monospace;font-size:12.5px;line-height:1.8;white-space:normal;color:#1f2937;}
 .disc-gemini-loading{display:none;align-items:center;gap:10px;padding:16px;color:#6b7280;font-size:13px;}
 .disc-gemini-loading.show{display:flex;}
 .disc-spinner{width:20px;height:20px;border:2px solid #e5e7eb;border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite;}
@@ -1009,12 +1008,14 @@ const ODOO_INFO_LINKS=[
 ];
 function odooInfoUtilHTML(opts={}){
   const fs=opts.fs||12;
-  return `<div style="margin-top:${opts.mt??18}px">
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:10px">ℹ️ Información útil</div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px 22px">
-      ${ODOO_INFO_LINKS.map(l=>`<a href="${l.url}" target="_blank" style="display:inline-flex;align-items:center;gap:7px;text-decoration:none;font-size:${fs}px;color:#714B67;font-weight:600">
-        <span style="font-size:${fs+3}px">${l.ic}</span><span style="border-bottom:1px solid #d8b9cf;padding-bottom:1px">${l.label}</span></a>`).join('')}
+  const showUrl=opts.showUrl;   // muestra el enlace como texto (solo si se exporta como imagen)
+  return `<div style="margin-top:${opts.mt??18}px;break-inside:avoid;page-break-inside:avoid">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#714B67;margin-bottom:10px">ℹ️ Información útil — <span style="color:#9ca3af;font-weight:600;text-transform:none;letter-spacing:0">haz clic para abrir</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      ${ODOO_INFO_LINKS.map(l=>`<a href="${l.url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:${fs}px;color:#714B67;font-weight:700;background:#faf5ff;border:1.5px solid #714B67;border-radius:8px;padding:6px 11px">
+        <span style="font-size:${fs+2}px">${l.ic}</span><span>${l.label}</span><span style="color:#FBB130;font-weight:800">↗</span></a>`).join('')}
     </div>
+    ${showUrl?`<div style="margin-top:8px;font-size:9px;color:#b9b9b9;line-height:1.6;font-family:'Inter',monospace">${ODOO_INFO_LINKS.map(l=>`${l.label}: ${l.url}`).join(' · ')}</div>`:''}
   </div>`;
 }
 
@@ -1667,7 +1668,7 @@ window.saveClaudeKey=function(){
 // DISCOVERY MODULE
 // ══════════════════════════════════════════
 const IND_NAMES={ construccion:'Construcción',retail:'Retail',restaurante:'Restaurante',comercializadora:'Comercializadora',manufactura:'Manufactura',software:'Software/IT',servicios:'Servicios',distribucion:'Distribución',ecommerce:'Ecommerce',salud:'Salud',educacion:'Educación',inmobiliaria:'Inmobiliaria',logistica:'Logística',agricultura:'Agricultura',turismo:'Turismo',otra:'Otra' };
-const TV_NAMES={ cotizacion:'Cotización',suscripcion:'Suscripción',alquiler:'Alquiler',ecommerce:'Ecommerce',pos:'Punto de venta',campo:'Venta en campo' };
+const TV_NAMES={ cotizacion:'Cotización',suscripcion:'Suscripción',alquiler:'Alquiler',ecommerce:'Ecommerce',pos:'Punto de venta',campo:'Venta en campo',marketplace:'Marketplace / Ecommerce propio' };
 
 const APPS_DB={
   construccion:[{name:'Proyecto',reason:'Costeo de obra, avance y tareas en tiempo real'},{name:'Compras',reason:'OCs ligadas a obra, trazabilidad de materiales'},{name:'Inventario',reason:'Materiales y herramientas por almacén u obra'},{name:'Contabilidad',reason:'Margen por proyecto, facturación por estimaciones'},{name:'Ventas',reason:'Presupuestos de obra profesionales'},{name:'RRHH',reason:'Nómina fija y trabajadores eventuales'}],
@@ -1756,7 +1757,7 @@ const WOW_DB={
 
 // ══ Discovery Guide v2 — catálogos ══
 const DG_IND_ICON={ construccion:'🏗',retail:'🏪',restaurante:'🍽',comercializadora:'📦',manufactura:'🏭',software:'💻',servicios:'🤝',distribucion:'🚚',ecommerce:'🛒',salud:'⚕️',educacion:'📚',inmobiliaria:'🏘',logistica:'📦',agricultura:'🌾',turismo:'✈️',otra:'✏️' };
-const DG_VENTA_ICON={ cotizacion:'📋',suscripcion:'🔄',alquiler:'🔑',ecommerce:'🛒',pos:'🏪',campo:'🚐' };
+const DG_VENTA_ICON={ cotizacion:'📋',suscripcion:'🔄',alquiler:'🔑',ecommerce:'🛒',pos:'🏪',campo:'🚐',marketplace:'🛍️' };
 const DG_PROD_LABEL={ fisico:'Productos físicos', servicios:'Servicios', mixto:'Mixtos (productos + servicios)' };
 // Preguntas críticas ⭐ por industria (alto valor para demo/cierre — tuneadas a Odoo). Viven en Operativo.
 const DG_IND_CRIT={
@@ -1786,7 +1787,8 @@ const DG_VENTA_CRIT={
   alquiler:{com:['¿Cómo cotizan disponibilidad y depósitos?'],op:['¿Control de entregas, devoluciones y estado del activo?']},
   ecommerce:{op:['¿El inventario se sincroniza con la tienda online?'],adm:['¿Conciliación automática de pagos online?']},
   pos:{op:['¿Operan offline si se cae el internet?','¿El POS descuenta inventario en tiempo real?'],adm:['¿Cierre de caja por turno/sucursal?']},
-  campo:{com:['¿Cómo toman el pedido en ruta (papel/app)?'],op:['¿Manejan inventario por vehículo/camioneta?'],adm:['¿Cobran y facturan en el punto de entrega?']}
+  campo:{com:['¿Cómo toman el pedido en ruta (papel/app)?'],op:['¿Manejan inventario por vehículo/camioneta?'],adm:['¿Cobran y facturan en el punto de entrega?']},
+  marketplace:{com:['¿Qué marketplace o ecommerce usa hoy? (Amazon, Mercado Libre, Shopify, tienda propia…)','¿Qué volumen de venta tiene por ese canal?','¿Evaluaría cambiar su ecommerce? Si no, ¿cuál es el motivo? (Odoo depende de conectores de terceros)'],op:['¿Hace fulfillment propio o entrega directamente sus ventas de marketplace/ecommerce?','¿Cómo sincroniza inventario, precios y pedidos con el canal?']}
 };
 // Preguntas clave de información — GENERALES por área (sí o sí en toda llamada)
 const DG_COM_GENERAL=[
@@ -3945,7 +3947,7 @@ function gcCompanyContext(overrideCompany=null){
 CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.correo||ct.email||'nd'}${ct.linkedin?` | LinkedIn: ${ct.linkedin}`:''}`: 'Sin contacto seleccionado'}${aeAppt?`\nLINK DE AGENDADO DEL AE: ${aeAppt}`:''}${odooInd?`\nCONTEXTO INDUSTRIA (${c.giro}): ${odooInd}`:''}${memCtx}`;
 }
 
-async function gcCallClaude(prompt, fileAttachment=null){
+async function gcCallClaude(prompt, fileAttachment=null, opts={}){
   const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   if(!key||key==='CLAUDE_KEY_DEFAULT'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
   let content;
@@ -3965,7 +3967,7 @@ async function gcCallClaude(prompt, fileAttachment=null){
   const res=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers,
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:4000,system:ANTI_HALLUCINATION,messages:[{role:'user',content}]})
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||4000,system:opts.system||ANTI_HALLUCINATION,messages:[{role:'user',content}]})
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
@@ -4722,7 +4724,7 @@ window.gcReopenMaterial=function(companyId, idx){
       <div style="font-size:15px;font-weight:700">${isBrochure?'📄 Brochure':'🖼 Imagen'} guardado</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${isBrochure
-          ? `<button class="btn btn-primary btn-sm" onclick="gcExportBrochure('pdf')">⬇ PDF</button><button class="btn btn-ghost btn-sm" onclick="gcExportBrochure('imagen')">🖼 Imagen</button>`
+          ? `<button class="btn btn-primary btn-sm" onclick="gcExportBrochurePrint()">⬇ PDF</button><button class="btn btn-ghost btn-sm" onclick="gcExportBrochure('imagen')">🖼 Imagen</button>`
           : `<button class="btn btn-primary btn-sm" onclick="gcDownloadElPng('gcImageCanvas','${(s.nombreArchivo||'imagen').replace(/'/g,'')}')">⬇ Descargar PNG</button>`}
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('gcReopenModal').remove()">✕ Cerrar</button>
       </div>
@@ -4985,6 +4987,24 @@ function _parseJSON(raw){
   if(a>=0&&b>a) s=s.slice(a,b+1);
   return JSON.parse(s);
 }
+// Parser robusto de ARRAYS JSON (CSV): tolera markdown, comas finales y objetos que envuelven el array
+function _parseJSONArray(raw){
+  let s=String(raw).trim();
+  const fence=s.match(/```(?:json)?\s*([\s\S]*?)```/i); if(fence) s=fence[1].trim();
+  const a=s.indexOf('['), b=s.lastIndexOf(']');
+  let cand=(a>=0&&b>a)?s.slice(a,b+1):s;
+  cand=cand.replace(/,\s*([\]}])/g,'$1');   // comas finales
+  let parsed;
+  try{ parsed=JSON.parse(cand); }
+  catch(e){
+    const oa=s.indexOf('{'), ob=s.lastIndexOf('}');
+    if(oa>=0&&ob>oa){ parsed=JSON.parse(s.slice(oa,ob+1).replace(/,\s*([\]}])/g,'$1')); }
+    else throw e;
+  }
+  if(Array.isArray(parsed)) return parsed;
+  if(parsed&&typeof parsed==='object'){ const arr=Object.values(parsed).find(v=>Array.isArray(v)); if(arr) return arr; }
+  return [parsed];
+}
 
 window.gcGenerateBrochure=async function(){
   const apps=[...document.querySelectorAll('input[name="gcBrApp"]:checked')].map(i=>i.value);
@@ -5038,7 +5058,7 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
           <span class="gc-output-label">Brochure generado</span>
           <div class="gc-output-actions" style="flex-wrap:wrap;gap:6px">
             ${cont.company?.id?`<span style="font-size:12px;font-weight:600;color:var(--success);padding:4px 10px;background:#f0fdf4;border:1.5px solid var(--success);border-radius:99px;flex-shrink:0">✓ Guardado en empresa</span>`:''}
-            <button class="gc-copy-btn" onclick="gcExportBrochure('pdf')">⬇ PDF</button>
+            <button class="gc-copy-btn" onclick="gcExportBrochurePrint()">⬇ PDF</button>
             <button class="gc-copy-btn" onclick="gcExportBrochure('imagen')">🖼 Imagen</button>
             <button class="gc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="gcGenerateBrochure()">↺ Regenerar</button>
           </div>
@@ -5062,13 +5082,15 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
 
           <!-- Cuerpo -->
           <div style="padding:36px 48px 44px">
+            <!-- Odoo 360 -->
+            <img src="${ASSETS}/odoo-360.svg" crossorigin="anonymous" style="width:100%;height:auto;display:block;margin-bottom:30px" onerror="this.style.display='none'">
             <p style="font-size:14px;line-height:1.7;color:#4b5563;margin-bottom:30px">${data.intro||''}</p>
 
             <!-- Apps -->
             <div style="font-family:'Caveat',cursive;font-size:34px;font-weight:700;color:#21272B;margin-bottom:16px">Lo que <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2;color:#017E84">Odoo</span><span style="position:absolute;left:-2px;right:-2px;bottom:4px;height:34%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span> hará por ti</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:32px">
               ${(data.apps||[]).map(a=>`
-                <div style="border:1.5px solid #eee;border-radius:12px;padding:16px;background:#fafafa">
+                <div style="border:1.5px solid #eee;border-radius:12px;padding:16px;background:#fafafa;break-inside:avoid;page-break-inside:avoid">
                   <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
                     ${brIconImg(a.nombre,30)}
                     <div style="font-size:14px;font-weight:700;color:#714B67">${a.nombre}</div>
@@ -5079,7 +5101,7 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
             </div>
 
             <!-- Diferenciadores -->
-            <div style="background:#f5f0f3;border-radius:12px;padding:24px 28px;margin-bottom:28px">
+            <div style="background:#f5f0f3;border-radius:12px;padding:24px 28px;margin-bottom:28px;break-inside:avoid;page-break-inside:avoid">
               <div style="font-family:'Caveat',cursive;font-size:30px;font-weight:700;color:#714B67;margin-bottom:14px">¿Por qué <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2">Odoo</span><span style="position:absolute;left:-2px;right:-2px;bottom:3px;height:34%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span>?</div>
               <div style="display:flex;flex-direction:column;gap:12px">
                 ${(data.diferenciadores||[]).map(d=>`<div style="display:flex;align-items:flex-start;gap:10px">
@@ -5089,16 +5111,19 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
               </div>
             </div>
 
+            <!-- Clientes México -->
+            <img src="${ASSETS}/clientes-mexico.svg" crossorigin="anonymous" style="width:100%;height:auto;display:block;margin-bottom:28px" onerror="this.style.display='none'">
+
             <!-- Caso de éxito REAL (Odoo customer reviews) -->
             ${data._caso?`
-            <div style="border-left:4px solid #FBB130;padding:6px 0 6px 20px;margin-bottom:32px">
+            <div style="border-left:4px solid #FBB130;padding:6px 0 6px 20px;margin-bottom:32px;break-inside:avoid;page-break-inside:avoid">
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:6px">Caso real de Odoo</div>
               <div style="font-size:15px;color:#21272B;line-height:1.55;margin-bottom:8px"><strong>${data._caso.empresa}</strong>${data._caso.pais?` · ${data._caso.pais}`:''} ${data._caso.resumen}</div>
               <a href="${data._caso.url}" target="_blank" style="font-size:12px;color:#714B67;font-weight:700;text-decoration:none">Ver caso completo en odoo.com →</a>
             </div>`:''}
 
             <!-- CTA -->
-            <div style="background:#714B67;border-radius:12px;padding:24px 28px;color:white;display:flex;align-items:center;justify-content:space-between;gap:16px">
+            <div style="background:#714B67;border-radius:12px;padding:24px 28px;color:white;display:flex;align-items:center;justify-content:space-between;gap:16px;break-inside:avoid;page-break-inside:avoid">
               <div style="font-size:15px;font-weight:600;line-height:1.45;flex:1;white-space:pre-line"><span id="gcBrCtaText">${brGetCtaText(cont.brCta)}</span></div>
               <div style="text-align:right;flex-shrink:0;border-left:1px solid rgba(255,255,255,.2);padding-left:16px">
                 ${aeNombre?`<div style="font-size:13px;font-weight:700">${aeNombre}</div>`:''}
@@ -5126,6 +5151,43 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
     }
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcBrLoading',false);
+};
+
+// Brochure PDF por impresión NATIVA (igual que la propuesta): links clickeables, texto real, fuentes embebidas
+window.gcExportBrochurePrint=function(){
+  const preview=document.getElementById('gcBrPreview');
+  if(!preview){ showNotif('No hay brochure generado','error'); return; }
+  const empresa=(cont.company?.nombre||'brochure').replace(/[^a-zA-Z0-9]/g,'-').toLowerCase();
+  const fontCSS=getPdfFontCSS();
+  const finalHtml=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Brochure Odoo · ${empresa}</title>
+  <style>${fontCSS}</style>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    html,body{background:#fff;font-family:'Inter',sans-serif;}
+    @page{size:A4;margin:0;}
+    #gcBrPreview{width:794px !important;max-width:794px !important;margin:0 auto !important;border:none !important;border-radius:0 !important;overflow:visible !important;}
+    img{break-inside:avoid;page-break-inside:avoid;max-width:100%;}
+    a{color:inherit;}
+  </style></head><body>${preview.outerHTML}</body></html>`;
+  (async()=>{
+    showNotif('Preparando documento…','info');
+    const iframe=document.createElement('iframe');
+    iframe.style.cssText='position:fixed;right:0;bottom:0;width:794px;height:1123px;border:0;opacity:.01;pointer-events:none;z-index:-9999';
+    document.body.appendChild(iframe);
+    try{
+      const idoc=iframe.contentWindow.document;
+      idoc.open(); idoc.write(finalHtml); idoc.close();
+      await new Promise(res=>{ if(idoc.readyState==='complete') res(); else iframe.onload=res; setTimeout(res,1500); });
+      try{ await idoc.fonts.ready; }catch(e){}
+      const imgs=[...idoc.images];
+      await Promise.all(imgs.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r;setTimeout(r,2500);})));
+      await new Promise(r=>setTimeout(r,400));
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      showNotif('En el diálogo elige "Guardar como PDF" ✓','info');
+      setTimeout(()=>iframe.remove(),120000);
+    }catch(err){ console.error('Brochure PDF:',err); showNotif('Error al preparar PDF: '+err.message,'error'); iframe.remove(); }
+  })();
 };
 
 window.gcExportBrochure=async function(format){
@@ -5458,7 +5520,7 @@ window.discShowPopup=function(sourceId,title){
           <button class="disc-copy-btn" onclick="document.getElementById('discTextPopup').remove()">✕ Cerrar</button>
         </div>
       </div>
-      <div class="disc-popup-body" id="discPopupText">${text}</div>
+      <div class="disc-popup-body" id="discPopupText" style="white-space:pre-wrap">${text}</div>
     </div>`;
   overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.remove(); });
   document.body.appendChild(overlay);
@@ -7136,7 +7198,7 @@ function renderCsvBuilder(){
       <div style="margin-top:32px"><h4 style="font-size:15px;font-weight:700;margin-bottom:12px">📁 CSV creados</h4>
         <div id="csvHistory"><div class="cdc-empty">Cargando...</div></div></div>
     </div>`;
-  csvRows=[]; _csvFileAttachment=null; csvLoadHistory();
+  csvRows=[]; _csvFileAttachment=null; _csvSessionId=null; csvLoadHistory();
 }
 
 window.csvProcess=async function(){
@@ -7168,10 +7230,11 @@ Para cada prospecto devuelve estos campos:
 - state_id: estado de México EXACTAMENTE de esta lista: ${MX_STATES.join(', ')}. Si no puedes determinar: dejar ""
 - notes: cualquier dato adicional (teléfonos extra, empleados, industria, LinkedIn, redes, etc.)
 
-Devuelve SOLO el array JSON sin texto extra: [{...},...]`, _csvFileAttachment||null);
-    const jsonMatch=result.match(/\[[\s\S]*\]/);
-    if(!jsonMatch) throw new Error('Respuesta no parseable — intenta de nuevo');
-    const extracted=JSON.parse(jsonMatch[0]);
+Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, sin explicaciones, sin disclaimers. Si un campo no se conoce, usa cadena vacía "". Nunca escribas "No lo sé" ni texto fuera del JSON.`, _csvFileAttachment||null, {maxTokens:8000, system:'Eres un extractor de datos preciso para CRM. Devuelves SIEMPRE y SOLO un array JSON válido (sin markdown, sin texto adicional). Para datos que no encuentres, usa cadena vacía "". No inventes datos, pero tampoco agregues disclaimers ni explicaciones: solo el JSON.'});
+    let extracted;
+    try{ extracted=_parseJSONArray(result); }
+    catch(err){ console.warn('CSV parse:',err,result?.slice?.(0,200)); throw new Error('No se pudo leer la respuesta de la IA. Revisa los datos pegados o intenta de nuevo.'); }
+    if(!Array.isArray(extracted)||!extracted.length) throw new Error('No se detectaron prospectos en los datos. Revisa el contenido e intenta de nuevo.');
     csvRows=extracted.map(row=>({
       name:`${fuente} - ${row.partner_name||''} - ${row.contact_name||''}`,
       contact_name:row.contact_name||'', function:row.function||'',
@@ -7206,27 +7269,54 @@ window.csvAddRow=function(){
   csvRows.push({name:fuente+' -  - ',contact_name:'',function:'',partner_name:'',Website:'',Email:'',phone:'',Tags_id:'Outbound-MX'+(tags?','+tags:''),user_id:ae,state_id:'',country_id:'Mexico',notes:''});
   csvRenderTable();
 };
-window.csvDownload=function(){
-  if(!csvRows.length){ showNotif('Sin filas para descargar','error'); return; }
+let _csvSessionId=null;   // sesión CSV actual (para actualizar en vez de duplicar)
+function csvBuildText(rows){
   const headers=[...CSV_COLUMNS,'Notes'];
   const esc=v=>'"'+(v||'').replace(/"/g,'""')+'"';
-  const lines=[headers.join(','),...csvRows.map(r=>[...CSV_COLUMNS.map(c=>esc(r[c]||'')),esc(r.notes||'')].join(','))];
-  const blob=new Blob([lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;
-  a.download=`odoo-leads-${(document.getElementById('csvFuente')?.value||'csv').replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;
-  a.click(); URL.revokeObjectURL(url); showNotif('CSV descargado ✓','success');
+  return [headers.join(','),...rows.map(r=>[...CSV_COLUMNS.map(c=>esc(r[c]||'')),esc(r.notes||'')].join(','))].join('\r\n');
+}
+function csvFileName(fuente){
+  return `odoo-leads-${(fuente||'csv').replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;
+}
+function csvTriggerDownload(text,name){
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
+}
+// Guarda (o actualiza) el documento CSV en el sistema, vinculado al usuario que lo generó
+async function csvPersist(opts={}){
+  if(!db) return null;
+  const fuente=document.getElementById('csvFuente')?.value||'';
+  const rec={ aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram, tlId:currentUserData?.tlId||null,
+    fuente, rowCount:csvRows.length, rows:csvRows, csvText:csvBuildText(csvRows), updatedAt:serverTimestamp() };
+  try{
+    if(_csvSessionId){ await updateDoc(doc(db,'csvSessions',_csvSessionId),rec); }
+    else { rec.createdAt=serverTimestamp(); const ref=await addDoc(collection(db,'csvSessions'),rec); _csvSessionId=ref.id; }
+    if(!opts.silent) csvLoadHistory();
+    return _csvSessionId;
+  }catch(e){ if(!opts.silent) showNotif('Error al guardar: '+e.message,'error'); return null; }
+}
+window.csvDownload=async function(){
+  if(!csvRows.length){ showNotif('Sin filas para descargar','error'); return; }
+  csvTriggerDownload(csvBuildText(csvRows), csvFileName(document.getElementById('csvFuente')?.value));
+  const id=await csvPersist({silent:true});   // queda guardado en el sistema, vinculado al usuario
+  csvLoadHistory();
+  showNotif(id?'CSV descargado y guardado ✓':'CSV descargado ✓','success');
 };
 window.csvSaveSession=async function(){
   if(!db){ showNotif('Requiere Firebase','error'); return; }
   if(!csvRows.length){ showNotif('Sin datos para guardar','error'); return; }
+  const id=await csvPersist();
+  if(id) showNotif('Documento CSV guardado ✓','success');
+};
+// Re-descarga un documento CSV guardado (desde el historial)
+window.csvDownloadSaved=async function(id){
+  if(!db) return;
   try{
-    await addDoc(collection(db,'csvSessions'),{
-      aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram, tlId:currentUserData?.tlId||null,
-      fuente:document.getElementById('csvFuente')?.value||'', rowCount:csvRows.length, rows:csvRows,
-      createdAt:serverTimestamp(),
-    });
-    showNotif('Sesión guardada ✓','success'); csvLoadHistory();
-  } catch(e){ showNotif('Error: '+e.message,'error'); }
+    const snap=await getDoc(doc(db,'csvSessions',id)); if(!snap.exists()){ showNotif('Documento no encontrado','error'); return; }
+    const r=snap.data();
+    csvTriggerDownload(r.csvText||csvBuildText(r.rows||[]), csvFileName(r.fuente));
+    showNotif('CSV descargado ✓','success');
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
 };
 window.csvLoadHistory=csvLoadHistory;
 async function csvLoadHistory(){
@@ -7245,6 +7335,7 @@ async function csvLoadHistory(){
         <div><div style="font-weight:600;font-size:14px">${r.fuente||'Sin nombre'}</div>
           <div style="font-size:12px;color:var(--gray-400)">${r.rowCount||0} prospectos · ${r.aeName} · ${date}</div></div>
         <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" style="border-color:var(--success);color:var(--success)" onclick="csvDownloadSaved('${d.id}')">⬇ CSV</button>
           <button class="btn btn-ghost btn-sm" onclick="csvReloadSession('${d.id}')">↻ Recargar</button>
           ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('csvSessions','${d.id}',()=>csvLoadHistory())">🗑</button>`:''}
         </div>
@@ -7255,6 +7346,7 @@ window.csvReloadSession=async function(id){
   if(!db) return;
   const snap=await getDoc(doc(db,'csvSessions',id)); if(!snap.exists()) return;
   const data=snap.data(); csvRows=data.rows||[];
+  _csvSessionId=id;   // las nuevas descargas/guardados actualizan ESTE documento
   document.getElementById('csvFuente').value=data.fuente||'';
   csvRenderTable(); document.getElementById('csvPreviewSection').style.display='block';
   showNotif('Sesión recargada ✓','success');
