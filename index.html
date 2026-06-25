@@ -998,6 +998,26 @@ function pickOdooCase(giro){
   return ODOO_CASES.find(c=>c.tags.some(t=>wanted.includes(t)))||ODOO_CASES[0];
 }
 
+// Enlaces oficiales de Odoo (sección "Información útil" — brochure y propuesta)
+const ODOO_INFO_LINKS=[
+  {label:'Opiniones de clientes',        url:'https://www.odoo.com/blog/customer-reviews-6', ic:'💬'},
+  {label:'Documentación para el usuario',url:'https://www.odoo.com/documentation/user',      ic:'📘'},
+  {label:'Odoo Tour (vídeos)',           url:'https://www.odoo.com/page/tour',               ic:'▶️'},
+  {label:'Legal',                        url:'https://www.odoo.com/legal',                   ic:'⚖️'},
+  {label:'Privacidad',                   url:'https://www.odoo.com/privacy',                 ic:'👁️'},
+  {label:'Seguridad',                    url:'https://www.odoo.com/security',                ic:'🛡️'},
+];
+function odooInfoUtilHTML(opts={}){
+  const fs=opts.fs||12;
+  return `<div style="margin-top:${opts.mt??18}px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:10px">ℹ️ Información útil</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px 22px">
+      ${ODOO_INFO_LINKS.map(l=>`<a href="${l.url}" target="_blank" style="display:inline-flex;align-items:center;gap:7px;text-decoration:none;font-size:${fs}px;color:#714B67;font-weight:600">
+        <span style="font-size:${fs+3}px">${l.ic}</span><span style="border-bottom:1px solid #d8b9cf;padding-bottom:1px">${l.label}</span></a>`).join('')}
+    </div>
+  </div>`;
+}
+
 let app, auth, db, firebaseReady=false;
 let currentUser=null, currentUserData=null;
 let pendingUsersUnsub=null, allUsersUnsub=null;
@@ -5087,6 +5107,7 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
                 ${currentUserData?.appointmentLink?`<div style="font-size:11px;color:#FBB130;margin-top:3px">Agenda una demo →</div>`:''}
               </div>
             </div>
+            ${odooInfoUtilHTML({mt:30})}
           </div>
         </div>
       </div>`;
@@ -5855,7 +5876,7 @@ async function pricingUpsertRecord(d,opts={}){
     mensualRef:d.mensualRef, implHrs:d.implHrs, implPrice:d.implPrice, total:d.total,
     licDiscByPlan:Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null, implDiscByPlan:Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null, implPriceList:d.implPriceList||d.implPrice||null,
     isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0, shCost:d.shCost||0,
-    payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', implNotes:d.implNotes||'',
+    payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', implNotes:d.implNotes||'', odooPropUrl:pricingState.odooPropUrl||'',
     updatedAt:serverTimestamp()
   };
   try{
@@ -5918,6 +5939,11 @@ window.pricingShowModuleSelector=function pricingShowModuleSelector(){
             style="background:transparent;border:none;border-radius:99px;padding:4px 14px;font-size:12px;cursor:pointer;color:var(--gray-500)">Completa</button>
         </div>
       </div>
+      <div style="margin-bottom:16px;padding:12px 14px;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:8px">
+        <label style="display:block;font-size:12px;font-weight:700;color:#714B67;margin-bottom:5px">🔗 URL de la propuesta de Odoo (firma y pago en línea)</label>
+        <input class="input" id="pOdooPropUrl" value="${pricingState.odooPropUrl||''}" placeholder="https://www.odoo.com/my/quotes/...">
+        <div style="font-size:11px;color:var(--gray-400);margin-top:5px">Se incluirá en la propuesta en un cuadro para que el cliente firme y pague con tarjeta. Déjalo vacío si aún no la tienes.</div>
+      </div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-ghost" onclick="document.getElementById('pricingModSel').remove();showModule('propuesta')">Ir a Propuesta Comercial →</button>
         <button class="btn btn-primary" onclick="pricingSaveModsAndPDF()">📄 Generar propuesta PDF</button>
@@ -5941,6 +5967,7 @@ window.pricingShowModuleSelector=function pricingShowModuleSelector(){
 window.pricingSaveModsAndPDF=async function(){
   pricingState.selectedModules=[...document.querySelectorAll('input[name="pricingMod"]:checked')].map(i=>i.value);
   pricingState.descMode=document.getElementById('pDescToggle')?.dataset.mode||'short';
+  pricingState.odooPropUrl=document.getElementById('pOdooPropUrl')?.value.trim()||'';
   document.getElementById('pricingModSel')?.remove();
   showNotif('Pricing guardado ✓','success');
   // ── Guardar en memoria de empresa ──
@@ -6200,7 +6227,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
       return acc;
     },[]).map((pair,ri)=>`
       <div style="display:flex;gap:22px;${ri%2===1?'margin-left:28px':''}">
-        ${pair.map(f=>`<div style="width:100px;height:100px;background:white;border-radius:24px;box-shadow:0 10px 32px rgba(0,0,0,.11);display:flex;align-items:center;justify-content:center;padding:22px;flex-shrink:0">
+        ${pair.map(f=>`<div style="width:100px;height:100px;background:white;border-radius:24px;border:1px solid #ecebe6;display:flex;align-items:center;justify-content:center;padding:22px;flex-shrink:0">
           <img src="${ASSETS}/icons/apps/${f}.svg" style="width:100%;height:100%;object-fit:contain">
         </div>`).join('')}
       </div>`).join('')}
@@ -6217,7 +6244,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 
   <!-- CAJA DE CLIENTE — centro izquierda -->
   <div style="position:relative;z-index:2;max-width:56%">
-    <div style="background:white;border-radius:20px;padding:36px 40px;box-shadow:0 20px 60px rgba(0,0,0,.13)">
+    <div style="background:white;border-radius:20px;padding:36px 40px;border:1px solid #e8e6e1">
       <div style="font-size:13px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.14em;margin-bottom:10px;font-family:'Inter',sans-serif">Preparada para</div>
       <div style="font-size:38px;font-weight:800;color:#21272B;letter-spacing:-.8px;line-height:1.05;font-family:'Inter',sans-serif">${co?.nombre||'[Empresa]'}</div>
       ${ct?`<div style="font-size:16px;color:#6b7280;margin-top:8px;font-family:'Inter',sans-serif">${ct.nombre}${ct.cargo?` · ${ct.cargo}`:''}</div>`:''}
@@ -6230,9 +6257,9 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   </div>
 
   <!-- TAGLINE — Caveat (fuente ya verificada como funcionando) -->
-  <div style="position:relative;z-index:2">
-    <div style="font-family:'Caveat',cursive;font-weight:700;font-size:58px;color:#21272B;line-height:1.05;word-spacing:normal;letter-spacing:0">Todo tu negocio en una sola plataforma</div>
-    <div style="font-family:'Caveat',cursive;font-weight:400;font-size:34px;color:#017E84;margin-top:6px;word-spacing:normal;letter-spacing:0">Sencillo eficiente personalizable</div>
+  <div style="position:relative;z-index:2;max-width:56%">
+    <div style="font-family:'Caveat',cursive;font-weight:700;font-size:42px;color:#21272B;line-height:1.08;word-spacing:normal;letter-spacing:0">Todo tu negocio en una sola plataforma</div>
+    <div style="font-family:'Caveat',cursive;font-weight:400;font-size:25px;color:#017E84;margin-top:4px;word-spacing:normal;letter-spacing:0">Sencillo eficiente personalizable</div>
   </div>
 
 </div>
@@ -6380,6 +6407,59 @@ tr.sel-row td{color:#015c61;font-weight:700;}
       <div style="font-size:10px;font-weight:600;color:#d97706;background:#fffbeb;border:1px solid #fde68a;padding:2px 8px;border-radius:4px;display:inline-block">Vigente hasta ${validity}</div>
       <div style="font-size:9px;color:#d1d5db;font-family:'Inter',monospace;margin-top:2px">3 · ${folio}</div>
     </div>
+  </div>
+</div>
+</div>
+
+<!-- PÁGINA: FIRMA Y PAGO EN LÍNEA -->
+<div class="page">
+<div class="page-inner">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;margin-bottom:16px;border-bottom:2px solid #714B67">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="background:#714B67;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;color:white">odoo</div>
+      <div style="font-size:11px;color:#714B67;font-weight:600">Firma y pago en línea</div>
+    </div>
+    <div style="font-size:9px;color:#9ca3af;font-family:'Inter',monospace">${co?.nombre||''} · ${folio}</div>
+  </div>
+
+  <!-- CTA propuesta Odoo -->
+  <div style="background:linear-gradient(135deg,#714B67,#4a2d42);border-radius:14px;padding:30px 32px;color:white;margin-bottom:22px;text-align:center;position:relative;overflow:hidden">
+    <div style="font-family:'Caveat',cursive;font-size:32px;font-weight:700;margin-bottom:8px;line-height:1.1">Firma y paga tu propuesta con un clic</div>
+    <div style="font-size:12.5px;color:rgba(255,255,255,.88);line-height:1.65;max-width:560px;margin:0 auto 20px">Esta es tu <strong>propuesta oficial de Odoo</strong>. Desde el enlace puedes revisarla, <strong>firmarla digitalmente</strong> y <strong>pagar de forma segura</strong> con tarjeta de crédito o débito.</div>
+    ${ps.odooPropUrl?`<a href="${ps.odooPropUrl}" style="display:inline-block;background:#FBB130;color:#21272B;font-size:15px;font-weight:800;text-decoration:none;padding:15px 38px;border-radius:11px;box-shadow:0 8px 22px rgba(0,0,0,.28)">Ver, firmar y pagar mi propuesta →</a>
+    <div style="font-size:9px;color:rgba(255,255,255,.55);margin-top:12px;word-break:break-all;font-family:'Inter',monospace">${ps.odooPropUrl}</div>`
+    :`<div style="background:rgba(255,255,255,.12);border:1px dashed rgba(255,255,255,.45);border-radius:9px;padding:13px 16px;font-size:12px;color:rgba(255,255,255,.9);display:inline-block">Tu asesor te compartirá el enlace para firmar y pagar tu propuesta en línea.</div>`}
+  </div>
+
+  <!-- Formas de pago -->
+  <div class="sec-label">Formas de pago</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+    <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:15px 17px">
+      <div style="font-size:12.5px;font-weight:700;color:#714B67;margin-bottom:6px">💳 Cargos mensuales</div>
+      <div style="font-size:11px;color:#374151;line-height:1.65">Se realizan <strong>únicamente con tarjeta</strong> de crédito o débito, directamente desde el enlace de la propuesta.</div>
+    </div>
+    <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:15px 17px">
+      <div style="font-size:12.5px;font-weight:700;color:#017E84;margin-bottom:6px">🏦 Anual y multianual</div>
+      <div style="font-size:11px;color:#374151;line-height:1.65">Puedes pagar con <strong>tarjeta</strong> desde el enlace, o por <strong>transferencia</strong>. Si transfieres, <strong>envía tu comprobante a tu asesor</strong> para validar el pago y emitir tu factura.</div>
+    </div>
+  </div>
+
+  <!-- Datos bancarios -->
+  <div class="sec-label">Datos para transferencia (pagos anuales / multianuales)</div>
+  <div style="border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden">
+    <div style="background:#714B67;padding:7px 14px;font-size:10px;font-weight:700;color:white;text-transform:uppercase;letter-spacing:.08em">Depósito en MXN · Odoo Technologies</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+      ${[['Razón social','ODOO TECHNOLOGIES SA DE CV'],['RFC','OTE2003102G1'],['Banco','Santander SA'],['Moneda','MXN'],['Número de cuenta','65-50806449-9'],['CLABE','014180655080644996']].map((row,i)=>`
+      <tr style="${i%2?'background:#f9fafb':''}"><td style="padding:8px 14px;color:#9ca3af;font-weight:600;width:42%;border-top:${i?'1px solid #f1f1f1':'none'}">${row[0]}</td><td style="padding:8px 14px;color:#21272B;font-weight:700;font-family:'Inter',monospace;border-top:${i?'1px solid #f1f1f1':'none'}">${row[1]}</td></tr>`).join('')}
+    </table>
+  </div>
+  <div style="font-size:9px;color:#9ca3af;margin-top:7px;line-height:1.5">Tras realizar la transferencia, envía tu comprobante de pago a tu asesor para validar el pago y emitir tu factura (CFDI). Importes con IVA incluido.</div>
+
+  ${odooInfoUtilHTML({mt:22,fs:11})}
+
+  <div class="pg-footer">
+    <div class="ae-badge"><div class="ae-avatar">${aeN[0]}</div><div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#9ca3af">${aeEmail}</div></div></div>
+    <div style="font-size:9px;color:#d1d5db;font-family:'Inter',monospace">Firma y pago · ${folio}</div>
   </div>
 </div>
 </div>
@@ -6549,6 +6629,12 @@ function renderPropuestaComercial(){
         <textarea class="input" id="propImplNotes" placeholder="Notas específicas del alcance de implementación…" style="min-height:80px;resize:vertical">${ps.implNotes||''}</textarea>
       </div>
 
+      <div class="card" style="padding:24px;margin-bottom:24px">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:6px">🔗 URL de la propuesta de Odoo</h3>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Enlace de la cotización oficial de Odoo (firma y pago en línea). Aparecerá en la propuesta en un cuadro para que el cliente firme y pague con tarjeta. Déjalo vacío si aún no lo tienes.</p>
+        <input class="input" id="propOdooUrl" value="${ps.odooPropUrl||''}" placeholder="https://www.odoo.com/my/quotes/...">
+      </div>
+
       <div style="display:flex;gap:12px;justify-content:flex-end">
         <button class="btn btn-ghost" onclick="showModule('pricing')">← Ir a Pricing</button>
         <button class="btn btn-primary" style="padding:12px 28px;font-size:15px" onclick="propGenerarPDF()">
@@ -6624,6 +6710,7 @@ window.propGenerarPDF=async function(){
   pricingState.selectedModules=mods;
   const notes=document.getElementById('propImplNotes')?.value||'';
   pricingState.implNotes=notes;
+  pricingState.odooPropUrl=document.getElementById('propOdooUrl')?.value.trim()||pricingState.odooPropUrl||'';
   if(_propState.company){ pricingState.company=_propState.company; pricingState.contact=_propState.contact||null; }
   if(!pricingState.company){ showNotif('Selecciona una empresa primero','error'); return; }
   if(!pricingState.result){ showNotif('Carga un pricing primero','error'); return; }
@@ -6925,6 +7012,7 @@ window.pricingOpenRecord=function(id){
   pricingState.contact=null;
   renderPricingIframe({keepRecord:true});
   pricingState.recordId=id;   // las ediciones actualizan ESTE registro (no crean uno nuevo)
+  pricingState.odooPropUrl=r.odooPropUrl||'';
   const cfg={
     type:'load_config',
     editionIdx, planIdx:r.planIdx??1, users:r.users||1,
