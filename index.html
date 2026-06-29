@@ -37,6 +37,7 @@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Inter:wght@400;500;600;700;800&display=swap');
 /* ── APP VARIABLES ── */
 :root {
   --purple:#714B67; --purple-dark:#5a3a52; --purple-light:#f3eef1; --purple-mid:#9b6b8a;
@@ -591,7 +592,6 @@ input,select,textarea{font-family:inherit;}
   --od-font-headline:'Caveat',cursive; --od-font-body:'Inter',sans-serif;
   --od-r-btn:4px; --od-r-img:10px; --od-r-large:200px;
 }
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ════════════════════════════════════════
    MANY2ONE — Company/Contact picker (estilo Odoo)
@@ -1016,6 +1016,52 @@ function odooInfoUtilHTML(opts={}){
         <span style="font-size:${fs+2}px">${l.ic}</span><span>${l.label}</span><span style="color:#FBB130;font-weight:800">↗</span></a>`).join('')}
     </div>
     ${showUrl?`<div style="margin-top:8px;font-size:9px;color:#b9b9b9;line-height:1.6;font-family:'Inter',monospace">${ODOO_INFO_LINKS.map(l=>`${l.label}: ${l.url}`).join(' · ')}</div>`:''}
+  </div>`;
+}
+
+// ── Contenido de referencia Odoo (verificado · brochure oficial / odoo.com) — reutilizable como relleno útil ──
+// Propuesta de valor 360 (texto oficial). Va en la PORTADA del brochure.
+const ODOO_VALUE_PROP = `Odoo es un software empresarial con el que podrás gestionar toda tu empresa desde un mismo lugar. Nuestra misión es que este software te ayude a resolver las necesidades más complejas de tu empresa y sea fácil de usar. Queremos brindarte una herramienta intuitiva, con todas las funciones necesarias, completamente integradas, que sea fácil de actualizar y que todos los negocios y usuarios puedan trabajar en él sin complicaciones.`;
+function odooValuePropHTML(){
+  return `<div style="background:#faf5ff;border:1.5px solid #ece3f0;border-radius:14px;padding:22px 26px;margin-bottom:26px;break-inside:avoid;page-break-inside:avoid">
+    <div style="font-family:'Caveat',cursive;font-size:33px;font-weight:700;color:#714B67;line-height:1.05;margin-bottom:10px">El único software empresarial que <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2">necesitas</span><span style="position:absolute;left:-2px;right:-2px;bottom:3px;height:32%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span></div>
+    <p style="font-size:13.5px;line-height:1.7;color:#4b5563;margin:0">${ODOO_VALUE_PROP}</p>
+  </div>`;
+}
+// Precios oficiales Odoo (MXN, por usuario/mes) — fuente: brochure oficial · odoo.com/pricing
+const ODOO_PRICING = {
+  estandar:     {nombre:'Estándar',      precio:'180', plataformas:'Odoo en línea',                 extras:''},
+  personalizado:{nombre:'Personalizado', precio:'274', plataformas:'Odoo en línea · Odoo.sh · Local', extras:'+ Studio de Odoo · Multiempresas · API externa'},
+};
+function odooPricingHTML(){
+  const card=(p,color)=>`<div style="border:2px solid ${color};border-radius:14px;padding:16px 18px 18px;background:#fff;text-align:center;break-inside:avoid;page-break-inside:avoid">
+    <div style="font-size:14px;font-weight:700;color:#21272B;margin-bottom:4px">${p.nombre}</div>
+    <div style="font-family:'Caveat',cursive;font-size:42px;font-weight:700;color:#714B67;line-height:1">${p.precio}<span style="font-size:15px;font-weight:600;vertical-align:super;margin-left:2px">MXN</span></div>
+    <div style="font-size:11px;color:#6b7280;margin-bottom:9px">por usuario / mes · todas las apps</div>
+    <div style="font-size:12px;color:#374151;font-weight:600">${p.plataformas}</div>
+    ${p.extras?`<div style="font-size:11px;color:#017E84;margin-top:6px;line-height:1.45">${p.extras}</div>`:''}
+  </div>`;
+  return `<div style="margin-bottom:28px;break-inside:avoid;page-break-inside:avoid">
+    <div style="font-family:'Caveat',cursive;font-size:30px;font-weight:700;color:#714B67;margin-bottom:14px">Precios de <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2;color:#017E84">Odoo</span><span style="position:absolute;left:-2px;right:-2px;bottom:3px;height:34%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      ${card(ODOO_PRICING.estandar,'#E4717A')}
+      ${card(ODOO_PRICING.personalizado,'#017E84')}
+    </div>
+    <div style="font-size:10.5px;color:#9ca3af;margin-top:9px;line-height:1.5">Precios de referencia en MXN. Consulta <strong>odoo.com/pricing</strong> para el detalle actualizado.</div>
+  </div>`;
+}
+// Datos clave de Odoo (verificados · brochure oficial)
+const ODOO_FACTS = [
+  {n:'12M+', l:'usuarios en el mundo'},
+  {n:'175',  l:'países'},
+  {n:'70+',  l:'apps integradas'},
+  {n:'1',    l:'sola base de datos'},
+];
+function odooFactsHTML(){
+  return `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px;break-inside:avoid;page-break-inside:avoid">
+    ${ODOO_FACTS.map(f=>`<div style="text-align:center;background:#f5f0f3;border-radius:12px;padding:14px 6px">
+      <div style="font-family:'Caveat',cursive;font-size:30px;font-weight:700;color:#714B67;line-height:1">${f.n}</div>
+      <div style="font-size:10.5px;color:#6b7280;line-height:1.3;margin-top:2px">${f.l}</div></div>`).join('')}
   </div>`;
 }
 
@@ -4997,9 +5043,18 @@ function _parseJSONArray(raw){
   let parsed;
   try{ parsed=JSON.parse(cand); }
   catch(e){
-    const oa=s.indexOf('{'), ob=s.lastIndexOf('}');
-    if(oa>=0&&ob>oa){ parsed=JSON.parse(s.slice(oa,ob+1).replace(/,\s*([\]}])/g,'$1')); }
-    else throw e;
+    // Salvar array truncado (respuesta cortada por límite de tokens): recortar al último objeto completo y cerrar.
+    if(cand[0]==='['){
+      const lastObj=cand.lastIndexOf('}');
+      if(lastObj>0){
+        try{ parsed=JSON.parse(cand.slice(0,lastObj+1).replace(/,\s*$/,'')+']'); }catch(_){}
+      }
+    }
+    if(parsed===undefined){
+      const oa=s.indexOf('{'), ob=s.lastIndexOf('}');
+      if(oa>=0&&ob>oa){ parsed=JSON.parse(s.slice(oa,ob+1).replace(/,\s*([\]}])/g,'$1')); }
+      else throw e;
+    }
   }
   if(Array.isArray(parsed)) return parsed;
   if(parsed&&typeof parsed==='object'){ const arr=Object.values(parsed).find(v=>Array.isArray(v)); if(arr) return arr; }
@@ -5066,6 +5121,8 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
 
         <!-- BROCHURE A4 — estilo Odoo -->
         <div id="gcBrPreview" style="width:794px;max-width:100%;margin:0 auto;background:white;border-radius:8px;overflow:hidden;border:1px solid var(--gray-200);font-family:'Inter',sans-serif">
+          <!-- ════════ PORTADA (página 1) — SIEMPRE una sola hoja (altura A4 fija + overflow oculto) ════════ -->
+          <div class="br-cover" style="height:297mm;overflow:hidden;break-after:page;page-break-after:always">
           <!-- Header morado -->
           <div style="background:#714B67;padding:44px 48px 40px;color:white;position:relative;overflow:hidden">
             <div style="position:absolute;right:-40px;top:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.05)"></div>
@@ -5080,12 +5137,22 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
             <div style="font-family:'Caveat',cursive;font-size:26px;font-weight:400;color:rgba(255,255,255,.88);line-height:1.2;max-width:90%;position:relative">${data.subtitulo||''}</div>
           </div>
 
-          <!-- Cuerpo -->
-          <div style="padding:36px 48px 44px">
-            <!-- Odoo 360 -->
-            <img src="${ASSETS}/odoo-360.svg" crossorigin="anonymous" style="width:100%;height:auto;display:block;margin-bottom:30px" onerror="this.style.display='none'">
-            <p style="font-size:14px;line-height:1.7;color:#4b5563;margin-bottom:30px">${data.intro||''}</p>
+          <!-- Cuerpo de la portada -->
+          <div style="padding:34px 48px 38px">
+            <!-- Propuesta de valor 360 -->
+            ${odooValuePropHTML()}
+            <!-- Odoo 360 (logo superior derecho enmascarado en blanco) -->
+            <div style="position:relative;max-width:84%;margin:0 auto 18px">
+              <img src="${ASSETS}/odoo-360.svg" crossorigin="anonymous" style="width:100%;height:auto;display:block" onerror="this.style.display='none'">
+              <div aria-hidden="true" style="position:absolute;top:0;right:0;width:13%;height:9%;background:#ffffff"></div>
+            </div>
+            <!-- Intro (cierra la portada) -->
+            <p style="font-size:14px;line-height:1.7;color:#4b5563;margin:0">${data.intro||''}</p>
+          </div>
+          </div><!-- /br-cover -->
 
+          <!-- ════════ CONTENIDO (página 2 en adelante) ════════ -->
+          <div class="br-content" style="padding:0 48px 40px">
             <!-- Apps -->
             <div style="font-family:'Caveat',cursive;font-size:34px;font-weight:700;color:#21272B;margin-bottom:16px">Lo que <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2;color:#017E84">Odoo</span><span style="position:absolute;left:-2px;right:-2px;bottom:4px;height:34%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span> hará por ti</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:32px">
@@ -5110,6 +5177,10 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
                 </div>`).join('')}
               </div>
             </div>
+
+            <!-- Datos clave + precios (relleno útil verificado) -->
+            ${odooFactsHTML()}
+            ${odooPricingHTML()}
 
             <!-- Clientes México -->
             <img src="${ASSETS}/clientes-mexico.svg" crossorigin="anonymous" style="width:100%;height:auto;display:block;margin-bottom:28px" onerror="this.style.display='none'">
@@ -5165,6 +5236,11 @@ window.gcExportBrochurePrint=function(){
     *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     html,body{background:#fff;font-family:'Inter',sans-serif;}
     @page{size:A4;margin:0;}
+    /* Portada a sangre completa (header morado al borde); contenido con margen sup/inf consistente en TODAS las hojas */
+    @page cover{size:A4;margin:0;}
+    @page content{size:A4;margin:14mm 0;}
+    .br-cover{page:cover;}
+    .br-content{page:content;page-break-before:always;break-before:page;}
     #gcBrPreview{width:794px !important;max-width:794px !important;margin:0 auto !important;border:none !important;border-radius:0 !important;overflow:visible !important;}
     img{break-inside:avoid;page-break-inside:avoid;max-width:100%;}
     a{color:inherit;}
@@ -7120,6 +7196,97 @@ window.pricingDeleteSelected=async function(){
 // ══════════════════════════════════════════
 const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Email','phone','Tags_id','user_id','state_id','country_id'];
 const MX_STATES=['Aguascalientes (MX)','Baja California (MX)','Baja California Sur (MX)','Campeche (MX)','Chihuahua (MX)','Chiapas (MX)','Ciudad de México (MX)','Coahuila (MX)','Colima (MX)','Durango (MX)','Estado de Mexico (MX)','Guerrero (MX)','Guanajuato (MX)','Hidalgo (MX)','Jalisco (MX)','Michoacán (MX)','Morelos (MX)','Nayarit (MX)','Nuevo León (MX)','Oaxaca (MX)','Puebla (MX)','Querétaro (MX)','Quintana Roo (MX)','Sinaloa (MX)','San Luis Potosí (MX)','Sonora (MX)','Tabasco (MX)','Tamaulipas (MX)','Tlaxcala (MX)','Veracruz (MX)','Yucatán (MX)','Zacatecas (MX)'];
+
+// ── Parser de CSV estructurado LOCAL (sin IA) — para exports de Apollo/LinkedIn/genéricos ──
+// Reextraer un CSV ya estructurado con la IA satura los tokens y trunca la respuesta.
+// Si reconocemos los encabezados, lo parseamos aquí: instantáneo, completo y sin inventar nada.
+const _csvNorm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+const _cleanPhone=v=>String(v||'').replace(/^[\s'"]+/,'').replace(/[\s'"]+$/,'').trim();
+// Tokeniza respetando comillas dobles, comillas escapadas ("") y saltos de línea dentro de campos.
+function _parseDelimited(text, delim){
+  const rows=[]; let row=[], field='', i=0, inQ=false; const n=text.length;
+  while(i<n){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i+=2; continue; } inQ=false; i++; continue; }
+      field+=c; i++; continue;
+    }
+    if(c==='"'){ inQ=true; i++; continue; }
+    if(c===delim){ row.push(field); field=''; i++; continue; }
+    if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(field); rows.push(row); row=[]; field=''; i++; continue; }
+    field+=c; i++;
+  }
+  if(field.length||row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.some(f=>String(f).trim()!==''));
+}
+function _detectDelim(line){ const c={',':0,';':0,'\t':0}; for(const ch of String(line||'')){ if(ch in c) c[ch]++; } return Object.keys(c).sort((a,b)=>c[b]-c[a])[0]; }
+// Alias de estado MX → entrada exacta de MX_STATES (autogenerado + variantes Apollo/inglés)
+const _MX_STATE_LOOKUP=(()=>{
+  const m={};
+  for(const st of MX_STATES) m[_csvNorm(st.replace(/\s*\(mx\)\s*$/i,''))]=st;
+  const alias={'mexico city':'Ciudad de México (MX)','ciudad de mexico':'Ciudad de México (MX)','cdmx':'Ciudad de México (MX)','distrito federal':'Ciudad de México (MX)','federal district':'Ciudad de México (MX)','df':'Ciudad de México (MX)','state of mexico':'Estado de Mexico (MX)','estado de mexico':'Estado de Mexico (MX)','mexico state':'Estado de Mexico (MX)','edomex':'Estado de Mexico (MX)','coahuila de zaragoza':'Coahuila (MX)','veracruz de ignacio de la llave':'Veracruz (MX)','michoacan de ocampo':'Michoacán (MX)'};
+  for(const k in alias) m[_csvNorm(k)]=alias[k];
+  return m;
+})();
+function _mxState(raw){ if(!raw) return ''; return _MX_STATE_LOOKUP[_csvNorm(String(raw).replace(/\s*\(mx\)\s*$/i,''))]||''; }
+// Devuelve array de prospectos si reconoce un CSV estructurado, o null si no (→ fallback IA).
+function _csvMapStructured(text){
+  if(!text||!text.includes('\n')) return null;
+  const firstLine=text.split(/\r?\n/)[0]||'';
+  const delim=_detectDelim(firstLine);
+  if(!firstLine.includes(delim)) return null;
+  const table=_parseDelimited(text, delim);
+  if(table.length<2) return null;
+  const header=table[0].map(_csvNorm);
+  const col=names=>{ for(const nm of names){ const i=header.indexOf(_csvNorm(nm)); if(i>=0) return i; } return -1; };
+  const idx={
+    first:col(['first name','nombre(s)','nombres']),
+    last:col(['last name','apellido','apellidos']),
+    full:col(['full name','name','contact name','contacto','nombre completo','nombre']),
+    title:col(['title','job title','position','cargo','puesto','funcion','rol']),
+    company:col(['company name','company','account name','account','organization','organisation','empresa','razon social']),
+    website:col(['website','company website','web','sitio web','url','pagina web']),
+    email:col(['email','email address','primary email','correo','correo electronico','e-mail','mail']),
+    linkedin:col(['person linkedin url','linkedin url','linkedin','perfil linkedin']),
+    seniority:col(['seniority','nivel']),
+    employees:col(['# employees','employees','num employees','numero de empleados','empleados','headcount','company size','tamano']),
+    industry:col(['industry','industria','giro','sector']),
+    city:col(['city','ciudad','localidad']),
+    state:col(['state','estado','region','provincia']),
+    cstate:col(['company state']),
+  };
+  const phoneCols=[
+    col(['mobile phone','mobile','celular','movil']),
+    col(['work direct phone','direct phone','direct']),
+    col(['phone','telephone','telefono','phone number']),
+    col(['corporate phone','company phone','telefono corporativo']),
+    col(['other phone','home phone']),
+  ].filter(i=>i>=0);
+  // Reconocido sólo si hay empresa o nombre/email — evita tratar texto suelto como CSV.
+  const recognized=(idx.company>=0)||(idx.full>=0)||(idx.first>=0&&idx.last>=0)||(idx.email>=0);
+  if(!recognized) return null;
+  const get=(r,i)=> i>=0&&i<r.length ? String(r[i]||'').trim() : '';
+  const out=[];
+  for(let k=1;k<table.length;k++){
+    const r=table[k];
+    const name = idx.full>=0&&get(r,idx.full) ? get(r,idx.full) : [get(r,idx.first),get(r,idx.last)].filter(Boolean).join(' ').trim();
+    let phone=''; for(const pc of phoneCols){ const v=_cleanPhone(get(r,pc)); if(v){ phone=v; break; } }
+    let web=get(r,idx.website); if(web&&!/^https?:\/\//i.test(web)) web='https://'+web.replace(/^\/+/,'');
+    let st=_mxState(get(r,idx.state)); if(!st) st=_mxState(get(r,idx.cstate));
+    const extra=[];
+    if(get(r,idx.seniority)) extra.push('Seniority: '+get(r,idx.seniority));
+    if(get(r,idx.employees)) extra.push('Empleados: '+get(r,idx.employees));
+    if(get(r,idx.industry)) extra.push('Industria: '+get(r,idx.industry));
+    if(get(r,idx.city)) extra.push('Ciudad: '+get(r,idx.city));
+    if(get(r,idx.linkedin)) extra.push('LinkedIn: '+get(r,idx.linkedin));
+    const secPhones=[...new Set(phoneCols.map(pc=>_cleanPhone(get(r,pc))).filter(v=>v&&v!==phone))];
+    if(secPhones.length) extra.push('Tel. extra: '+secPhones.join(' / '));
+    out.push({contact_name:name, function:get(r,idx.title), partner_name:get(r,idx.company), Website:web, Email:get(r,idx.email), phone, state_id:st, notes:extra.join(' · ')});
+  }
+  if(!out.some(o=>o.contact_name||o.partner_name||o.Email)) return null;
+  return out;
+}
+
 let csvRows=[];
 function renderCsvBuilder(){
   const content=document.getElementById('moduleContent');
@@ -7212,10 +7379,18 @@ window.csvProcess=async function(){
   const btn=document.getElementById('csvProcessBtn'); btn.disabled=true; gcShowLoading('csvLoading',true);
   const tagsStr='Outbound-MX'+(tags?','+tags.replace(/\s*,\s*/g,','):'');
   try{
-    const dataSection=_csvFileAttachment
-      ? `[ARCHIVO: ${_csvFileAttachment.name} — extrae todos los contactos/prospectos que encuentres en el archivo]`
-      : `DATOS:\n${rawData}`;
-    const result=await gcCallClaude(`Eres un extractor de datos de prospectos para Odoo CRM México.
+    let extracted=null, usedLocal=false;
+    // 1) CSV/texto estructurado pegado (sin archivo binario) → parseo LOCAL: instantáneo, completo, sin truncado.
+    if(!_csvFileAttachment && rawData){
+      const local=_csvMapStructured(rawData);
+      if(local&&local.length){ extracted=local; usedLocal=true; }
+    }
+    // 2) Texto libre / PDF / imagen → IA (respaldo). Tokens altos para no truncar listas largas.
+    if(!extracted){
+      const dataSection=_csvFileAttachment
+        ? `[ARCHIVO: ${_csvFileAttachment.name} — extrae todos los contactos/prospectos que encuentres en el archivo]`
+        : `DATOS:\n${rawData}`;
+      const result=await gcCallClaude(`Eres un extractor de datos de prospectos para Odoo CRM México.
 Analiza los siguientes datos y extrae cada prospecto como un objeto JSON.
 FUENTE: "${fuente}" | AE: "${ae}" | TAGS: "${tagsStr}"
 ${contexto?`INSTRUCCIONES ADICIONALES: ${contexto}\n`:''}${dataSection}
@@ -7230,10 +7405,10 @@ Para cada prospecto devuelve estos campos:
 - state_id: estado de México EXACTAMENTE de esta lista: ${MX_STATES.join(', ')}. Si no puedes determinar: dejar ""
 - notes: cualquier dato adicional (teléfonos extra, empleados, industria, LinkedIn, redes, etc.)
 
-Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, sin explicaciones, sin disclaimers. Si un campo no se conoce, usa cadena vacía "". Nunca escribas "No lo sé" ni texto fuera del JSON.`, _csvFileAttachment||null, {maxTokens:8000, system:'Eres un extractor de datos preciso para CRM. Devuelves SIEMPRE y SOLO un array JSON válido (sin markdown, sin texto adicional). Para datos que no encuentres, usa cadena vacía "". No inventes datos, pero tampoco agregues disclaimers ni explicaciones: solo el JSON.'});
-    let extracted;
-    try{ extracted=_parseJSONArray(result); }
-    catch(err){ console.warn('CSV parse:',err,result?.slice?.(0,200)); throw new Error('No se pudo leer la respuesta de la IA. Revisa los datos pegados o intenta de nuevo.'); }
+Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, sin explicaciones, sin disclaimers. Si un campo no se conoce, usa cadena vacía "". Nunca escribas "No lo sé" ni texto fuera del JSON.`, _csvFileAttachment||null, {maxTokens:16000, system:'Eres un extractor de datos preciso para CRM. Devuelves SIEMPRE y SOLO un array JSON válido (sin markdown, sin texto adicional). Para datos que no encuentres, usa cadena vacía "". No inventes datos, pero tampoco agregues disclaimers ni explicaciones: solo el JSON.'});
+      try{ extracted=_parseJSONArray(result); }
+      catch(err){ console.warn('CSV parse:',err,result?.slice?.(0,200)); throw new Error('No se pudo leer la respuesta de la IA. Revisa los datos pegados o intenta de nuevo.'); }
+    }
     if(!Array.isArray(extracted)||!extracted.length) throw new Error('No se detectaron prospectos en los datos. Revisa el contenido e intenta de nuevo.');
     csvRows=extracted.map(row=>({
       name:`${fuente} - ${row.partner_name||''} - ${row.contact_name||''}`,
@@ -7245,6 +7420,7 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
     csvRenderTable();
     document.getElementById('csvPreviewSection').style.display='block';
     document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
+    showNotif(`${csvRows.length} prospecto${csvRows.length===1?'':'s'} extraído${csvRows.length===1?'':'s'}${usedLocal?' directo del CSV (sin IA)':''} ✓`,'success');
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('csvLoading',false);
 };
