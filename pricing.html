@@ -3379,7 +3379,7 @@
       const savings      = !isMonthly ? getBaseSavings(i, activeLicDisc) : 0;
       return {
         idx: i, label: p.label, badge: p.badge || (isMonthly ? 'Opción base' : ''),
-        isMonthly, isSelected: i === currentPlanIdx,
+        isMonthly, isSelected: i === currentPlanIdx, visible: rowVisible[i] !== false,
         rateY1, rateY2, rateY2Net,
         licDiscPct: activeLicDisc, licDiscApplicable: i >= 2, implDiscPct: activeImplDisc,
         shCost, licOnly, licOnlyList, licTotal, licTotalList,

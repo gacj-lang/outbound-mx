@@ -6247,7 +6247,8 @@ window.pricingGeneratePDF=function(){
       savings:i>0?Math.max(0,mEquiv-licNet):0};
   });
 
-  const compRows=compForTable.map(row=>{
+  // Respeta las filas ocultas en la comparativa del pricing (siempre conserva la seleccionada).
+  const compRows=compForTable.filter(row=>row.visible!==false||row.isSelected).map(row=>{
     const sel=row.isSelected;
     const y2Cell=row.isMonthly?'—':(row.rateY2Net!=null
       ? `<s style="color:#9ca3af;font-weight:400">${fmtN(row.rateY2)}</s><br>${fmtN(row.rateY2Net)}`
