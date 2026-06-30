@@ -3337,8 +3337,17 @@
           const wantI = implDiscByPlan.some(d => d > 0);
           if (wantI !== discImplUnlocked) toggleLock('impl');
         }
+        // Filas ocultas de la comparativa (selección de escenarios)
+        if (Array.isArray(c.rowVisible) && c.rowVisible.length === rowVisible.length) {
+          rowVisible = c.rowVisible.map(v => v !== false);
+          hiddenHistory = rowVisible.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+        }
         // Plan (re-renderiza con todo lo anterior aplicado)
         if (typeof c.planIdx === 'number') setPlan(c.planIdx, null);
+        // Reflejar filas ocultas tras el render y el botón "restaurar anterior"
+        applyRowVisibility();
+        const rrb = document.getElementById('restore-rows-btn');
+        if (rrb) rrb.style.display = rowVisible.some(v => !v) ? '' : 'none';
         // Términos de pago
         if (typeof c.payTermIdx === 'number' && c.payTermIdx >= 0) {
           const pt = document.getElementById('pt-select');
@@ -3415,7 +3424,7 @@
       isSH, shWorkers, shStaging, shStorage, shCost,
       rateY1, rateY2,
       licDiscByPlan: licDiscByPlanOut, implDiscByPlan: implDiscByPlanOut, implPriceList: currentImplPrice,
-      compTable: buildCompTable(),
+      compTable: buildCompTable(), rowVisible: rowVisible.slice(),
     };
   }
   function sendToOutbound() {

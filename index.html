@@ -6016,6 +6016,7 @@ async function pricingUpsertRecord(d,opts={}){
     licDiscByPlan:Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null, implDiscByPlan:Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null, implPriceList:d.implPriceList||d.implPrice||null,
     isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0, shCost:d.shCost||0,
     payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', implNotes:d.implNotes||'', odooPropUrl:pricingState.odooPropUrl||'',
+    rowVisible:Array.isArray(d.rowVisible)?d.rowVisible:null,
     updatedAt:serverTimestamp()
   };
   try{
@@ -7209,6 +7210,7 @@ window.pricingOpenRecord=function(id){
     implDiscByPlan:Array.isArray(r.implDiscByPlan)?r.implDiscByPlan:[0,0,0,0,0,0],
     isSH:r.isSH||false, shWorkers:r.shWorkers||1, shStaging:r.shStaging||0, shStorage:r.shStorage||0,
     payTermIdx:r.payTermIdx??-1, payStartDate:r.payStartDate||'', implNotes:r.implNotes||'',
+    rowVisible:Array.isArray(r.rowVisible)?r.rowVisible:null,
     clientName:r.companyName||''
   };
   const iframe=document.getElementById('pricingFrame');
