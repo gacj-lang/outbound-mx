@@ -2152,9 +2152,10 @@ const DG_CSS=`
 .dg-sec-goal{font-size:13.5px;color:#6b7280;margin-top:7px;line-height:1.5}
 .dg-cfgstrip{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .dg-cfgpill{font-size:11.5px;font-weight:600;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;padding:4px 10px;border-radius:999px}
-.dg-subtabs{display:flex;gap:8px;padding:16px 28px 0;flex-wrap:wrap}
-.dg-subtab{font-size:13px;font-weight:600;padding:9px 15px;border-radius:999px;background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:6px}
-.dg-subtab.on{background:#714B67;color:#fff;border-color:#714B67}
+.dg-subtabs{display:flex;gap:10px;padding:18px 28px 0;flex-wrap:wrap}
+.dg-subtab{flex:1 1 0;min-width:150px;justify-content:center;font-size:16px;font-weight:700;padding:15px 22px;border-radius:14px;background:#f9fafb;color:#6b7280;border:1.5px solid #e5e7eb;cursor:pointer;display:flex;align-items:center;gap:9px;transition:all .15s}
+.dg-subtab:hover{border-color:#714B67;color:#714B67}
+.dg-subtab.on{background:#714B67;color:#fff;border-color:#714B67;box-shadow:0 4px 14px rgba(113,75,103,.28)}
 .dg-subtab .sdone{color:#16a34a}.dg-subtab.on .sdone{color:#fff}
 .dg-card-body{padding:20px 28px 26px}
 .dg-cfg2{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px 20px 20px;margin-bottom:22px}
@@ -2187,6 +2188,11 @@ const DG_CSS=`
 .dg-opener-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#714B67;margin-bottom:7px;display:flex;align-items:center;gap:6px}
 .dg-opener em{font-style:italic;color:#4a2f44;font-size:14.5px;line-height:1.55}
 .dg-opener .tip{margin-top:9px;font-size:12px;color:#6b7280}
+.dg-blocknotes{margin:-8px 0 22px}
+.dg-blocknotes-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9a7b00;margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.dg-blocknotes-ta{width:100%;border:1.5px solid #f0e6c8;background:#fffdf6;border-radius:10px;padding:11px 14px;font-size:14px;line-height:1.55;color:#374151;resize:vertical;font-family:inherit;transition:border-color .15s}
+.dg-blocknotes-ta:focus{outline:none;border-color:#FBB130;background:#fff}
+.dg-blocknotes-ta::placeholder{color:#bfae7e}
 .dg-subopener{background:#f3eef2;border-radius:8px;padding:11px 14px;margin-bottom:16px;font-size:13.5px;color:#4a2f44;line-height:1.5}
 .dg-wow-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;border:1.5px solid #7c3aed;background:#faf5ff;color:#7c3aed;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px}
 .dg-wow-btn:hover{background:#7c3aed;color:#fff}
@@ -2561,6 +2567,11 @@ function dgRenderSection(){
   let openerLbl = sec.subs?'Apertura general del bloque':'Cómo abrir la conversación';
   body += sec.config?dgCfgCardHTML():'';
   body += `<div class="dg-opener"><div class="dg-opener-lbl">🎙 ${openerLbl}</div><em>"${sec.opener}"</em><div class="tip">💡 ${sec.tip}</div></div>`;
+  // Notas libres de la llamada — MISMA caja en cada sección (contenido compartido), se guarda y la IA lo usa
+  {
+    const _nv=_dgEsc(disc.selections.fld?.['notas-llamada']||'');
+    body += `<div class="dg-blocknotes"><div class="dg-blocknotes-lbl">📝 Notas de la llamada · libres (te acompañan en cada paso)</div><textarea class="dg-blocknotes-ta" data-fld="notas-llamada" rows="3" oninput="dgFld(this)" placeholder="Anota aquí lo que observes durante la conversación, sin cambiar de pantalla. La misma nota está disponible en cada sección — se guarda sola y la IA la incluye en la nota del post-call.">${_nv}</textarea></div>`;
+  }
 
   let guide,data,wow='',subOpener='';
   if(sec.subs){
@@ -2727,7 +2738,7 @@ function dgRenderPostcall(){
 
 // ── Navigation & capture handlers ──
 function dgRender(){ dgRenderRail(); dgRenderSection(); }
-window.dgGo=function(n){ const max=DG_SECTION_META.length; if(n>=max){ discSetMode('postcall'); return; } if(n<0) return; disc.ui.section=n; dgRender(); const el=document.getElementById('dgRail'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); };
+window.dgGo=function(n){ const max=DG_SECTION_META.length; if(n>=max){ discSetMode('postcall'); return; } if(n<0) return; disc.ui.section=n; const _secs=dgBuildSections(); if(_secs[n]?.subs) disc.ui.sub[_secs[n].id]=0; /* al entrar a un bloque con subs (flujo) siempre inicia en el primero: Comercial */ dgRender(); const el=document.getElementById('dgRail'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); };
 window.dgSub=function(id,ti){ disc.ui.sub[id]=ti; disc.ui.wow=null; dgRenderSection(); };
 window.dgWow=function(key){ disc.ui.wow=disc.ui.wow===key?null:key; dgRenderSection(); };
 window.dgCov=function(key){ if(!disc.selections.cov) disc.selections.cov={}; disc.selections.cov[key]=!disc.selections.cov[key]; if(!disc.selections.cov[key]) delete disc.selections.cov[key]; dgRender(); discAutosave(); };
@@ -2873,6 +2884,7 @@ DATOS CAPTURADOS DURANTE LA LLAMADA:
 - Timeline: ${s['timeline']||'nd'}, Fit con Odoo: ${s['fit']||'nd'}
 - Calificación MEDDIC capturada: Comprador económico=${(s.qual?.econ||s['decisor']==='El que decide')?'sí':'no'} | Champion=${s.qual?.champion?'sí':'no'} | Criterios de decisión=${s.qual?.criterios?'sí':'no'} | Métricas cuantificadas=${s.qual?.metrics?'sí':'no'} | Proceso de decisión claro=${s.qual?.proceso?'sí':'no'}
 - Apps recomendadas: ${apps.join(', ')||'por definir'}
+- Notas libres del AE (durante la llamada): ${s.fld?.['notas-llamada']||'nd'}
 
 TRANSCRIPCIÓN COMPLETA:
 ${transcript}
