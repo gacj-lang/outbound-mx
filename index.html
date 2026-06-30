@@ -5994,6 +5994,7 @@ function applyPricingMsg(d){
   pricingState.licDiscByPlan=Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null;
   pricingState.implDiscByPlan=Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null;
   pricingState.implPriceList=d.implPriceList||d.implPrice||0;
+  pricingState.compTable=Array.isArray(d.compTable)?d.compTable:null;
 }
 
 // Upsert del registro de pricing (autoguardado / guardado manual). Usa pricingState.recordId.
@@ -6178,21 +6179,41 @@ window.pricingGeneratePDF=function(){
   const rateY2=ps.rateY2||ed.ratesY2?.[planIdx]||rateY1;
   const planMonths=PD.planMonths[planIdx]||12;
   const planLabel=PD.planLabels[planIdx]||'1 año';
-  // Descuentos seleccionados en el pricing (por plan). 0 si no se aplicó ninguno.
-  const licDiscArr=Array.isArray(ps.licDiscByPlan)?ps.licDiscByPlan:null;
-  const implDiscArr=Array.isArray(ps.implDiscByPlan)?ps.implDiscByPlan:null;
-  const licDiscPct=licDiscArr?(licDiscArr[planIdx]||0):0;
-  const implDiscPct=implDiscArr?(implDiscArr[planIdx]||0):0;
-  const licY1=rateY1*users*Math.min(planMonths,12);
-  const licY2=planMonths>12?rateY2*users*(planMonths-12):0;
-  const licTotalList=licY1+licY2;                              // precio lista
-  const licTotal=Math.round(licTotalList*(1-licDiscPct/100));  // con descuento
-  const implPrice=r.implPrice||ps._impl||0;
-  const implListN=ps.implPriceList||(typeof implPrice==='string'?parseFloat(implPrice.replace(/[^0-9.]/g,'')):implPrice);
-  const implPriceN=Math.round(implListN*(1-implDiscPct/100));  // con descuento
-  const subtotal=licTotal+(ps.shCost||0)+implPriceN;
-  const iva=subtotal*0.16;
-  const total=subtotal+iva;
+  const round2=n=>Math.round(n*100)/100;
+
+  // ── FUENTE ÚNICA DE VERDAD: la tabla comparativa ya calculada por el pricing ──
+  // El resumen se deriva de la fila SELECCIONADA → su última columna (total) = subtotal, siempre.
+  const comp=Array.isArray(ps.compTable)&&ps.compTable.length?ps.compTable:null;
+  const selRow=comp?(comp.find(x=>x.isSelected)||comp[planIdx]||comp[0]):null;
+
+  let licDiscPct, implDiscPct, licTotal, licTotalList, implListN, implPriceN, shCostSel, subtotal;
+  if(selRow){
+    licDiscPct   = selRow.licDiscPct||0;
+    implDiscPct  = selRow.implDiscPct||0;
+    licTotal     = selRow.licOnly;        // licencias netas (sin SH) — desglose del resumen
+    licTotalList = selRow.licOnlyList;    // licencias lista (sin SH)
+    implListN    = selRow.implList;
+    implPriceN   = selRow.implNet;
+    shCostSel    = selRow.shCost||0;
+    subtotal     = selRow.total;          // licOnly + SH + impl = última columna de la tabla
+  } else {
+    // Fallback para registros antiguos sin compTable
+    const licDiscArr=Array.isArray(ps.licDiscByPlan)?ps.licDiscByPlan:null;
+    const implDiscArr=Array.isArray(ps.implDiscByPlan)?ps.implDiscByPlan:null;
+    licDiscPct=licDiscArr?(licDiscArr[planIdx]||0):0;
+    implDiscPct=implDiscArr?(implDiscArr[planIdx]||0):0;
+    const licY1=rateY1*users*Math.min(planMonths,12);
+    const licY2=planMonths>12?rateY2*users*(planMonths-12):0;
+    licTotalList=licY1+licY2;
+    licTotal=Math.round(licTotalList*(1-licDiscPct/100));
+    const implPrice=r.implPrice||ps._impl||0;
+    implListN=ps.implPriceList||(typeof implPrice==='string'?parseFloat(implPrice.replace(/[^0-9.]/g,'')):implPrice);
+    implPriceN=Math.round(implListN*(1-implDiscPct/100));
+    shCostSel=ps.shCost||0;
+    subtotal=licTotal+shCostSel+implPriceN;
+  }
+  const iva=round2(subtotal*0.16);
+  const total=round2(subtotal+iva);
 
   // Payment schedule
   const payTermDefs=[
@@ -6208,31 +6229,45 @@ window.pricingGeneratePDF=function(){
   const payRows=payTerm?payTerm.splits.map(s=>`
     <tr><td>${s.lbl}</td><td>${s.days===0?fmtDate(baseDate):fmtDate(addDays(baseDate,s.days))}</td><td style="font-weight:700;color:#017E84">${fmt2(total*s.pct)}</td></tr>`).join(''):'';
 
-  // Comparativa rows
-  const compRows=PD.planLabels.map((pl,i)=>{
-    const r1=ed.rates[i], r2=(ed.ratesY2||[])[i]||r1;
-    const months=PD.planMonths[i];
-    const ld=licDiscArr?(licDiscArr[i]||0):0;          // % desc. licencias de este plan
-    const idsc=implDiscArr?(implDiscArr[i]||0):0;       // % desc. implementación de este plan
+  // Comparativa rows — RÉPLICA EXACTA de la tabla del pricing (fuente única: compTable)
+  const compForTable = comp || PD.planLabels.map((pl,i)=>{
+    const r1=ed.rates[i], r2=(ed.ratesY2||[])[i]||r1, months=PD.planMonths[i];
+    const ld=(Array.isArray(ps.licDiscByPlan)?(ps.licDiscByPlan[i]||0):0);
+    const idsc=(Array.isArray(ps.implDiscByPlan)?(ps.implDiscByPlan[i]||0):0);
     const licList=i===0?r1*users:(r1*users*Math.min(months,12))+(r2*users*Math.max(0,months-12));
     const licNet=Math.round(licList*(1-ld/100));
-    const implListRow=i===0?0:implListN;
-    const implNet=Math.round(implListRow*(1-idsc/100));
-    const tot=licNet+implNet;
-    // Ahorro vs. plan mensual equivalente
+    const implList=i===0?0:(implListN||0);
+    const implNet=Math.round(implList*(1-idsc/100));
     const mEquiv=i===0?0:(ed.rates[0]*users*Math.min(months,12))+((ed.ratesY2?.[0]||ed.rates[0])*users*Math.max(0,months-12));
-    const saving=i>0?Math.max(0,mEquiv-licNet):0;
-    const isSel=i===planIdx;
-    return `<tr style="${isSel?'background:#f0f9f9;font-weight:700;color:#017E84':''}">
-      <td style="text-align:left;${isSel?'color:#017E84;font-weight:700':''}">
-        ${pl}${i===0?'<span style="font-size:9px;background:#f0f0f0;color:#999;padding:1px 5px;border-radius:3px;margin-left:4px">Base</span>':''}
-        ${isSel?'<span style="font-size:9px;background:#017E84;color:white;padding:1px 6px;border-radius:3px;margin-left:5px">✓ Esta propuesta</span>':''}
-      </td>
-      <td style="font-family:monospace">${fmtN(r1)}</td>
-      <td style="font-family:monospace">${i===0?'—':(ld>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(r2)}</s> ${fmtN(Math.round(r2*(1-ld/100)))} <span style="font-size:9px;color:#714B67;font-weight:700">−${ld}%</span>`:fmtN(r2))}</td>
-      <td style="font-family:monospace">${ld>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(licList)}</s> `:''}${fmtN(licNet)}${ld>0?` <span style="font-size:9px;color:#714B67;font-weight:700">−${ld}%</span>`:''}${saving>0?`<br><span style="font-size:9px;color:#16a34a">Ahorro ${fmtN(saving)}</span>`:''}</td>
-      <td style="font-family:monospace">${i===0?'—':(idsc>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(implListRow)}</s> ${fmtN(implNet)} <span style="font-size:9px;color:#714B67;font-weight:700">−${idsc}%</span>`:fmtN(implNet))}</td>
-      <td style="font-family:monospace;font-weight:700">${fmtN(tot)}</td>
+    return {idx:i,label:pl,isMonthly:i===0,isSelected:i===planIdx,
+      rateY1:r1,rateY2:r2,rateY2Net:ld>0?Math.round(r2*(1-ld/100)):null,
+      licDiscPct:ld,licDiscApplicable:i>=2,implDiscPct:idsc,
+      shCost:0,licTotal:licNet,licTotalList:licList,
+      hasImpl:implList>0,implList,implNet,total:licNet+implNet,totalList:licList+implList,
+      savings:i>0?Math.max(0,mEquiv-licNet):0};
+  });
+
+  const compRows=compForTable.map(row=>{
+    const sel=row.isSelected;
+    const y2Cell=row.isMonthly?'—':(row.rateY2Net!=null
+      ? `<s style="color:#9ca3af;font-weight:400">${fmtN(row.rateY2)}</s><br>${fmtN(row.rateY2Net)}`
+      : fmtN(row.rateY2));
+    const dLicCell=row.isMonthly?'—':(!row.licDiscApplicable?'<span style="color:#c0c0c0">N/A</span>':(row.licDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.licDiscPct}%</span>`:'—'));
+    const licCell=`${row.licDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.licTotalList)}</s><br>`:''}${fmtN(row.licTotal)}`
+      +`${row.isMonthly&&row.shCost>0?`<div style="font-size:8px;color:#c0c0c0">lic. + Odoo.SH</div>`:''}`
+      +`${(!row.isMonthly&&row.licDiscPct===0&&row.savings>0)?`<div style="font-size:8px;color:#16a34a">Ahorro ${fmtN(row.savings)}</div>`:''}`;
+    const implCell=!row.hasImpl?'—':(row.implDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.implList)}</s><br>${fmtN(row.implNet)}`:fmtN(row.implNet));
+    const dImplCell=!row.hasImpl?'—':(row.implDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.implDiscPct}%</span>`:'—');
+    const totCell=`${(row.licDiscPct>0||row.implDiscPct>0)?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.totalList)}</s><br>`:''}${fmtN(row.total)}`;
+    return `<tr class="${sel?'sel-row':''}">
+      <td>${row.label}${row.isMonthly?'<span style="font-size:8px;background:#f0f0f0;color:#999;padding:1px 5px;border-radius:3px;margin-left:4px">Base</span>':''}${sel?'<span style="font-size:8px;background:#017E84;color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px">✓ Esta propuesta</span>':''}</td>
+      <td>${fmtN(row.rateY1)}<div style="font-size:7.5px;color:#c0c0c0">${row.isMonthly?'usr/mes':'usr'}</div></td>
+      <td>${y2Cell}</td>
+      <td>${dLicCell}</td>
+      <td>${licCell}</td>
+      <td>${implCell}</td>
+      <td>${dImplCell}</td>
+      <td style="font-weight:700">${totCell}</td>
     </tr>`;
   }).join('');
 
@@ -6308,6 +6343,11 @@ td{padding:9px 10px;border-bottom:1px solid #f3f4f6;font-size:11px;text-align:ri
 td:first-child{text-align:left;color:#21272B;font-weight:600;}
 tr.sel-row{background:#f0fdf4;}
 tr.sel-row td{color:#015c61;font-weight:700;}
+/* Tabla comparativa de la propuesta (8 columnas) — compacta para Letter */
+.comp-prop th{font-size:7.5px;padding:6px 5px;line-height:1.25;}
+.comp-prop td{font-size:9.5px;padding:6px 5px;font-family:'Inter',monospace;line-height:1.25;}
+.comp-prop td:first-child{font-size:10px;font-family:'Inter',sans-serif;}
+.comp-prop s{font-size:8px;}
 /* Investment summary boxes */
 .inv-grid{display:grid;grid-template-columns:1fr 1fr 1fr;border-radius:10px;overflow:hidden;border:1.5px solid #e5e7eb;}
 .inv-box{padding:14px 16px;}
@@ -6447,10 +6487,6 @@ tr.sel-row td{color:#015c61;font-weight:700;}
       </div>`).join('')}
   </div>
 
-  <div class="pg-footer">
-    <div class="ae-badge"><div class="ae-avatar">${aeN[0]}</div><div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#9ca3af">${aeEmail}</div></div></div>
-    <div style="font-size:9px;color:#d1d5db;font-family:'Inter',monospace">2 · ${co?.nombre||''}</div>
-  </div>
 </div>
 </div>
 
@@ -6480,38 +6516,50 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   <!-- Comparativa de planes -->
   <div style="margin-bottom:14px">
     <div class="sec-label">Comparativa de planes · ${users} usuarios</div>
-    <table>
+    <table class="comp-prop">
       <thead><tr>
         <th style="text-align:left">Contrato</th>
-        <th>Tarifa año 1<br><span style="font-weight:400;text-transform:none;letter-spacing:0">/usr/mes</span></th>
+        <th>Tarifa base<br><span style="font-weight:400;text-transform:none;letter-spacing:0">/usr/mes</span></th>
         <th>Tarifa año 2+<br><span style="font-weight:400;text-transform:none;letter-spacing:0">/usr/mes</span></th>
-        <th>Total licencias</th>
+        <th>% Desc.<br>lic.</th>
+        <th>Total licenciamiento<br><span style="font-weight:400;text-transform:none;letter-spacing:0">incl. Odoo.SH</span></th>
         <th>Implementación</th>
+        <th>% Desc.<br>impl.</th>
         <th>Total lic.+impl.</th>
       </tr></thead>
       <tbody>${compRows}</tbody>
     </table>
-    <div style="font-size:8.5px;color:#d1d5db;margin-top:4px">Precios en MXN sin IVA. Ahorros calculados vs. plan mensual equivalente.</div>
+    <div style="font-size:8.5px;color:#d1d5db;margin-top:4px">Precios en MXN sin IVA. "Total licenciamiento" incluye los recursos de Odoo.SH. Ahorros vs. plan mensual equivalente. La fila marcada es la de esta propuesta.</div>
   </div>
 
-  <!-- Investment summary boxes -->
+  <!-- Investment summary — desglose que suma a la vista (deriva de la fila seleccionada) -->
   <div style="margin-bottom:14px">
     <div class="sec-label">Resumen de inversión · ${planLabel}</div>
-    <div class="inv-grid">
-      <div class="inv-box" style="border-right:1.5px solid #e5e7eb">
-        <div class="inv-box-label">Licencias · ${planMonths} meses</div>
-        <div class="inv-box-val">${fmtN(licTotal)}</div>
-        <div class="inv-box-sub">${planMonths>12?`Año 1: ${fmtN(rateY1)}/usr/mes<br>Año 2+: ${fmtN(rateY2)}/usr/mes`:`${fmtN(rateY1)} / usuario / mes`}${licDiscPct>0?`<br><span style="color:#714B67;font-weight:700">Descuento −${licDiscPct}% · lista ${fmtN(licTotalList)}</span>`:''}</div>
+    <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:12px;align-items:stretch">
+      <div style="border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden">
+        ${[
+          {lbl:'Licenciamiento', sub:`${planMonths} meses · ${planMonths>12?`año 1 ${fmtN(rateY1)} · año 2+ ${fmtN(rateY2)}/usr/mes`:`${fmtN(rateY1)}/usr/mes`}`, val:licTotal, list:licDiscPct>0?licTotalList:0, disc:licDiscPct},
+          ...(ps.isSH?[{lbl:'Recursos Odoo.SH', sub:`${ps.shWorkers||1} worker${(ps.shWorkers||1)>1?'s':''} · ${ps.shStaging||0} staging · ${ps.shStorage||0} GB`, val:shCostSel, list:0, disc:0}]:[]),
+          {lbl:'Implementación', sub:`${r.implHrs||50} horas · Quickstart Odoo (única vez)`, val:implPriceN, list:implDiscPct>0?implListN:0, disc:implDiscPct},
+        ].map((it,idx)=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;${idx>0?'border-top:1px solid #f3f4f6':''}">
+            <div><div style="font-size:11.5px;font-weight:700;color:#21272B">${it.lbl}${it.disc>0?` <span style="font-size:9px;color:#fff;background:#714B67;padding:1px 6px;border-radius:10px;font-weight:700">−${it.disc}%</span>`:''}</div><div style="font-size:9px;color:#9ca3af;margin-top:1px">${it.sub}</div></div>
+            <div style="text-align:right;font-family:'Inter',monospace">${it.list>0?`<div style="font-size:8.5px;color:#c0c0c0;text-decoration:line-through">${fmtN(it.list)}</div>`:''}<div style="font-size:13px;font-weight:700;color:#21272B">${fmtN(it.val)}</div></div>
+          </div>`).join('')}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;background:#f9fafb;border-top:1.5px solid #e5e7eb">
+          <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em">Subtotal</div>
+          <div style="font-size:14px;font-weight:700;color:#21272B;font-family:'Inter',monospace">${fmtN(subtotal)}</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:#f9fafb;border-top:1px solid #eee">
+          <div style="font-size:10px;color:#9ca3af">IVA 16%</div>
+          <div style="font-size:11px;color:#6b7280;font-family:'Inter',monospace">${fmtN(iva)}</div>
+        </div>
       </div>
-      <div class="inv-box" style="border-right:1.5px solid #e5e7eb">
-        <div class="inv-box-label">Implementación (única)</div>
-        <div class="inv-box-val">${fmtN(implPriceN)}</div>
-        <div class="inv-box-sub">${r.implHrs||50} horas de consultoría<br>Quickstart Odoo${implDiscPct>0?`<br><span style="color:#714B67;font-weight:700">Descuento −${implDiscPct}% · lista ${fmtN(implListN)}</span>`:''}</div>
-      </div>
-      <div class="inv-box highlight">
-        <div class="inv-box-label">Total con IVA (16%)</div>
-        <div class="inv-box-val">${fmtN(total)}</div>
-        <div class="inv-box-sub">Subtotal ${fmtN(subtotal)}<br>IVA ${fmtN(iva)}</div>
+      <div style="background:#714B67;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;justify-content:center;color:#fff">
+        <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.55)">Total con IVA (16%)</div>
+        <div style="font-size:27px;font-weight:800;font-family:'Inter',monospace;line-height:1.05;margin:4px 0">${fmtN(total)}</div>
+        <div style="font-size:9.5px;color:rgba(255,255,255,.5);line-height:1.5">${planLabel} · ${users} usuario${users>1?'s':''}${ps.isSH?' · Odoo.SH':''}<br>Subtotal ${fmtN(subtotal)} + IVA ${fmtN(iva)}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:6px;border-top:1px solid rgba(255,255,255,.15);padding-top:6px">= columna "Total lic.+impl." de la fila ${planLabel}.</div>
       </div>
     </div>
   </div>
@@ -6520,32 +6568,41 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 
   <!-- Payment terms -->
   <div style="margin-bottom:0">
-    <div class="sec-label">Términos de pago</div>
+    <div class="sec-label">Términos de pago · calendario</div>
     ${payTerm?`
-    <div style="border:1.5px solid #e5e7eb;border-radius:8px;overflow:hidden">
-      <div style="background:#714B67;padding:8px 14px;font-size:10px;font-weight:700;color:white;text-transform:uppercase;letter-spacing:.08em">${payTerm.name}</div>
-      ${payTerm.splits.map(s=>`
-      <div class="pay-row">
-        <div style="font-size:11.5px;font-weight:600;color:#21272B">${s.lbl}</div>
-        <div style="font-size:10px;color:#9ca3af">${s.days===0?fmtDate(baseDate):fmtDate(addDays(baseDate,s.days))}</div>
-        <div style="font-size:13px;font-weight:700;color:#017E84;font-family:'Inter',monospace">${fmt2(total*s.pct)}</div>
-      </div>`).join('')}
-      <div class="pay-row" style="background:#f0fdf4">
-        <div style="font-size:12px;font-weight:700;color:#015c61">Total</div><div></div>
-        <div style="font-size:14px;font-weight:700;color:#714B67;font-family:'Inter',monospace">${fmt2(total)}</div>
+    <div style="border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden">
+      <div style="background:#714B67;padding:9px 14px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.08em">${payTerm.name}</span>
+        <span style="font-size:9px;color:rgba(255,255,255,.7)">${payTerm.splits.length} pago${payTerm.splits.length>1?'s':''} · IVA incluido</span>
+      </div>
+      <div style="display:flex;background:#f9fafb;border-bottom:1px solid #eee;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;padding:5px 14px">
+        <div style="flex:0 0 30px">#</div><div style="flex:1">Concepto</div><div style="flex:0 0 48px;text-align:center">%</div><div style="flex:0 0 116px;text-align:center">Fecha de pago</div><div style="flex:0 0 104px;text-align:right">Monto</div>
+      </div>
+      ${payTerm.splits.map((s,i)=>{const amt=total*s.pct;const d=s.days===0?baseDate:addDays(baseDate,s.days);return `
+      <div style="display:flex;align-items:center;padding:9px 14px;border-bottom:1px solid #f3f4f6">
+        <div style="flex:0 0 30px"><span style="display:inline-flex;width:20px;height:20px;border-radius:50%;background:#714B67;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center">${i+1}</span></div>
+        <div style="flex:1;font-size:11px;font-weight:600;color:#21272B">${s.lbl}<div style="font-size:8.5px;color:#9ca3af;font-weight:400">${s.days===0?'A la firma / inicio del proyecto':`${s.days} días después de la firma`}</div></div>
+        <div style="flex:0 0 48px;text-align:center;font-size:11px;font-weight:700;color:#714B67">${Math.round(s.pct*100)}%</div>
+        <div style="flex:0 0 116px;text-align:center;font-size:11px;font-weight:700;color:#21272B">${fmtDate(d)}</div>
+        <div style="flex:0 0 104px;text-align:right;font-size:12.5px;font-weight:700;color:#017E84;font-family:'Inter',monospace">${fmt2(amt)}</div>
+      </div>`;}).join('')}
+      <div style="display:flex;align-items:center;padding:10px 14px;background:#f0fdf4">
+        <div style="flex:0 0 30px"></div><div style="flex:1;font-size:11.5px;font-weight:700;color:#015c61">Total a pagar</div>
+        <div style="flex:0 0 48px;text-align:center;font-size:10px;color:#9ca3af">100%</div>
+        <div style="flex:0 0 116px"></div>
+        <div style="flex:0 0 104px;text-align:right;font-size:14px;font-weight:800;color:#714B67;font-family:'Inter',monospace">${fmt2(total)}</div>
       </div>
     </div>
-    <div style="font-size:8.5px;color:#d1d5db;margin-top:4px">Pagos mediante SPEI / Cheque nominativo. CFDI emitido el mismo día. Importes con IVA incluido.</div>
-    `:'<div style="font-size:11.5px;color:#9ca3af;padding:12px;background:#f9fafb;border-radius:8px;border:1.5px solid #e5e7eb">Términos de pago a convenir.</div>'}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px">
+      <div style="font-size:8.5px;color:#9ca3af;line-height:1.5">Pago por transferencia SPEI o tarjeta. CFDI emitido el mismo día de cada pago. Fechas calculadas desde la firma (${fmtDate(baseDate)}). Importes con IVA incluido.</div>
+      <div style="font-size:9px;font-weight:700;color:#d97706;background:#fffbeb;border:1px solid #fde68a;padding:3px 9px;border-radius:5px;white-space:nowrap">Vigente hasta ${validity}</div>
+    </div>
+    `:`<div style="padding:14px 16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:14px">
+      <div><div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:3px">Calendario de pagos por definir</div><div style="font-size:10.5px;color:#a16207;line-height:1.55">El total de <strong>${fmt2(total)}</strong> (IVA incluido) se distribuirá según el esquema que acordemos. Tu asesor fijará fechas y montos exactos en la propuesta final.</div></div>
+      <div style="font-size:9px;font-weight:700;color:#d97706;background:#fff;border:1px solid #fde68a;padding:3px 9px;border-radius:5px;white-space:nowrap">Vigente hasta ${validity}</div>
+    </div>`}
   </div>
 
-  <div class="pg-footer">
-    <div class="ae-badge"><div class="ae-avatar">${aeN[0]}</div><div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#9ca3af">${aeEmail}</div></div></div>
-    <div style="text-align:right">
-      <div style="font-size:10px;font-weight:600;color:#d97706;background:#fffbeb;border:1px solid #fde68a;padding:2px 8px;border-radius:4px;display:inline-block">Vigente hasta ${validity}</div>
-      <div style="font-size:9px;color:#d1d5db;font-family:'Inter',monospace;margin-top:2px">3 · ${folio}</div>
-    </div>
-  </div>
 </div>
 </div>
 
@@ -6595,10 +6652,6 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 
   ${odooInfoUtilHTML({mt:22,fs:11})}
 
-  <div class="pg-footer">
-    <div class="ae-badge"><div class="ae-avatar">${aeN[0]}</div><div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#9ca3af">${aeEmail}</div></div></div>
-    <div style="font-size:9px;color:#d1d5db;font-family:'Inter',monospace">Firma y pago · ${folio}</div>
-  </div>
 </div>
 </div>
 
@@ -6660,10 +6713,6 @@ tr.sel-row td{color:#015c61;font-weight:700;}
     <div style="background:rgba(255,255,255,.15);border-radius:6px;padding:4px 14px;font-size:13px;font-weight:700;color:white;flex-shrink:0">odoo</div>
   </div>
 
-  <div class="pg-footer">
-    <div class="ae-badge"><div class="ae-avatar">${aeN[0]}</div><div><div style="font-size:11px;font-weight:600">${aeFullN}</div><div style="font-size:9.5px;color:#9ca3af">Account Executive · Odoo México</div></div></div>
-    <div style="font-size:9px;color:#d1d5db;font-family:'Inter',monospace">4 · ${folio}</div>
-  </div>
 </div>
 </div>
 

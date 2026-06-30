@@ -547,6 +547,8 @@
   .total-panel::before { content:''; display:block; height:2px; background:linear-gradient(90deg,rgba(255,255,255,.4),rgba(255,255,255,.1)); margin-bottom:24px; border-radius:99px; }
   .total-row { display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px; }
   .total-row .lbl { color:rgba(255,255,255,.65); }
+  .total-disc { text-align:right; font-size:10.5px; color:#FBB130; margin:-8px 0 12px; font-weight:600; }
+  .total-disc s { color:rgba(255,255,255,.4); font-weight:400; margin-right:4px; }
   .total-row .val { font-family:var(--mono); font-weight:600; color:#fff; }
   .divider { height:1px; background:rgba(255,255,255,.15); margin:16px 0; }
   .grand-lbl { font-family:var(--mono); font-size:10px; letter-spacing:3px; color:rgba(255,255,255,.5); text-transform:uppercase; margin-bottom:8px; }
@@ -1279,8 +1281,10 @@
         </div>
         <div class="tp-divider"></div>
         <div class="total-row"><span class="lbl">Licenciamiento</span><span class="val" id="t-lic">—</span></div>
+        <div class="total-disc" id="t-lic-disc" style="display:none"></div>
         <div class="total-row" id="t-sh-row" style="display:none"><span class="lbl">Recursos SH</span><span class="val" id="t-sh">—</span></div>
         <div class="total-row"><span class="lbl">Implementación</span><span class="val" id="t-impl-val">—</span></div>
+        <div class="total-disc" id="t-impl-disc" style="display:none"></div>
         <div class="total-row"><span class="lbl">Subtotal</span><span class="val" id="t-sub">—</span></div>
         <div class="total-row"><span class="lbl">IVA 16%</span><span class="val" id="t-iva">—</span></div>
         <div class="divider"></div>
@@ -2022,6 +2026,26 @@
     document.getElementById('t-lic').textContent      = licOnly  > 0 ? fmtMXN(licOnly)  : '—';
     document.getElementById('t-impl-val').textContent = implAfter > 0 ? fmtMXN(implAfter) : '—';
     document.getElementById('t-sub').textContent      = sub   > 0 ? fmtMXN(sub)   : '—';
+
+    // Descuento visible: precio lista tachado + −% bajo Licenciamiento / Implementación
+    const licDiscPctDisp  = (i > 0 && discLicUnlocked)  ? (licDiscByPlan[i]  || 0) : 0;
+    const implDiscPctDisp = (discImplUnlocked)          ? (implDiscByPlan[i] || 0) : 0;
+    const edDisp = editionBaseRates[currentEdition];
+    const licListOnly = i === 0
+      ? edDisp.rates[0] * currentUsers
+      : (edDisp.rates[i] * currentUsers * 12) + ((edDisp.ratesY2 ? edDisp.ratesY2[i] : edDisp.rates[i]) * currentUsers * Math.max(0, planMonths[i] - 12));
+    const licDiscEl = document.getElementById('t-lic-disc');
+    if (licDiscEl) {
+      const show = licDiscPctDisp > 0 && licListOnly > 0;
+      licDiscEl.style.display = show ? '' : 'none';
+      licDiscEl.innerHTML = show ? `<s>lista ${fmtMXN(licListOnly)}</s>−${licDiscPctDisp}%` : '';
+    }
+    const implDiscEl = document.getElementById('t-impl-disc');
+    if (implDiscEl) {
+      const show = implDiscPctDisp > 0 && currentImplPrice > 0;
+      implDiscEl.style.display = show ? '' : 'none';
+      implDiscEl.innerHTML = show ? `<s>lista ${fmtMXN(currentImplPrice)}</s>−${implDiscPctDisp}%` : '';
+    }
     document.getElementById('t-iva').textContent      = iva   > 0 ? fmtMXN(iva)   : '—';
     document.getElementById('t-total').textContent    = total > 0 ? fmtMXN(total) : '—';
     document.getElementById('t-sub2').textContent     = `Plan ${plans[i].label} | ${usuariosLabel} | ${implLabel} | ${edicionLabel}`;
@@ -3329,6 +3353,41 @@
     }
   });
 
+  // Tabla comparativa COMPLETA, ya calculada — fuente única de verdad para la propuesta.
+  // Cada fila replica exactamente lo que muestra la tabla interactiva (incluye SH en el total).
+  function buildCompTable() {
+    const ed      = editionBaseRates[currentEdition];
+    const hasImpl = currentImplPrice > 0;
+    return plans.map((p, i) => {
+      const isMonthly      = i === 0;
+      const rateY1         = ed.rates[i];
+      const rateY2         = ed.ratesY2 ? ed.ratesY2[i] : rateY1;
+      const activeLicDisc  = discLicUnlocked  ? (licDiscByPlan[i]  || 0) : 0;
+      const activeImplDisc = discImplUnlocked ? (implDiscByPlan[i] || 0) : 0;
+      const shCost         = getSHCost(i);
+      // Total licenciamiento (INCLUYE SH) — igual que la columna de la tabla interactiva
+      const licTotalList = isMonthly ? rateY1 * currentUsers + shCost : getLicTotal(i, 0);
+      const licTotal     = isMonthly ? licTotalList               : getLicTotal(i, activeLicDisc);
+      // Licenciamiento sin SH (para desglose del resumen)
+      const licOnly      = Math.round((licTotal     - shCost) * 100) / 100;
+      const licOnlyList  = Math.round((licTotalList - shCost) * 100) / 100;
+      const implList     = hasImpl ? currentImplPrice : 0;
+      const implNet      = hasImpl ? Math.round(currentImplPrice * (1 - activeImplDisc / 100) * 100) / 100 : 0;
+      const total        = Math.round((licTotal     + implNet ) * 100) / 100;  // última columna
+      const totalList    = Math.round((licTotalList + implList) * 100) / 100;
+      const rateY2Net    = (!isMonthly && activeLicDisc > 0) ? Math.round(rateY2 * (1 - activeLicDisc / 100) * 100) / 100 : null;
+      const savings      = !isMonthly ? getBaseSavings(i, activeLicDisc) : 0;
+      return {
+        idx: i, label: p.label, badge: p.badge || (isMonthly ? 'Opción base' : ''),
+        isMonthly, isSelected: i === currentPlanIdx,
+        rateY1, rateY2, rateY2Net,
+        licDiscPct: activeLicDisc, licDiscApplicable: i >= 2, implDiscPct: activeImplDisc,
+        shCost, licOnly, licOnlyList, licTotal, licTotalList,
+        hasImpl, implList, implNet, total, totalList, savings,
+      };
+    });
+  }
+
   function getPricingPayload() {
     const ed = editionBaseRates[currentEdition];
     const mensualRef = ed.rates[currentPlanIdx] * currentUsers;
@@ -3356,6 +3415,7 @@
       isSH, shWorkers, shStaging, shStorage, shCost,
       rateY1, rateY2,
       licDiscByPlan: licDiscByPlanOut, implDiscByPlan: implDiscByPlanOut, implPriceList: currentImplPrice,
+      compTable: buildCompTable(),
     };
   }
   function sendToOutbound() {
