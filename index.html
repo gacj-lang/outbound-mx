@@ -1706,6 +1706,11 @@ function renderSettings(){
             <div class="form-group"><label>Teléfono (WhatsApp)</label><input type="tel" id="cfgMyPhone" class="input" value="${u.phone||''}" placeholder="+52 55 0000 0000"></div>
             <div class="form-group"><label>Link de Appointment</label><input type="text" id="cfgMyAppointment" class="input" value="${u.appointmentLink||''}" placeholder="https://calendly.com/…"></div>
           </div>
+          <div class="form-group" style="margin-top:12px">
+            <label>Prompt de tono personalizado</label>
+            <textarea id="cfgMyCustomTone" class="input" style="min-height:90px;resize:vertical" placeholder="Ej. Escribe como si fueras un asesor cercano que conoce el negocio a fondo, usa comparaciones cotidianas, evita tecnicismos, cierra siempre con una pregunta abierta...">${u.customTonePrompt||''}</textarea>
+            <p class="settings-desc" style="margin-top:4px">Al elegir el tono "Personalizado" en Generación de contenidos, la IA usará este texto como guía de estilo.</p>
+          </div>
           <button class="btn btn-primary" onclick="saveMyProfile()">Guardar mis datos</button>
         </div>
 
@@ -1758,9 +1763,10 @@ window.saveMyProfile=async function(){
   const nombreTemplate=document.getElementById('cfgMyTemplate')?.value.trim()||'';
   const phone=document.getElementById('cfgMyPhone')?.value.trim()||'';
   const appointmentLink=document.getElementById('cfgMyAppointment')?.value.trim()||'';
+  const customTonePrompt=document.getElementById('cfgMyCustomTone')?.value.trim()||'';
   try{
-    await updateDoc(doc(db,'users',currentUser.uid),{name,nombreTemplate,phone,appointmentLink});
-    currentUserData={...currentUserData,name,nombreTemplate,phone,appointmentLink};
+    await updateDoc(doc(db,'users',currentUser.uid),{name,nombreTemplate,phone,appointmentLink,customTonePrompt});
+    currentUserData={...currentUserData,name,nombreTemplate,phone,appointmentLink,customTonePrompt};
     renderAppHeader();
     showNotif('Perfil actualizado ✓','success');
   } catch(e){ showNotif('Error: '+e.message,'error'); }
@@ -4024,7 +4030,95 @@ const TONES=[
   {id:'misterioso',   label:'Misterioso',  icon:'🎯', desc:'Genera intriga, CTA implícito. Para prospectos difíciles o refresh de conversación.'},
   {id:'urgente',      label:'Urgente',     icon:'⚡', desc:'Crea FOMO sutil. Usar cuando hay un trigger (cierre fiscal, fin de período).'},
   {id:'empatico',     label:'Empático',    icon:'🤝', desc:'Entiende el dolor primero. Para prospectos en situaciones difíciles.'},
+  {id:'personalizado',label:'Personalizado',icon:'📝', desc:'Usa el prompt de tono que guardaste en Configuración → Mis datos.'},
 ];
+// Bloque de tono para inyectar en el prompt de la IA: si es "personalizado", usa el prompt guardado
+// por el AE (Configuración → Mis datos) + la instrucción extra de esta generación (si la escribió).
+function gcToneInstructionBlock(extraNote){
+  if(cont.tone!=='personalizado'){
+    return `TONO: ${cont.tone}`;
+  }
+  const saved=(currentUserData?.customTonePrompt||'').trim();
+  const extra=(extraNote||'').trim();
+  return `TONO PERSONALIZADO (definido por el AE en Configuración): ${saved||'(no configurado — usa un tono profesional consultivo por defecto)'}${extra?`\nINSTRUCCIÓN ADICIONAL PARA ESTA GENERACIÓN: ${extra}`:''}`;
+}
+// Muestra/oculta la caja de "instrucción adicional" cuando el tono seleccionado es "personalizado"
+function gcToggleToneExtra(){
+  document.querySelectorAll('.gc-tone-extra-wrap').forEach(w=>{ w.style.display=cont.tone==='personalizado'?'block':'none'; });
+}
+// Solo hay un módulo de Generación de contenidos montado a la vez → un único selector basta
+function gcToneExtraValue(){
+  return document.querySelector('.gc-tone-extra-input')?.value.trim()||'';
+}
+
+// ── Checkbox "Generar imagen para acompañar" (Template / Cold Calling) — reutiliza el pipeline de Publicación LinkedIn ──
+function gcImagenCheckboxHTML(prefix){
+  return `<div class="gc-form-section">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
+      <input type="checkbox" id="gc${prefix.charAt(0).toUpperCase()+prefix.slice(1)}ImgCheck" onchange="gcToggleImagenBox('${prefix}')"> 🖼️ Generar imagen para acompañar (descargable)
+    </label>
+    <div id="gc${prefix.charAt(0).toUpperCase()+prefix.slice(1)}ImgBox" style="display:none;margin-top:12px">
+      <div style="display:flex;gap:10px">
+        <button class="gc-imgstyle-btn ${cont.imgStyle!=='grafica'?'active':''}" data-style="foto" onclick="gcSetImgStyle('foto')"
+          style="flex:1;padding:12px;border:1.5px solid ${cont.imgStyle!=='grafica'?'var(--purple)':'var(--gray-200)'};background:${cont.imgStyle!=='grafica'?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;text-align:left">
+          <div style="font-size:13px;font-weight:700;color:${cont.imgStyle!=='grafica'?'var(--purple)':'var(--gray-700)'}">📷 Foto real</div>
+        </button>
+        <button class="gc-imgstyle-btn ${cont.imgStyle==='grafica'?'active':''}" data-style="grafica" onclick="gcSetImgStyle('grafica')"
+          style="flex:1;padding:12px;border:1.5px solid ${cont.imgStyle==='grafica'?'var(--purple)':'var(--gray-200)'};background:${cont.imgStyle==='grafica'?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;text-align:left">
+          <div style="font-size:13px;font-weight:700;color:${cont.imgStyle==='grafica'?'var(--purple)':'var(--gray-700)'}">🎨 Tarjeta gráfica</div>
+        </button>
+      </div>
+      <div class="gc-format-grid" id="gc${prefix.charAt(0).toUpperCase()+prefix.slice(1)}ImgFormats" style="margin-top:10px">${gcImgFormatsGridHTML()}</div>
+    </div>
+  </div>`;
+}
+// Formatos de imagen adecuados al canal activo (WhatsApp/Correo/LinkedIn) — Template de mensaje
+function gcImgFormatsGridHTML(){
+  const fmts=CHANNEL_IMG_FORMATS[cont.channel]||LI_FORMATS;
+  if(!fmts.some(f=>f.id===cont.format)) cont.format=fmts[0].id;
+  return fmts.map(f=>`
+    <div class="gc-format-card ${cont.format===f.id?'active':''}" onclick="gcSetFormat('${f.id}',this)">
+      <div class="gc-format-card-title">${f.label}</div>
+      <div class="gc-format-card-dims">${f.dims}</div>
+    </div>`).join('');
+}
+window.gcToggleImagenBox=function(prefix){
+  const Prefix=prefix.charAt(0).toUpperCase()+prefix.slice(1);
+  const check=document.getElementById(`gc${Prefix}ImgCheck`);
+  const box=document.getElementById(`gc${Prefix}ImgBox`);
+  if(box) box.style.display=check?.checked?'block':'none';
+  if(check?.checked && !cont.format) cont.format='1200x627';
+};
+
+// ── Vincular a un evento (URL leída por la IA vía web_fetch) — reutilizable en Template/LinkedIn/Cold Calling ──
+function gcEventoCheckboxHTML(prefix){
+  return `<div class="form-group" style="margin-top:12px">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
+      <input type="checkbox" id="gc${prefix}EventoCheck" onchange="gcToggleEventoBox('${prefix}')"> 🔗 Vincular a un evento
+    </label>
+    <div id="gc${prefix}EventoBox" style="display:none;margin-top:8px">
+      <input type="text" class="input" id="gc${prefix}EventoUrl" placeholder="https://... (la IA leerá la página y la usará para darle sentido comercial al resultado)">
+    </div>
+  </div>`;
+}
+window.gcToggleEventoBox=function(prefix){
+  const check=document.getElementById(`gc${prefix}EventoCheck`);
+  const box=document.getElementById(`gc${prefix}EventoBox`);
+  if(box) box.style.display=check?.checked?'block':'none';
+};
+// Lee el checkbox/URL de un módulo y arma {tools, promptLine} para pasarle a gcCallClaude si aplica
+function gcEventoContext(prefix){
+  const checked=document.getElementById(`gc${prefix}EventoCheck`)?.checked;
+  const url=document.getElementById(`gc${prefix}EventoUrl`)?.value.trim()||'';
+  if(!checked||!url) return {active:false,tools:null,toolChoice:null,promptLine:''};
+  return {
+    active:true,
+    tools:[{type:'web_fetch_20250910',name:'web_fetch',max_uses:1}],
+    toolChoice:{type:'tool',name:'web_fetch'},
+    promptLine:`\nEVENTO DE REFERENCIA — FUENTE DE VERDAD OBLIGATORIA: tu PRIMERA acción, antes de escribir una sola palabra de contenido, es llamar a la herramienta web_fetch sobre esta URL: ${url}
+Está PROHIBIDO redactar el contenido sin haber leído antes el resultado real de esa herramienta — no infieras ni "adivines" el tema del evento a partir del texto de la URL, el nombre de la empresa u otro contexto. Usa EXCLUSIVAMENTE lo que la página realmente diga (nombre del evento, fecha, sede/formato, temática, ponentes, audiencia) como fuente de verdad para que TODO el resultado gire en torno a este evento — constrúyelo como el eje central (ej. invitación a asistir, gancho basado en el tema del evento, o seguimiento post-evento según aplique). Si la herramienta falla, la página no carga, o no tiene información suficiente, dilo explícitamente en el contenido (ej. "no fue posible confirmar el detalle del evento") en vez de inventar cualquier dato del evento.`
+  };
+}
 const LENGTHS=[
   {id:'corto',       label:'Corto',      icon:'•', desc:'Máx 50 palabras. Perfecto para WhatsApp y primer contacto.'},
   {id:'equilibrado', label:'Equilibrado',icon:'••',desc:'80-120 palabras. Ideal para email frío y mensajes de seguimiento.'},
@@ -4036,7 +4130,18 @@ function renderToneSelector(current,onchange){
     ${TONES.map(t=>`<button class="gc-tone-chip ${current===t.id?'active':''}"
       data-tone="${t.id}" onclick="gcSetTone('${t.id}',this)">${t.icon} ${t.label}</button>`).join('')}
   </div>
-  <div class="gc-tone-desc" id="gcToneDesc">${TONES.find(t=>t.id===current)?.desc||''}</div>`;
+  <div class="gc-tone-desc" id="gcToneDesc">${TONES.find(t=>t.id===current)?.desc||''}</div>
+  ${gcToneExtraHTML(current)}`;
+}
+// Caja de instrucción adicional — solo visible cuando el tono es "personalizado"
+function gcToneExtraHTML(current){
+  return `<div class="gc-tone-extra-wrap" style="display:${current==='personalizado'?'block':'none'};margin-top:10px">
+    <div class="form-group" style="margin:0">
+      <label>Instrucción adicional para esta generación (opcional)</label>
+      <input type="text" class="input gc-tone-extra-input" placeholder="Ej. Menciona que ya tuvimos una llamada la semana pasada...">
+    </div>
+    ${!currentUserData?.customTonePrompt?`<div style="font-size:12px;color:var(--warning);margin-top:6px">⚠️ No tienes un prompt de tono guardado — configúralo en ⚙️ Configuración → Mis datos.</div>`:''}
+  </div>`;
 }
 function renderLengthSelector(current){
   return `<div class="gc-tone-grid" id="gcLengths">
@@ -4050,6 +4155,12 @@ window.gcSetTone=function(id,el){
   el.classList.add('active');
   const desc=document.getElementById('gcToneDesc');
   if(desc) desc.textContent=TONES.find(t=>t.id===id)?.desc||'';
+  gcToggleToneExtra();
+};
+// Para el <select> de tono de Publicación LinkedIn (no usa chips)
+window.gcOnTonoSelectChange=function(id){
+  cont.tone=id;
+  gcToggleToneExtra();
 };
 window.gcSetLength=function(id,el){
   cont.length=id;
@@ -4111,14 +4222,19 @@ async function gcCallClaude(prompt, fileAttachment=null, opts={}){
   }
   const headers={'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'};
   if(fileAttachment?.type==='document') headers['anthropic-beta']='pdfs-2024-09-25';
+  const body={model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||4000,system:opts.system||ANTI_HALLUCINATION,messages:[{role:'user',content}]};
+  if(opts.tools) body.tools=opts.tools;
+  if(opts.toolChoice) body.tool_choice=opts.toolChoice;
   const res=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers,
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||4000,system:opts.system||ANTI_HALLUCINATION,messages:[{role:'user',content}]})
+    body:JSON.stringify(body)
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  return data.content?.[0]?.text||'';
+  // Cuando se usa web_fetch, la respuesta incluye bloques de tipo web_fetch_tool_result antes del texto final —
+  // unimos SOLO los bloques de texto (puede haber más de uno si hay citas).
+  return (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n')||'';
 }
 
 function gcShowLoading(id,show){
@@ -4302,16 +4418,14 @@ function renderGcTemplates(){
       <div class="gc-form-section">
         <h3>🎯 Momento del toque</h3>
         <div class="form-group">
-          <select class="gc-select" id="gcTplMomento" onchange="gcTplToggleEvento()">
+          <select class="gc-select" id="gcTplMomento">
             ${GC_MOMENTOS.map(m=>`<option value="${m.id}">${m.label}</option>`).join('')}
           </select>
-        </div>
-        <div id="gcTplEventoWrap" style="display:none">
-          <div class="form-group"><label>Link del evento</label><input type="text" class="input" id="gcTplEventoLink" placeholder="https://..."></div>
         </div>
         <div class="form-group" style="margin-top:4px"><label>Contexto o pain point detectado (opcional)</label>
           <textarea class="input" id="gcTplContexto" placeholder="Ej. Mencionaron problemas con su inventario, vienen referidos de..." style="min-height:70px;resize:vertical"></textarea>
         </div>
+        ${gcEventoCheckboxHTML('tpl')}
       </div>
 
       <div class="gc-form-section">
@@ -4320,11 +4434,14 @@ function renderGcTemplates(){
         <div class="gc-selector"><label>Longitud</label>${renderLengthSelector(cont.length)}</div>
       </div>
 
+      ${gcImagenCheckboxHTML('tpl')}
+
       <button class="gc-generate-btn" id="gcTplBtn" onclick="gcGenerateTemplate()">
         <span>✨</span> Generar 3 variantes
       </button>
       <div class="gc-loading" id="gcTplLoading"><div class="gc-spinner"></div><span>Generando variantes...</span></div>
       <div class="gc-output-wrap" id="gcTplOutput" style="margin-top:20px"></div>
+      <div class="gc-output-wrap" id="gcPubOutput" style="margin-top:20px"></div>
     </div>`;
   gcInitCP('tpl');
 }
@@ -4338,11 +4455,9 @@ window.gcSetChannel=function(ch){
     b.style.background=active?'var(--purple-light)':'white';
     b.style.color=active?'var(--purple)':'var(--gray-700)';
   });
-};
-window.gcTplToggleEvento=function(){
-  const v=document.getElementById('gcTplMomento')?.value;
-  const wrap=document.getElementById('gcTplEventoWrap');
-  if(wrap) wrap.style.display=v==='evento_especial'?'block':'none';
+  // Si el checkbox de imagen está visible, refresca los formatos al canal recién elegido
+  const fmtWrap=document.getElementById('gcTplImgFormats');
+  if(fmtWrap){ cont.format=''; fmtWrap.innerHTML=gcImgFormatsGridHTML(); }
 };
 
 window.gcGenerateTemplate=async function(){
@@ -4350,7 +4465,7 @@ window.gcGenerateTemplate=async function(){
   const channel=cont.channel||'whatsapp';
   const momento=document.getElementById('gcTplMomento')?.value||'primer_toque';
   const ctx=document.getElementById('gcTplContexto')?.value||'';
-  const eventoLink=document.getElementById('gcTplEventoLink')?.value||'';
+  const evento=gcEventoContext('tpl');
   const aeNombre=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'el AE';
   const apptLink=currentUserData?.appointmentLink||'';
   const momLabel=GC_MOMENTOS.find(m=>m.id===momento)?.label||momento;
@@ -4387,9 +4502,9 @@ ${gcCompanyContext()}
 NOMBRE DEL AE (remitente): ${aeNombre}
 MOMENTO DEL TOQUE: ${momLabel}
 CONTEXTO ADICIONAL: ${ctx||'ninguno'}
-${eventoLink?`LINK DEL EVENTO: ${eventoLink}`:''}
+${evento.promptLine}
 ${apptLink?`LINK DE AGENDADO DEL AE: ${apptLink} — inclúyelo como CTA cuando sea apropiado`:''}
-TONO: ${cont.tone} | LONGITUD: ${cont.length}
+${gcToneInstructionBlock(gcToneExtraValue())} | LONGITUD: ${cont.length}
 
 ${channelRules}
 
@@ -4407,13 +4522,17 @@ Reglas generales:
 - Cada variante con un ángulo claramente distinto
 - Español de México natural, directo, sin sonar a vendedor de catálogo
 - NO uses markdown (nada de **negritas**, ## títulos ni viñetas con *)
-- Formato EXACTO, cada marcador al inicio de su propia línea, sin adornos: "VARIANTE 1:\\n[texto]\\n\\nVARIANTE 2:\\n[texto]\\n\\nVARIANTE 3:\\n[texto]"`);
+- Formato EXACTO, cada marcador al inicio de su propia línea, sin adornos: "VARIANTE 1:\\n[texto]\\n\\nVARIANTE 2:\\n[texto]\\n\\nVARIANTE 3:\\n[texto]"`,null,{tools:evento.tools,toolChoice:evento.toolChoice});
     gcShowOutput('gcTplOutput',text,true,{tipo:channel,momento,momLabel});
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
       contenido:{tipo:channel,topic:ctx||momLabel,momento,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
       savedContent:{tipo:channel,momLabel,momento,contacto:cont.contact?.nombre||'',texto:text},
       touchpoint:{type:channel,summary:`${GC_CHANNELS.find(c=>c.id===channel)?.label||channel} · ${momLabel} · ${cont.contact?.nombre||cont.company?.nombre||''}`}
     });
+    if(document.getElementById('gcTplImgCheck')?.checked){
+      const ind=cont.company?.giro||'Otra';
+      await gcRunPubImageGen(ind, ctx||momLabel, '', cont.tone, evento, cont.channel);
+    }
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcTplLoading',false);
 };
@@ -4425,6 +4544,26 @@ const LI_FORMATS=[
   {id:'1584x396', label:'Banner de portada',   dims:'1584 × 396 px', when:'Actualización temporal del banner de perfil. Funciona para eventos o lanzamientos.'},
   {id:'1080x1920',label:'Historia / Story',    dims:'1080 × 1920 px',when:'Stories de empresa. Alta visibilidad pero corta duración (24h).'},
 ];
+// Formatos de imagen recomendados por canal — para el checkbox "Generar imagen" de Template de mensaje.
+// Cada formato reutiliza el pipeline visual de LinkedIn, solo cambian dimensiones/proporción.
+const CHANNEL_IMG_FORMATS={
+  whatsapp:[
+    {id:'1080x1080',label:'Imagen cuadrada',dims:'1080 × 1080 px',when:'Se ve completa sin recortes al enviarla directo en un chat de WhatsApp.'},
+    {id:'1080x1920',label:'Imagen vertical / Estado',dims:'1080 × 1920 px',when:'Para WhatsApp Estados o cuando el mensaje necesita más espacio vertical.'},
+  ],
+  correo:[
+    {id:'600x200',label:'Banner de correo',dims:'600 × 200 px',when:'Banner horizontal para insertar en el encabezado de un correo — se lee en 1-2 segundos.'},
+  ],
+  linkedin:LI_FORMATS,
+};
+// Dirección creativa específica por canal — se inyecta en el prompt de generación de imagen
+// para que el contenido (headline/puntos) respete los estándares de cada canal, no solo el tamaño.
+const CHANNEL_IMG_GUIDE={
+  whatsapp:'CANAL DE ENVÍO: WhatsApp (imagen enviada directo en un chat 1:1). Se ve en pantalla de celular con poca atención: headline MUY claro a primera vista, máximo 2 puntos WOW (no más), cero relleno.',
+  correo:'CANAL DE ENVÍO: Correo electrónico — banner horizontal angosto para el encabezado del correo, NO un post completo. Headline cortísimo (máx 4 palabras), SIN puntos WOW ni lista (deja "puntos" como arreglo vacío) — el banner se lee en 1-2 segundos, el cuerpo del correo ya lleva el detalle.',
+  linkedin:'CANAL DE ENVÍO: LinkedIn — post completo del feed, con headline + puntos WOW + texto del post como es habitual.',
+  pub:'CANAL DE ENVÍO: LinkedIn — post completo del feed, con headline + puntos WOW + texto del post como es habitual.',
+};
 
 function renderGcPublicacionLinkedIn(){
   const c=document.getElementById('gcContent');
@@ -4470,16 +4609,18 @@ function renderGcPublicacionLinkedIn(){
               ${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
             </select>
           </div>
-          <div class="gc-selector"><label>Tono</label><select class="gc-select" id="gcPubTono">
+          <div class="gc-selector"><label>Tono</label><select class="gc-select" id="gcPubTono" onchange="gcOnTonoSelectChange(this.value)">
             ${TONES.map(t=>`<option value="${t.id}" ${cont.tone===t.id?'selected':''}>${t.label}</option>`).join('')}
           </select></div>
         </div>
+        ${gcToneExtraHTML(cont.tone)}
         <div class="form-group" style="margin-top:12px"><label>Mensaje principal o tema del post</label>
           <textarea class="input" id="gcPubMsg" placeholder="Ej. Las empresas de construcción pierden hasta 30% de su margen por falta de visibilidad en obra..." style="min-height:80px;resize:vertical"></textarea>
         </div>
         <div class="form-group"><label>Estadística o dato de impacto (opcional)</label>
           <input type="text" class="input" id="gcPubStat" placeholder="Ej. +5,000 empresas · 13M usuarios · 40% reducción de costos operativos">
         </div>
+        ${gcEventoCheckboxHTML('pub')}
       </div>
 
       <button class="gc-generate-btn" id="gcPubBtn" onclick="gcGeneratePub()">
@@ -4514,6 +4655,84 @@ window.gcOtraFoto=async function(){
   else { showNotif('No se encontró otra foto','info'); if(btn){ btn.disabled=false; btn.textContent='🔄 Otra foto'; } }
 };
 
+// Núcleo de generación de imagen comercial (headline/puntos/apps + capa visual). Reutilizado por
+// Publicación LinkedIn, y por el checkbox "Generar imagen" de Template de mensaje / Cold Calling.
+async function gcRunPubImageGen(ind, msg, stat, tono, evento, channel){
+  evento=evento||{active:false,tools:null,toolChoice:null,promptLine:''};
+  channel=channel||'pub';
+  const _appNames=ODOO_APPS_FLAT.map(m=>m.name).join(', ');
+  const copy=await gcCallClaude(`Genera el contenido para una imagen comercial de Odoo México dirigida a la industria de ${ind}, Y el texto de acompañamiento.
+INDUSTRIA TARGET: ${ind} | ${gcToneInstructionBlock(gcToneExtraValue())}
+MENSAJE PRINCIPAL: ${msg}
+ESTADÍSTICA: ${stat||'ninguna'}
+${CHANNEL_IMG_GUIDE[channel]||CHANNEL_IMG_GUIDE.pub}
+${evento.promptLine}
+${evento.active?(channel==='linkedin'||channel==='pub'
+  ?`\nIMPORTANTE: como hay un EVENTO DE REFERENCIA arriba, el headline, subheadline y los puntos WOW deben estar directamente conectados al evento (su nombre, fecha, tema o el motivo de invitar/dar seguimiento) — NO genérico de industria. El post_text debe funcionar como invitación o mención directa y explícita del evento, no una mención de pasada.`
+  :`\nIMPORTANTE: como hay un EVENTO DE REFERENCIA arriba, el headline, subheadline y los puntos WOW deben estar directamente conectados al evento (su nombre, fecha, tema o el motivo de invitar/dar seguimiento) — NO genérico de industria. El post_text debe mencionar el evento de forma natural dentro de un mensaje personalizado de outbound (WhatsApp/correo/LinkedIn 1:1) — está PROHIBIDO darle formato de ficha de evento: NO listes ubicación, horario, costo de entrada ni un link "Regístrate aquí" en líneas separadas tipo invitación formal; eso es exclusivo del post público de LinkedIn, aquí no se ocupa.`
+):''}
+
+Responde con este JSON exacto (sin markdown):
+{
+  "headline": "Frase comercial corta y específica para la industria de ${ind} (máx 6 palabras)${evento.active?', enfocada en el EVENTO de referencia':''}. Ej. para construcción: 'Administra tu constructora con Odoo'",
+  "highlight": "1-2 palabras DEL headline para resaltar (deben aparecer literalmente en headline)",
+  "subheadline": "Frase secundaria de beneficio (máx 10 palabras)",
+  "puntos": ["efectos WOW MUY específicos de la industria de ${ind} con Odoo, cada uno máx 7 palabras — sigue la cantidad indicada en CANAL DE ENVÍO arriba. Ej. construcción: 'Costeo de obra en tiempo real', 'Facturación por avance automática'"],
+  "apps": ["4 a 6 nombres EXACTOS de módulos Odoo relevantes para la industria de ${ind}, copiados LITERALMENTE de esta lista (no inventes nombres): ${_appNames}"],
+  "post_text": "Texto de acompañamiento (150-280 palabras si es LinkedIn; 40-80 palabras si es WhatsApp o correo — sigue CANAL DE ENVÍO). Emojis estratégicos. Estructura: gancho potente en la primera línea, desarrollo, los puntos WOW, reflexión/CTA${channel==='linkedin'||channel==='pub'?`, y hashtags (#odoo #erp #${ind.toLowerCase().replace(/[^a-z]/g,'')}) en su propia línea al final`:' (sin hashtags si no es LinkedIn)'}. Español de México. Tono de aporte de valor y venta consultiva, sin frases grandilocuentes."
+}
+
+${odooResourcesBlock()}
+
+Reglas:
+- NO inventes cifras ni estadísticas. Usa SOLO la ESTADÍSTICA proporcionada arriba; si dice 'ninguna', no incluyas ningún número inventado.
+- Puedes incluir en post_text UN enlace oficial de la lista de RECURSOS si aporta valor (URL EXACTA, nunca inventes un enlace específico). No lo fuerces.
+- Habla solo de capacidades reales de Odoo.`,null,{tools:evento.tools,toolChoice:evento.toolChoice});
+  let parsed;
+  try { parsed=JSON.parse(copy.replace(/```json?\n?/g,'').replace(/```/g,'').trim()); }
+  catch(e){ parsed={headline:msg.substring(0,40),highlight:'',subheadline:'Odoo lo hace posible.',puntos:[]}; }
+  if(!Array.isArray(parsed.puntos)) parsed.puntos=[];
+  if(!Array.isArray(parsed.apps)) parsed.apps=[];
+  parsed._ind=ind;
+  // Variación aleatoria de layout (C-LI1) — fondo claro + tipografía Odoo siempre
+  const _liLayouts=[
+    {bg:'#f5f4f0',checkColor:'#017E84',hlColor:'#FC787D',textRight:false},
+    {bg:'#f0f5f5',checkColor:'#017E84',hlColor:'#FBB130',textRight:false},
+    {bg:'#f5f3f8',checkColor:'#714B67',hlColor:'#FBB130',textRight:true},
+    {bg:'#f5f4f0',checkColor:'#714B67',hlColor:'#FC787D',textRight:true},
+    {bg:'#f0f4f8',checkColor:'#017E84',hlColor:'#FC787D',textRight:false},
+    {bg:'#fdf8f0',checkColor:'#FBB130',hlColor:'#FC787D',textRight:false},
+  ];
+  parsed._layout=_liLayouts[Math.floor(Math.random()*_liLayouts.length)];
+  // Variante del panel gráfico (arreglo de iconos) — se elige al azar para dar diversidad
+  parsed._graphicVariant=Math.floor(Math.random()*GC_GRAPHIC_VARIANTS);
+  parsed._gradIdx=Math.floor(Math.random()*GC_GRAPHIC_GRADS.length);
+  parsed._photoComp=Math.floor(Math.random()*GC_PHOTO_COMPS);  // composición de foto aleatoria → no siempre el mismo molde
+  cont.lastPubData=parsed;
+  // Si el estilo es foto, busca una foto real de la industria (página aleatoria para variar la imagen, no siempre la misma)
+  cont.lastPhoto=null;
+  if(cont.imgStyle!=='grafica'){
+    if(PEXELS_KEY){
+      cont.photoPage=1+Math.floor(Math.random()*8);
+      cont.lastPhoto=await fetchIndustryPhoto(ind,cont.photoPage);
+      if(!cont.lastPhoto) showNotif('No se encontró foto, usando tarjeta gráfica','info');
+    } else {
+      showNotif('Pexels no configurado — usando tarjeta gráfica','info');
+    }
+  }
+  renderGcImagePreview(parsed);
+  // Auto-guardar el post en la memoria de la empresa (si hay empresa en contenidos)
+  if(cont.company?.id){
+    gcShowSavedBadge('gcPubOutput');
+    const postTexto=parsed.post_text||`${parsed.headline||''}\n${parsed.subheadline||''}\n\n${(parsed.puntos||[]).map(p=>'• '+p).join('\n')}`;
+    updateCompanyMemory(cont.company.id,'contenido',{
+      contenido:{tipo:'linkedin_post',topic:msg,industria:ind,fecha:new Date().toISOString()},
+      savedContent:{tipo:'linkedin_post',momLabel:`Post LinkedIn · ${ind}`,contacto:'',texto:postTexto,headline:parsed.headline||''},
+      touchpoint:{type:'linkedin_post',summary:`Post LinkedIn · ${ind} · ${parsed.headline||''}`}
+    });
+  }
+  return parsed;
+}
 window.gcGeneratePub=async function(){
   const ind=document.getElementById('gcPubIndustria')?.value||'';
   const msg=document.getElementById('gcPubMsg')?.value.trim()||'';
@@ -4523,72 +4742,8 @@ window.gcGeneratePub=async function(){
   const btn=document.getElementById('gcPubBtn');
   btn.disabled=true; gcShowLoading('gcPubLoading',true);
   document.getElementById('gcPubOutput').classList.remove('show');
-  const _appNames=ODOO_APPS_FLAT.map(m=>m.name).join(', ');
   try{
-    const copy=await gcCallClaude(`Genera el contenido para una imagen comercial de LinkedIn de Odoo México dirigida a la industria de ${ind}, Y el texto del post.
-INDUSTRIA TARGET: ${ind} | TONO: ${tono}
-MENSAJE PRINCIPAL: ${msg}
-ESTADÍSTICA: ${stat||'ninguna'}
-
-Responde con este JSON exacto (sin markdown):
-{
-  "headline": "Frase comercial corta y específica para la industria de ${ind} (máx 6 palabras). Ej. para construcción: 'Administra tu constructora con Odoo'",
-  "highlight": "1-2 palabras DEL headline para resaltar (deben aparecer literalmente en headline)",
-  "subheadline": "Frase secundaria de beneficio (máx 10 palabras)",
-  "puntos": ["3 a 4 efectos WOW MUY específicos de la industria de ${ind} con Odoo, cada uno máx 7 palabras. Ej. construcción: 'Costeo de obra en tiempo real', 'Facturación por avance automática', 'Control de materiales por proyecto'"],
-  "apps": ["4 a 6 nombres EXACTOS de módulos Odoo relevantes para la industria de ${ind}, copiados LITERALMENTE de esta lista (no inventes nombres): ${_appNames}"],
-  "post_text": "Texto completo del post de LinkedIn (150-280 palabras). Emojis estratégicos (3-5). Estructura: gancho potente en la primera línea, desarrollo, los puntos WOW, reflexión/CTA, y hashtags (#odoo #erp #${ind.toLowerCase().replace(/[^a-z]/g,'')}) en su propia línea al final. Español de México. Tono de aporte de valor y venta consultiva, sin frases grandilocuentes."
-}
-
-${odooResourcesBlock()}
-
-Reglas:
-- NO inventes cifras ni estadísticas. Usa SOLO la ESTADÍSTICA proporcionada arriba; si dice 'ninguna', no incluyas ningún número inventado.
-- Puedes incluir en post_text UN enlace oficial de la lista de RECURSOS si aporta valor (URL EXACTA, nunca inventes un enlace específico). No lo fuerces.
-- Habla solo de capacidades reales de Odoo.`);
-    let parsed;
-    try { parsed=JSON.parse(copy.replace(/```json?\n?/g,'').replace(/```/g,'').trim()); }
-    catch(e){ parsed={headline:msg.substring(0,40),highlight:'',subheadline:'Odoo lo hace posible.',puntos:[]}; }
-    if(!Array.isArray(parsed.puntos)) parsed.puntos=[];
-    if(!Array.isArray(parsed.apps)) parsed.apps=[];
-    parsed._ind=ind;
-    // Variación aleatoria de layout (C-LI1) — fondo claro + tipografía Odoo siempre
-    const _liLayouts=[
-      {bg:'#f5f4f0',checkColor:'#017E84',hlColor:'#FC787D',textRight:false},
-      {bg:'#f0f5f5',checkColor:'#017E84',hlColor:'#FBB130',textRight:false},
-      {bg:'#f5f3f8',checkColor:'#714B67',hlColor:'#FBB130',textRight:true},
-      {bg:'#f5f4f0',checkColor:'#714B67',hlColor:'#FC787D',textRight:true},
-      {bg:'#f0f4f8',checkColor:'#017E84',hlColor:'#FC787D',textRight:false},
-      {bg:'#fdf8f0',checkColor:'#FBB130',hlColor:'#FC787D',textRight:false},
-    ];
-    parsed._layout=_liLayouts[Math.floor(Math.random()*_liLayouts.length)];
-    // Variante del panel gráfico (arreglo de iconos) — se elige al azar para dar diversidad
-    parsed._graphicVariant=Math.floor(Math.random()*GC_GRAPHIC_VARIANTS);
-    parsed._gradIdx=Math.floor(Math.random()*GC_GRAPHIC_GRADS.length);
-    parsed._photoComp=Math.floor(Math.random()*GC_PHOTO_COMPS);  // composición de foto aleatoria → no siempre el mismo molde
-    cont.lastPubData=parsed;
-    // Si el estilo es foto, busca una foto real de la industria (página aleatoria para variar la imagen, no siempre la misma)
-    cont.lastPhoto=null;
-    if(cont.imgStyle!=='grafica'){
-      if(PEXELS_KEY){
-        cont.photoPage=1+Math.floor(Math.random()*8);
-        cont.lastPhoto=await fetchIndustryPhoto(ind,cont.photoPage);
-        if(!cont.lastPhoto) showNotif('No se encontró foto, usando tarjeta gráfica','info');
-      } else {
-        showNotif('Pexels no configurado — usando tarjeta gráfica','info');
-      }
-    }
-    renderGcImagePreview(parsed);
-    // Auto-guardar el post en la memoria de la empresa (si hay empresa en contenidos)
-    if(cont.company?.id){
-      gcShowSavedBadge('gcPubOutput');
-      const postTexto=parsed.post_text||`${parsed.headline||''}\n${parsed.subheadline||''}\n\n${(parsed.puntos||[]).map(p=>'• '+p).join('\n')}`;
-      updateCompanyMemory(cont.company.id,'contenido',{
-        contenido:{tipo:'linkedin_post',topic:msg,industria:ind,fecha:new Date().toISOString()},
-        savedContent:{tipo:'linkedin_post',momLabel:`Post LinkedIn · ${ind}`,contacto:'',texto:postTexto,headline:parsed.headline||''},
-        touchpoint:{type:'linkedin_post',summary:`Post LinkedIn · ${ind} · ${parsed.headline||''}`}
-      });
-    }
+    await gcRunPubImageGen(ind, msg, stat, tono, gcEventoContext('pub'));
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcPubLoading',false);
 };
@@ -4749,9 +4904,10 @@ function renderGcImagePreview(data){
   const fmt=cont.format;
   const fmtConfig={
     '1200x627':{w:1200,h:627,scale:.5,label:'1200×627 — Post LinkedIn'},
-    '1080x1080':{w:1080,h:1080,scale:.37,label:'1080×1080 — Post cuadrado'},
+    '1080x1080':{w:1080,h:1080,scale:.37,label:'1080×1080 — Imagen cuadrada'},
     '1584x396':{w:1584,h:396,scale:.45,label:'1584×396 — Banner portada'},
     '1080x1920':{w:1080,h:1920,scale:.28,label:'1080×1920 — Historia'},
+    '600x200':{w:600,h:200,scale:1,label:'600×200 — Banner de correo'},
   };
   const f=fmtConfig[fmt]||fmtConfig['1200x627'];
   const photo=cont.lastPhoto;
@@ -4922,6 +5078,7 @@ function renderGcColdCalling(){
               <option value="calificar">Calificar y entender la operación</option>
               <option value="referido">Venir referido de alguien</option>
               <option value="reactivar">Reactivar prospecto previo</option>
+              <option value="evento">Invitar a / dar seguimiento a un evento</option>
             </select>
           </div>
           <div class="gc-selector"><label>Cargo del prospecto</label>
@@ -4931,6 +5088,7 @@ function renderGcColdCalling(){
         <div class="form-group" style="margin-top:12px"><label>Dolor o contexto previo (si aplica)</label>
           <textarea class="input" id="gcCcContexto" placeholder="Ej. Lo encontré en LinkedIn, mencionó que están buscando sistema, es referido de…" style="min-height:70px;resize:vertical"></textarea>
         </div>
+        ${gcEventoCheckboxHTML('cc')}
       </div>
 
       <div class="gc-form-section">
@@ -4991,6 +5149,7 @@ window.gcGenerateColdCalling=async function(){
   const obj=document.getElementById('gcCcObjetivo')?.value||'agendar_demo';
   const cargo=document.getElementById('gcCcCargo')?.value||'';
   const ctx=document.getElementById('gcCcContexto')?.value||'';
+  const evento=gcEventoContext('cc');
   const aeNombre=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'el AE';
   const apptLink=currentUserData?.appointmentLink||'';
   const btn=document.getElementById('gcCcBtn');
@@ -5003,9 +5162,11 @@ ${gcCompanyContext()}
 CARGO DEL PROSPECTO: ${cargo||'Director/Gerente'}
 NOMBRE DEL AE: ${aeNombre}
 OBJETIVO DE LA LLAMADA: ${obj.replace(/_/g,' ')}
+${obj==='evento'?'IMPORTANTE: el objetivo de ESTA llamada es el evento — toda la estructura (hook, propósito, cierre) debe girar en torno a invitar al prospecto o darle seguimiento sobre el evento de referencia (usa el nombre, fecha y tema reales que encuentres con web_fetch), no un pitch genérico de Odoo.':''}
 CONTEXTO PREVIO: ${ctx||'ninguno'}
+${evento.promptLine}
 ${apptLink?`LINK PARA AGENDAR: ${apptLink}`:''}
-TONO: ${cont.tone}
+${gcToneInstructionBlock(gcToneExtraValue())}
 
 ${odooResourcesBlock()}
 
@@ -5030,7 +5191,7 @@ Reglas:
 - NO inventes datos, cifras ni nombres de la empresa. Si NO hay info específica, mantén el hook a nivel de industria (genérico)
 - Revisa el historial de la empresa (memoria arriba): da continuidad, no repitas lo ya dicho
 - "nota" son indicaciones para el AE (no se dicen en voz alta): breves y opcionales
-- JSON válido, comillas dobles, sin comas finales, sin markdown`);
+- JSON válido, comillas dobles, sin comas finales, sin markdown`,null,{tools:evento.tools,toolChoice:evento.toolChoice});
     let data; try{ data=_parseJSON(raw); }catch(e){ data=null; }
     const plain = data ? gcColdScriptToText(data, cont.company?.nombre) : raw;
     window._gcColdText = plain;
