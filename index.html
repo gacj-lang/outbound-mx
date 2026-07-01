@@ -4676,16 +4676,16 @@ ESTADÍSTICA: ${stat||'ninguna'}
 ${CHANNEL_IMG_GUIDE[channel]||CHANNEL_IMG_GUIDE.pub}
 ${evento.promptLine}
 ${evento.active?(channel==='linkedin'||channel==='pub'
-  ?`\nIMPORTANTE: como hay un EVENTO DE REFERENCIA arriba, el headline, subheadline y los puntos WOW deben estar directamente conectados al evento (su nombre, fecha, tema o el motivo de invitar/dar seguimiento) — NO genérico de industria. El post_text debe funcionar como invitación o mención directa y explícita del evento, no una mención de pasada.`
-  :`\nIMPORTANTE: como hay un EVENTO DE REFERENCIA arriba, el headline, subheadline y los puntos WOW deben estar directamente conectados al evento (su nombre, fecha, tema o el motivo de invitar/dar seguimiento) — NO genérico de industria. El post_text debe mencionar el evento de forma natural dentro de un mensaje personalizado de outbound (WhatsApp/correo/LinkedIn 1:1) — está PROHIBIDO darle formato de ficha de evento: NO listes ubicación, horario, costo de entrada ni un link "Regístrate aquí" en líneas separadas tipo invitación formal; eso es exclusivo del post público de LinkedIn, aquí no se ocupa.`
+  ?`\nIMPORTANTE — la imagen es sobre el EVENTO: usa el headline/subheadline/puntos EXACTAMENTE como se describe en el esquema JSON de abajo (nombre del evento, fecha/hora/modalidad, puntos de contexto) — NO genérico de industria. El post_text debe funcionar como invitación o mención directa y explícita del evento, no una mención de pasada.`
+  :`\nIMPORTANTE — la imagen es sobre el EVENTO: usa el headline/subheadline/puntos EXACTAMENTE como se describe en el esquema JSON de abajo (nombre del evento, fecha/hora/modalidad, puntos de contexto) — NO genérico de industria. El post_text debe mencionar el evento de forma natural dentro de un mensaje personalizado de outbound (WhatsApp/correo/LinkedIn 1:1) — está PROHIBIDO darle formato de ficha de evento: NO listes ubicación, horario, costo de entrada ni un link "Regístrate aquí" en líneas separadas tipo invitación formal; eso es exclusivo del post público de LinkedIn, aquí no se ocupa.`
 ):''}
 
 Responde con este JSON exacto (sin markdown):
 {
-  "headline": "Frase comercial corta y específica para la industria de ${ind} (máx 6 palabras)${evento.active?', enfocada en el EVENTO de referencia':''}. Ej. para construcción: 'Administra tu constructora con Odoo'",
+  "headline": "${evento.active?'El NOMBRE EXACTO del evento, tal cual aparece en la página (sin mezclarlo con un tagline comercial de Odoo) — máx 8 palabras':`Frase comercial corta y específica para la industria de ${ind} (máx 6 palabras). Ej. para construcción: 'Administra tu constructora con Odoo'`}",
   "highlight": "1-2 palabras DEL headline para resaltar (deben aparecer literalmente en headline)",
-  "subheadline": "Frase secundaria de beneficio (máx 10 palabras)",
-  "puntos": ["efectos WOW MUY específicos de la industria de ${ind} con Odoo, cada uno máx 7 palabras — sigue la cantidad indicada en CANAL DE ENVÍO arriba. Ej. construcción: 'Costeo de obra en tiempo real', 'Facturación por avance automática'"],
+  "subheadline": "${evento.active?'Fecha, hora y modalidad del evento en una sola línea breve (ej. \\"15 de octubre · 17:00 hrs · Presencial\\"), usando SOLO los datos reales que encuentres en la página — si falta un dato, ómitelo sin inventarlo':'Frase secundaria de beneficio (máx 10 palabras)'}",
+  "puntos": ["${evento.active?'2 a 3 puntos BREVES sobre la importancia o el contexto del evento (el tema que cubre, la audiencia, o por qué vale la pena asistir), tomados de la página — NO son features de Odoo':`efectos WOW MUY específicos de la industria de ${ind} con Odoo, cada uno máx 7 palabras — sigue la cantidad indicada en CANAL DE ENVÍO arriba. Ej. construcción: 'Costeo de obra en tiempo real', 'Facturación por avance automática'`}"],
   "apps": ["4 a 6 nombres EXACTOS de módulos Odoo relevantes para la industria de ${ind}, copiados LITERALMENTE de esta lista (no inventes nombres): ${_appNames}"],
   "post_text": "Texto de acompañamiento (150-280 palabras si es LinkedIn; 40-80 palabras si es WhatsApp o correo — sigue CANAL DE ENVÍO). Emojis estratégicos. Estructura: gancho potente en la primera línea, desarrollo, los puntos WOW, reflexión/CTA${channel==='linkedin'||channel==='pub'?`, y hashtags (#odoo #erp #${ind.toLowerCase().replace(/[^a-z]/g,'')}) en su propia línea al final`:' (sin hashtags si no es LinkedIn)'}. Español de México. Tono de aporte de valor y venta consultiva, sin frases grandilocuentes."
 }
@@ -4702,6 +4702,7 @@ Reglas:
   if(!Array.isArray(parsed.puntos)) parsed.puntos=[];
   if(!Array.isArray(parsed.apps)) parsed.apps=[];
   parsed._ind=ind;
+  parsed._channel=channel; // determina si se muestra el box "Texto del post" (solo Publicación LinkedIn)
   // Variación aleatoria de layout (C-LI1) — fondo claro + tipografía Odoo siempre
   const _liLayouts=[
     {bg:'#f5f4f0',checkColor:'#017E84',hlColor:'#FC787D',textRight:false},
@@ -4961,7 +4962,7 @@ function renderGcImagePreview(data){
       </div>
     </div>
     <p style="font-size:12px;color:var(--gray-400);margin-top:8px;text-align:center">Vista previa escalada · El PNG será en resolución completa${photo?` · Foto: ${photo.photographer} (Pexels)`:''}</p>
-    ${data.post_text?`
+    ${data.post_text&&data._channel==='pub'?`
     <div style="margin-top:24px;background:var(--gray-50);border-radius:var(--radius);border:1.5px solid var(--gray-200);padding:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <span style="font-size:13px;font-weight:700;color:var(--gray-700)">💼 Texto del post</span>
