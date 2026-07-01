@@ -962,13 +962,22 @@ function highlightUrl(n=1,bold=false){ return `${ASSETS}/highlights/${bold?'blue
 let CLAUDE_KEY_DEFAULT = ''; // Cargado desde Firestore — no guardar en código fuente
 let PEXELS_KEY = ''; // Banco de fotos para imágenes de LinkedIn — cargado desde Firestore config/app
 
+// ── Lista única de buzzwords prohibidas — compartida por TODOS los prompts vía ANTI_HALLUCINATION
+// (antes había 2 listas distintas e incompletas regadas en el archivo; una sola fuente evita que
+// un módulo "olvide" prohibir una palabra que otro sí prohibía).
+const ODOO_BUZZWORDS_BANNED=[
+  'revolucionario','revolucionar','disrupción','disruptivo','transformación digital',
+  'solución líder','líder del mercado','solución integral','de clase mundial',
+  'potenciar sinergias','sinergias','sinergia','potencializar','robusto',
+  'plataforma de vanguardia','ecosistema',
+];
 // ── Regla anti-alucinación (system prompt para TODAS las llamadas de IA) ──
 const ANTI_HALLUCINATION = `Eres un asistente de ventas de Odoo México. Reglas CRÍTICAS e innegociables:
 - NUNCA inventes datos, nombres, fechas, cifras, estadísticas, casos de éxito ni fuentes. Si un dato no te fue proporcionado, NO lo fabriques.
 - Si falta contexto o información para personalizar de verdad, NO generes relleno genérico: indica explícitamente y de forma breve qué información específica necesitas del Account Executive para hacerlo bien.
 - Solo afirma capacidades de Odoo que sean reales. Si no estás seguro de que Odoo haga algo, NO lo afirmes; habla en términos generales de lo que Odoo sí hace.
 - Si no sabes algo o no tienes información suficiente, dilo ("No tengo información suficiente para…") en vez de adivinar o inferir.
-- Escribe SIEMPRE en español de México, natural y profesional. Evita palabras altisonantes o grandilocuentes ("revolucionario", "solución líder", "potenciar sinergias"). Lenguaje claro y humano.
+- Escribe SIEMPRE en español de México, natural y profesional. Evita palabras altisonantes o grandilocuentes, por ejemplo: ${ODOO_BUZZWORDS_BANNED.map(w=>`"${w}"`).join(', ')}. Lenguaje claro y humano.
 - No dejes rastros de que el texto fue generado por IA.`;
 
 // Recursos OFICIALES de Odoo — URLs reales y verificadas. NUNCA inventar enlaces específicos;
@@ -4518,7 +4527,6 @@ Reglas generales:
 - Si el momento del toque es un SEGUIMIENTO y aporta valor, puedes incluir UN enlace oficial de la lista de RECURSOS (el más relevante a su industria/caso). Usa la URL EXACTA de la lista; NUNCA inventes un enlace específico a un caso o video concreto. No fuerces el enlace si no encaja natural.
 - NO menciones a Claude ni a ninguna IA
 - NO incluyas firma ni línea de despedida al final (sin 'Saludos', 'Quedo a tus órdenes', 'Atentamente', ni tu nombre suelto en una línea al cierre). El mensaje termina en el CTA.
-- Evita palabras grandilocuentes: 'solución integral', 'de clase mundial', 'líder del mercado', 'potencializar', 'disruptivo', 'robusto', 'plataforma de vanguardia', 'ecosistema', 'sinergias'
 - Cada variante con un ángulo claramente distinto
 - Español de México natural, directo, sin sonar a vendedor de catálogo
 - NO uses markdown (nada de **negritas**, ## títulos ni viñetas con *)
@@ -5152,6 +5160,7 @@ window.gcGenerateColdCalling=async function(){
   const evento=gcEventoContext('cc');
   const aeNombre=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'el AE';
   const apptLink=currentUserData?.appointmentLink||'';
+  const caso=pickOdooCase(cont.company?.giro);
   const btn=document.getElementById('gcCcBtn');
   btn.disabled=true; gcShowLoading('gcCcLoading',true);
   document.getElementById('gcCcOutput').classList.remove('show');
@@ -5168,18 +5177,20 @@ ${evento.promptLine}
 ${apptLink?`LINK PARA AGENDAR: ${apptLink}`:''}
 ${gcToneInstructionBlock(gcToneExtraValue())}
 
+CASO DE ÉXITO REAL EN SU INDUSTRIA (usar ÚNICAMENTE si surge una objeción de presupuesto/ROI — cítalo tal cual, con estos datos exactos, NUNCA inventes otro caso ni una cifra de retorno distinta): ${caso.empresa} (${caso.giros.join('/')}, ${caso.pais}) — ${caso.resumen} Fuente: ${caso.url}
+
 ${odooResourcesBlock()}
 
 Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin texto adicional) con esta estructura EXACTA:
 {
   "secciones": [
-    {"titulo":"Apertura","duracion":"5-10 seg","guion":"lo que el AE dice en voz alta — presentación natural, no vendedora","nota":"indicación breve para el AE, ej. 'Pausa, deja que responda' (opcional)"},
+    {"titulo":"Apertura","duracion":"5-10 seg","guion":"saludo cálido tipo pattern-interrupt (ej. variantes de '¿cómo va tu día/semana?') — PROHIBIDO pedir permiso ('¿tienes un minuto?', '¿te agarro en mal momento?'): esas frases reducen ~40% la probabilidad de agendar porque le dan al prospecto una salida fácil; un saludo cálido y directo funciona 3-6x mejor porque rompe el patrón de 'me está vendiendo algo'","nota":"indicación breve para el AE, ej. 'Pausa, deja que responda' (opcional)"},
     {"titulo":"Hook de industria","duracion":"15-20 seg","guion":"pregunta o perspectiva que detona curiosidad para su industria","nota":"Escuchar activamente"},
-    {"titulo":"Propósito","duracion":"15 seg","guion":"por qué llamas y qué quieres lograr","nota":""}
+    {"titulo":"Propósito","duracion":"15 seg","guion":"por qué llamas y qué quieres lograr, dicho CON SEGURIDAD y de forma proactiva — no como disculpa ni pidiendo permiso para continuar","nota":""}
   ],
   "objeciones": [
-    {"objecion":"No tengo tiempo","respuesta":"respuesta natural, máx 2-3 oraciones"},
-    {"objecion":"Ya tenemos sistema","respuesta":"..."},
+    {"objecion":"No tengo tiempo","respuesta":"respuesta natural, máx 2-3 oraciones — es una reacción a la interrupción, no un rechazo real: no discutas, solo abre un puente breve"},
+    {"objecion":"Ya tenemos sistema / lo llevamos en Excel","respuesta":"NO argumentes si su herramienta actual funciona o no — reencuadra hacia si esa herramienta va a escalar con hacia dónde va la empresa (crecimiento, nueva sucursal, más volumen), y cierra con una pregunta abierta"},
     {"objecion":"Mándame un correo","respuesta":"... y ofrece UN recurso oficial relevante de la lista (URL EXACTA, nunca inventes un enlace)"}
   ],
   "cierre":"CTA para agendar${apptLink?`, usando el link ${apptLink}`:''}"
@@ -5188,6 +5199,8 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin texto adicion
 Reglas:
 - "guion" es lo que el AE DICE en voz alta: primera persona, español de México natural y conversacional, NO sonar a script
 - Tono de venta CONSULTIVA: interés genuino en su operación, preguntas, sin presionar
+- Manejo de objeciones: reconoce en UNA frase (sin discutir) → haz UNA pregunta inteligente → ofrece un paso pequeño. NUNCA rebatas con una lista de features a la defensiva ni fuerces el cierre.
+- Si la objeción es de presupuesto o retorno de inversión, usa el CASO DE ÉXITO REAL de arriba (si aplica a su industria) en vez de inventar una cifra de ROI o un plazo de recuperación — si no aplica, no lo fuerces y mantente en general.
 - NO inventes datos, cifras ni nombres de la empresa. Si NO hay info específica, mantén el hook a nivel de industria (genérico)
 - Revisa el historial de la empresa (memoria arriba): da continuidad, no repitas lo ya dicho
 - "nota" son indicaciones para el AE (no se dicen en voz alta): breves y opcionales
