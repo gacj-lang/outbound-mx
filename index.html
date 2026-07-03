@@ -901,6 +901,11 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
   collection, query, where, onSnapshot, orderBy, serverTimestamp, Timestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
+// Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
+// step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
+// si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
+const APP_BUILD_STAMP='2026-07-04 15:10 CDMX';
+
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
 // ══════════════════════════════════════════
@@ -1762,6 +1767,7 @@ function renderSettings(){
           <p><strong>Outbound México v2.0</strong></p>
           <p>Fase 1 (App shell) + Fase 2 (Discovery Guide) completadas</p>
           <p style="margin-top:8px;color:var(--gray-400)">Motor de IA: Claude (Anthropic) · Base de datos: Firebase Firestore</p>
+          <p style="margin-top:8px;font-size:12px;color:var(--gray-400)">Última actualización publicada: <strong style="color:var(--gray-600)">${APP_BUILD_STAMP}</strong></p>
         </div>
       </div>
     </div>`;
