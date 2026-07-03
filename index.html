@@ -7527,6 +7527,28 @@ window.pricingDeleteSelected=async function(){
 const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Email','phone','Tags_id','user_id','state_id','country_id'];
 const MX_STATES=['Aguascalientes (MX)','Baja California (MX)','Baja California Sur (MX)','Campeche (MX)','Chihuahua (MX)','Chiapas (MX)','Ciudad de México (MX)','Coahuila (MX)','Colima (MX)','Durango (MX)','Estado de Mexico (MX)','Guerrero (MX)','Guanajuato (MX)','Hidalgo (MX)','Jalisco (MX)','Michoacán (MX)','Morelos (MX)','Nayarit (MX)','Nuevo León (MX)','Oaxaca (MX)','Puebla (MX)','Querétaro (MX)','Quintana Roo (MX)','Sinaloa (MX)','San Luis Potosí (MX)','Sonora (MX)','Tabasco (MX)','Tamaulipas (MX)','Tlaxcala (MX)','Veracruz (MX)','Yucatán (MX)','Zacatecas (MX)'];
 
+// ── Buscador de leads (Lusha/Apollo) — países habilitados y sus estados/departamentos/provincias.
+// Solo los países que ya se platicaron con el equipo: México activo, Chile/Perú/Colombia/Ecuador
+// entran en Q3. México reutiliza MX_STATES (sin el sufijo ' (MX)') para no duplicar la lista.
+const LEAD_SEARCH_COUNTRIES=[
+  {id:'MX', label:'México'}, {id:'CL', label:'Chile'}, {id:'PE', label:'Perú'},
+  {id:'CO', label:'Colombia'}, {id:'EC', label:'Ecuador'},
+];
+const LEAD_SEARCH_STATES={
+  MX: MX_STATES.map(s=>s.replace(' (MX)','')),
+  CL: ['Arica y Parinacota','Tarapacá','Antofagasta','Atacama','Coquimbo','Valparaíso','Metropolitana de Santiago',"Libertador General Bernardo O'Higgins",'Maule','Ñuble','Biobío','La Araucanía','Los Ríos','Los Lagos','Aysén','Magallanes y de la Antártica Chilena'],
+  PE: ['Amazonas','Áncash','Apurímac','Arequipa','Ayacucho','Cajamarca','Callao','Cusco','Huancavelica','Huánuco','Ica','Junín','La Libertad','Lambayeque','Lima','Loreto','Madre de Dios','Moquegua','Pasco','Piura','Puno','San Martín','Tacna','Tumbes','Ucayali'],
+  CO: ['Amazonas','Antioquia','Arauca','Atlántico','Bolívar','Boyacá','Caldas','Caquetá','Casanare','Cauca','Cesar','Chocó','Córdoba','Cundinamarca','Bogotá D.C.','Guainía','Guaviare','Huila','La Guajira','Magdalena','Meta','Nariño','Norte de Santander','Putumayo','Quindío','Risaralda','San Andrés y Providencia','Santander','Sucre','Tolima','Valle del Cauca','Vaupés','Vichada'],
+  EC: ['Azuay','Bolívar','Cañar','Carchi','Chimborazo','Cotopaxi','El Oro','Esmeraldas','Galápagos','Guayas','Imbabura','Loja','Los Ríos','Manabí','Morona Santiago','Napo','Orellana','Pastaza','Pichincha','Santa Elena','Santo Domingo de los Tsáchilas','Sucumbíos','Tungurahua','Zamora Chinchipe'],
+};
+// Buckets de tamaño de empresa — EXACTOS a los que acepta Lusha (rangos personalizados no están
+// soportados por su API; Apollo reusa los mismos cortes para tener un solo filtro fusionado).
+const LEAD_SEARCH_SIZE_BUCKETS=[
+  {id:'1-10', label:'1-10'}, {id:'11-50', label:'11-50'}, {id:'51-200', label:'51-200'},
+  {id:'201-500', label:'201-500'}, {id:'501-1000', label:'501-1,000'}, {id:'1001-5000', label:'1,001-5,000'},
+  {id:'5001-10000', label:'5,001-10,000'}, {id:'10001+', label:'10,001+'},
+];
+
 // ── Parser de CSV estructurado LOCAL (sin IA) — para exports de Apollo/LinkedIn/genéricos ──
 // Reextraer un CSV ya estructurado con la IA satura los tokens y trunca la respuesta.
 // Si reconocemos los encabezados, lo parseamos aquí: instantáneo, completo y sin inventar nada.
@@ -7554,7 +7576,39 @@ function _detectDelim(line){ const c={',':0,';':0,'\t':0}; for(const ch of Strin
 const _MX_STATE_LOOKUP=(()=>{
   const m={};
   for(const st of MX_STATES) m[_csvNorm(st.replace(/\s*\(mx\)\s*$/i,''))]=st;
-  const alias={'mexico city':'Ciudad de México (MX)','ciudad de mexico':'Ciudad de México (MX)','cdmx':'Ciudad de México (MX)','distrito federal':'Ciudad de México (MX)','federal district':'Ciudad de México (MX)','df':'Ciudad de México (MX)','state of mexico':'Estado de Mexico (MX)','estado de mexico':'Estado de Mexico (MX)','mexico state':'Estado de Mexico (MX)','edomex':'Estado de Mexico (MX)','coahuila de zaragoza':'Coahuila (MX)','veracruz de ignacio de la llave':'Veracruz (MX)','michoacan de ocampo':'Michoacán (MX)'};
+  const alias={'mexico city':'Ciudad de México (MX)','ciudad de mexico':'Ciudad de México (MX)','cdmx':'Ciudad de México (MX)','distrito federal':'Ciudad de México (MX)','federal district':'Ciudad de México (MX)','df':'Ciudad de México (MX)','d.f.':'Ciudad de México (MX)','state of mexico':'Estado de Mexico (MX)','estado de mexico':'Estado de Mexico (MX)','mexico state':'Estado de Mexico (MX)','edomex':'Estado de Mexico (MX)','edo. mex.':'Estado de Mexico (MX)','edo mex':'Estado de Mexico (MX)','coahuila de zaragoza':'Coahuila (MX)','veracruz de ignacio de la llave':'Veracruz (MX)','michoacan de ocampo':'Michoacán (MX)',
+    // Abreviaturas oficiales de estados mexicanos (usadas en exports de Apollo/LinkedIn/CRMs y direcciones)
+    'ags':'Aguascalientes (MX)','ags.':'Aguascalientes (MX)',
+    'bc':'Baja California (MX)','b.c.':'Baja California (MX)','baja california norte':'Baja California (MX)',
+    'bcs':'Baja California Sur (MX)','b.c.s.':'Baja California Sur (MX)',
+    'camp':'Campeche (MX)','camp.':'Campeche (MX)',
+    'coah':'Coahuila (MX)','coah.':'Coahuila (MX)',
+    'col':'Colima (MX)','col.':'Colima (MX)',
+    'chis':'Chiapas (MX)','chis.':'Chiapas (MX)',
+    'chih':'Chihuahua (MX)','chih.':'Chihuahua (MX)',
+    'dgo':'Durango (MX)','dgo.':'Durango (MX)',
+    'gto':'Guanajuato (MX)','gto.':'Guanajuato (MX)',
+    'gro':'Guerrero (MX)','gro.':'Guerrero (MX)',
+    'hgo':'Hidalgo (MX)','hgo.':'Hidalgo (MX)',
+    'jal':'Jalisco (MX)','jal.':'Jalisco (MX)',
+    'mich':'Michoacán (MX)','mich.':'Michoacán (MX)',
+    'mor':'Morelos (MX)','mor.':'Morelos (MX)',
+    'nay':'Nayarit (MX)','nay.':'Nayarit (MX)',
+    'nl':'Nuevo León (MX)','n.l.':'Nuevo León (MX)',
+    'oax':'Oaxaca (MX)','oax.':'Oaxaca (MX)',
+    'pue':'Puebla (MX)','pue.':'Puebla (MX)',
+    'qro':'Querétaro (MX)','qro.':'Querétaro (MX)','qtro':'Querétaro (MX)',
+    'qroo':'Quintana Roo (MX)','q.roo':'Quintana Roo (MX)','q. roo':'Quintana Roo (MX)',
+    'slp':'San Luis Potosí (MX)','s.l.p.':'San Luis Potosí (MX)',
+    'sin':'Sinaloa (MX)','sin.':'Sinaloa (MX)',
+    'son':'Sonora (MX)','son.':'Sonora (MX)',
+    'tab':'Tabasco (MX)','tab.':'Tabasco (MX)',
+    'tamps':'Tamaulipas (MX)','tamps.':'Tamaulipas (MX)',
+    'tlax':'Tlaxcala (MX)','tlax.':'Tlaxcala (MX)',
+    'ver':'Veracruz (MX)','ver.':'Veracruz (MX)',
+    'yuc':'Yucatán (MX)','yuc.':'Yucatán (MX)',
+    'zac':'Zacatecas (MX)','zac.':'Zacatecas (MX)',
+  };
   for(const k in alias) m[_csvNorm(k)]=alias[k];
   return m;
 })();
@@ -7618,6 +7672,15 @@ function _csvMapStructured(text){
 }
 
 let csvRows=[];
+let csvInputMode='paste';
+// Filtros para el futuro buscador de leads (Lusha/Apollo) — UI únicamente por ahora, sin backend conectado.
+const CSV_SENIORITY_OPTS=[
+  {id:'founder',label:'Founder'},
+  {id:'c_suite',label:'C-Level'},
+  {id:'vp',label:'VP'},
+  {id:'director',label:'Director'},
+  {id:'manager',label:'Manager'},
+];
 function renderCsvBuilder(){
   const content=document.getElementById('moduleContent');
   const gram=currentUserData?.gram||'';
@@ -7644,27 +7707,94 @@ function renderCsvBuilder(){
         </div>
       </div>
       <div class="card" style="padding:24px;margin-bottom:20px">
-        <h4 style="font-size:15px;font-weight:700;margin-bottom:8px">📥 Datos de prospectos</h4>
-        <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Pega texto libre o carga un archivo — Claude extrae y estructura todo automáticamente.</p>
+        <h4 style="font-size:15px;font-weight:700;margin-bottom:16px">📥 Datos de prospectos</h4>
 
-        <!-- File upload zone -->
-        <div id="csvDropZone" style="border:2px dashed var(--gray-200);border-radius:var(--radius);padding:16px;text-align:center;margin-bottom:12px;transition:border-color .15s;cursor:pointer;background:var(--gray-50)"
-          onclick="document.getElementById('csvFileInput').click()"
-          ondragover="event.preventDefault();this.style.borderColor='var(--purple)'"
-          ondragleave="this.style.borderColor='var(--gray-200)'"
-          ondrop="event.preventDefault();this.style.borderColor='var(--gray-200)';csvHandleFileDrop(event.dataTransfer.files[0])">
-          <input type="file" id="csvFileInput" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.csv,.txt,.xls,.xlsx" onchange="csvHandleFile(this.files[0])">
-          <div style="font-size:24px;margin-bottom:4px">📎</div>
-          <div style="font-size:13px;font-weight:600;color:var(--gray-700)">Arrastra un archivo o haz clic para seleccionar</div>
-          <div style="font-size:11px;color:var(--gray-400);margin-top:2px">PDF · Imagen (JPG/PNG) · CSV · TXT</div>
+        <!-- Selector de modo: pegar/subir (actual) vs buscar leads (Lusha/Apollo, UI por ahora) -->
+        <div style="display:flex;gap:8px;margin-bottom:20px">
+          <button class="csv-mode-btn ${csvInputMode==='paste'?'active':''}" data-mode="paste" onclick="csvSetInputMode('paste')"
+            style="flex:1;padding:12px;border:1.5px solid ${csvInputMode==='paste'?'var(--purple)':'var(--gray-200)'};background:${csvInputMode==='paste'?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;color:${csvInputMode==='paste'?'var(--purple)':'var(--gray-700)'};transition:all .15s">
+            📥 Pegar / subir archivo
+          </button>
+          <button class="csv-mode-btn ${csvInputMode==='search'?'active':''}" data-mode="search" onclick="csvSetInputMode('search')"
+            style="flex:1;padding:12px;border:1.5px solid ${csvInputMode==='search'?'var(--purple)':'var(--gray-200)'};background:${csvInputMode==='search'?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;color:${csvInputMode==='search'?'var(--purple)':'var(--gray-700)'};transition:all .15s">
+            🔍 Buscar leads (Lusha/Apollo)
+          </button>
         </div>
-        <div id="csvFileStatus" style="display:none;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:10px"></div>
 
-        <div style="text-align:center;font-size:12px;color:var(--gray-400);margin-bottom:8px">— o escribe/pega los datos directamente —</div>
-        <textarea class="input" id="csvRawData" style="min-height:120px;resize:vertical;font-family:'Inter',monospace;font-size:12px"
-          placeholder="Empresa: DGL LATAM&#10;Contacto: Gustavo Ramos&#10;Cargo: Senior Manager Ecommerce&#10;Email: gustavo.ramos@digicellmx.com&#10;Tel: +55 55 2122-8660&#10;Web: https://dgllatam.com&#10;Ciudad: CDMX&#10;---"></textarea>
-        <button class="gc-generate-btn" style="margin-top:12px" id="csvProcessBtn" onclick="csvProcess()"><span>🤖</span> Procesar con Claude</button>
-        <div class="gc-loading" id="csvLoading"><div class="gc-spinner"></div><span>Procesando prospectos...</span></div>
+        <div id="csvPasteModeBox" style="display:${csvInputMode==='paste'?'block':'none'}">
+          <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Pega texto libre o carga un archivo — Claude extrae y estructura todo automáticamente.</p>
+
+          <!-- File upload zone -->
+          <div id="csvDropZone" style="border:2px dashed var(--gray-200);border-radius:var(--radius);padding:16px;text-align:center;margin-bottom:12px;transition:border-color .15s;cursor:pointer;background:var(--gray-50)"
+            onclick="document.getElementById('csvFileInput').click()"
+            ondragover="event.preventDefault();this.style.borderColor='var(--purple)'"
+            ondragleave="this.style.borderColor='var(--gray-200)'"
+            ondrop="event.preventDefault();this.style.borderColor='var(--gray-200)';csvHandleFileDrop(event.dataTransfer.files[0])">
+            <input type="file" id="csvFileInput" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.csv,.txt,.xls,.xlsx" onchange="csvHandleFile(this.files[0])">
+            <div style="font-size:24px;margin-bottom:4px">📎</div>
+            <div style="font-size:13px;font-weight:600;color:var(--gray-700)">Arrastra un archivo o haz clic para seleccionar</div>
+            <div style="font-size:11px;color:var(--gray-400);margin-top:2px">PDF · Imagen (JPG/PNG) · CSV · TXT</div>
+          </div>
+          <div id="csvFileStatus" style="display:none;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:10px"></div>
+
+          <div style="text-align:center;font-size:12px;color:var(--gray-400);margin-bottom:8px">— o escribe/pega los datos directamente —</div>
+          <textarea class="input" id="csvRawData" style="min-height:120px;resize:vertical;font-family:'Inter',monospace;font-size:12px"
+            placeholder="Empresa: DGL LATAM&#10;Contacto: Gustavo Ramos&#10;Cargo: Senior Manager Ecommerce&#10;Email: gustavo.ramos@digicellmx.com&#10;Tel: +55 55 2122-8660&#10;Web: https://dgllatam.com&#10;Ciudad: CDMX&#10;---"></textarea>
+          <button class="gc-generate-btn" style="margin-top:12px" id="csvProcessBtn" onclick="csvProcess()"><span>🤖</span> Procesar con Claude</button>
+          <div class="gc-loading" id="csvLoading"><div class="gc-spinner"></div><span>Procesando prospectos...</span></div>
+        </div>
+
+        <div id="csvSearchModeBox" style="display:${csvInputMode==='search'?'block':'none'}">
+          <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Define los filtros para buscar leads nuevos en Lusha y Apollo.</p>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+            <div class="form-group" style="margin:0"><label>País</label>
+              <select class="input" id="csvSearchPais" onchange="csvRenderEstadoChips()">
+                ${LEAD_SEARCH_COUNTRIES.map(c=>`<option value="${c.id}">${c.label}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group" style="margin:0"><label>Giro / Industria</label>
+              <select class="input" id="csvSearchGiro">
+                <option value="">Cualquiera</option>
+                ${Object.entries(IND_NAMES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Estado(s) <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera del país elegido)</span></label>
+            <div id="csvSearchEstadosBox" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;max-height:130px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Tamaño de empresa (empleados) <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera)</span></label>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
+              ${LEAD_SEARCH_SIZE_BUCKETS.map(b=>`
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:6px 12px;cursor:pointer">
+                  <input type="checkbox" class="csv-empsize-check" value="${b.id}"> ${b.label}
+                </label>`).join('')}
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Rol / puesto del contacto</label>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
+              ${CSV_SENIORITY_OPTS.map(o=>`
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:6px 12px;cursor:pointer">
+                  <input type="checkbox" class="csv-seniority-check" value="${o.id}"> ${o.label}
+                </label>`).join('')}
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;max-width:220px">
+            <label>Cantidad de leads</label>
+            <input type="number" class="input" id="csvSearchCantidad" min="1" max="25" value="5">
+            <span style="font-size:11px;color:var(--gray-400)">Se aplica tu tope semanal/mensual como AE.</span>
+          </div>
+
+          <button class="gc-generate-btn" style="margin-top:16px" id="csvSearchBtn" onclick="csvRunLeadSearch()"><span>🔍</span> Buscar leads</button>
+          <div class="gc-loading" id="csvSearchLoading"><div class="gc-spinner"></div><span>Buscando...</span></div>
+        </div>
       </div>
       <div id="csvPreviewSection" style="display:none">
         <div class="card" style="padding:24px;margin-bottom:20px">
@@ -7696,7 +7826,83 @@ function renderCsvBuilder(){
         <div id="csvHistory"><div class="cdc-empty">Cargando...</div></div></div>
     </div>`;
   csvRows=[]; _csvFileAttachment=null; _csvSessionId=null; csvLoadHistory();
+  csvRenderEstadoChips();
+  csvSetInputMode(csvInputMode); // reconcilia toggle/fuente si el módulo se reabre ya en modo búsqueda
 }
+
+// Repuebla los checkboxes de Estado según el País elegido (país domina estado) — se llama al
+// entrar al módulo y cada vez que cambia el país. Conserva los estados marcados que sigan
+// existiendo en la nueva lista (no debería haber ninguno, pero por si acaso).
+window.csvRenderEstadoChips=function(){
+  const box=document.getElementById('csvSearchEstadosBox'); if(!box) return;
+  const paisId=document.getElementById('csvSearchPais')?.value||'MX';
+  const prevChecked=new Set([...box.querySelectorAll('.csv-estado-check:checked')].map(c=>c.value));
+  const states=LEAD_SEARCH_STATES[paisId]||[];
+  box.innerHTML=states.map(s=>`
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
+      <input type="checkbox" class="csv-estado-check" value="${s}" ${prevChecked.has(s)?'checked':''}> ${s}
+    </label>`).join('');
+};
+
+window.csvSetInputMode=function(mode){
+  csvInputMode=mode;
+  document.querySelectorAll('.csv-mode-btn').forEach(b=>{
+    const active=b.dataset.mode===mode;
+    b.classList.toggle('active',active);
+    b.style.borderColor=active?'var(--purple)':'var(--gray-200)';
+    b.style.background=active?'var(--purple-light)':'white';
+    b.style.color=active?'var(--purple)':'var(--gray-700)';
+  });
+  const paste=document.getElementById('csvPasteModeBox'), search=document.getElementById('csvSearchModeBox');
+  if(paste) paste.style.display=mode==='paste'?'block':'none';
+  if(search) search.style.display=mode==='search'?'block':'none';
+  // En modo búsqueda la fuente siempre es "App Odoo" — se bloquea para que no se pueda pisar por error.
+  const fuenteInput=document.getElementById('csvFuente');
+  if(fuenteInput){
+    if(mode==='search'){ fuenteInput.value='App Odoo'; fuenteInput.readOnly=true; fuenteInput.style.background='var(--gray-50)'; }
+    else if(fuenteInput.readOnly){ fuenteInput.value=''; fuenteInput.readOnly=false; fuenteInput.style.background=''; }
+  }
+};
+// Buscador de leads (Lusha/Apollo) — backend en Railway, ver LEAD_SEARCH_API_URL.
+const LEAD_SEARCH_API_URL='https://thorough-curiosity-production-098d.up.railway.app/searchLeads';
+window.csvRunLeadSearch=async function(){
+  const paisId=document.getElementById('csvSearchPais')?.value||'MX';
+  const estados=[...document.querySelectorAll('.csv-estado-check:checked')].map(c=>c.value);
+  const sizeIds=[...document.querySelectorAll('.csv-empsize-check:checked')].map(c=>c.value);
+  const giro=document.getElementById('csvSearchGiro')?.value||'';
+  const roles=[...document.querySelectorAll('.csv-seniority-check:checked')].map(c=>c.value);
+  const cantidad=document.getElementById('csvSearchCantidad')?.value||5;
+  if(!estados.length&&!giro){ showNotif('Define al menos un estado o giro para buscar','error'); return; }
+  if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
+  const btn=document.getElementById('csvSearchBtn'); btn.disabled=true; gcShowLoading('csvSearchLoading',true);
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(LEAD_SEARCH_API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
+      body:JSON.stringify({paisId, estados, sizeIds, roles, cantidad:Number(cantidad)||5}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    if(!data.leads?.length){ showNotif('No se encontraron leads nuevos con esos filtros','info'); return; }
+    const fuente=document.getElementById('csvFuente')?.value.trim()||'App Odoo';
+    const tags=document.getElementById('csvTags')?.value.trim();
+    const tagsStr='Outbound-MX'+(tags?','+tags.replace(/\s*,\s*/g,','):'');
+    const ae=document.getElementById('csvAE')?.value.trim()||'';
+    csvRows=data.leads.map(row=>({
+      name:`${fuente} - ${row.partner_name||''} - ${row.contact_name||''}`,
+      contact_name:row.contact_name||'', function:row.function||'',
+      partner_name:row.partner_name||'', Website:row.Website||'',
+      Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
+      state_id:row.state_id||'', country_id:row.country_id||'', notes:row.notes||'',
+    }));
+    csvRenderTable();
+    document.getElementById('csvPreviewSection').style.display='block';
+    document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
+    showNotif(`${data.entregados} de ${data.solicitados} leads encontrados ✓`,'success');
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+  finally{ btn.disabled=false; gcShowLoading('csvSearchLoading',false); }
+};
 
 window.csvProcess=async function(){
   const fuente=document.getElementById('csvFuente')?.value.trim();
