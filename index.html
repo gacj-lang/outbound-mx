@@ -7541,13 +7541,6 @@ const LEAD_SEARCH_STATES={
   CO: ['Amazonas','Antioquia','Arauca','Atlántico','Bolívar','Boyacá','Caldas','Caquetá','Casanare','Cauca','Cesar','Chocó','Córdoba','Cundinamarca','Bogotá D.C.','Guainía','Guaviare','Huila','La Guajira','Magdalena','Meta','Nariño','Norte de Santander','Putumayo','Quindío','Risaralda','San Andrés y Providencia','Santander','Sucre','Tolima','Valle del Cauca','Vaupés','Vichada'],
   EC: ['Azuay','Bolívar','Cañar','Carchi','Chimborazo','Cotopaxi','El Oro','Esmeraldas','Galápagos','Guayas','Imbabura','Loja','Los Ríos','Manabí','Morona Santiago','Napo','Orellana','Pastaza','Pichincha','Santa Elena','Santo Domingo de los Tsáchilas','Sucumbíos','Tungurahua','Zamora Chinchipe'],
 };
-// Buckets de tamaño de empresa — EXACTOS a los que acepta Lusha (rangos personalizados no están
-// soportados por su API; Apollo reusa los mismos cortes para tener un solo filtro fusionado).
-const LEAD_SEARCH_SIZE_BUCKETS=[
-  {id:'1-10', label:'1-10'}, {id:'11-50', label:'11-50'}, {id:'51-200', label:'51-200'},
-  {id:'201-500', label:'201-500'}, {id:'501-1000', label:'501-1,000'}, {id:'1001-5000', label:'1,001-5,000'},
-  {id:'5001-10000', label:'5,001-10,000'}, {id:'10001+', label:'10,001+'},
-];
 
 // ── Parser de CSV estructurado LOCAL (sin IA) — para exports de Apollo/LinkedIn/genéricos ──
 // Reextraer un CSV ya estructurado con la IA satura los tokens y trunca la respuesta.
@@ -7766,14 +7759,18 @@ function renderCsvBuilder(){
             <div id="csvSearchEstadosBox" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;max-height:130px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
           </div>
 
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+            <div class="form-group" style="margin:0"><label>Empleados desde <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
+              <input type="number" class="input" id="csvSearchEmpMin" min="0" placeholder="Ej. 1"></div>
+            <div class="form-group" style="margin:0"><label>Empleados hasta <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
+              <input type="number" class="input" id="csvSearchEmpMax" min="0" placeholder="Ej. 150"></div>
+          </div>
+
           <div class="form-group" style="margin-bottom:16px">
-            <label>Tamaño de empresa (empleados) <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera)</span></label>
-            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
-              ${LEAD_SEARCH_SIZE_BUCKETS.map(b=>`
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:6px 12px;cursor:pointer">
-                  <input type="checkbox" class="csv-empsize-check" value="${b.id}"> ${b.label}
-                </label>`).join('')}
-            </div>
+            <label>Contexto adicional para la búsqueda <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
+            <textarea class="input" id="csvSearchContexto" style="min-height:48px;resize:vertical;font-size:13px"
+              placeholder="Ej. empresas que hayan crecido recientemente, distribuidoras de refacciones, negocios familiares..."></textarea>
+            <span style="font-size:11px;color:var(--gray-400)">Claude lo interpreta y lo suma como palabra clave de búsqueda, aunque no exista un filtro exacto para eso.</span>
           </div>
 
           <div class="form-group" style="margin-bottom:16px">
@@ -7783,6 +7780,16 @@ function renderCsvBuilder(){
                 <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:6px 12px;cursor:pointer">
                   <input type="checkbox" class="csv-seniority-check" value="${o.id}"> ${o.label}
                 </label>`).join('')}
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Buscar en</label>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:6px 12px;cursor:pointer">
+                <input type="checkbox" class="csv-fuente-check" value="lusha" checked> Lusha</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:6px 12px;cursor:pointer">
+                <input type="checkbox" class="csv-fuente-check" value="apollo" checked> Apollo</label>
             </div>
           </div>
 
@@ -7856,46 +7863,73 @@ window.csvSetInputMode=function(mode){
   const paste=document.getElementById('csvPasteModeBox'), search=document.getElementById('csvSearchModeBox');
   if(paste) paste.style.display=mode==='paste'?'block':'none';
   if(search) search.style.display=mode==='search'?'block':'none';
-  // En modo búsqueda la fuente siempre es "App Odoo" — se bloquea para que no se pueda pisar por error.
+  // En modo búsqueda la fuente siempre es "App Outbound" — se bloquea para que no se pueda pisar por error.
   const fuenteInput=document.getElementById('csvFuente');
   if(fuenteInput){
-    if(mode==='search'){ fuenteInput.value='App Odoo'; fuenteInput.readOnly=true; fuenteInput.style.background='var(--gray-50)'; }
+    if(mode==='search'){ fuenteInput.value='App Outbound'; fuenteInput.readOnly=true; fuenteInput.style.background='var(--gray-50)'; }
     else if(fuenteInput.readOnly){ fuenteInput.value=''; fuenteInput.readOnly=false; fuenteInput.style.background=''; }
   }
 };
 // Buscador de leads (Lusha/Apollo) — backend en Railway, ver LEAD_SEARCH_API_URL.
 const LEAD_SEARCH_API_URL='https://thorough-curiosity-production-098d.up.railway.app/searchLeads';
+// Usa Claude para traducir el texto libre de "Contexto adicional" en 2-6 palabras clave de
+// búsqueda (en inglés, que es lo que mejor matchea Apollo). Solo se llama si el AE escribió algo.
+async function csvExtractKeywordsFromContexto(contexto){
+  try{
+    const raw=await gcCallClaude(`Un vendedor B2B en México escribió este contexto de búsqueda de empresas: "${contexto}".
+Devuelve de 2 a 6 palabras clave en INGLÉS que mejor describan ese tipo de empresa para una búsqueda de prospección (ej. industria, tecnología, modelo de negocio, tamaño relativo).
+Responde EXCLUSIVAMENTE con un array JSON de strings: ["keyword1","keyword2",...]. Sin markdown, sin explicaciones.`,
+      null, {maxTokens:200, system:'Devuelves SIEMPRE y SOLO un array JSON de strings válido, sin texto adicional.'});
+    const arr=_parseJSONArray(raw);
+    return Array.isArray(arr)?arr.filter(k=>typeof k==='string'&&k.trim()).slice(0,6):[];
+  }catch(e){ console.warn('csvExtractKeywordsFromContexto:',e); return []; }
+}
 window.csvRunLeadSearch=async function(){
   const paisId=document.getElementById('csvSearchPais')?.value||'MX';
   const estados=[...document.querySelectorAll('.csv-estado-check:checked')].map(c=>c.value);
-  const sizeIds=[...document.querySelectorAll('.csv-empsize-check:checked')].map(c=>c.value);
+  const empMinRaw=document.getElementById('csvSearchEmpMin')?.value||'';
+  const empMaxRaw=document.getElementById('csvSearchEmpMax')?.value||'';
+  const contexto=document.getElementById('csvSearchContexto')?.value.trim()||'';
   const giro=document.getElementById('csvSearchGiro')?.value||'';
   const roles=[...document.querySelectorAll('.csv-seniority-check:checked')].map(c=>c.value);
+  const fuentes=[...document.querySelectorAll('.csv-fuente-check:checked')].map(c=>c.value);
   const cantidad=document.getElementById('csvSearchCantidad')?.value||5;
-  if(!estados.length&&!giro){ showNotif('Define al menos un estado o giro para buscar','error'); return; }
+  if(!estados.length&&!giro&&!contexto){ showNotif('Define al menos un estado, giro o contexto para buscar','error'); return; }
+  if(!fuentes.length){ showNotif('Elige al menos una fuente (Lusha o Apollo)','error'); return; }
   if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
   const btn=document.getElementById('csvSearchBtn'); btn.disabled=true; gcShowLoading('csvSearchLoading',true);
   try{
+    // Giro ya es una etiqueta conocida (keyword directa); el contexto libre necesita que Claude lo interprete.
+    let giroKeywords=giro?[IND_NAMES[giro]]:[];
+    if(contexto) giroKeywords=giroKeywords.concat(await csvExtractKeywordsFromContexto(contexto));
     const idToken=await currentUser.getIdToken();
     const res=await fetch(LEAD_SEARCH_API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
-      body:JSON.stringify({paisId, estados, sizeIds, roles, cantidad:Number(cantidad)||5}),
+      body:JSON.stringify({
+        paisId, estados, roles, fuentes, giroKeywords, cantidad:Number(cantidad)||5,
+        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null,
+      }),
     });
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
     if(!data.leads?.length){ showNotif('No se encontraron leads nuevos con esos filtros','info'); return; }
-    const fuente=document.getElementById('csvFuente')?.value.trim()||'App Odoo';
-    const tags=document.getElementById('csvTags')?.value.trim();
-    const tagsStr='Outbound-MX'+(tags?','+tags.replace(/\s*,\s*/g,','):'');
+    const tagsExtra=document.getElementById('csvTags')?.value.trim();
     const ae=document.getElementById('csvAE')?.value.trim()||'';
-    csvRows=data.leads.map(row=>({
-      name:`${fuente} - ${row.partner_name||''} - ${row.contact_name||''}`,
-      contact_name:row.contact_name||'', function:row.function||'',
-      partner_name:row.partner_name||'', Website:row.Website||'',
-      Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
-      state_id:row.state_id||'', country_id:row.country_id||'', notes:row.notes||'',
-    }));
+    csvRows=data.leads.map(row=>{
+      // Tags automáticos por fila: siempre AppOutbound + de qué proveedor(es) salió ESE lead en particular.
+      const tagsFila=['AppOutbound'];
+      if(row.fuentes?.includes('Lusha')) tagsFila.push('LushaMX');
+      if(row.fuentes?.includes('Apollo')) tagsFila.push('ApolloMX');
+      if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
+      return {
+        name:`App Outbound - ${row.partner_name||''} - ${row.contact_name||''}`,
+        contact_name:row.contact_name||'', function:row.function||'',
+        partner_name:row.partner_name||'', Website:row.Website||'',
+        Email:row.Email||'', phone:row.phone||'', Tags_id:tagsFila.join(','), user_id:ae,
+        state_id:row.state_id||'', country_id:row.country_id||'', notes:row.notes||'',
+      };
+    });
     csvRenderTable();
     document.getElementById('csvPreviewSection').style.display='block';
     document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
