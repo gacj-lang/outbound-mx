@@ -232,6 +232,7 @@ input,select,textarea{font-family:inherit;}
 .status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
 .dot-green{background:var(--success);}
 .dot-red{background:var(--danger);}
+.dot-yellow{background:var(--warning);}
 .key-saved{font-size:13px;color:var(--success);margin-left:12px;}
 .link{color:var(--purple);font-weight:500;}
 
@@ -1709,6 +1710,44 @@ window.saveEditUser=async function(uid){
     showNotif('Usuario actualizado ✓','success');
   } catch(e){ showNotif('Error: '+e.message,'error'); }
 };
+// Notificaciones nativas del navegador (Notification API) — solo funcionan mientras la pestaña
+// sigue abierta (aunque no esté enfocada/al frente); no es push real a celular ni con la
+// pestaña cerrada, eso requeriría Service Worker + Firebase Cloud Messaging, que no se pidió.
+function _cfgNotifDotClass(){
+  if(!('Notification' in window)) return 'dot-red';
+  return {granted:'dot-green',denied:'dot-red',default:'dot-yellow'}[Notification.permission]||'dot-red';
+}
+function _cfgNotifBodyHtml(){
+  if(!('Notification' in window)) return `<p style="font-size:13px;color:var(--gray-400)">Tu navegador no soporta notificaciones.</p>`;
+  const perm=Notification.permission;
+  if(perm==='granted') return `<span class="key-saved">✓ Activas</span>`;
+  if(perm==='denied') return `<p style="font-size:13px;color:var(--danger)">Bloqueadas — actívalas desde el candado 🔒 junto a la URL de tu navegador (Configuración del sitio → Notificaciones).</p>`;
+  return `<button class="btn btn-primary" onclick="cfgRequestNotifPermission()">Activar notificaciones</button>`;
+}
+// Se puede llamar desde Configuración (tarjeta) o desde el buscador de leads (banner) — actualiza
+// solo lo que esté visible en pantalla en vez de re-renderizar el módulo completo, porque no
+// sabemos desde cuál de los dos se invocó.
+window.cfgRequestNotifPermission=async function(){
+  if(!('Notification' in window)){ showNotif('Tu navegador no soporta notificaciones','error'); return; }
+  const perm=await Notification.requestPermission();
+  document.querySelectorAll('.cfg-notif-dot').forEach(el=>el.className=`status-dot cfg-notif-dot ${_cfgNotifDotClass()}`);
+  const body=document.getElementById('cfgNotifCardBody'); if(body) body.innerHTML=_cfgNotifBodyHtml();
+  const banner=document.getElementById('leadSearchNotifBanner'); if(banner) banner.remove();
+  if(perm==='granted') showNotif('Notificaciones activadas ✓','success');
+  else if(perm==='denied') showNotif('Notificaciones bloqueadas — puedes activarlas desde los ajustes del navegador','error');
+};
+// Muestra la notificación nativa cuando un job pasa a 'listo' — ver la lógica de detección de
+// transición (solo jobs NUEVOS, no los que ya estaban listos al cargar la página) en
+// csvSetupLeadJobsListener.
+function csvNotifyLeadJobReady(job){
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  const n=job.leads?.length||0;
+  const notif=new Notification('Tu búsqueda de leads está lista 🔔', {
+    body:`${n} de ${job.solicitados||'?'} leads listos en Apollo — email y teléfono ya disponibles.`,
+    tag:`leadSearchJob-${job.id}`,
+  });
+  notif.onclick=()=>{ window.focus(); notif.close(); csvOpenLeadJob(job.id); };
+}
 function renderSettings(){
   const saved=(() =>{ try{ const ls=JSON.parse(localStorage.getItem('outbound_firebase_cfg')||'{}'); return Object.keys(ls).length>0?ls:firebaseConfig; }catch(e){ return firebaseConfig; }})();
   const ck=localStorage.getItem('outbound_claude_key')||'';
@@ -1770,6 +1809,11 @@ function renderSettings(){
             <button class="btn btn-primary" onclick="saveClaudeKey()">Guardar</button>
             ${ck?'<span class="key-saved">✓ Activa</span>':'<span style="font-size:13px;color:var(--gray-400)">Sin configurar — los módulos de IA no funcionarán</span>'}
           </div>
+        </div>
+        <div class="card settings-card">
+          <div class="card-header"><h3>🔔 Notificaciones del navegador</h3><span class="status-dot cfg-notif-dot ${_cfgNotifDotClass()}"></span></div>
+          <p class="settings-desc">Te avisamos con una notificación del navegador — aunque no estés viendo esta pestaña — cuando una búsqueda de leads en Apollo termine de resolver el email y el teléfono.</p>
+          <div id="cfgNotifCardBody">${_cfgNotifBodyHtml()}</div>
         </div>
         <div class="card settings-card settings-about">
           <h3>ℹ️ Acerca de</h3>
@@ -7839,6 +7883,11 @@ function renderCsvBuilder(){
             <span style="font-size:11px;color:var(--gray-400)">Se aplica tu tope semanal/mensual como AE.</span>
           </div>
 
+          ${('Notification' in window && Notification.permission==='default')?`
+          <div id="leadSearchNotifBanner" style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;font-size:13px">
+            <span>🔔 Activa notificaciones del navegador para saber al instante cuando tu búsqueda esté lista.</span>
+            <button class="btn btn-ghost btn-sm" style="white-space:nowrap" onclick="cfgRequestNotifPermission()">Activar</button>
+          </div>`:''}
           <button class="gc-generate-btn" style="margin-top:16px" id="csvSearchBtn" onclick="csvRunLeadSearch()"><span>🔍</span> Buscar leads</button>
           <div class="gc-loading" id="csvSearchLoading"><div class="gc-spinner"></div><span>Buscando...</span></div>
         </div>
@@ -7937,12 +7986,22 @@ const MARK_JOB_READ_API_URL='https://thorough-curiosity-production-098d.up.railw
 let leadJobsUnsub=null;
 let _leadJobsCache=[];
 let _leadBellOpen=false;
+let _leadJobsKnownStatus=new Map(); // jobId → último status visto, para notificar SOLO transiciones nuevas a 'listo'
+let _leadJobsFirstSnapshot=true; // no notificar de golpe todo lo que ya estaba listo al cargar la página
 function csvSetupLeadJobsListener(){
   if(!db||!currentUserData?.uid) return;
   if(leadJobsUnsub) leadJobsUnsub();
+  _leadJobsKnownStatus=new Map(); _leadJobsFirstSnapshot=true;
   const q=query(collection(db,'leadSearchJobs'), where('aeUid','==',currentUserData.uid), orderBy('createdAt','desc'), limit(20));
   leadJobsUnsub=onSnapshot(q,(snap)=>{
     _leadJobsCache=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!_leadJobsFirstSnapshot){
+      for(const job of _leadJobsCache){
+        if(job.status==='listo' && !job.read && _leadJobsKnownStatus.get(job.id)!=='listo') csvNotifyLeadJobReady(job);
+      }
+    }
+    _leadJobsKnownStatus=new Map(_leadJobsCache.map(j=>[j.id,j.status]));
+    _leadJobsFirstSnapshot=false;
     renderLeadJobsBell();
   }, (err)=>console.error('leadSearchJobs listener error:',err));
 }
