@@ -8002,6 +8002,27 @@ function csvLoadJobIntoRows(job){
   document.getElementById('csvPreviewSection').style.display='block';
   document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
 }
+// Popup (no toast) al lanzar una búsqueda — el AE necesita quedar bien enterado de que el
+// teléfono tarda unos minutos y de que se le va a avisar por la campana, no un aviso que
+// desaparece solo a los 3.5s. Mismo overlay que showNavWarning (.disc-popup-overlay).
+window.csvShowSearchStartedPopup=function(){
+  const existing=document.getElementById('leadSearchStartedPopup'); if(existing) existing.remove();
+  const overlay=document.createElement('div');
+  overlay.className='disc-popup-overlay'; overlay.id='leadSearchStartedPopup';
+  overlay.innerHTML=`
+    <div style="background:white;border-radius:16px;width:100%;max-width:440px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+      <div style="font-size:40px;text-align:center;margin-bottom:12px">🔍</div>
+      <h3 style="font-size:17px;font-weight:700;text-align:center;margin-bottom:12px">Buscando tus leads en Apollo</h3>
+      <ul style="font-size:14px;color:var(--gray-600);margin:0 0 20px;padding-left:20px;display:flex;flex-direction:column;gap:8px">
+        <li><strong>Email:</strong> se revela casi de inmediato.</li>
+        <li><strong>Teléfono:</strong> Apollo lo entrega de forma asíncrona — normalmente 2 a 10 minutos.</li>
+        <li>Puedes seguir usando la app o cerrar esta ventana — te avisamos con la campana 🔔 en la esquina superior cuando la lista esté completa.</li>
+      </ul>
+      <button class="btn btn-primary btn-full" id="leadSearchStartedClose">Entendido</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('leadSearchStartedClose').onclick=()=>overlay.remove();
+};
 window.csvRunLeadSearch=async function(){
   const paisId=document.getElementById('csvSearchPais')?.value||'MX';
   const estados=[...document.querySelectorAll('.csv-estado-check:checked')].map(c=>c.value);
@@ -8030,7 +8051,7 @@ window.csvRunLeadSearch=async function(){
     });
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
-    showNotif('Buscando en Apollo — el email llega en segundos, el teléfono puede tardar unos minutos. Te avisamos con la campana 🔔 cuando esté listo.','info');
+    csvShowSearchStartedPopup();
   }catch(e){ showNotif('Error: '+e.message,'error'); }
   finally{ btn.disabled=false; gcShowLoading('csvSearchLoading',false); }
 };
