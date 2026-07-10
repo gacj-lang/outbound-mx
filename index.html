@@ -144,6 +144,14 @@ input,select,textarea{font-family:inherit;}
 .topbar{height:var(--topbar-h);background:white;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 28px;gap:16px;position:sticky;top:0;z-index:50;}
 .topbar-title{font-size:16px;font-weight:600;}
 .topbar-spacer{flex:1;}
+.lead-bell-btn{position:relative;background:none;border:none;font-size:19px;cursor:pointer;padding:6px;border-radius:99px;line-height:1;}
+.lead-bell-btn:hover{background:var(--gray-50);}
+.lead-bell-badge{position:absolute;top:0;right:0;background:var(--warning);color:white;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+.lead-bell-dropdown{position:absolute;top:calc(100% + 6px);right:0;width:320px;max-height:360px;overflow-y:auto;background:white;border:1px solid var(--gray-200);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:100;}
+.lead-bell-item{padding:12px 14px;border-bottom:1px solid var(--gray-100);cursor:pointer;font-size:13px;}
+.lead-bell-item:hover{background:var(--gray-50);}
+.lead-bell-item:last-child{border-bottom:none;}
+.lead-bell-empty{padding:18px 14px;font-size:13px;color:var(--gray-400);text-align:center;}
 .topbar-hidden .topbar{display:none;}
 #moduleContent{padding:28px;}
 
@@ -887,6 +895,7 @@ input,select,textarea{font-family:inherit;}
     <div class="topbar" id="appTopbar">
       <span class="topbar-title" id="topbarTitle">Inicio</span>
       <span class="topbar-spacer"></span>
+      <div id="leadJobsBellWrap" style="position:relative"></div>
     </div>
     <div id="moduleContent" style="padding:28px"></div>
   </main>
@@ -898,13 +907,13 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
   sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDoc,
-  collection, query, where, onSnapshot, orderBy, serverTimestamp, Timestamp }
+  collection, query, where, onSnapshot, orderBy, limit, serverTimestamp, Timestamp }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-04 15:10 CDMX';
+const APP_BUILD_STAMP='2026-07-10 buscador de leads 100% Apollo + campana de notificaciones';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -3267,6 +3276,7 @@ function renderAppHeader(){
   const rl={manager:'Manager',tl:'Team Leader',ae:'AE'};
   el.innerHTML=`<div class="user-avatar">${(currentUserData.name||'?')[0]}</div><div class="user-details"><span class="user-name">${currentUserData.name}</span><span class="user-role role-${currentUserData.role}">${rl[currentUserData.role]||currentUserData.role}</span></div>`;
   const mn=document.getElementById('nav-manager'); if(mn) mn.style.display=currentUserData.role==='manager'?'flex':'none';
+  csvSetupLeadJobsListener();
 }
 function setLoading(btnId,loading){
   const btn=document.getElementById(btnId); if(!btn) return;
@@ -4704,8 +4714,17 @@ Reglas:
 - Puedes incluir en post_text UN enlace oficial de la lista de RECURSOS si aporta valor (URL EXACTA, nunca inventes un enlace específico). No lo fuerces.
 - Habla solo de capacidades reales de Odoo.`,null,{tools:evento.tools,toolChoice:evento.toolChoice});
   let parsed;
-  try { parsed=JSON.parse(copy.replace(/```json?\n?/g,'').replace(/```/g,'').trim()); }
-  catch(e){ parsed={headline:msg.substring(0,40),highlight:'',subheadline:'Odoo lo hace posible.',puntos:[]}; }
+  try {
+    let raw=copy.replace(/```json?\n?/g,'').replace(/```/g,'').trim();
+    // Con "Vincular a evento" Claude usa web_fetch y a veces agrega texto/citas antes o
+    // después del JSON — nos quedamos solo con lo que hay entre la primera '{' y la última '}'.
+    const first=raw.indexOf('{'), last=raw.lastIndexOf('}');
+    if(first!==-1 && last>first) raw=raw.slice(first,last+1);
+    parsed=JSON.parse(raw);
+  } catch(e){
+    console.error('gcRunPubImageGen: respuesta de Claude no es JSON válido', e, copy);
+    throw new Error('Claude no devolvió un formato válido — intenta de nuevo');
+  }
   if(!Array.isArray(parsed.puntos)) parsed.puntos=[];
   if(!Array.isArray(parsed.apps)) parsed.apps=[];
   parsed._ind=ind;
@@ -7672,13 +7691,28 @@ function _csvMapStructured(text){
 
 let csvRows=[];
 let csvInputMode='paste';
-// Filtros para el futuro buscador de leads (Lusha/Apollo) — UI únicamente por ahora, sin backend conectado.
+// Filtros del buscador de leads (100% Apollo) — nivel/seniority del contacto.
 const CSV_SENIORITY_OPTS=[
+  {id:'owner',label:'Owner'},
   {id:'founder',label:'Founder'},
   {id:'c_suite',label:'C-Level'},
+  {id:'partner',label:'Partner'},
   {id:'vp',label:'VP'},
+  {id:'head',label:'Head'},
   {id:'director',label:'Director'},
   {id:'manager',label:'Manager'},
+];
+// Función/rol clave del contacto — se manda como person_titles a Apollo (ver ROLE_GROUP_TITLES
+// en el backend, providers/apollo.js).
+const CSV_ROLE_GROUP_OPTS=[
+  {id:'it',label:'IT / Tecnología'},
+  {id:'finanzas',label:'Finanzas'},
+  {id:'operaciones',label:'Operaciones'},
+  {id:'compras',label:'Compras / Procurement'},
+  {id:'marketing',label:'Marketing'},
+  {id:'ventas',label:'Ventas / Comercial'},
+  {id:'rh',label:'Recursos Humanos'},
+  {id:'direccion_general',label:'Dirección General'},
 ];
 function renderCsvBuilder(){
   const content=document.getElementById('moduleContent');
@@ -7716,7 +7750,7 @@ function renderCsvBuilder(){
           </button>
           <button class="csv-mode-btn ${csvInputMode==='search'?'active':''}" data-mode="search" onclick="csvSetInputMode('search')"
             style="flex:1;padding:12px;border:1.5px solid ${csvInputMode==='search'?'var(--purple)':'var(--gray-200)'};background:${csvInputMode==='search'?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;color:${csvInputMode==='search'?'var(--purple)':'var(--gray-700)'};transition:all .15s">
-            🔍 Buscar leads (Lusha/Apollo)
+            🔍 Buscar leads (Apollo)
           </button>
         </div>
 
@@ -7744,7 +7778,7 @@ function renderCsvBuilder(){
         </div>
 
         <div id="csvSearchModeBox" style="display:${csvInputMode==='search'?'block':'none'}">
-          <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Define los filtros para buscar leads nuevos en Lusha y Apollo.</p>
+          <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Define los filtros para buscar leads nuevos en Apollo. Email y teléfono se revelan con créditos de Apollo — el teléfono tarda unos minutos y te avisamos con la campana 🔔 cuando la lista esté lista.</p>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
             <div class="form-group" style="margin:0"><label>País</label>
@@ -7780,7 +7814,7 @@ function renderCsvBuilder(){
           </div>
 
           <div class="form-group" style="margin-bottom:16px">
-            <label>Rol / puesto del contacto</label>
+            <label>Nivel del contacto <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
             <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
               ${CSV_SENIORITY_OPTS.map(o=>`
                 <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:6px 12px;cursor:pointer">
@@ -7790,12 +7824,12 @@ function renderCsvBuilder(){
           </div>
 
           <div class="form-group" style="margin-bottom:16px">
-            <label>Buscar en</label>
+            <label>Función / rol clave del contacto <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
             <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
-              <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:6px 12px;cursor:pointer">
-                <input type="checkbox" class="csv-fuente-check" value="lusha" checked> Lusha</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:6px 12px;cursor:pointer">
-                <input type="checkbox" class="csv-fuente-check" value="apollo" checked> Apollo</label>
+              ${CSV_ROLE_GROUP_OPTS.map(o=>`
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:6px 12px;cursor:pointer">
+                  <input type="checkbox" class="csv-rolegroup-check" value="${o.id}"> ${o.label}
+                </label>`).join('')}
             </div>
           </div>
 
@@ -7876,7 +7910,10 @@ window.csvSetInputMode=function(mode){
     else if(fuenteInput.readOnly){ fuenteInput.value=''; fuenteInput.readOnly=false; fuenteInput.style.background=''; }
   }
 };
-// Buscador de leads (Lusha/Apollo) — backend en Railway, ver LEAD_SEARCH_API_URL.
+// Buscador de leads (100% Apollo, con créditos) — backend en Railway, ver LEAD_SEARCH_API_URL.
+// La búsqueda ya no es síncrona: el backend crea un job y avisa por la campana 🔔 (ver
+// csvSetupLeadJobsListener) cuando el email+teléfono están listos, porque el teléfono de Apollo
+// llega minutos después vía un proceso async del lado del backend.
 const LEAD_SEARCH_API_URL='https://thorough-curiosity-production-098d.up.railway.app/searchLeads';
 // Usa Claude para traducir el texto libre de "Contexto adicional" en 2-6 palabras clave de
 // búsqueda (en inglés, que es lo que mejor matchea Apollo). Solo se llama si el AE escribió algo.
@@ -7890,6 +7927,81 @@ Responde EXCLUSIVAMENTE con un array JSON de strings: ["keyword1","keyword2",...
     return Array.isArray(arr)?arr.filter(k=>typeof k==='string'&&k.trim()).slice(0,6):[];
   }catch(e){ console.warn('csvExtractKeywordsFromContexto:',e); return []; }
 }
+const MARK_JOB_READ_API_URL='https://thorough-curiosity-production-098d.up.railway.app/markLeadSearchJobRead';
+
+// ── Campana de notificaciones del buscador de leads ──
+// El teléfono de Apollo llega minutos después de la búsqueda (proceso async del backend), así
+// que csvRunLeadSearch ya no espera la respuesta — este listener en vivo (mismo patrón de
+// onSnapshot con teardown-antes-de-resuscribir que usa loadManagerPanel) es lo que avisa cuando
+// el job terminó, sin importar en qué pantalla esté el AE.
+let leadJobsUnsub=null;
+let _leadJobsCache=[];
+let _leadBellOpen=false;
+function csvSetupLeadJobsListener(){
+  if(!db||!currentUserData?.uid) return;
+  if(leadJobsUnsub) leadJobsUnsub();
+  const q=query(collection(db,'leadSearchJobs'), where('aeUid','==',currentUserData.uid), orderBy('createdAt','desc'), limit(20));
+  leadJobsUnsub=onSnapshot(q,(snap)=>{
+    _leadJobsCache=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderLeadJobsBell();
+  }, (err)=>console.error('leadSearchJobs listener error:',err));
+}
+function renderLeadJobsBell(){
+  const wrap=document.getElementById('leadJobsBellWrap'); if(!wrap) return;
+  const unread=_leadJobsCache.filter(j=>j.status==='listo'&&!j.read).length;
+  const statusLabel={buscando:'⏳ Buscando…',esperando_telefonos:'📞 Resolviendo teléfonos…',listo:'✅ Lista',error:'⚠️ Error en la búsqueda'};
+  const dropdown=_leadBellOpen?`<div class="lead-bell-dropdown">${
+    _leadJobsCache.length?_leadJobsCache.map(j=>{
+      const n=j.leads?.length||0;
+      return `<div class="lead-bell-item" onclick="csvOpenLeadJob('${j.id}')">
+        <div style="font-weight:600">${statusLabel[j.status]||j.status}${j.status==='listo'?` — ${n} lead${n!==1?'s':''}`:''}</div>
+        <div style="color:var(--gray-400);font-size:11px;margin-top:2px">${j.solicitados||''} solicitados${!j.read&&j.status==='listo'?' · nuevo':''}</div>
+      </div>`;
+    }).join(''):'<div class="lead-bell-empty">Sin búsquedas recientes</div>'
+  }</div>`:'';
+  wrap.innerHTML=`<button class="lead-bell-btn" onclick="csvToggleLeadBell()">🔔${unread>0?`<span class="lead-bell-badge">${unread}</span>`:''}</button>${dropdown}`;
+}
+window.csvToggleLeadBell=function(){ _leadBellOpen=!_leadBellOpen; renderLeadJobsBell(); };
+window.csvOpenLeadJob=async function(jobId){
+  const job=_leadJobsCache.find(j=>j.id===jobId); if(!job) return;
+  if(job.status!=='listo'){ showNotif(job.status==='error'?'Esta búsqueda falló — intenta de nuevo':'Esta búsqueda todavía no está lista','info'); return; }
+  _leadBellOpen=false; renderLeadJobsBell();
+  if(!job.read&&currentUser){
+    try{
+      const idToken=await currentUser.getIdToken();
+      await fetch(MARK_JOB_READ_API_URL,{
+        method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
+        body:JSON.stringify({jobId}),
+      });
+    }catch(e){ console.warn('markLeadSearchJobRead:',e); }
+  }
+  showModule('csv');
+  csvSetInputMode('search');
+  if(!job.leads?.length){ showNotif('No se encontraron leads nuevos con esos filtros','info'); return; }
+  csvLoadJobIntoRows(job);
+  showNotif(`${job.leads.length} de ${job.solicitados} leads listos ✓`,'success');
+};
+
+// Convierte los leads de un job (ya con email+teléfono resueltos) al shape de csvRows — misma
+// transformación que antes hacía csvRunLeadSearch al recibir la respuesta directa.
+function csvLoadJobIntoRows(job){
+  const tagsExtra=document.getElementById('csvTags')?.value.trim();
+  const ae=document.getElementById('csvAE')?.value.trim()||'';
+  csvRows=(job.leads||[]).map(row=>{
+    const tagsFila=['AppOutbound','ApolloMX'];
+    if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
+    return {
+      name:`App Outbound - ${row.partner_name||''} - ${row.contact_name||''}`,
+      contact_name:row.contact_name||'', function:row.function||'',
+      partner_name:row.partner_name||'', Website:row.Website||'',
+      Email:row.Email||'', phone:row.phone||'', Tags_id:tagsFila.join(','), user_id:ae,
+      state_id:row.state_id||'', country_id:row.country_id||'', notes:row.notes||'',
+    };
+  });
+  csvRenderTable();
+  document.getElementById('csvPreviewSection').style.display='block';
+  document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
+}
 window.csvRunLeadSearch=async function(){
   const paisId=document.getElementById('csvSearchPais')?.value||'MX';
   const estados=[...document.querySelectorAll('.csv-estado-check:checked')].map(c=>c.value);
@@ -7897,11 +8009,10 @@ window.csvRunLeadSearch=async function(){
   const empMaxRaw=document.getElementById('csvSearchEmpMax')?.value||'';
   const contexto=document.getElementById('csvSearchContexto')?.value.trim()||'';
   const giro=document.getElementById('csvSearchGiro')?.value||'';
-  const roles=[...document.querySelectorAll('.csv-seniority-check:checked')].map(c=>c.value);
-  const fuentes=[...document.querySelectorAll('.csv-fuente-check:checked')].map(c=>c.value);
+  const seniorities=[...document.querySelectorAll('.csv-seniority-check:checked')].map(c=>c.value);
+  const roleGroups=[...document.querySelectorAll('.csv-rolegroup-check:checked')].map(c=>c.value);
   const cantidad=document.getElementById('csvSearchCantidad')?.value||5;
   if(!estados.length&&!giro&&!contexto){ showNotif('Define al menos un estado, giro o contexto para buscar','error'); return; }
-  if(!fuentes.length){ showNotif('Elige al menos una fuente (Lusha o Apollo)','error'); return; }
   if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
   const btn=document.getElementById('csvSearchBtn'); btn.disabled=true; gcShowLoading('csvSearchLoading',true);
   try{
@@ -7913,33 +8024,13 @@ window.csvRunLeadSearch=async function(){
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
       body:JSON.stringify({
-        paisId, estados, roles, fuentes, giroKeywords, cantidad:Number(cantidad)||5,
+        paisId, estados, seniorities, roleGroups, giroKeywords, cantidad:Number(cantidad)||5,
         empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null,
       }),
     });
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
-    if(!data.leads?.length){ showNotif('No se encontraron leads nuevos con esos filtros','info'); return; }
-    const tagsExtra=document.getElementById('csvTags')?.value.trim();
-    const ae=document.getElementById('csvAE')?.value.trim()||'';
-    csvRows=data.leads.map(row=>{
-      // Tags automáticos por fila: siempre AppOutbound + de qué proveedor(es) salió ESE lead en particular.
-      const tagsFila=['AppOutbound'];
-      if(row.fuentes?.includes('Lusha')) tagsFila.push('LushaMX');
-      if(row.fuentes?.includes('Apollo')) tagsFila.push('ApolloMX');
-      if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
-      return {
-        name:`App Outbound - ${row.partner_name||''} - ${row.contact_name||''}`,
-        contact_name:row.contact_name||'', function:row.function||'',
-        partner_name:row.partner_name||'', Website:row.Website||'',
-        Email:row.Email||'', phone:row.phone||'', Tags_id:tagsFila.join(','), user_id:ae,
-        state_id:row.state_id||'', country_id:row.country_id||'', notes:row.notes||'',
-      };
-    });
-    csvRenderTable();
-    document.getElementById('csvPreviewSection').style.display='block';
-    document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
-    showNotif(`${data.entregados} de ${data.solicitados} leads encontrados ✓`,'success');
+    showNotif('Buscando en Apollo — el email llega en segundos, el teléfono puede tardar unos minutos. Te avisamos con la campana 🔔 cuando esté listo.','info');
   }catch(e){ showNotif('Error: '+e.message,'error'); }
   finally{ btn.disabled=false; gcShowLoading('csvSearchLoading',false); }
 };
@@ -8133,9 +8224,14 @@ window.csvHandleFile=async function(file){
     return;
   }
 
-  // Check size (Claude max ~5MB base64)
-  if(file.size>4.5*1024*1024){
-    csvSetFileStatus(`⚠️ El archivo es muy grande (${size}KB). Claude solo puede procesar imágenes/PDFs menores a 4.5MB.`,'warn');
+  // Límites por tipo: imágenes y PDFs van a Claude en base64 (10MB/32MB reales de la API,
+  // con margen por el overhead de base64); CSV/TXT se pega como texto plano en el prompt del
+  // fallback a IA, acotado por la ventana de contexto (200K tokens) de claude-sonnet-4-5.
+  const MAX_IMG=7*1024*1024, MAX_DOC=20*1024*1024, MAX_TEXT=2*1024*1024;
+  const max=SUPPORTED_IMG.includes(ext)?MAX_IMG:SUPPORTED_DOC.includes(ext)?MAX_DOC:MAX_TEXT;
+  if(file.size>max){
+    const maxMB=(max/(1024*1024)).toFixed(0);
+    csvSetFileStatus(`⚠️ El archivo es muy grande (${size}KB). El máximo para .${ext} es ${maxMB}MB.`,'warn');
     return;
   }
 
