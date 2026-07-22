@@ -359,6 +359,31 @@
     font-family:var(--mono); font-size:11px; color:var(--purple); line-height:1.6;
   }
 
+  /* ── TABLA INFORMATIVA DE LÍNEAS DE CÓDIGO (no suma al total) ── */
+  .loc-info-wrap {
+    background:var(--card); border:1.5px solid #fde68a; border-radius:16px;
+    padding:20px 22px; margin-bottom:24px;
+  }
+  .loc-info-title {
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    font-size:14px; font-weight:700; color:var(--ink); margin-bottom:14px;
+  }
+  .loc-info-tag {
+    font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
+    background:#fef9c3; color:#854d0e; padding:3px 10px; border-radius:99px;
+  }
+  .loc-info-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .loc-info-table thead tr { background:#fef3c7; }
+  .loc-info-table th {
+    padding:8px 12px; text-align:right; font-size:10.5px; font-weight:700; color:#92400e;
+    text-transform:uppercase; letter-spacing:.03em;
+  }
+  .loc-info-table th:first-child { text-align:left; }
+  .loc-info-table td { padding:9px 12px; text-align:right; border-bottom:1px solid var(--border); color:var(--ink); }
+  .loc-info-table td:first-child { text-align:left; color:var(--muted); font-style:italic; }
+  .loc-info-total-row td { font-weight:700; border-bottom:none; border-top:1.5px solid var(--ink); }
+  .loc-info-total-row td:first-child { font-style:normal; }
+  .loc-info-note { margin-top:12px; font-size:11px; color:var(--muted); line-height:1.5; }
 
   /* COMPARISON TABLE BELOW TABS */
   .comp-table-wrap { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:28px; margin-bottom:28px; box-shadow:0 2px 8px rgba(0,0,0,.05); overflow-x:auto; }
@@ -1268,12 +1293,40 @@
           <span class="inp-title">Líneas de código extra</span>
           <button class="inp-close" onclick="toggleLOCPopover()">✕</button>
         </div>
-        <div class="loc-desc">$120 MXN (México) o $6 USD (resto de LatAm) por mes, por cada 100 líneas extra (o fracción). Se cobra cada mes del plazo contratado — mensual: 1 mes, anual: ×12, 2 años: ×24, etc.</div>
+        <div class="loc-desc">$120 MXN (México) o $6 USD (resto de LatAm) por mes, por cada 100 líneas extra (o fracción). Referencia informativa — no se suma al total de esta cotización, se factura por separado hasta que el desarrollo esté terminado.</div>
         <input class="loc-input" type="number" id="loc-lines-input" min="0" step="1"
           placeholder="ej. 250" oninput="setCodeLines(this.value)" onchange="setCodeLines(this.value)">
         <div class="loc-preview" id="loc-preview" style="display:none"></div>
       </div>
     </div>
+  </div>
+
+  <!-- Tabla informativa de líneas de código — NO se suma al total del proyecto -->
+  <div class="loc-info-wrap" id="loc-info-wrap" style="display:none">
+    <div class="loc-info-title">
+      🧩 Mantenimiento de desarrollo
+      <span class="loc-info-tag">Informativo — no incluido en el total</span>
+    </div>
+    <table class="loc-info-table">
+      <thead>
+        <tr><th>Mantenimiento</th><th># líneas de código</th><th>Costo mensual unitario</th><th>Costo total anual</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Mantenimiento del desarrollo</td>
+          <td id="loc-info-lines">—</td>
+          <td id="loc-info-rate">—</td>
+          <td id="loc-info-annual">—</td>
+        </tr>
+        <tr class="loc-info-total-row">
+          <td>Total</td>
+          <td id="loc-info-lines-total">—</td>
+          <td></td>
+          <td id="loc-info-annual-total">—</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="loc-info-note">Este costo se factura por separado una vez concluido el desarrollo — no forma parte del total de licenciamiento e implementación de esta cotización.</div>
   </div>
 
   <!-- PASO 3: COMPARACIÓN DE INVERSIÓN -->
@@ -1325,7 +1378,6 @@
         <div class="total-row"><span class="lbl">Licenciamiento</span><span class="val" id="t-lic">—</span></div>
         <div class="total-disc" id="t-lic-disc" style="display:none"></div>
         <div class="total-row" id="t-sh-row" style="display:none"><span class="lbl">Recursos SH</span><span class="val" id="t-sh">—</span></div>
-        <div class="total-row" id="t-loc-row" style="display:none"><span class="lbl">Líneas de código</span><span class="val" id="t-loc">—</span></div>
         <div class="total-row"><span class="lbl">Implementación</span><span class="val" id="t-impl-val">—</span></div>
         <div class="total-disc" id="t-impl-disc" style="display:none"></div>
         <div class="total-row"><span class="lbl">Subtotal</span><span class="val" id="t-sub">—</span></div>
@@ -1479,21 +1531,19 @@
     return workerCost + stagingCost + gbCost;
   }
 
-  // Costo total de líneas de código extra para todo el plazo del plan (mensual ×1, anual ×12, etc.)
-  function getLOCCost(planIdx) {
-    if (codeLines <= 0) return 0;
-    const rate = LOC_PRICE_PER_100[currentCurrency.currency];
-    if (!rate) return 0; // sin tarifa definida para esta moneda
-    const units = Math.ceil(codeLines / 100);
-    const monthlyRate = units * rate;
-    return monthlyRate * planMonths[planIdx];
+  // Líneas de código extra — SOLO INFORMATIVO. No se suma a ningún total de esta cotización:
+  // se factura por separado, hasta que el desarrollo esté completamente terminado. Por eso el
+  // "costo total anual" es una referencia fija (×12), independiente del plazo del plan elegido.
+  function getLOCUnitRate() {
+    return LOC_PRICE_PER_100[currentCurrency.currency] || 0;
   }
-
-  function getLOCMonthlyRate() {
-    if (codeLines <= 0) return 0;
-    const rate = LOC_PRICE_PER_100[currentCurrency.currency];
-    if (!rate) return 0;
-    return Math.ceil(codeLines / 100) * rate;
+  function getLOCUnits() {
+    return codeLines > 0 ? Math.ceil(codeLines / 100) : 0;
+  }
+  function getLOCAnnualTotal() {
+    const rate = getLOCUnitRate();
+    if (codeLines <= 0 || !rate) return 0;
+    return getLOCUnits() * rate * 12;
   }
 
   // Visibilidad de filas de la tabla (true = visible)
@@ -1776,7 +1826,7 @@
     updateTotal(currentPlanIdx);
     renderCharts();
     updateSHTips();
-    syncLOCPreview();
+    updateLOCInfoTable();
   }
 
 
@@ -1845,8 +1895,8 @@
     const base   = (rateY1 * currentUsers * 12)
                  + (rateY2 * currentUsers * Math.max(0, months - 12));
 
-    // Licencias con descuento + costo SH fijo + líneas de código extra (ninguno lleva descuento)
-    const result = base * (1 - disc) + getSHCost(planIdx) + getLOCCost(planIdx);
+    // Licencias con descuento + costo SH fijo (sin descuento)
+    const result = base * (1 - disc) + getSHCost(planIdx);
     return Math.round(result * 100) / 100;
   }
 
@@ -1974,11 +2024,9 @@
           : `<div style="color:var(--muted);font-size:13px;">—</div>`;
 
       // Total cell
-      // Para mensual: costo mensual = tarifa × usuarios + SH mensual + líneas de código (+ impl si aplica)
+      // Para mensual: costo mensual = tarifa × usuarios + SH mensual (+ impl si aplica)
       const shMensual    = getSHCost(0);   // costo SH para plan mensual
-      const locMensual   = getLOCCost(0);  // costo líneas de código para plan mensual
-      const mensualTotal = tarifaBase * currentUsers + shMensual + locMensual + (hasImpl ? implAfter : 0);
-      const mensualExtrasLbl = [shMensual > 0 ? 'Odoo.SH' : null, locMensual > 0 ? 'código' : null].filter(Boolean).join(' + ');
+      const mensualTotal = tarifaBase * currentUsers + shMensual + (hasImpl ? implAfter : 0);
 
       const isMXLocal  = currentCurrency.currency === 'MXN';
       const sinIvaTag  = isMXLocal ? '<div class="ct-base">+ IVA</div>' : '<div class="ct-base">USD</div>';
@@ -2021,8 +2069,8 @@
         </td>
         <td class="td-disc-lic ${discLicUnlocked ? 'disc-cell-visible' : 'disc-cell-hidden'}">${licDiscCell}</td>
         <td>
-          <div class="ct-total teal">${i === 0 ? fmtMXN(tarifaBase * currentUsers + shMensual + locMensual) : (licTotal ? fmtMXN(licTotal) : '—')}</div>
-          ${i === 0 && mensualExtrasLbl ? `<div class="ct-base">lic. + ${mensualExtrasLbl}</div>` : ''}
+          <div class="ct-total teal">${i === 0 ? (shMensual > 0 ? fmtMXN(tarifaBase * currentUsers + shMensual) : fmtMXN(tarifaBase * currentUsers)) : (licTotal ? fmtMXN(licTotal) : '—')}</div>
+          ${i === 0 && shMensual > 0 ? `<div class="ct-base">lic. + Odoo.SH</div>` : ''}
           ${i !== 0 && activeLicDisc > 0 ? `<div class="ct-base" style="text-decoration:line-through;color:var(--muted)">${fmtMXN(getLicTotal(i, 0))}</div>` : ''}
           ${i !== 0 && savings > 0 && activeLicDisc === 0 ? `<div class="ct-base">Ahorro: ${fmtMXN(savings)}</div>` : ''}
         </td>
@@ -2040,7 +2088,6 @@
   function updateTotal(i) {
     const isSH      = currentEdition === 2;
     const shCost    = getSHCost(i);
-    const locCost   = getLOCCost(i);
 
     // Licenciamiento puro (sin SH) para mostrar en fila dedicada
     const licOnly   = (() => {
@@ -2059,7 +2106,7 @@
 
     const discImpl  = discImplUnlocked ? implDiscByPlan[i] : 0;
     const implAfter = currentImplPrice > 0 ? Math.round(currentImplPrice * (1 - discImpl / 100) * 100) / 100 : 0;
-    const sub       = Math.round((licOnly + shCost + locCost + implAfter) * 100) / 100;
+    const sub       = Math.round((licOnly + shCost + implAfter) * 100) / 100;
     const isMX      = currentCurrency.currency === 'MXN';
     const ivaRate   = isMX ? currentCurrency.iva : 0;
     const iva       = isMX && sub > 0 ? Math.round(sub * ivaRate * 100) / 100 : 0;
@@ -2085,12 +2132,6 @@
     if (shRow) shRow.style.display = isSH && shCost > 0 ? '' : 'none';
     const shEl  = document.getElementById('t-sh');
     if (shEl)   shEl.textContent = shCost > 0 ? fmtMXN(shCost) : '—';
-
-    // Fila líneas de código — solo visible si hay líneas contratadas
-    const locRow = document.getElementById('t-loc-row');
-    if (locRow) locRow.style.display = locCost > 0 ? '' : 'none';
-    const locEl  = document.getElementById('t-loc');
-    if (locEl)   locEl.textContent = locCost > 0 ? fmtMXN(locCost) : '—';
 
     document.getElementById('t-lic').textContent      = licOnly  > 0 ? fmtMXN(licOnly)  : '—';
     document.getElementById('t-impl-val').textContent = implAfter > 0 ? fmtMXN(implAfter) : '—';
@@ -2121,6 +2162,7 @@
     updateCtxMessage(i);
     updatePDFHeader();
     updateFXTable();
+    updateLOCInfoTable();
     if (pricingReady) scheduleAutosave();
   }
 
@@ -2268,7 +2310,6 @@
     // Returns total sin IVA in USD
     const i = currentPlanIdx;
     const shCost = getSHCost(i);
-    const locCost = getLOCCost(i);
     const ed = editionBaseRates[currentEdition];
     let licOnly = 0;
     if (i === 0) { licOnly = ed.rates[0] * currentUsers; }
@@ -2282,7 +2323,7 @@
     }
     const discImpl = discImplUnlocked ? implDiscByPlan[i] : 0;
     const implAfter = currentImplPrice > 0 ? Math.round(currentImplPrice * (1 - discImpl / 100) * 100) / 100 : 0;
-    const sub = Math.round((licOnly + shCost + locCost + implAfter) * 100) / 100;
+    const sub = Math.round((licOnly + shCost + implAfter) * 100) / 100;
     // If MXN, convert to USD
     if (currentCurrency.currency === 'MXN') {
       const mxnRate = fxRates['MXN'] || 17.5;
@@ -2432,29 +2473,49 @@
 
   function setCodeLines(val) {
     codeLines = Math.max(0, parseInt(val) || 0);
-    syncLOCPreview();
     renderTable();
-    updateTotal(currentPlanIdx);
+    updateTotal(currentPlanIdx);   // ya llama a updateLOCInfoTable()
     renderCharts();
   }
 
-  function syncLOCPreview() {
-    const badge  = document.getElementById('loc-btn-badge');
+  // Actualiza el badge del botón, el preview del popover y la tabla informativa de líneas
+  // de código. Ninguno de estos valores se suma al total del proyecto — son de referencia.
+  function updateLOCInfoTable() {
+    const badge   = document.getElementById('loc-btn-badge');
     const preview = document.getElementById('loc-preview');
-    const monthlyRate = getLOCMonthlyRate();
-    if (badge) badge.style.display = codeLines > 0 ? '' : 'none';
-    if (badge && codeLines > 0) badge.textContent = codeLines;
-    if (!preview) return;
-    if (codeLines <= 0) { preview.style.display = 'none'; return; }
-    const rate = LOC_PRICE_PER_100[currentCurrency.currency];
-    if (!rate) {
-      preview.style.display = 'block';
-      preview.textContent = 'Tarifa no definida para este país — no se cobrará.';
-      return;
+    const wrap    = document.getElementById('loc-info-wrap');
+    const hasLines = codeLines > 0;
+
+    if (badge) badge.style.display = hasLines ? '' : 'none';
+    if (badge && hasLines) badge.textContent = codeLines;
+
+    const rate   = getLOCUnitRate();
+    const units  = getLOCUnits();
+    const annual = getLOCAnnualTotal();
+
+    if (preview) {
+      if (!hasLines) {
+        preview.style.display = 'none';
+      } else if (!rate) {
+        preview.style.display = 'block';
+        preview.textContent = 'Tarifa no definida para este país — no se factura.';
+      } else {
+        preview.style.display = 'block';
+        preview.textContent = `${units} unidad${units > 1 ? 'es' : ''} × ${fmtMXN(rate)}/mes → ${fmtMXN(annual)}/año (informativo)`;
+      }
     }
-    const units = Math.ceil(codeLines / 100);
-    preview.style.display = 'block';
-    preview.textContent = `${units} unidad${units > 1 ? 'es' : ''} × ${fmtMXN(rate)} = ${fmtMXN(monthlyRate)}/mes`;
+
+    if (wrap) {
+      wrap.style.display = hasLines ? 'block' : 'none';
+      if (hasLines) {
+        const linesFmt = Number(codeLines).toLocaleString(currentCurrency.locale, { minimumFractionDigits:2, maximumFractionDigits:2 });
+        document.getElementById('loc-info-lines').textContent = linesFmt;
+        document.getElementById('loc-info-lines-total').textContent = linesFmt;
+        document.getElementById('loc-info-rate').textContent = rate ? fmtMXN(rate) : '—';
+        document.getElementById('loc-info-annual').textContent = rate ? fmtMXN(annual) : '—';
+        document.getElementById('loc-info-annual-total').textContent = rate ? fmtMXN(annual) : '—';
+      }
+    }
   }
 
   // Cerrar popover al hacer click fuera
@@ -3062,7 +3123,6 @@
   function getCurrentTotalRaw() {
     const i      = currentPlanIdx;
     const shCost = getSHCost(i);
-    const locCost = getLOCCost(i);
     const ed     = editionBaseRates[currentEdition];
     let licOnly  = 0;
     if (i === 0) {
@@ -3077,7 +3137,7 @@
     }
     const discImpl  = discImplUnlocked ? implDiscByPlan[i] : 0;
     const implAfter = currentImplPrice > 0 ? Math.round(currentImplPrice * (1 - discImpl / 100) * 100) / 100 : 0;
-    const sub       = Math.round((licOnly + shCost + locCost + implAfter) * 100) / 100;
+    const sub       = Math.round((licOnly + shCost + implAfter) * 100) / 100;
     const isMX      = currentCurrency.currency === 'MXN';
     const ivaRate   = isMX ? currentCurrency.iva : 0;
     return Math.round(sub * (1 + ivaRate) * 100) / 100;
@@ -3447,7 +3507,8 @@
         if (typeof c.codeLines === 'number' && c.codeLines > 0) {
           codeLines = c.codeLines;
           const li = document.getElementById('loc-lines-input'); if (li) li.value = c.codeLines;
-          syncLOCPreview();
+          document.getElementById('loc-wrap')?.classList.add('visible');
+          updateLOCInfoTable();
         }
         // Descuentos (licencias e implementación)
         if (Array.isArray(c.licDiscByPlan)) {
@@ -3497,13 +3558,12 @@
       const activeLicDisc  = discLicUnlocked  ? (licDiscByPlan[i]  || 0) : 0;
       const activeImplDisc = discImplUnlocked ? (implDiscByPlan[i] || 0) : 0;
       const shCost         = getSHCost(i);
-      const locCost        = getLOCCost(i);
-      // Total licenciamiento (INCLUYE SH + líneas de código) — igual que la columna de la tabla interactiva
-      const licTotalList = isMonthly ? rateY1 * currentUsers + shCost + locCost : getLicTotal(i, 0);
-      const licTotal     = isMonthly ? licTotalList                            : getLicTotal(i, activeLicDisc);
-      // Licenciamiento sin SH/código (para desglose del resumen)
-      const licOnly      = Math.round((licTotal     - shCost - locCost) * 100) / 100;
-      const licOnlyList  = Math.round((licTotalList - shCost - locCost) * 100) / 100;
+      // Total licenciamiento (INCLUYE SH) — igual que la columna de la tabla interactiva
+      const licTotalList = isMonthly ? rateY1 * currentUsers + shCost : getLicTotal(i, 0);
+      const licTotal     = isMonthly ? licTotalList               : getLicTotal(i, activeLicDisc);
+      // Licenciamiento sin SH (para desglose del resumen)
+      const licOnly      = Math.round((licTotal     - shCost) * 100) / 100;
+      const licOnlyList  = Math.round((licTotalList - shCost) * 100) / 100;
       const implList     = hasImpl ? currentImplPrice : 0;
       const implNet      = hasImpl ? Math.round(currentImplPrice * (1 - activeImplDisc / 100) * 100) / 100 : 0;
       const total        = Math.round((licTotal     + implNet ) * 100) / 100;  // última columna
@@ -3515,7 +3575,7 @@
         isMonthly, isSelected: i === currentPlanIdx, visible: rowVisible[i] !== false,
         rateY1, rateY2, rateY2Net,
         licDiscPct: activeLicDisc, licDiscApplicable: i >= 2, implDiscPct: activeImplDisc,
-        shCost, locCost, licOnly, licOnlyList, licTotal, licTotalList,
+        shCost, licOnly, licOnlyList, licTotal, licTotalList,
         hasImpl, implList, implNet, total, totalList, savings,
       };
     });
@@ -3534,7 +3594,6 @@
     const shStaging = parseInt(document.getElementById('sh-staging')?.value || '0');
     const shStorage = parseInt(document.getElementById('sh-storage')?.value || '0');
     const shCost = isSH ? getSHCost(currentPlanIdx) : 0;
-    const locCost = getLOCCost(currentPlanIdx);
     const rateY1 = ed.rates[currentPlanIdx];
     const rateY2 = ed.ratesY2 ? ed.ratesY2[currentPlanIdx] : rateY1;
     const licDiscByPlanOut  = discLicUnlocked  ? licDiscByPlan.slice()  : licDiscByPlan.map(() => 0);
@@ -3547,7 +3606,7 @@
       mensualRef, clientName,
       implNotes, payTermIdx, payStartDate,
       isSH, shWorkers, shStaging, shStorage, shCost,
-      codeLines, locCost,
+      codeLines,
       rateY1, rateY2,
       licDiscByPlan: licDiscByPlanOut, implDiscByPlan: implDiscByPlanOut, implPriceList: currentImplPrice,
       compTable: buildCompTable(), rowVisible: rowVisible.slice(),
