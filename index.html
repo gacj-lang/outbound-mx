@@ -913,7 +913,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-22 Pricing y Propuesta Comercial unificados: registros visuales + generar/editar desde ahí';
+const APP_BUILD_STAMP='2026-07-22 Líneas de código extra en Pricing (botón más visible) + propuesta';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -3505,7 +3505,7 @@ const PRICING_DATA = {
   sh:{worker:{monthly:1440,annual:13824},staging:{monthly:360,annual:3456},gb:{monthly:5,annual:48}},
   iva:0.16,
 };
-const pricingState = {company:null,contact:null,edition:null,planIdx:1,users:5,implHrs:50,customImpl:null,shWorkers:1,shStaging:0,shStorage:0,result:null};
+const pricingState = {company:null,contact:null,edition:null,planIdx:1,users:5,implHrs:50,customImpl:null,shWorkers:1,shStaging:0,shStorage:0,codeLines:0,locCost:0,result:null};
 
 function calcPricing(){
   const ed=PRICING_DATA.editions.find(e=>e.id===pricingState.edition)||PRICING_DATA.editions[1];
@@ -6337,6 +6337,8 @@ function applyPricingMsg(d){
   pricingState.shStaging=d.shStaging||0;
   pricingState.shStorage=d.shStorage||0;
   pricingState.shCost=d.shCost||0;
+  pricingState.codeLines=d.codeLines||0;
+  pricingState.locCost=d.locCost||0;
   pricingState.rateY1=d.rateY1||0;
   pricingState.rateY2=d.rateY2||0;
   pricingState.licDiscByPlan=Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null;
@@ -6363,6 +6365,7 @@ async function pricingUpsertRecord(d,opts={}){
     mensualRef:d.mensualRef, implHrs:d.implHrs, implPrice:d.implPrice, total:d.total,
     licDiscByPlan:Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null, implDiscByPlan:Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null, implPriceList:d.implPriceList||d.implPrice||null,
     isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0, shCost:d.shCost||0,
+    codeLines:d.codeLines||0, locCost:d.locCost||0,
     payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', implNotes:d.implNotes||'', odooPropUrl:pricingState.odooPropUrl||'',
     rowVisible:Array.isArray(d.rowVisible)?d.rowVisible:null,
     updatedAt:serverTimestamp()
@@ -6535,16 +6538,17 @@ window.pricingGeneratePDF=function(){
   const comp=Array.isArray(ps.compTable)&&ps.compTable.length?ps.compTable:null;
   const selRow=comp?(comp.find(x=>x.isSelected)||comp[planIdx]||comp[0]):null;
 
-  let licDiscPct, implDiscPct, licTotal, licTotalList, implListN, implPriceN, shCostSel, subtotal;
+  let licDiscPct, implDiscPct, licTotal, licTotalList, implListN, implPriceN, shCostSel, locCostSel, subtotal;
   if(selRow){
     licDiscPct   = selRow.licDiscPct||0;
     implDiscPct  = selRow.implDiscPct||0;
-    licTotal     = selRow.licOnly;        // licencias netas (sin SH) — desglose del resumen
-    licTotalList = selRow.licOnlyList;    // licencias lista (sin SH)
+    licTotal     = selRow.licOnly;        // licencias netas (sin SH/código) — desglose del resumen
+    licTotalList = selRow.licOnlyList;    // licencias lista (sin SH/código)
     implListN    = selRow.implList;
     implPriceN   = selRow.implNet;
     shCostSel    = selRow.shCost||0;
-    subtotal     = selRow.total;          // licOnly + SH + impl = última columna de la tabla
+    locCostSel   = selRow.locCost||0;
+    subtotal     = selRow.total;          // licOnly + SH + código + impl = última columna de la tabla
   } else {
     // Fallback para registros antiguos sin compTable
     const licDiscArr=Array.isArray(ps.licDiscByPlan)?ps.licDiscByPlan:null;
@@ -6559,7 +6563,8 @@ window.pricingGeneratePDF=function(){
     implListN=ps.implPriceList||(typeof implPrice==='string'?parseFloat(implPrice.replace(/[^0-9.]/g,'')):implPrice);
     implPriceN=Math.round(implListN*(1-implDiscPct/100));
     shCostSel=ps.shCost||0;
-    subtotal=licTotal+shCostSel+implPriceN;
+    locCostSel=ps.locCost||0;
+    subtotal=licTotal+shCostSel+locCostSel+implPriceN;
   }
   const iva=round2(subtotal*0.16);
   const total=round2(subtotal+iva);
@@ -6591,7 +6596,7 @@ window.pricingGeneratePDF=function(){
     return {idx:i,label:pl,isMonthly:i===0,isSelected:i===planIdx,
       rateY1:r1,rateY2:r2,rateY2Net:ld>0?Math.round(r2*(1-ld/100)):null,
       licDiscPct:ld,licDiscApplicable:i>=2,implDiscPct:idsc,
-      shCost:0,licTotal:licNet,licTotalList:licList,
+      shCost:0,locCost:0,licTotal:licNet,licTotalList:licList,
       hasImpl:implList>0,implList,implNet,total:licNet+implNet,totalList:licList+implList,
       savings:i>0?Math.max(0,mEquiv-licNet):0};
   });
@@ -6603,8 +6608,9 @@ window.pricingGeneratePDF=function(){
       ? `<s style="color:#9ca3af;font-weight:400">${fmtN(row.rateY2)}</s><br>${fmtN(row.rateY2Net)}`
       : fmtN(row.rateY2));
     const dLicCell=row.isMonthly?'—':(!row.licDiscApplicable?'<span style="color:#c0c0c0">N/A</span>':(row.licDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.licDiscPct}%</span>`:'—'));
+    const mensualExtras=row.isMonthly?[row.shCost>0?'Odoo.SH':null,row.locCost>0?'código':null].filter(Boolean).join(' + '):'';
     const licCell=`${row.licDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.licTotalList)}</s><br>`:''}${fmtN(row.licTotal)}`
-      +`${row.isMonthly&&row.shCost>0?`<div style="font-size:8px;color:#c0c0c0">lic. + Odoo.SH</div>`:''}`
+      +`${mensualExtras?`<div style="font-size:8px;color:#c0c0c0">lic. + ${mensualExtras}</div>`:''}`
       +`${(!row.isMonthly&&row.licDiscPct===0&&row.savings>0)?`<div style="font-size:8px;color:#16a34a">Ahorro ${fmtN(row.savings)}</div>`:''}`;
     const implCell=!row.hasImpl?'—':(row.implDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.implList)}</s><br>${fmtN(row.implNet)}`:fmtN(row.implNet));
     const dImplCell=!row.hasImpl?'—':(row.implDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.implDiscPct}%</span>`:'—');
@@ -6861,6 +6867,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
     <div style="background:#eef6ff;color:#0369a1;border:1px solid #bae6fd;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">⚙️ ${ps.shWorkers||1} Worker${(ps.shWorkers||1)>1?'s':''}</div>
     <div style="background:#eef6ff;color:#0369a1;border:1px solid #bae6fd;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">🌿 ${ps.shStaging||0} Staging branch${(ps.shStaging||0)!==1?'es':''}</div>
     <div style="background:#eef6ff;color:#0369a1;border:1px solid #bae6fd;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">💾 ${ps.shStorage||0} GB</div>`:''}
+    ${ps.codeLines>0?`<div style="background:#f5f0fd;color:#714B67;border:1px solid #e9d5ff;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">🧩 ${ps.codeLines} líneas de código extra</div>`:''}
   </div>
 
   <!-- Comparativa de planes -->
@@ -6872,14 +6879,14 @@ tr.sel-row td{color:#015c61;font-weight:700;}
         <th>Tarifa base<br><span style="font-weight:400;text-transform:none;letter-spacing:0">/usr/mes</span></th>
         <th>Tarifa año 2+<br><span style="font-weight:400;text-transform:none;letter-spacing:0">/usr/mes</span></th>
         <th>% Desc.<br>lic.</th>
-        <th>Total licenciamiento<br><span style="font-weight:400;text-transform:none;letter-spacing:0">incl. Odoo.SH</span></th>
+        <th>Total licenciamiento<br><span style="font-weight:400;text-transform:none;letter-spacing:0">incl. Odoo.SH y código</span></th>
         <th>Implementación</th>
         <th>% Desc.<br>impl.</th>
         <th>Total lic.+impl.</th>
       </tr></thead>
       <tbody>${compRows}</tbody>
     </table>
-    <div style="font-size:8.5px;color:#d1d5db;margin-top:4px">Precios en MXN sin IVA. "Total licenciamiento" incluye los recursos de Odoo.SH. Ahorros vs. plan mensual equivalente. La fila marcada es la de esta propuesta.</div>
+    <div style="font-size:8.5px;color:#d1d5db;margin-top:4px">Precios en MXN sin IVA. "Total licenciamiento" incluye los recursos de Odoo.SH y las líneas de código extra. Ahorros vs. plan mensual equivalente. La fila marcada es la de esta propuesta.</div>
   </div>
 
   <!-- Investment summary — desglose que suma a la vista (deriva de la fila seleccionada) -->
@@ -6890,6 +6897,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
         ${[
           {lbl:'Licenciamiento', sub:`${planMonths} meses · ${planMonths>12?`año 1 ${fmtN(rateY1)} · año 2+ ${fmtN(rateY2)}/usr/mes`:`${fmtN(rateY1)}/usr/mes`}`, val:licTotal, list:licDiscPct>0?licTotalList:0, disc:licDiscPct},
           ...(ps.isSH?[{lbl:'Recursos Odoo.SH', sub:`${ps.shWorkers||1} worker${(ps.shWorkers||1)>1?'s':''} · ${ps.shStaging||0} staging · ${ps.shStorage||0} GB`, val:shCostSel, list:0, disc:0}]:[]),
+          ...(ps.codeLines>0?[{lbl:'Líneas de código', sub:`${ps.codeLines} líneas extra · $120/mes por c/100 · ${planMonths} meses`, val:locCostSel, list:0, disc:0}]:[]),
           {lbl:'Implementación', sub:`${r.implHrs||50} horas · Quickstart Odoo (única vez)`, val:implPriceN, list:implDiscPct>0?implListN:0, disc:implDiscPct},
         ].map((it,idx)=>`
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;${idx>0?'border-top:1px solid #f3f4f6':''}">
@@ -6908,7 +6916,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
       <div style="background:#714B67;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;justify-content:center;color:#fff">
         <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.55)">Total con IVA (16%)</div>
         <div style="font-size:27px;font-weight:800;font-family:'Inter',monospace;line-height:1.05;margin:4px 0">${fmtN(total)}</div>
-        <div style="font-size:9.5px;color:rgba(255,255,255,.5);line-height:1.5">${planLabel} · ${users} usuario${users>1?'s':''}${ps.isSH?' · Odoo.SH':''}<br>Subtotal ${fmtN(subtotal)} + IVA ${fmtN(iva)}</div>
+        <div style="font-size:9.5px;color:rgba(255,255,255,.5);line-height:1.5">${planLabel} · ${users} usuario${users>1?'s':''}${ps.isSH?' · Odoo.SH':''}${ps.codeLines>0?' · Código extra':''}<br>Subtotal ${fmtN(subtotal)} + IVA ${fmtN(iva)}</div>
         <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:6px;border-top:1px solid rgba(255,255,255,.15);padding-top:6px">= columna "Total lic.+impl." de la fila ${planLabel}.</div>
       </div>
     </div>
@@ -7205,6 +7213,7 @@ function propBuildPricingSummary(ps){
       {l:'Plan',v:(PRICING_DATA?.planLabels||[])[r.planIdx??ps.planIdx??1]||'—'},
       {l:'Mensual (ref.)',v:ps._mensualRef||fmt(r.mensualRef)||'—'},
       {l:'Implementación',v:ps._impl||fmt(r.implPrice)||'—'},
+      ...(ps.codeLines>0?[{l:'Líneas de código',v:`${ps.codeLines} (${fmt(ps.locCost)})`}]:[]),
       {l:'Total (sin IVA)',v:fmt(r.total)||'—'},
     ].map(i=>`<div style="background:var(--gray-50);border-radius:var(--radius-sm);padding:12px">
       <div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.05em">${i.l}</div>
@@ -7233,7 +7242,11 @@ window.propLoadLastPricing=async function(){
     pricingState.shStaging=last.shStaging||0;
     pricingState.shStorage=last.shStorage||0;
     pricingState.shCost=last.shCost||0;
+    pricingState.codeLines=last.codeLines||0;
+    pricingState.locCost=last.locCost||0;
     pricingState.company=co;
+    pricingState.recordId=last.id;
+    pricingState.odooPropUrl=last.odooPropUrl||'';
     // Load selected modules from company memory
     const memMods=co.memory?.pricing?.selectedApps||[];
     if(memMods.length) pricingState.selectedModules=memMods;
@@ -7584,6 +7597,7 @@ window.pricingOpenRecord=function(id){
     licDiscByPlan:Array.isArray(r.licDiscByPlan)?r.licDiscByPlan:[0,0,0,0,0,0],
     implDiscByPlan:Array.isArray(r.implDiscByPlan)?r.implDiscByPlan:[0,0,0,0,0,0],
     isSH:r.isSH||false, shWorkers:r.shWorkers||1, shStaging:r.shStaging||0, shStorage:r.shStorage||0,
+    codeLines:r.codeLines||0,
     payTermIdx:r.payTermIdx??-1, payStartDate:r.payStartDate||'', implNotes:r.implNotes||'',
     rowVisible:Array.isArray(r.rowVisible)?r.rowVisible:null,
     clientName:r.companyName||''
@@ -7610,6 +7624,7 @@ window.pricingGenerateProposalFromRecord=function(id){
   pricingState.users=r.users; pricingState.planIdx=r.planIdx;
   pricingState._mensualRef=fmt(r.mensualRef); pricingState._impl=fmt(r.implPrice);
   pricingState.isSH=r.isSH||false; pricingState.shWorkers=r.shWorkers||1; pricingState.shStaging=r.shStaging||0; pricingState.shStorage=r.shStorage||0; pricingState.shCost=r.shCost||0;
+  pricingState.codeLines=r.codeLines||0; pricingState.locCost=r.locCost||0;
   pricingState.implNotes=r.implNotes||'';
   const co=r.companyId?_allEmpresas?.find(e=>e.id===r.companyId):null;
   const memMods=co?.memory?.pricing?.selectedApps||[];

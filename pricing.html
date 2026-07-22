@@ -301,21 +301,28 @@
   .ivd-price { font-family:var(--mono); font-size:15px; font-weight:700; color:var(--ink); }
   .ivd-label { font-size:10px; color:var(--teal); letter-spacing:1.5px; text-transform:uppercase; font-weight:600; }
 
-  /* ── NOTAS DE IMPLEMENTACIÓN ─────────────────────────────────────────────── */
-  .impl-notes-wrap { position:relative; display:none; margin-left:4px; }
-  .impl-notes-wrap.visible { display:flex; align-items:center; }
+  /* ── NOTAS DE IMPLEMENTACIÓN + LÍNEAS DE CÓDIGO ──────────────────────────── */
+  .impl-notes-wrap, .loc-wrap { position:relative; display:none; margin-left:4px; }
+  .impl-notes-wrap.visible, .loc-wrap.visible { display:flex; align-items:center; }
 
-  .impl-notes-btn {
-    width:24px; height:24px; border-radius:50%;
-    border:1.5px solid var(--border);
-    background:var(--card); color:var(--muted);
-    cursor:pointer; display:flex; align-items:center; justify-content:center;
-    transition:all .2s; flex-shrink:0;
+  .impl-action-btn {
+    height:32px; padding:0 14px; border-radius:20px;
+    border:1.5px solid var(--purple);
+    background:var(--purple-light); color:var(--purple);
+    font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.3px;
+    cursor:pointer; display:flex; align-items:center; gap:6px;
+    transition:all .2s; flex-shrink:0; white-space:nowrap;
   }
-  .impl-notes-btn:hover { border-color:var(--purple); color:var(--purple); background:var(--purple-light); }
-  .impl-notes-btn.active { border-color:var(--purple); color:var(--purple); background:var(--purple-light); }
+  .impl-action-btn svg { flex-shrink:0; }
+  .impl-action-btn:hover { background:var(--purple); color:#fff; border-color:var(--purple); }
+  .impl-action-btn.active { background:var(--purple); color:#fff; border-color:var(--purple); }
+  .impl-action-btn .iab-badge {
+    background:var(--teal); color:#fff; font-size:9px; font-weight:700;
+    border-radius:99px; padding:1px 6px; line-height:1.4;
+  }
+  .impl-action-btn.active .iab-badge, .impl-action-btn:hover .iab-badge { background:rgba(255,255,255,.25); }
 
-  .impl-notes-popover {
+  .impl-notes-popover, .loc-popover {
     display:none;
     position:absolute; bottom:calc(100% + 10px); right:0;
     width:260px;
@@ -324,7 +331,7 @@
     padding:14px; z-index:200;
     animation:fadeSlide .18s ease;
   }
-  .impl-notes-popover.open { display:block; }
+  .impl-notes-popover.open, .loc-popover.open { display:block; }
 
   .inp-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .inp-title  { font-size:11px; font-weight:700; color:var(--ink); font-family:var(--mono); letter-spacing:.4px; text-transform:uppercase; }
@@ -339,6 +346,18 @@
     line-height:1.55; transition:border-color .2s;
   }
   .inp-textarea:focus { border-color:var(--purple); background:var(--card); }
+
+  .loc-desc { font-size:11px; color:var(--muted); line-height:1.5; margin-bottom:10px; }
+  .loc-input {
+    width:100%; box-sizing:border-box; padding:9px 12px; border:1.5px solid var(--border);
+    border-radius:10px; font-family:var(--numeric); font-size:15px; font-weight:700;
+    color:var(--ink); background:var(--card); outline:none; transition:border-color .2s;
+  }
+  .loc-input:focus { border-color:var(--purple); }
+  .loc-preview {
+    margin-top:10px; padding:9px 12px; border-radius:10px; background:var(--purple-light);
+    font-family:var(--mono); font-size:11px; color:var(--purple); line-height:1.6;
+  }
 
 
   /* COMPARISON TABLE BELOW TABS */
@@ -1216,11 +1235,12 @@
     </div>
     <!-- Botón de notas -->
     <div class="impl-notes-wrap" id="impl-notes-wrap">
-      <button class="impl-notes-btn" id="impl-notes-btn"
+      <button class="impl-action-btn" id="impl-notes-btn"
         onclick="toggleImplNotes()" title="Agregar nota">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M1 9.5V11h1.5l5.3-5.3-1.5-1.5L1 9.5zM10.7 3.1a.4.4 0 000-.56L9.46 1.3a.4.4 0 00-.56 0L7.9 2.3l1.5 1.5 1.3-1.3z" fill="currentColor"/>
         </svg>
+        <span>Notas</span>
       </button>
       <div class="impl-notes-popover" id="impl-notes-popover">
         <div class="inp-header">
@@ -1230,6 +1250,28 @@
         <textarea class="inp-textarea" id="impl-notes-text"
           placeholder="Ej. Incluir migración de datos, capacitación remota…"
           rows="4" oninput="syncImplNotesPrint()"></textarea>
+      </div>
+    </div>
+
+    <!-- Botón de líneas de código -->
+    <div class="loc-wrap" id="loc-wrap">
+      <button class="impl-action-btn" id="loc-btn"
+        onclick="toggleLOCPopover()" title="Líneas de código extra">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M4.2 2.3L1 6l3.2 3.7.9-.8L2.6 6l1.5-2.9-.9-.8zm3.6 0l-.9.8L8.4 6 6.9 8.9l.9.8L11 6 7.8 2.3z" fill="currentColor"/>
+        </svg>
+        <span>Líneas de código</span>
+        <span class="iab-badge" id="loc-btn-badge" style="display:none"></span>
+      </button>
+      <div class="loc-popover" id="loc-popover">
+        <div class="inp-header">
+          <span class="inp-title">Líneas de código extra</span>
+          <button class="inp-close" onclick="toggleLOCPopover()">✕</button>
+        </div>
+        <div class="loc-desc">$120 MXN/mes por cada 100 líneas extra (o fracción). Se cobra cada mes del plazo contratado — mensual: 1 mes, anual: ×12, 2 años: ×24, etc.</div>
+        <input class="loc-input" type="number" id="loc-lines-input" min="0" step="1"
+          placeholder="ej. 250" oninput="setCodeLines(this.value)" onchange="setCodeLines(this.value)">
+        <div class="loc-preview" id="loc-preview" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -1283,6 +1325,7 @@
         <div class="total-row"><span class="lbl">Licenciamiento</span><span class="val" id="t-lic">—</span></div>
         <div class="total-disc" id="t-lic-disc" style="display:none"></div>
         <div class="total-row" id="t-sh-row" style="display:none"><span class="lbl">Recursos SH</span><span class="val" id="t-sh">—</span></div>
+        <div class="total-row" id="t-loc-row" style="display:none"><span class="lbl">Líneas de código</span><span class="val" id="t-loc">—</span></div>
         <div class="total-row"><span class="lbl">Implementación</span><span class="val" id="t-impl-val">—</span></div>
         <div class="total-disc" id="t-impl-disc" style="display:none"></div>
         <div class="total-row"><span class="lbl">Subtotal</span><span class="val" id="t-sub">—</span></div>
@@ -1396,6 +1439,10 @@
   let shStaging = 0;
   let shStorage = 0;
 
+  // Líneas de código extra (Studio/personalizaciones) — cargo recurrente adicional
+  let codeLines = 0;
+  const LOC_PRICE_PER_100 = 120; // MXN/mes por cada 100 líneas extra (o fracción) — solo tarifa MXN definida
+
   // Precios Odoo SH — por moneda
   const SH_PRICES = {
     MXN: {
@@ -1430,6 +1477,20 @@
       : p.gb.annual       * shStorage  * Math.max(1, years);
 
     return workerCost + stagingCost + gbCost;
+  }
+
+  // Costo total de líneas de código extra para todo el plazo del plan (mensual ×1, anual ×12, etc.)
+  function getLOCCost(planIdx) {
+    if (codeLines <= 0) return 0;
+    if (currentCurrency.currency !== 'MXN') return 0; // sin tarifa definida fuera de MX
+    const units = Math.ceil(codeLines / 100);
+    const monthlyRate = units * LOC_PRICE_PER_100;
+    return monthlyRate * planMonths[planIdx];
+  }
+
+  function getLOCMonthlyRate() {
+    if (codeLines <= 0 || currentCurrency.currency !== 'MXN') return 0;
+    return Math.ceil(codeLines / 100) * LOC_PRICE_PER_100;
   }
 
   // Visibilidad de filas de la tabla (true = visible)
@@ -1779,8 +1840,8 @@
     const base   = (rateY1 * currentUsers * 12)
                  + (rateY2 * currentUsers * Math.max(0, months - 12));
 
-    // Licencias con descuento + costo SH fijo (sin descuento)
-    const result = base * (1 - disc) + getSHCost(planIdx);
+    // Licencias con descuento + costo SH fijo + líneas de código extra (ninguno lleva descuento)
+    const result = base * (1 - disc) + getSHCost(planIdx) + getLOCCost(planIdx);
     return Math.round(result * 100) / 100;
   }
 
@@ -1908,15 +1969,11 @@
           : `<div style="color:var(--muted);font-size:13px;">—</div>`;
 
       // Total cell
-      // Para mensual: costo mensual = tarifa × usuarios + SH mensual (+ impl si aplica)
+      // Para mensual: costo mensual = tarifa × usuarios + SH mensual + líneas de código (+ impl si aplica)
       const shMensual    = getSHCost(0);   // costo SH para plan mensual
-      const mensualTotal = tarifaBase * currentUsers + shMensual + (hasImpl ? implAfter : 0);
-
-      // Celda licenciamiento mensual: licencias + SH
-      const licMensualDisplay = shMensual > 0
-        ? `<div class="ct-total teal">${fmtMXN(tarifaBase * currentUsers + shMensual)}</div>
-           <div class="ct-base">lic. + Odoo.SH</div>`
-        : `<div class="ct-total teal">${fmtMXN(tarifaBase * currentUsers)}</div>`;
+      const locMensual   = getLOCCost(0);  // costo líneas de código para plan mensual
+      const mensualTotal = tarifaBase * currentUsers + shMensual + locMensual + (hasImpl ? implAfter : 0);
+      const mensualExtrasLbl = [shMensual > 0 ? 'Odoo.SH' : null, locMensual > 0 ? 'código' : null].filter(Boolean).join(' + ');
 
       const isMXLocal  = currentCurrency.currency === 'MXN';
       const sinIvaTag  = isMXLocal ? '<div class="ct-base">+ IVA</div>' : '<div class="ct-base">USD</div>';
@@ -1959,8 +2016,8 @@
         </td>
         <td class="td-disc-lic ${discLicUnlocked ? 'disc-cell-visible' : 'disc-cell-hidden'}">${licDiscCell}</td>
         <td>
-          <div class="ct-total teal">${i === 0 ? (shMensual > 0 ? fmtMXN(tarifaBase * currentUsers + shMensual) : fmtMXN(tarifaBase * currentUsers)) : (licTotal ? fmtMXN(licTotal) : '—')}</div>
-          ${i === 0 && shMensual > 0 ? `<div class="ct-base">lic. + Odoo.SH</div>` : ''}
+          <div class="ct-total teal">${i === 0 ? fmtMXN(tarifaBase * currentUsers + shMensual + locMensual) : (licTotal ? fmtMXN(licTotal) : '—')}</div>
+          ${i === 0 && mensualExtrasLbl ? `<div class="ct-base">lic. + ${mensualExtrasLbl}</div>` : ''}
           ${i !== 0 && activeLicDisc > 0 ? `<div class="ct-base" style="text-decoration:line-through;color:var(--muted)">${fmtMXN(getLicTotal(i, 0))}</div>` : ''}
           ${i !== 0 && savings > 0 && activeLicDisc === 0 ? `<div class="ct-base">Ahorro: ${fmtMXN(savings)}</div>` : ''}
         </td>
@@ -1978,6 +2035,7 @@
   function updateTotal(i) {
     const isSH      = currentEdition === 2;
     const shCost    = getSHCost(i);
+    const locCost   = getLOCCost(i);
 
     // Licenciamiento puro (sin SH) para mostrar en fila dedicada
     const licOnly   = (() => {
@@ -1996,7 +2054,7 @@
 
     const discImpl  = discImplUnlocked ? implDiscByPlan[i] : 0;
     const implAfter = currentImplPrice > 0 ? Math.round(currentImplPrice * (1 - discImpl / 100) * 100) / 100 : 0;
-    const sub       = Math.round((licOnly + shCost + implAfter) * 100) / 100;
+    const sub       = Math.round((licOnly + shCost + locCost + implAfter) * 100) / 100;
     const isMX      = currentCurrency.currency === 'MXN';
     const ivaRate   = isMX ? currentCurrency.iva : 0;
     const iva       = isMX && sub > 0 ? Math.round(sub * ivaRate * 100) / 100 : 0;
@@ -2022,6 +2080,12 @@
     if (shRow) shRow.style.display = isSH && shCost > 0 ? '' : 'none';
     const shEl  = document.getElementById('t-sh');
     if (shEl)   shEl.textContent = shCost > 0 ? fmtMXN(shCost) : '—';
+
+    // Fila líneas de código — solo visible si hay líneas contratadas
+    const locRow = document.getElementById('t-loc-row');
+    if (locRow) locRow.style.display = locCost > 0 ? '' : 'none';
+    const locEl  = document.getElementById('t-loc');
+    if (locEl)   locEl.textContent = locCost > 0 ? fmtMXN(locCost) : '—';
 
     document.getElementById('t-lic').textContent      = licOnly  > 0 ? fmtMXN(licOnly)  : '—';
     document.getElementById('t-impl-val').textContent = implAfter > 0 ? fmtMXN(implAfter) : '—';
@@ -2059,6 +2123,7 @@
     const display    = document.getElementById('impl-value-display');
     const notesWrap  = document.getElementById('impl-notes-wrap');
     const customWrap = document.getElementById('impl-custom-wrap');
+    const locWrap    = document.getElementById('loc-wrap');
 
     if (val === '0') {
       // Sin paquete
@@ -2069,6 +2134,9 @@
       customWrap.classList.remove('visible');
       document.getElementById('impl-notes-popover').classList.remove('open');
       document.getElementById('impl-notes-btn').classList.remove('active');
+      if (locWrap) locWrap.classList.remove('visible');
+      document.getElementById('loc-popover')?.classList.remove('open');
+      document.getElementById('loc-btn')?.classList.remove('active');
     } else if (val === 'otro') {
       // Campos manuales
       currentImplHrs   = 0;
@@ -2076,6 +2144,7 @@
       display.classList.remove('visible');
       customWrap.classList.add('visible');
       notesWrap.classList.add('visible');
+      if (locWrap) locWrap.classList.add('visible');
       // Limpiar inputs
       document.getElementById('impl-custom-hrs').value   = '';
       document.getElementById('impl-custom-price').value = '';
@@ -2093,6 +2162,7 @@
       document.getElementById('ivd-price').textContent = fmtMXN(currentImplPrice);
       display.classList.add('visible');
       notesWrap.classList.add('visible');
+      if (locWrap) locWrap.classList.add('visible');
     }
 
     renderTable();
@@ -2193,6 +2263,7 @@
     // Returns total sin IVA in USD
     const i = currentPlanIdx;
     const shCost = getSHCost(i);
+    const locCost = getLOCCost(i);
     const ed = editionBaseRates[currentEdition];
     let licOnly = 0;
     if (i === 0) { licOnly = ed.rates[0] * currentUsers; }
@@ -2206,7 +2277,7 @@
     }
     const discImpl = discImplUnlocked ? implDiscByPlan[i] : 0;
     const implAfter = currentImplPrice > 0 ? Math.round(currentImplPrice * (1 - discImpl / 100) * 100) / 100 : 0;
-    const sub = Math.round((licOnly + shCost + implAfter) * 100) / 100;
+    const sub = Math.round((licOnly + shCost + locCost + implAfter) * 100) / 100;
     // If MXN, convert to USD
     if (currentCurrency.currency === 'MXN') {
       const mxnRate = fxRates['MXN'] || 17.5;
@@ -2346,12 +2417,51 @@
     }
   }
 
+  function toggleLOCPopover() {
+    const popover = document.getElementById('loc-popover');
+    const btn     = document.getElementById('loc-btn');
+    const isOpen  = popover.classList.contains('open');
+    popover.classList.toggle('open', !isOpen);
+    btn.classList.toggle('active', !isOpen);
+  }
+
+  function setCodeLines(val) {
+    codeLines = Math.max(0, parseInt(val) || 0);
+    syncLOCPreview();
+    renderTable();
+    updateTotal(currentPlanIdx);
+    renderCharts();
+  }
+
+  function syncLOCPreview() {
+    const badge  = document.getElementById('loc-btn-badge');
+    const preview = document.getElementById('loc-preview');
+    const monthlyRate = getLOCMonthlyRate();
+    if (badge) badge.style.display = codeLines > 0 ? '' : 'none';
+    if (badge && codeLines > 0) badge.textContent = codeLines;
+    if (!preview) return;
+    if (codeLines <= 0) { preview.style.display = 'none'; return; }
+    if (currentCurrency.currency !== 'MXN') {
+      preview.style.display = 'block';
+      preview.textContent = 'Tarifa solo definida en MXN — no se cobrará en este país.';
+      return;
+    }
+    const units = Math.ceil(codeLines / 100);
+    preview.style.display = 'block';
+    preview.textContent = `${units} unidad${units > 1 ? 'es' : ''} × ${fmtMXN(LOC_PRICE_PER_100)} = ${fmtMXN(monthlyRate)}/mes`;
+  }
+
   // Cerrar popover al hacer click fuera
   document.addEventListener('click', function(e) {
     const wrap = document.getElementById('impl-notes-wrap');
     if (wrap && !wrap.contains(e.target)) {
       document.getElementById('impl-notes-popover')?.classList.remove('open');
       document.getElementById('impl-notes-btn')?.classList.remove('active');
+    }
+    const locWrap = document.getElementById('loc-wrap');
+    if (locWrap && !locWrap.contains(e.target)) {
+      document.getElementById('loc-popover')?.classList.remove('open');
+      document.getElementById('loc-btn')?.classList.remove('active');
     }
   });
 
@@ -2946,6 +3056,7 @@
   function getCurrentTotalRaw() {
     const i      = currentPlanIdx;
     const shCost = getSHCost(i);
+    const locCost = getLOCCost(i);
     const ed     = editionBaseRates[currentEdition];
     let licOnly  = 0;
     if (i === 0) {
@@ -2960,7 +3071,7 @@
     }
     const discImpl  = discImplUnlocked ? implDiscByPlan[i] : 0;
     const implAfter = currentImplPrice > 0 ? Math.round(currentImplPrice * (1 - discImpl / 100) * 100) / 100 : 0;
-    const sub       = Math.round((licOnly + shCost + implAfter) * 100) / 100;
+    const sub       = Math.round((licOnly + shCost + locCost + implAfter) * 100) / 100;
     const isMX      = currentCurrency.currency === 'MXN';
     const ivaRate   = isMX ? currentCurrency.iva : 0;
     return Math.round(sub * (1 + ivaRate) * 100) / 100;
@@ -3326,6 +3437,12 @@
           if (typeof setImplCustom === 'function') setImplCustom();
         }
         if (c.implNotes) { const n = document.getElementById('impl-notes-text'); if (n) n.value = c.implNotes; }
+        // Líneas de código extra
+        if (typeof c.codeLines === 'number' && c.codeLines > 0) {
+          codeLines = c.codeLines;
+          const li = document.getElementById('loc-lines-input'); if (li) li.value = c.codeLines;
+          syncLOCPreview();
+        }
         // Descuentos (licencias e implementación)
         if (Array.isArray(c.licDiscByPlan)) {
           licDiscByPlan = c.licDiscByPlan.slice();
@@ -3374,12 +3491,13 @@
       const activeLicDisc  = discLicUnlocked  ? (licDiscByPlan[i]  || 0) : 0;
       const activeImplDisc = discImplUnlocked ? (implDiscByPlan[i] || 0) : 0;
       const shCost         = getSHCost(i);
-      // Total licenciamiento (INCLUYE SH) — igual que la columna de la tabla interactiva
-      const licTotalList = isMonthly ? rateY1 * currentUsers + shCost : getLicTotal(i, 0);
-      const licTotal     = isMonthly ? licTotalList               : getLicTotal(i, activeLicDisc);
-      // Licenciamiento sin SH (para desglose del resumen)
-      const licOnly      = Math.round((licTotal     - shCost) * 100) / 100;
-      const licOnlyList  = Math.round((licTotalList - shCost) * 100) / 100;
+      const locCost        = getLOCCost(i);
+      // Total licenciamiento (INCLUYE SH + líneas de código) — igual que la columna de la tabla interactiva
+      const licTotalList = isMonthly ? rateY1 * currentUsers + shCost + locCost : getLicTotal(i, 0);
+      const licTotal     = isMonthly ? licTotalList                            : getLicTotal(i, activeLicDisc);
+      // Licenciamiento sin SH/código (para desglose del resumen)
+      const licOnly      = Math.round((licTotal     - shCost - locCost) * 100) / 100;
+      const licOnlyList  = Math.round((licTotalList - shCost - locCost) * 100) / 100;
       const implList     = hasImpl ? currentImplPrice : 0;
       const implNet      = hasImpl ? Math.round(currentImplPrice * (1 - activeImplDisc / 100) * 100) / 100 : 0;
       const total        = Math.round((licTotal     + implNet ) * 100) / 100;  // última columna
@@ -3391,7 +3509,7 @@
         isMonthly, isSelected: i === currentPlanIdx, visible: rowVisible[i] !== false,
         rateY1, rateY2, rateY2Net,
         licDiscPct: activeLicDisc, licDiscApplicable: i >= 2, implDiscPct: activeImplDisc,
-        shCost, licOnly, licOnlyList, licTotal, licTotalList,
+        shCost, locCost, licOnly, licOnlyList, licTotal, licTotalList,
         hasImpl, implList, implNet, total, totalList, savings,
       };
     });
@@ -3410,6 +3528,7 @@
     const shStaging = parseInt(document.getElementById('sh-staging')?.value || '0');
     const shStorage = parseInt(document.getElementById('sh-storage')?.value || '0');
     const shCost = isSH ? getSHCost(currentPlanIdx) : 0;
+    const locCost = getLOCCost(currentPlanIdx);
     const rateY1 = ed.rates[currentPlanIdx];
     const rateY2 = ed.ratesY2 ? ed.ratesY2[currentPlanIdx] : rateY1;
     const licDiscByPlanOut  = discLicUnlocked  ? licDiscByPlan.slice()  : licDiscByPlan.map(() => 0);
@@ -3422,6 +3541,7 @@
       mensualRef, clientName,
       implNotes, payTermIdx, payStartDate,
       isSH, shWorkers, shStaging, shStorage, shCost,
+      codeLines, locCost,
       rateY1, rateY2,
       licDiscByPlan: licDiscByPlanOut, implDiscByPlan: implDiscByPlanOut, implPriceList: currentImplPrice,
       compTable: buildCompTable(), rowVisible: rowVisible.slice(),
