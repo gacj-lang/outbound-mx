@@ -1268,7 +1268,7 @@
           <span class="inp-title">Líneas de código extra</span>
           <button class="inp-close" onclick="toggleLOCPopover()">✕</button>
         </div>
-        <div class="loc-desc">$120 MXN/mes por cada 100 líneas extra (o fracción). Se cobra cada mes del plazo contratado — mensual: 1 mes, anual: ×12, 2 años: ×24, etc.</div>
+        <div class="loc-desc">$120 MXN (México) o $6 USD (resto de LatAm) por mes, por cada 100 líneas extra (o fracción). Se cobra cada mes del plazo contratado — mensual: 1 mes, anual: ×12, 2 años: ×24, etc.</div>
         <input class="loc-input" type="number" id="loc-lines-input" min="0" step="1"
           placeholder="ej. 250" oninput="setCodeLines(this.value)" onchange="setCodeLines(this.value)">
         <div class="loc-preview" id="loc-preview" style="display:none"></div>
@@ -1441,7 +1441,7 @@
 
   // Líneas de código extra (Studio/personalizaciones) — cargo recurrente adicional
   let codeLines = 0;
-  const LOC_PRICE_PER_100 = 120; // MXN/mes por cada 100 líneas extra (o fracción) — solo tarifa MXN definida
+  const LOC_PRICE_PER_100 = { MXN: 120, USD: 6 }; // por mes, por cada 100 líneas extra (o fracción)
 
   // Precios Odoo SH — por moneda
   const SH_PRICES = {
@@ -1482,15 +1482,18 @@
   // Costo total de líneas de código extra para todo el plazo del plan (mensual ×1, anual ×12, etc.)
   function getLOCCost(planIdx) {
     if (codeLines <= 0) return 0;
-    if (currentCurrency.currency !== 'MXN') return 0; // sin tarifa definida fuera de MX
+    const rate = LOC_PRICE_PER_100[currentCurrency.currency];
+    if (!rate) return 0; // sin tarifa definida para esta moneda
     const units = Math.ceil(codeLines / 100);
-    const monthlyRate = units * LOC_PRICE_PER_100;
+    const monthlyRate = units * rate;
     return monthlyRate * planMonths[planIdx];
   }
 
   function getLOCMonthlyRate() {
-    if (codeLines <= 0 || currentCurrency.currency !== 'MXN') return 0;
-    return Math.ceil(codeLines / 100) * LOC_PRICE_PER_100;
+    if (codeLines <= 0) return 0;
+    const rate = LOC_PRICE_PER_100[currentCurrency.currency];
+    if (!rate) return 0;
+    return Math.ceil(codeLines / 100) * rate;
   }
 
   // Visibilidad de filas de la tabla (true = visible)
@@ -1765,6 +1768,7 @@
       document.getElementById('impl-value-display').classList.remove('visible');
       document.getElementById('impl-custom-wrap')?.classList.remove('visible');
       document.getElementById('impl-notes-wrap')?.classList.remove('visible');
+      document.getElementById('loc-wrap')?.classList.remove('visible');
     }
 
     renderEditionInfo();
@@ -1772,6 +1776,7 @@
     updateTotal(currentPlanIdx);
     renderCharts();
     updateSHTips();
+    syncLOCPreview();
   }
 
 
@@ -2441,14 +2446,15 @@
     if (badge && codeLines > 0) badge.textContent = codeLines;
     if (!preview) return;
     if (codeLines <= 0) { preview.style.display = 'none'; return; }
-    if (currentCurrency.currency !== 'MXN') {
+    const rate = LOC_PRICE_PER_100[currentCurrency.currency];
+    if (!rate) {
       preview.style.display = 'block';
-      preview.textContent = 'Tarifa solo definida en MXN — no se cobrará en este país.';
+      preview.textContent = 'Tarifa no definida para este país — no se cobrará.';
       return;
     }
     const units = Math.ceil(codeLines / 100);
     preview.style.display = 'block';
-    preview.textContent = `${units} unidad${units > 1 ? 'es' : ''} × ${fmtMXN(LOC_PRICE_PER_100)} = ${fmtMXN(monthlyRate)}/mes`;
+    preview.textContent = `${units} unidad${units > 1 ? 'es' : ''} × ${fmtMXN(rate)} = ${fmtMXN(monthlyRate)}/mes`;
   }
 
   // Cerrar popover al hacer click fuera
