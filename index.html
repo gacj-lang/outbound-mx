@@ -879,7 +879,6 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" id="nav-gencontenidos" onclick="showModule('gencontenidos')"><span class="nav-icon">✉️</span> Generación de contenidos</button>
       <button class="nav-item" id="nav-csv" onclick="showModule('csv')"><span class="nav-icon">📋</span> CSV Builder</button>
       <button class="nav-item" id="nav-pricing" onclick="showModule('pricing')"><span class="nav-icon">💰</span> Pricing</button>
-      <button class="nav-item" id="nav-propuesta" onclick="showModule('propuesta')"><span class="nav-icon">📋</span> Propuesta Comercial</button>
       <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')"><span class="nav-icon">📊</span> Analytics</button>
       <div class="nav-section-label" style="margin-top:8px">Recursos</div>
       <button class="nav-item" id="nav-framework" onclick="showModule('framework')"><span class="nav-icon">🎨</span> Framework Visual</button>
@@ -914,7 +913,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-10 buscador de leads 100% Apollo + campana de notificaciones';
+const APP_BUILD_STAMP='2026-07-22 Pricing y Propuesta Comercial unificados: registros visuales + generar/editar desde ahí';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1434,7 +1433,9 @@ window.showNavWarning=function(warn, onConfirm, onSave){
 function _doShowModule(moduleId, skipNavHighlight=false){
   if(!skipNavHighlight){
     document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
-    const n=document.getElementById('nav-'+moduleId); if(n) n.classList.add('active');
+    // La Propuesta Comercial vive dentro del flujo de Pricing (ya no tiene botón propio en el nav)
+    const navId=moduleId==='propuesta'?'pricing':moduleId;
+    const n=document.getElementById('nav-'+navId); if(n) n.classList.add('active');
   }
   const mc=document.getElementById('mainContent');
   const tb=document.getElementById('appTopbar');
@@ -7114,6 +7115,7 @@ function renderPropuestaComercial(){
   content.innerHTML=`
     <div style="max-width:960px">
       <div class="page-header">
+        <button class="btn btn-ghost btn-sm" onclick="pricingGotoRecords()" style="margin-bottom:10px">← Registros de Pricing</button>
         <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📋 Propuesta Comercial</h2>
         <p style="color:var(--gray-500);font-size:14px">Genera la propuesta ejecutiva en PDF lista para presentar al cliente. Se alimenta del Pricing configurado.</p>
       </div>
@@ -7171,8 +7173,9 @@ function renderPropuestaComercial(){
         <input class="input" id="propOdooUrl" value="${ps.odooPropUrl||''}" placeholder="https://www.odoo.com/my/quotes/...">
       </div>
 
-      <div style="display:flex;gap:12px;justify-content:flex-end">
-        <button class="btn btn-ghost" onclick="showModule('pricing')">← Ir a Pricing</button>
+      <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="pricingGotoRecords()">📋 Ver registros</button>
+        <button class="btn btn-ghost" onclick="pricingBackToPricing()">✏️ ${ps.recordId?'Editar este pricing':'Ir a Pricing'}</button>
         <button class="btn btn-primary" style="padding:12px 28px;font-size:15px" onclick="propGenerarPDF()">
           📄 Generar Propuesta PDF
         </button>
@@ -7271,7 +7274,7 @@ window.renderPricingHome=function renderPricingHome(){
       <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:32px">
         <div>
           <h2 style="font-size:26px;font-weight:700;margin-bottom:6px">💰 Pricing Odoo MX</h2>
-          <p style="color:var(--gray-500);font-size:14px;max-width:560px">Configura y presenta cotizaciones de Odoo. Los precios incluyen licencias, implementación e IVA. Usa las propuestas multianualidad para maximizar el ticket.</p>
+          <p style="color:var(--gray-500);font-size:14px;max-width:560px">Configura y presenta cotizaciones de Odoo. Los precios incluyen licencias, implementación e IVA. Desde "Ver registros" puedes reabrir cualquier pricing anterior, editarlo o generar su propuesta comercial directamente.</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="renderPricingIframe()">＋ Nuevo pricing</button>
@@ -7487,16 +7490,30 @@ window.pricingExitFullscreen=function(){
 };
 
 window._pricingRecordsCache={};
+// Color de avatar determinístico por nombre de empresa (mismo hash → mismo color siempre)
+const _pricingAvatarColors=['#714B67','#00A09D','#875A7B','#2C7BE5','#E67E22','#27AE60','#C0392B','#8E44AD'];
+function _pricingAvatarColor(name){
+  let h=0; for(const ch of String(name||'')) h=(h*31+ch.charCodeAt(0))>>>0;
+  return _pricingAvatarColors[h%_pricingAvatarColors.length];
+}
+function _pricingInitials(name){
+  const parts=String(name||'').trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return '—';
+  return (parts[0][0]+(parts[1]?.[0]||'')).toUpperCase();
+}
+
 window.renderPricingRecords=async function(){
   const content=document.getElementById('moduleContent');
   content.style.padding='28px';
   const isMgr=currentUserData?.role==='manager';
-  content.innerHTML=`<div style="max-width:800px;margin:0 auto">
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
+  content.innerHTML=`<div style="max-width:1080px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="renderPricingHome()">← Volver</button>
       <h2 style="font-size:22px;font-weight:700">📋 Registros de Pricing</h2>
+      <span class="topbar-spacer"></span>
+      <button class="btn btn-primary btn-sm" onclick="renderPricingIframe()">＋ Nuevo pricing</button>
     </div>
-    <p style="font-size:13px;color:var(--gray-500);margin-bottom:18px">Haz clic en un registro para reabrirlo y regenerar su propuesta comercial.</p>
+    <p style="font-size:13px;color:var(--gray-500);margin-bottom:18px">Elige un registro para editar su pricing o generar la propuesta comercial directamente con esos datos.</p>
     ${isMgr?`<div id="pricingBulkBar" style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="pricingSelectAll" onchange="pricingToggleAll(this)"> Seleccionar todo</label>
       <button class="btn btn-ghost-danger btn-sm" id="pricingDelSelBtn" onclick="pricingDeleteSelected()" disabled>🗑 Eliminar seleccionados (<span id="pricingSelCount">0</span>)</button>
@@ -7514,26 +7531,37 @@ window.renderPricingRecords=async function(){
     if(snap.empty){ el.innerHTML='<div class="cdc-empty">Sin registros todavía</div>'; return; }
     window._pricingRecordsCache={};
     const fmt=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0}):'—';
-    el.innerHTML=snap.docs.map(d=>{
+    el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">${snap.docs.map(d=>{
       const r=d.data(); window._pricingRecordsCache[d.id]=r;
       const date=r.createdAt?.toDate?r.createdAt.toDate().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'—';
-      return `<div class="card" title="Abrir y regenerar propuesta" style="padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;cursor:pointer" onclick="pricingOpenRecord('${d.id}')">
-        <div style="display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1">
-          ${isMgr?`<input type="checkbox" class="pricingRecChk" value="${d.id}" onclick="event.stopPropagation();pricingUpdateSel()" style="margin-top:4px;width:16px;height:16px;accent-color:var(--purple)">`:''}
-          <div style="min-width:0">
-            <div style="font-size:15px;font-weight:700">${r.companyName||'Sin empresa'}</div>
-            <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${r.edition||'—'} · ${r.users||0} usuarios · ${PRICING_DATA.planLabels[r.planIdx||1]||'—'}</div>
-            <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${r.aeName||''} · ${date}</div>
+      const color=_pricingAvatarColor(r.companyName);
+      return `<div class="card" style="padding:18px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:flex-start;gap:12px;min-width:0">
+          ${isMgr?`<input type="checkbox" class="pricingRecChk" value="${d.id}" onclick="pricingUpdateSel()" style="margin-top:6px;width:16px;height:16px;accent-color:var(--purple);flex-shrink:0">`:''}
+          <div style="width:40px;height:40px;border-radius:50%;background:${color};color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">${_pricingInitials(r.companyName)}</div>
+          <div style="min-width:0;flex:1">
+            <div style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.companyName||'Sin empresa'}</div>
+            <div style="font-size:12px;color:var(--gray-400);margin-top:1px">${r.aeName||''} · ${date}</div>
+          </div>
+          ${isMgr?`<button class="btn btn-ghost-danger btn-sm" style="padding:4px 8px;flex-shrink:0" onclick="deleteRecord('pricingRecords','${d.id}',renderPricingRecords)" title="Eliminar registro">🗑</button>`:''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <span style="background:var(--purple-light,#f3e8ff);color:var(--purple);font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px">${r.edition||'—'}</span>
+          <span style="background:var(--gray-100);color:var(--gray-700);font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px">${r.users||0} usuarios</span>
+          <span style="background:var(--gray-100);color:var(--gray-700);font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px">${PRICING_DATA.planLabels[r.planIdx||1]||'—'}</span>
+        </div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;border-top:1px solid var(--od-line,var(--gray-100));padding-top:10px">
+          <div>
+            <div style="font-size:18px;font-weight:700;color:var(--purple)">${fmt(r.total)}</div>
+            <div style="font-size:11px;color:var(--gray-400)">Total c/IVA · Impl: ${fmt(r.implPrice)}</div>
           </div>
         </div>
-        <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end">
-          <div style="font-size:16px;font-weight:700;color:var(--purple)">${fmt(r.total)}</div>
-          <div style="font-size:11px;color:var(--gray-400)">Total c/IVA</div>
-          <div style="font-size:11px;color:var(--gray-500);margin-top:2px">Impl: ${fmt(r.implPrice)}</div>
-          ${isMgr?`<button class="btn btn-ghost-danger btn-sm" style="margin-top:8px;padding:4px 10px" onclick="event.stopPropagation();deleteRecord('pricingRecords','${d.id}',renderPricingRecords)" title="Eliminar registro">🗑</button>`:''}
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" style="flex:1" onclick="pricingOpenRecord('${d.id}')" title="Reabrir el simulador con estos números">✏️ Editar pricing</button>
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="pricingGenerateProposalFromRecord('${d.id}')" title="Generar la propuesta comercial con estos datos">📄 Generar propuesta</button>
         </div>
       </div>`;
-    }).join('');
+    }).join('')}</div>`;
   } catch(e){ document.getElementById('pricingRecordsList').innerHTML=`<div class="cdc-empty">Error: ${e.message}</div>`; }
 };
 
@@ -7566,6 +7594,38 @@ window.pricingOpenRecord=function(id){
     iframe.addEventListener('load',()=>setTimeout(send,300),{once:true});
     setTimeout(send,1400); // reintento por si el iframe ya estaba cargado
   }
+};
+
+// Salta directo del registro guardado a la pantalla de Propuesta Comercial, sin pasar por el
+// simulador ni por "cargar último pricing" — usa los totales YA calculados de ESE registro exacto.
+window.pricingGenerateProposalFromRecord=function(id){
+  const r=window._pricingRecordsCache?.[id];
+  if(!r){ showNotif('Registro no encontrado','error'); return; }
+  const fmt=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0}):'';
+  pricingState.company=r.companyId?{id:r.companyId,nombre:r.companyName||''}:(r.companyName?{nombre:r.companyName}:null);
+  pricingState.contact=null;
+  pricingState.recordId=id;
+  pricingState.odooPropUrl=r.odooPropUrl||'';
+  pricingState.result={editionName:r.edition,users:r.users,planIdx:r.planIdx,mensualRef:r.mensualRef,implPrice:r.implPrice,total:r.total,implHrs:r.implHrs||50};
+  pricingState.users=r.users; pricingState.planIdx=r.planIdx;
+  pricingState._mensualRef=fmt(r.mensualRef); pricingState._impl=fmt(r.implPrice);
+  pricingState.isSH=r.isSH||false; pricingState.shWorkers=r.shWorkers||1; pricingState.shStaging=r.shStaging||0; pricingState.shStorage=r.shStorage||0; pricingState.shCost=r.shCost||0;
+  pricingState.implNotes=r.implNotes||'';
+  const co=r.companyId?_allEmpresas?.find(e=>e.id===r.companyId):null;
+  const memMods=co?.memory?.pricing?.selectedApps||[];
+  if(memMods.length) pricingState.selectedModules=memMods;
+  showModule('propuesta');
+};
+
+// Atajos de ida y vuelta entre la Propuesta y el registro de Pricing que la alimenta
+window.pricingGotoRecords=function(){
+  const t=document.getElementById('topbarTitle'); if(t) t.textContent='Pricing';
+  renderPricingRecords();
+};
+window.pricingBackToPricing=function(){
+  const t=document.getElementById('topbarTitle'); if(t) t.textContent='Pricing';
+  if(pricingState.recordId) pricingOpenRecord(pricingState.recordId);
+  else renderPricingIframe();
 };
 
 window.pricingToggleAll=function(cb){ document.querySelectorAll('.pricingRecChk').forEach(c=>c.checked=cb.checked); pricingUpdateSel(); };
