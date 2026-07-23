@@ -127,6 +127,23 @@ input,select,textarea{font-family:inherit;}
 .nav-item.active::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:white;border-radius:0 3px 3px 0;}
 .nav-icon{font-size:16px;width:20px;text-align:center;}
 .nav-badge{margin-left:auto;background:var(--warning);color:white;font-size:11px;font-weight:700;min-width:18px;height:18px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 5px;}
+/* Tooltip flotante del sidebar — vive en <body> (no dentro de .sidebar) porque
+   .sidebar tiene overflow-y:auto, y eso recorta cualquier hijo posicionado fuera
+   de su caja aunque sea position:absolute con left:100%. position:fixed + JS
+   evita el recorte por completo. Ver #navTooltipFloat más abajo. */
+#navTooltipFloat{
+  position:fixed; top:0; left:0;
+  background:#1f1330; color:rgba(255,255,255,.92); font-family:'Inter',sans-serif;
+  font-size:12px; font-weight:500; line-height:1.45; text-align:left; white-space:normal;
+  width:210px; padding:9px 12px; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.3);
+  opacity:0; pointer-events:none; transition:opacity .15s ease;
+  z-index:9999;
+}
+#navTooltipFloat::before{
+  content:''; position:absolute; right:100%; top:50%; transform:translateY(-50%);
+  border:6px solid transparent; border-right-color:#1f1330;
+}
+#navTooltipFloat.show{ opacity:1; }
 .sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.1);}
 #userInfo{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
 .user-avatar{width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:white;flex-shrink:0;}
@@ -872,20 +889,19 @@ input,select,textarea{font-family:inherit;}
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section-label">Principal</div>
-      <button class="nav-item" id="nav-home" onclick="showModule('home')"><span class="nav-icon">🏠</span> Inicio</button>
-      <button class="nav-item" id="nav-empresas" onclick="showModule('empresas')"><span class="nav-icon">🏢</span> Empresas</button>
+      <button class="nav-item" id="nav-home" onclick="showModule('home')" data-tip="Panel de inicio: guía rápida de actividad en el CRM y accesos directos."><span class="nav-icon">🏠</span> Inicio</button>
+      <button class="nav-item" id="nav-empresas" onclick="showModule('empresas')" data-tip="Directorio de empresas con sus documentos y actividad relacionada."><span class="nav-icon">🏢</span> Empresas</button>
       <div class="nav-section-label" style="margin-top:8px">Módulos</div>
-      <button class="nav-item" id="nav-discovery" onclick="showModule('discovery')"><span class="nav-icon">🔍</span> Discovery Guide</button>
-      <button class="nav-item" id="nav-gencontenidos" onclick="showModule('gencontenidos')"><span class="nav-icon">✉️</span> Generación de contenidos</button>
-      <button class="nav-item" id="nav-csv" onclick="showModule('csv')"><span class="nav-icon">📋</span> CSV Builder</button>
-      <button class="nav-item" id="nav-pricing" onclick="showModule('pricing')"><span class="nav-icon">💰</span> Pricing</button>
-      <button class="nav-item" id="nav-propuesta" onclick="showModule('propuesta')"><span class="nav-icon">📋</span> Propuesta Comercial</button>
-      <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')"><span class="nav-icon">📊</span> Analytics</button>
+      <button class="nav-item" id="nav-discovery" onclick="showModule('discovery')" data-tip="Califica prospectos con preguntas guiadas y detecta sus necesidades."><span class="nav-icon">🔍</span> Intromeet / Qcall</button>
+      <button class="nav-item" id="nav-gencontenidos" onclick="showModule('gencontenidos')" data-tip="Crea mensajes e imágenes para WhatsApp, correo y LinkedIn."><span class="nav-icon">✉️</span> Generación de contenidos</button>
+      <button class="nav-item" id="nav-csv" onclick="showModule('csv')" data-tip="Construye y exporta listas de prospectos en CSV."><span class="nav-icon">📋</span> CSV Builder</button>
+      <button class="nav-item" id="nav-pricing" onclick="showModule('pricing')" data-tip="Cotiza licencias, implementación e IVA de Odoo. Guarda registros y genera la propuesta comercial."><span class="nav-icon">💰</span> Pricing</button>
+      <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')" data-tip="Métricas de uso y actividad del equipo."><span class="nav-icon">📊</span> Analytics</button>
       <div class="nav-section-label" style="margin-top:8px">Recursos</div>
-      <button class="nav-item" id="nav-framework" onclick="showModule('framework')"><span class="nav-icon">🎨</span> Framework Visual</button>
+      <button class="nav-item" id="nav-framework" onclick="showModule('framework')" data-tip="Guía de marca oficial: colores, tipografía y assets para tus materiales."><span class="nav-icon">🎨</span> Framework Visual</button>
       <div class="nav-section-label" style="margin-top:8px">Gestión</div>
-      <button class="nav-item" id="nav-manager" onclick="showModule('manager')" style="display:none"><span class="nav-icon">👥</span> Manager<span class="nav-badge" id="pendingBadge"></span></button>
-      <button class="nav-item" id="nav-settings" onclick="showModule('settings')"><span class="nav-icon">⚙️</span> Configuración</button>
+      <button class="nav-item" id="nav-manager" onclick="showModule('manager')" style="display:none" data-tip="Aprobaciones de usuarios, asignación de roles y edición de perfiles."><span class="nav-icon">👥</span> Manager<span class="nav-badge" id="pendingBadge"></span></button>
+      <button class="nav-item" id="nav-settings" onclick="showModule('settings')" data-tip="Ajusta tu perfil e integraciones de la app."><span class="nav-icon">⚙️</span> Configuración</button>
     </nav>
     <div class="sidebar-footer">
       <div id="userInfo"></div>
@@ -940,7 +956,7 @@ const AE_LIST = {
 };
 const MANAGER = { gram:'gacj', name:'Geovani Ariel Jiménez Cruz', email:'gacj@odoo.com' };
 const MODULES = [
-  { id:'discovery',     icon:'🔍', label:'Discovery Guide',          desc:'Califica prospectos con preguntas guiadas y detecta sus necesidades.', ready:true  },
+  { id:'discovery',     icon:'🔍', label:'Intromeet / Qcall',        desc:'Califica prospectos con preguntas guiadas y detecta sus necesidades.', ready:true  },
   { id:'gencontenidos', icon:'✉️', label:'Generación de contenidos', desc:'Crea mensajes e imágenes para WhatsApp, correo y LinkedIn.',          ready:true  },
   { id:'csv',           icon:'📋', label:'CSV Builder',              desc:'Construye y exporta listas de prospectos en CSV.',                    ready:true  },
   { id:'pricing',       icon:'💰', label:'Pricing',                  desc:'Cotiza licencias, implementación e IVA de Odoo.',                     ready:true  },
@@ -1434,7 +1450,9 @@ window.showNavWarning=function(warn, onConfirm, onSave){
 function _doShowModule(moduleId, skipNavHighlight=false){
   if(!skipNavHighlight){
     document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
-    const n=document.getElementById('nav-'+moduleId); if(n) n.classList.add('active');
+    // La Propuesta Comercial vive dentro del flujo de Pricing (ya no tiene botón propio en el nav)
+    const navId=moduleId==='propuesta'?'pricing':moduleId;
+    const n=document.getElementById('nav-'+navId); if(n) n.classList.add('active');
   }
   const mc=document.getElementById('mainContent');
   const tb=document.getElementById('appTopbar');
@@ -1442,7 +1460,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
   if(cont.formActive){ cont.discard(); }
   mc.classList.remove('topbar-hidden');
   tb.style.display='flex';
-  const titles={home:'Inicio',empresas:'Empresas',discovery:'Discovery Guide',gencontenidos:'Generación de contenidos',
+  const titles={home:'Inicio',empresas:'Empresas',discovery:'Intromeet / Qcall',gencontenidos:'Generación de contenidos',
     csv:'CSV Builder',pricing:'Pricing',propuesta:'Propuesta Comercial',analytics:'Analytics',
     manager:'Panel de Manager',settings:'Configuración',framework:'Framework Visual'};
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
@@ -2106,7 +2124,7 @@ async function renderDiscoveryList(){
   content.innerHTML=`
     <div class="disc-list-wrap">
       <div class="disc-list-header">
-        <div><h2>🔍 Discovery Guide</h2><p style="color:var(--gray-500);font-size:14px;margin-top:4px">Sesiones de discovery con tus prospectos</p></div>
+        <div><h2>🔍 Intromeet / Qcall</h2><p style="color:var(--gray-500);font-size:14px;margin-top:4px">Sesiones de discovery con tus prospectos</p></div>
         <button class="btn btn-primary" onclick="openDiscoveryForm(null)">+ Nueva sesión</button>
       </div>
       <div class="disc-filters">
@@ -2463,7 +2481,7 @@ function buildDiscoveryFormHTML(data){
     <div class="dg-mb-left">
       <button class="dg-back" onclick="showModule('discovery')">← Sesiones</button>
       <div>
-        <div class="dg-mb-title">🔍 Discovery Guide</div>
+        <div class="dg-mb-title">🔍 Intromeet / Qcall</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
           <span class="dg-emp-badge" id="discEmpresaBadge" style="${empresa?'':'display:none'}">${empresa?'📄 '+empresa:''}</span>
           <span class="dg-ind-label" id="discIndLabel">Configura la sesión para comenzar</span>
@@ -3504,7 +3522,7 @@ const PRICING_DATA = {
   sh:{worker:{monthly:1440,annual:13824},staging:{monthly:360,annual:3456},gb:{monthly:5,annual:48}},
   iva:0.16,
 };
-const pricingState = {company:null,contact:null,edition:null,planIdx:1,users:5,implHrs:50,customImpl:null,shWorkers:1,shStaging:0,shStorage:0,result:null};
+const pricingState = {company:null,contact:null,edition:null,planIdx:1,users:5,implHrs:50,customImpl:null,shWorkers:1,shStaging:0,shStorage:0,codeLines:0,result:null};
 
 function calcPricing(){
   const ed=PRICING_DATA.editions.find(e=>e.id===pricingState.edition)||PRICING_DATA.editions[1];
@@ -6336,6 +6354,7 @@ function applyPricingMsg(d){
   pricingState.shStaging=d.shStaging||0;
   pricingState.shStorage=d.shStorage||0;
   pricingState.shCost=d.shCost||0;
+  pricingState.codeLines=d.codeLines||0;
   pricingState.rateY1=d.rateY1||0;
   pricingState.rateY2=d.rateY2||0;
   pricingState.licDiscByPlan=Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null;
@@ -6362,6 +6381,7 @@ async function pricingUpsertRecord(d,opts={}){
     mensualRef:d.mensualRef, implHrs:d.implHrs, implPrice:d.implPrice, total:d.total,
     licDiscByPlan:Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null, implDiscByPlan:Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null, implPriceList:d.implPriceList||d.implPrice||null,
     isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0, shCost:d.shCost||0,
+    codeLines:d.codeLines||0,
     payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', implNotes:d.implNotes||'', odooPropUrl:pricingState.odooPropUrl||'',
     rowVisible:Array.isArray(d.rowVisible)?d.rowVisible:null,
     updatedAt:serverTimestamp()
@@ -6603,14 +6623,19 @@ window.pricingGeneratePDF=function(){
       : fmtN(row.rateY2));
     const dLicCell=row.isMonthly?'—':(!row.licDiscApplicable?'<span style="color:#c0c0c0">N/A</span>':(row.licDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.licDiscPct}%</span>`:'—'));
     const licCell=`${row.licDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.licTotalList)}</s><br>`:''}${fmtN(row.licTotal)}`
-      +`${row.isMonthly&&row.shCost>0?`<div style="font-size:8px;color:#c0c0c0">lic. + Odoo.SH</div>`:''}`
+      +`${row.shCost>0?`<div style="font-size:8px;color:#c0c0c0">Licencias: ${fmtN(row.licOnly)} · Odoo.SH: ${fmtN(row.shCost)}</div>`:''}`
       +`${(!row.isMonthly&&row.licDiscPct===0&&row.savings>0)?`<div style="font-size:8px;color:#16a34a">Ahorro ${fmtN(row.savings)}</div>`:''}`;
     const implCell=!row.hasImpl?'—':(row.implDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.implList)}</s><br>${fmtN(row.implNet)}`:fmtN(row.implNet));
     const dImplCell=!row.hasImpl?'—':(row.implDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.implDiscPct}%</span>`:'—');
-    const totCell=`${(row.licDiscPct>0||row.implDiscPct>0)?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.totalList)}</s><br>`:''}${fmtN(row.total)}`;
+    // Desglose completo: Licencia + SH (si aplica) + Implementación (si aplica) + IVA
+    const totBreakdownParts=[`Licencia ${fmtN(row.licOnly)}`];
+    if(row.shCost>0) totBreakdownParts.push(`SH ${fmtN(row.shCost)}`);
+    if(row.hasImpl)  totBreakdownParts.push(`Impl. ${fmtN(row.implNet)}`);
+    const totBreakdownLine=totBreakdownParts.join(' + ')+' + IVA';
+    const totCell=`${(row.licDiscPct>0||row.implDiscPct>0)?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.totalList)}</s><br>`:''}${fmtN(row.total)}<div style="font-size:7.5px;color:#c0c0c0;font-weight:400">${totBreakdownLine}</div>`;
     return `<tr class="${sel?'sel-row':''}">
       <td>${row.label}${row.isMonthly?'<span style="font-size:8px;background:#f0f0f0;color:#999;padding:1px 5px;border-radius:3px;margin-left:4px">Base</span>':''}${sel?'<span style="font-size:8px;background:#017E84;color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px">✓ Esta propuesta</span>':''}</td>
-      <td>${fmtN(row.rateY1)}<div style="font-size:7.5px;color:#c0c0c0">${row.isMonthly?'usr/mes':'usr'}</div></td>
+      <td>${fmtN(row.rateY1)}<div style="font-size:7.5px;color:#c0c0c0">usr/mes</div></td>
       <td>${y2Cell}</td>
       <td>${dLicCell}</td>
       <td>${licCell}</td>
@@ -6654,17 +6679,61 @@ window.pricingGeneratePDF=function(){
       <div style="font-size:10px;color:#aaa;margin-top:6px">Costo total Odoo.SH: ${fmtN(ps.shCost)} MXN · incluido en el total de inversión.</div>
     </div>`:'';
 
+  // Líneas de código extra — tabla puramente informativa. NO se suma al subtotal/total de esta
+  // propuesta: se factura por separado hasta que el desarrollo esté completamente terminado.
+  const locUnits=ps.codeLines>0?Math.ceil(ps.codeLines/100):0;
+  const locUnitRate=120; // MXN de referencia por cada 100 líneas extra (o fracción)
+  const locMonthlyTotal=locUnits*locUnitRate;
+  const locAnnualTotal=locMonthlyTotal*12;
+  const locLinesFmt=n=>Number(n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const locInfoSection=ps.codeLines>0?`
+    <div style="break-inside:avoid;margin-bottom:18px;border:1.5px solid #fde68a;border-radius:10px;padding:14px 16px;background:#fffdf5">
+      <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        🧩 Mantenimiento de desarrollo
+        <span style="background:#fef3c7;color:#854d0e;padding:2px 8px;border-radius:99px;font-size:8.5px;font-weight:700;text-transform:none;letter-spacing:0">Informativo — no incluido en el total</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:10px">
+        <thead><tr style="background:#fef3c7">
+          <th style="text-align:left;padding:6px 8px;color:#92400e;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em">Mantenimiento</th>
+          <th style="text-align:right;padding:6px 8px;color:#92400e;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em"># líneas de código</th>
+          <th style="text-align:right;padding:6px 8px;color:#92400e;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em">Costo mensual unitario</th>
+          <th style="text-align:right;padding:6px 8px;color:#92400e;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em">Costo total mensual</th>
+          <th style="text-align:right;padding:6px 8px;color:#92400e;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em">Costo total anual</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td style="padding:6px 8px;font-style:italic;color:#6b7280">Mantenimiento del desarrollo</td>
+            <td style="padding:6px 8px;text-align:right">${locLinesFmt(ps.codeLines)}</td>
+            <td style="padding:6px 8px;text-align:right">${fmtN(locUnitRate)}</td>
+            <td style="padding:6px 8px;text-align:right">${fmtN(locMonthlyTotal)}</td>
+            <td style="padding:6px 8px;text-align:right">${fmtN(locAnnualTotal)}</td>
+          </tr>
+          <tr style="border-top:1.5px solid #92400e">
+            <td style="padding:6px 8px;font-weight:700">Total</td>
+            <td style="padding:6px 8px;text-align:right;font-weight:700">${locLinesFmt(ps.codeLines)}</td>
+            <td></td>
+            <td style="padding:6px 8px;text-align:right;font-weight:700">${fmtN(locMonthlyTotal)}</td>
+            <td style="padding:6px 8px;text-align:right;font-weight:700">${fmtN(locAnnualTotal)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="font-size:9px;color:#9ca3af;margin-top:6px">Este costo se factura por separado una vez concluido el desarrollo — no forma parte del total de licenciamiento e implementación de esta cotización.</div>
+    </div>`:'';
+
   const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <style>__FONTFACE_STYLE__</style>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Inter',sans-serif;color:#21272B;background:white;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-/* LETTER pages (21.6 × 27.9 cm) */
-.page{width:816px;height:279mm;padding:0;position:relative;overflow:hidden;page-break-after:always;break-after:page;}
+/* LETTER pages — 21.59 × 27.94 cm (8.5 × 11 in) exactos. 816px = 8.5in a 96dpi; 11in evita el
+   redondeo de "279mm" (≈10.98in, 0.4mm corto de carta real). min-height (no height fijo + sin
+   overflow:hidden) para que el contenido que no quepa en una página fluya a páginas físicas
+   adicionales en vez de recortarse. */
+.page{width:816px;min-height:11in;padding:0;position:relative;page-break-after:always;break-after:page;}
 .page:last-child{page-break-after:auto;break-after:auto;}
-.page-inner{padding:52px 68px 60px;height:279mm;display:flex;flex-direction:column;overflow:hidden;}
+.page-inner{padding:52px 68px 60px;min-height:11in;display:flex;flex-direction:column;}
 /* Cover page */
-.cover{background:#f5f4f0;color:#21272B;height:279mm;display:flex;flex-direction:column;justify-content:space-between;padding:68px 68px 60px;overflow:hidden;position:relative;}
+.cover{background:#f5f4f0;color:#21272B;min-height:11in;display:flex;flex-direction:column;justify-content:space-between;padding:68px 68px 60px;position:relative;}
 .cover::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,#d8d4cc 1.2px,transparent 1.2px);background-size:26px 26px;opacity:.5;pointer-events:none;}
 .cover-headline{font-family:'Inter',sans-serif;font-size:52px;font-weight:700;line-height:1.05;letter-spacing:-1.5px;color:white;margin-bottom:8px;}
 .cover-headline span{color:#FC787D;}
@@ -6711,8 +6780,11 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 .pay-row{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #f3f4f6;}
 .pay-row:last-child{border-bottom:none;background:#f0fdf4;border-radius:0 0 8px 8px;}
 /* Module cards */
-.mod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
-.mod-card{border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 11px;background:white;}
+/* flex-wrap en vez de CSS grid: los grids se cortan mal al paginar en impresión (Chrome puede
+   partir una fila de grid a la mitad incluso con break-inside:avoid); flex-wrap pagina de forma
+   confiable porque cada tarjeta es un bloque de flujo independiente. */
+.mod-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.mod-card{width:calc(25% - 6px);border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 11px;background:white;break-inside:avoid;page-break-inside:avoid;}
 .mod-card.sel{border-color:#714B67;background:#fdf8fc;}
 /* SH box */
 .sh-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;}
@@ -6734,10 +6806,15 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 .impl-step-label{font-size:9.5px;color:#6b7280;font-weight:600;}
 /* Closing page */
 .closing{background:linear-gradient(135deg,#714B67 0%,#4a2d42 100%);min-height:1056px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18mm;}
+/* Evita que un elemento se corte a la mitad entre dos páginas físicas — el contenedor .page SÍ
+   puede fluir a varias páginas cuando su contenido no cabe en una sola (ver .page arriba). */
+.mod-card,.stat-box,.benefit-item,.inv-box,.pay-row,.sh-box,.impl-step,.closing,tr{
+  break-inside:avoid; page-break-inside:avoid;
+}
+thead{ display:table-header-group; }
 @media print{
-  @page{size:216mm 279mm;margin:0;}
+  @page{size:letter;margin:0;}
   html,body{width:816px;margin:0;padding:0;}
-  .page{page-break-inside:avoid;break-inside:avoid;height:279mm;}
   .page:last-child{page-break-after:avoid;break-after:avoid;}
 }
 </style></head><body>
@@ -6860,6 +6937,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
     <div style="background:#eef6ff;color:#0369a1;border:1px solid #bae6fd;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">⚙️ ${ps.shWorkers||1} Worker${(ps.shWorkers||1)>1?'s':''}</div>
     <div style="background:#eef6ff;color:#0369a1;border:1px solid #bae6fd;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">🌿 ${ps.shStaging||0} Staging branch${(ps.shStaging||0)!==1?'es':''}</div>
     <div style="background:#eef6ff;color:#0369a1;border:1px solid #bae6fd;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">💾 ${ps.shStorage||0} GB</div>`:''}
+    ${ps.codeLines>0?`<div style="background:#fef3c7;color:#854d0e;border:1px solid #fde68a;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">🧩 ${ps.codeLines} líneas de código extra (informativo)</div>`:''}
   </div>
 
   <!-- Comparativa de planes -->
@@ -6914,6 +6992,7 @@ tr.sel-row td{color:#015c61;font-weight:700;}
   </div>
 
   ${shSection}
+  ${locInfoSection}
 
   <!-- Payment terms -->
   <div style="margin-bottom:0">
@@ -7114,6 +7193,7 @@ function renderPropuestaComercial(){
   content.innerHTML=`
     <div style="max-width:960px">
       <div class="page-header">
+        <button class="btn btn-ghost btn-sm" onclick="pricingGotoRecords()" style="margin-bottom:10px">← Registros de Pricing</button>
         <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📋 Propuesta Comercial</h2>
         <p style="color:var(--gray-500);font-size:14px">Genera la propuesta ejecutiva en PDF lista para presentar al cliente. Se alimenta del Pricing configurado.</p>
       </div>
@@ -7171,8 +7251,9 @@ function renderPropuestaComercial(){
         <input class="input" id="propOdooUrl" value="${ps.odooPropUrl||''}" placeholder="https://www.odoo.com/my/quotes/...">
       </div>
 
-      <div style="display:flex;gap:12px;justify-content:flex-end">
-        <button class="btn btn-ghost" onclick="showModule('pricing')">← Ir a Pricing</button>
+      <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="pricingGotoRecords()">📋 Ver registros</button>
+        <button class="btn btn-ghost" onclick="pricingBackToPricing()">✏️ ${ps.recordId?'Editar este pricing':'Ir a Pricing'}</button>
         <button class="btn btn-primary" style="padding:12px 28px;font-size:15px" onclick="propGenerarPDF()">
           📄 Generar Propuesta PDF
         </button>
@@ -7202,6 +7283,7 @@ function propBuildPricingSummary(ps){
       {l:'Plan',v:(PRICING_DATA?.planLabels||[])[r.planIdx??ps.planIdx??1]||'—'},
       {l:'Mensual (ref.)',v:ps._mensualRef||fmt(r.mensualRef)||'—'},
       {l:'Implementación',v:ps._impl||fmt(r.implPrice)||'—'},
+      ...(ps.codeLines>0?[{l:'Líneas de código',v:`${ps.codeLines} (informativo)`}]:[]),
       {l:'Total (sin IVA)',v:fmt(r.total)||'—'},
     ].map(i=>`<div style="background:var(--gray-50);border-radius:var(--radius-sm);padding:12px">
       <div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.05em">${i.l}</div>
@@ -7230,7 +7312,10 @@ window.propLoadLastPricing=async function(){
     pricingState.shStaging=last.shStaging||0;
     pricingState.shStorage=last.shStorage||0;
     pricingState.shCost=last.shCost||0;
+    pricingState.codeLines=last.codeLines||0;
     pricingState.company=co;
+    pricingState.recordId=last.id;
+    pricingState.odooPropUrl=last.odooPropUrl||'';
     // Load selected modules from company memory
     const memMods=co.memory?.pricing?.selectedApps||[];
     if(memMods.length) pricingState.selectedModules=memMods;
@@ -7271,7 +7356,7 @@ window.renderPricingHome=function renderPricingHome(){
       <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:32px">
         <div>
           <h2 style="font-size:26px;font-weight:700;margin-bottom:6px">💰 Pricing Odoo MX</h2>
-          <p style="color:var(--gray-500);font-size:14px;max-width:560px">Configura y presenta cotizaciones de Odoo. Los precios incluyen licencias, implementación e IVA. Usa las propuestas multianualidad para maximizar el ticket.</p>
+          <p style="color:var(--gray-500);font-size:14px;max-width:560px">Configura y presenta cotizaciones de Odoo. Los precios incluyen licencias, implementación e IVA. Desde "Ver registros" puedes reabrir cualquier pricing anterior, editarlo o generar su propuesta comercial directamente.</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="renderPricingIframe()">＋ Nuevo pricing</button>
@@ -7487,16 +7572,30 @@ window.pricingExitFullscreen=function(){
 };
 
 window._pricingRecordsCache={};
+// Color de avatar determinístico por nombre de empresa (mismo hash → mismo color siempre)
+const _pricingAvatarColors=['#714B67','#00A09D','#875A7B','#2C7BE5','#E67E22','#27AE60','#C0392B','#8E44AD'];
+function _pricingAvatarColor(name){
+  let h=0; for(const ch of String(name||'')) h=(h*31+ch.charCodeAt(0))>>>0;
+  return _pricingAvatarColors[h%_pricingAvatarColors.length];
+}
+function _pricingInitials(name){
+  const parts=String(name||'').trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return '—';
+  return (parts[0][0]+(parts[1]?.[0]||'')).toUpperCase();
+}
+
 window.renderPricingRecords=async function(){
   const content=document.getElementById('moduleContent');
   content.style.padding='28px';
   const isMgr=currentUserData?.role==='manager';
-  content.innerHTML=`<div style="max-width:800px;margin:0 auto">
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
+  content.innerHTML=`<div style="max-width:1080px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="renderPricingHome()">← Volver</button>
       <h2 style="font-size:22px;font-weight:700">📋 Registros de Pricing</h2>
+      <span class="topbar-spacer"></span>
+      <button class="btn btn-primary btn-sm" onclick="renderPricingIframe()">＋ Nuevo pricing</button>
     </div>
-    <p style="font-size:13px;color:var(--gray-500);margin-bottom:18px">Haz clic en un registro para reabrirlo y regenerar su propuesta comercial.</p>
+    <p style="font-size:13px;color:var(--gray-500);margin-bottom:18px">Elige un registro para editar su pricing o generar la propuesta comercial directamente con esos datos.</p>
     ${isMgr?`<div id="pricingBulkBar" style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="pricingSelectAll" onchange="pricingToggleAll(this)"> Seleccionar todo</label>
       <button class="btn btn-ghost-danger btn-sm" id="pricingDelSelBtn" onclick="pricingDeleteSelected()" disabled>🗑 Eliminar seleccionados (<span id="pricingSelCount">0</span>)</button>
@@ -7514,26 +7613,37 @@ window.renderPricingRecords=async function(){
     if(snap.empty){ el.innerHTML='<div class="cdc-empty">Sin registros todavía</div>'; return; }
     window._pricingRecordsCache={};
     const fmt=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0}):'—';
-    el.innerHTML=snap.docs.map(d=>{
+    el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">${snap.docs.map(d=>{
       const r=d.data(); window._pricingRecordsCache[d.id]=r;
       const date=r.createdAt?.toDate?r.createdAt.toDate().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'—';
-      return `<div class="card" title="Abrir y regenerar propuesta" style="padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;cursor:pointer" onclick="pricingOpenRecord('${d.id}')">
-        <div style="display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1">
-          ${isMgr?`<input type="checkbox" class="pricingRecChk" value="${d.id}" onclick="event.stopPropagation();pricingUpdateSel()" style="margin-top:4px;width:16px;height:16px;accent-color:var(--purple)">`:''}
-          <div style="min-width:0">
-            <div style="font-size:15px;font-weight:700">${r.companyName||'Sin empresa'}</div>
-            <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${r.edition||'—'} · ${r.users||0} usuarios · ${PRICING_DATA.planLabels[r.planIdx||1]||'—'}</div>
-            <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${r.aeName||''} · ${date}</div>
+      const color=_pricingAvatarColor(r.companyName);
+      return `<div class="card" style="padding:18px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:flex-start;gap:12px;min-width:0">
+          ${isMgr?`<input type="checkbox" class="pricingRecChk" value="${d.id}" onclick="pricingUpdateSel()" style="margin-top:6px;width:16px;height:16px;accent-color:var(--purple);flex-shrink:0">`:''}
+          <div style="width:40px;height:40px;border-radius:50%;background:${color};color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">${_pricingInitials(r.companyName)}</div>
+          <div style="min-width:0;flex:1">
+            <div style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.companyName||'Sin empresa'}</div>
+            <div style="font-size:12px;color:var(--gray-400);margin-top:1px">${r.aeName||''} · ${date}</div>
+          </div>
+          ${isMgr?`<button class="btn btn-ghost-danger btn-sm" style="padding:4px 8px;flex-shrink:0" onclick="deleteRecord('pricingRecords','${d.id}',renderPricingRecords)" title="Eliminar registro">🗑</button>`:''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <span style="background:var(--purple-light,#f3e8ff);color:var(--purple);font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px">${r.edition||'—'}</span>
+          <span style="background:var(--gray-100);color:var(--gray-700);font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px">${r.users||0} usuarios</span>
+          <span style="background:var(--gray-100);color:var(--gray-700);font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px">${PRICING_DATA.planLabels[r.planIdx||1]||'—'}</span>
+        </div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;border-top:1px solid var(--od-line,var(--gray-100));padding-top:10px">
+          <div>
+            <div style="font-size:18px;font-weight:700;color:var(--purple)">${fmt(r.total)}</div>
+            <div style="font-size:11px;color:var(--gray-400)">Total c/IVA · Impl: ${fmt(r.implPrice)}</div>
           </div>
         </div>
-        <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end">
-          <div style="font-size:16px;font-weight:700;color:var(--purple)">${fmt(r.total)}</div>
-          <div style="font-size:11px;color:var(--gray-400)">Total c/IVA</div>
-          <div style="font-size:11px;color:var(--gray-500);margin-top:2px">Impl: ${fmt(r.implPrice)}</div>
-          ${isMgr?`<button class="btn btn-ghost-danger btn-sm" style="margin-top:8px;padding:4px 10px" onclick="event.stopPropagation();deleteRecord('pricingRecords','${d.id}',renderPricingRecords)" title="Eliminar registro">🗑</button>`:''}
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" style="flex:1" onclick="pricingOpenRecord('${d.id}')" title="Reabrir el simulador con estos números">✏️ Editar pricing</button>
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="pricingGenerateProposalFromRecord('${d.id}')" title="Generar la propuesta comercial con estos datos">📄 Generar propuesta</button>
         </div>
       </div>`;
-    }).join('');
+    }).join('')}</div>`;
   } catch(e){ document.getElementById('pricingRecordsList').innerHTML=`<div class="cdc-empty">Error: ${e.message}</div>`; }
 };
 
@@ -7556,6 +7666,7 @@ window.pricingOpenRecord=function(id){
     licDiscByPlan:Array.isArray(r.licDiscByPlan)?r.licDiscByPlan:[0,0,0,0,0,0],
     implDiscByPlan:Array.isArray(r.implDiscByPlan)?r.implDiscByPlan:[0,0,0,0,0,0],
     isSH:r.isSH||false, shWorkers:r.shWorkers||1, shStaging:r.shStaging||0, shStorage:r.shStorage||0,
+    codeLines:r.codeLines||0,
     payTermIdx:r.payTermIdx??-1, payStartDate:r.payStartDate||'', implNotes:r.implNotes||'',
     rowVisible:Array.isArray(r.rowVisible)?r.rowVisible:null,
     clientName:r.companyName||''
@@ -7566,6 +7677,39 @@ window.pricingOpenRecord=function(id){
     iframe.addEventListener('load',()=>setTimeout(send,300),{once:true});
     setTimeout(send,1400); // reintento por si el iframe ya estaba cargado
   }
+};
+
+// Salta directo del registro guardado a la pantalla de Propuesta Comercial, sin pasar por el
+// simulador ni por "cargar último pricing" — usa los totales YA calculados de ESE registro exacto.
+window.pricingGenerateProposalFromRecord=function(id){
+  const r=window._pricingRecordsCache?.[id];
+  if(!r){ showNotif('Registro no encontrado','error'); return; }
+  const fmt=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0}):'';
+  pricingState.company=r.companyId?{id:r.companyId,nombre:r.companyName||''}:(r.companyName?{nombre:r.companyName}:null);
+  pricingState.contact=null;
+  pricingState.recordId=id;
+  pricingState.odooPropUrl=r.odooPropUrl||'';
+  pricingState.result={editionName:r.edition,users:r.users,planIdx:r.planIdx,mensualRef:r.mensualRef,implPrice:r.implPrice,total:r.total,implHrs:r.implHrs||50};
+  pricingState.users=r.users; pricingState.planIdx=r.planIdx;
+  pricingState._mensualRef=fmt(r.mensualRef); pricingState._impl=fmt(r.implPrice);
+  pricingState.isSH=r.isSH||false; pricingState.shWorkers=r.shWorkers||1; pricingState.shStaging=r.shStaging||0; pricingState.shStorage=r.shStorage||0; pricingState.shCost=r.shCost||0;
+  pricingState.codeLines=r.codeLines||0;
+  pricingState.implNotes=r.implNotes||'';
+  const co=r.companyId?_allEmpresas?.find(e=>e.id===r.companyId):null;
+  const memMods=co?.memory?.pricing?.selectedApps||[];
+  if(memMods.length) pricingState.selectedModules=memMods;
+  showModule('propuesta');
+};
+
+// Atajos de ida y vuelta entre la Propuesta y el registro de Pricing que la alimenta
+window.pricingGotoRecords=function(){
+  const t=document.getElementById('topbarTitle'); if(t) t.textContent='Pricing';
+  renderPricingRecords();
+};
+window.pricingBackToPricing=function(){
+  const t=document.getElementById('topbarTitle'); if(t) t.textContent='Pricing';
+  if(pricingState.recordId) pricingOpenRecord(pricingState.recordId);
+  else renderPricingIframe();
 };
 
 window.pricingToggleAll=function(cb){ document.querySelectorAll('.pricingRecChk').forEach(c=>c.checked=cb.checked); pricingUpdateSel(); };
@@ -8552,7 +8696,31 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadSavedConfig();
   const ok=tryInitFirebase();
   if(!ok) showScreen('setup');
+  setupNavTooltips();
 });
+
+// Tooltips del sidebar — un solo elemento position:fixed reposicionado por JS.
+// .sidebar tiene overflow-y:auto, así que un tooltip hijo con left:100% se recorta
+// aunque sea position:absolute; position:fixed + cálculo manual lo evita del todo.
+function setupNavTooltips(){
+  const tip=document.createElement('div');
+  tip.id='navTooltipFloat';
+  document.body.appendChild(tip);
+  let hideT=null;
+  document.querySelectorAll('.nav-item[data-tip]').forEach(btn=>{
+    btn.addEventListener('mouseenter',()=>{
+      clearTimeout(hideT);
+      tip.textContent=btn.dataset.tip;
+      const r=btn.getBoundingClientRect();
+      tip.style.left=(r.right+10)+'px';
+      tip.style.top=(r.top+r.height/2)+'px';
+      tip.style.transform='translateY(-50%)';
+      tip.classList.add('show');
+    });
+    btn.addEventListener('mouseleave',()=>{ tip.classList.remove('show'); });
+  });
+  document.querySelector('.sidebar')?.addEventListener('scroll',()=>tip.classList.remove('show'));
+}
 </script>
 </body>
 </html>
