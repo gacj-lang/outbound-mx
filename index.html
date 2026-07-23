@@ -7738,6 +7738,18 @@ window.pricingDeleteSelected=async function(){
 // CSV BUILDER
 // ══════════════════════════════════════════
 const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Email','phone','Tags_id','user_id','state_id','country_id'];
+// Columnas adicionales (además de Notes) — no son campos nativos de Odoo, son texto consolidado
+// para que el AE decida en el importador de Odoo si las mapea a Notas u otro campo:
+// - datos_denue: se llena cuando la fuente primaria fue Apollo y hubo match contra DENUE.
+// - datos_apollo: se llena cuando la fuente primaria fue DENUE y hubo match contra Apollo.
+// - web: verificación web (solo leads DENUE-primarios, ver csvEnrichRowsWithAI).
+// - resumen: resumen ≤140 caracteres generado por IA, para TODAS las fuentes (ver csvEnrichRowsWithAI).
+const CSV_EXTRA_COLUMNS=[
+  {key:'datos_denue', label:'DATOS DENUE'},
+  {key:'datos_apollo', label:'DATOS APOLLO'},
+  {key:'web', label:'Web'},
+  {key:'resumen', label:'Resumen'},
+];
 const MX_STATES=['Aguascalientes (MX)','Baja California (MX)','Baja California Sur (MX)','Campeche (MX)','Chihuahua (MX)','Chiapas (MX)','Ciudad de México (MX)','Coahuila (MX)','Colima (MX)','Durango (MX)','Estado de Mexico (MX)','Guerrero (MX)','Guanajuato (MX)','Hidalgo (MX)','Jalisco (MX)','Michoacán (MX)','Morelos (MX)','Nayarit (MX)','Nuevo León (MX)','Oaxaca (MX)','Puebla (MX)','Querétaro (MX)','Quintana Roo (MX)','Sinaloa (MX)','San Luis Potosí (MX)','Sonora (MX)','Tabasco (MX)','Tamaulipas (MX)','Tlaxcala (MX)','Veracruz (MX)','Yucatán (MX)','Zacatecas (MX)'];
 
 // ── Buscador de leads (Lusha/Apollo) — países habilitados y sus estados/departamentos/provincias.
@@ -7938,7 +7950,7 @@ function renderCsvBuilder(){
           </button>
           <button class="csv-mode-btn ${csvInputMode==='search'?'active':''}" data-mode="search" onclick="csvSetInputMode('search')"
             style="flex:1;padding:12px;border:1.5px solid ${csvInputMode==='search'?'var(--purple)':'var(--gray-200)'};background:${csvInputMode==='search'?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;color:${csvInputMode==='search'?'var(--purple)':'var(--gray-700)'};transition:all .15s">
-            🔍 Buscar leads (Apollo)
+            🔍 Buscar leads
           </button>
         </div>
 
@@ -7966,7 +7978,20 @@ function renderCsvBuilder(){
         </div>
 
         <div id="csvSearchModeBox" style="display:${csvInputMode==='search'?'block':'none'}">
-          <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Busca leads nuevos en Apollo. Solo se entregan contactos con <strong>correo corporativo y teléfono</strong> — si alguno sale duplicado o incompleto, se busca reposición automáticamente. Te avisamos con la campana 🔔 cuando la lista esté lista.</p>
+          <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Busca leads nuevos. Solo se entregan contactos con <strong>correo corporativo y teléfono</strong> — si alguno sale duplicado o incompleto, se busca reposición automáticamente. Te avisamos con la campana 🔔 cuando la lista esté lista.</p>
+
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Fuente de la búsqueda</label>
+            <div style="display:flex;gap:10px;margin-top:6px">
+              <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
+                <input type="radio" name="csvSearchFuente" id="csvSearchFuenteApollo" value="apollo" checked onchange="csvOnFuenteChange()"> 🚀 Apollo
+              </label>
+              <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
+                <input type="radio" name="csvSearchFuente" id="csvSearchFuenteDenue" value="denue" onchange="csvOnFuenteChange()"> 🇲🇽 DENUE
+              </label>
+            </div>
+            <span id="csvSearchFuenteHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE — si hay coincidencia, se agrega la columna DATOS DENUE.</span>
+          </div>
 
           <div style="border:1.5px solid var(--purple);border-radius:12px;padding:14px 16px;margin-bottom:18px;background:var(--purple-light)">
             <label style="font-weight:700;font-size:13px">🪄 Búsqueda por instrucciones</label>
@@ -8003,11 +8028,11 @@ function renderCsvBuilder(){
               <input type="number" class="input" id="csvSearchEmpMax" min="0" placeholder="Ej. 150"></div>
           </div>
 
-          <div class="form-group" style="margin-bottom:16px">
+          <div class="form-group" style="margin-bottom:16px" id="csvSearchContextoBox">
             <label>Contexto adicional para la búsqueda <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
             <textarea class="input" id="csvSearchContexto" style="min-height:48px;resize:vertical;font-size:13px"
               placeholder="Ej. empresas que hayan crecido recientemente, distribuidoras de refacciones, negocios familiares..."></textarea>
-            <span style="font-size:11px;color:var(--gray-400)">Claude lo interpreta y lo suma como palabra clave de búsqueda, aunque no exista un filtro exacto para eso.</span>
+            <span style="font-size:11px;color:var(--gray-400)">Claude lo interpreta y lo suma como palabra clave de búsqueda, aunque no exista un filtro exacto para eso. Solo aplica a Apollo.</span>
           </div>
 
           <div class="form-group" style="margin-bottom:16px">
@@ -8018,6 +8043,7 @@ function renderCsvBuilder(){
                   <input type="checkbox" class="csv-seniority-check" value="${o.id}"> ${o.label}
                 </label>`).join('')}
             </div>
+            <span id="csvContactoFiltroHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px"></span>
           </div>
 
           <div class="form-group" style="margin-bottom:16px">
@@ -8060,6 +8086,7 @@ function renderCsvBuilder(){
               <thead><tr style="background:var(--purple-light)">
                 ${CSV_COLUMNS.map(c=>`<th style="padding:8px 10px;text-align:left;white-space:nowrap;font-size:11px;font-weight:700;color:var(--purple)">${c}</th>`).join('')}
                 <th style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--purple)">Notes</th>
+                ${CSV_EXTRA_COLUMNS.map(c=>`<th style="padding:8px 10px;text-align:left;white-space:nowrap;font-size:11px;font-weight:700;color:var(--purple)">${c.label}</th>`).join('')}
                 <th style="padding:8px;font-size:11px;color:var(--danger)">✕</th>
               </tr></thead>
               <tbody id="csvTableBody"></tbody>
@@ -8082,6 +8109,37 @@ function renderCsvBuilder(){
 // Repuebla los checkboxes de Estado según el País elegido (país domina estado) — se llama al
 // entrar al módulo y cada vez que cambia el país. Conserva los estados marcados que sigan
 // existiendo en la nueva lista (no debería haber ninguno, pero por si acaso).
+// DENUE es un directorio público de México (INEGI) — no cubre otros países, así que al elegirlo
+// se fuerza el selector de País a México y se bloquea (mismo patrón que "Fuente del lead" se
+// autocompleta/bloquea en modo búsqueda). Al volver a Apollo se libera.
+// Los filtros no significan lo mismo para las dos fuentes: Contexto adicional solo alimenta
+// keywords de Apollo (no hace nada en DENUE, así que se oculta) y Nivel/Función del contacto no
+// filtran qué EMPRESAS aparecen en DENUE (ahí no hay dato de contacto) — solo se usan para elegir
+// mejor a la persona en el cruce con Apollo una vez que la empresa ya se identificó, así que se
+// quedan visibles pero con la aclaración puesta en csvContactoFiltroHint.
+window.csvOnFuenteChange=function(){
+  const denue=document.getElementById('csvSearchFuenteDenue')?.checked;
+  const paisSel=document.getElementById('csvSearchPais');
+  const hint=document.getElementById('csvSearchFuenteHint');
+  const contextoBox=document.getElementById('csvSearchContextoBox');
+  const contactoHint=document.getElementById('csvContactoFiltroHint');
+  if(paisSel){
+    paisSel.disabled=!!denue;
+    if(denue&&paisSel.value!=='MX'){ paisSel.value='MX'; csvRenderEstadoChips(); }
+  }
+  if(hint) hint.textContent=denue
+    ?'DENUE: directorio público de México (INEGI), teléfono y correo corporativo garantizados. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.'
+    :'Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE — si hay coincidencia, se agrega la columna DATOS DENUE.';
+  if(contextoBox){
+    contextoBox.style.display=denue?'none':'block';
+    // Se limpia al ocultarlo — si el AE ya había escrito algo, evita que quede ahí "atorado" sin
+    // efecto y sin que se vea (al volver a Apollo, mejor que empiece en blanco que con texto viejo).
+    if(denue){ const ta=document.getElementById('csvSearchContexto'); if(ta) ta.value=''; }
+  }
+  if(contactoHint) contactoHint.textContent=denue
+    ?'En DENUE no filtra qué empresas aparecen (ahí no hay dato de contacto) — solo se usa para preferir ese tipo de persona al cruzar con Apollo.'
+    :'';
+};
 window.csvRenderEstadoChips=function(){
   const box=document.getElementById('csvSearchEstadosBox'); if(!box) return;
   const paisId=document.getElementById('csvSearchPais')?.value||'MX';
@@ -8286,9 +8344,13 @@ function csvLoadJobIntoRows(job){
   const tagsExtra=document.getElementById('csvTags')?.value.trim();
   const ae=document.getElementById('csvAE')?.value.trim()||'';
   csvRows=(job.leads||[]).map(row=>{
-    const tagsFila=['AppOutbound','ApolloMX'];
-    // Tag automático con la industria que Apollo reporta para la empresa (viene en minúsculas y
-    // en inglés, ej. "consumer services" → "Consumer Services"); se suma a los tags del formulario.
+    const fuentes=row.fuentes||[];
+    const tagsFila=['AppOutbound'];
+    if(fuentes.includes('Apollo')) tagsFila.push('ApolloMX');
+    if(fuentes.includes('DENUE')) tagsFila.push('DenueMX');
+    // Tag automático con la industria que reporta la fuente (Apollo la da en inglés y minúsculas,
+    // ej. "consumer services" → "Consumer Services"; DENUE ya viene en español/Title Case); se
+    // suma a los tags del formulario.
     if(row.industria) tagsFila.push(row.industria.replace(/,/g,' ').trim().replace(/\b\w/g,ch=>ch.toUpperCase()));
     if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
     return {
@@ -8300,26 +8362,87 @@ function csvLoadJobIntoRows(job){
       // absorbe las variantes sin acento/en inglés que manda Apollo ("Nuevo Leon", "Mexico City").
       state_id:(row.country_id==='Mexico'?(_mxState(row.state_id||row.estado_raw)||row.state_id):row.state_id)||'',
       country_id:row.country_id||'', notes:row.notes||'',
+      datos_denue:row.datos_denue||'', datos_apollo:row.datos_apollo||'', web:'', resumen:'',
+      _fuentePrimaria:fuentes.includes('DENUE')?'denue':'apollo',
     };
   });
   csvRenderTable();
   document.getElementById('csvPreviewSection').style.display='block';
   document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
+  csvEnrichRowsWithAI(csvRows);
+}
+
+// ── Enriquecimiento con IA post-carga (columnas Web y Resumen) ──
+// Se llama SOLO sobre los leads que el backend ya confirmó/entregó (nunca sobre candidatos
+// descartados durante la búsqueda) — mismo principio de control de costo que ya aplica el
+// backend con los créditos de Apollo. Resumen aplica a cualquier fuente; Web solo a DENUE-primario
+// (dato más viejo/menos verificado que Apollo, ver estrategia acordada).
+window.csvEnrichRowsWithAI=async function(rows){
+  if(!rows.length) return;
+  try{
+    const resumenes=await csvBatchResumenes(rows);
+    resumenes.forEach((r,i)=>{ if(rows[i]) rows[i].resumen=r; });
+  }catch(e){ console.warn('csvEnrichRowsWithAI resumen:',e); }
+  csvRenderTable();
+
+  const denueRows=rows.filter(r=>r._fuentePrimaria==='denue');
+  if(denueRows.length){
+    await csvBatchWebCheck(denueRows).catch(e=>console.warn('csvEnrichRowsWithAI web:',e));
+    csvRenderTable();
+  }
+};
+
+// Un solo batch (no 1 llamada por lead) — le pasamos a Claude solo los campos que importan para
+// resumir, y pedimos el array de vuelta en el MISMO orden/cantidad que los leads de entrada.
+async function csvBatchResumenes(rows){
+  const items=rows.map(r=>({
+    empresa:r.partner_name||'', contacto:r.contact_name||'', cargo:r.function||'',
+    ubicacion:r.state_id||r.country_id||'', industria:r.industria||'',
+    contexto:[r.notes,r.datos_denue,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400),
+  }));
+  const raw=await gcCallClaude(`Genera un resumen ULTRA BREVE (máximo 140 caracteres) por cada lead de ventas B2B en México, pensado para que un vendedor sepa en un vistazo por qué contactarlo y con qué gancho empezar. En español.
+LEADS:
+${JSON.stringify(items)}
+
+Devuelve EXCLUSIVAMENTE un array JSON de strings, EN EL MISMO ORDEN Y LA MISMA CANTIDAD que los leads de entrada (si hay ${items.length} leads, regresa exactamente ${items.length} strings): ["resumen1","resumen2",...]. Sin markdown, sin explicaciones. Cada string debe tener 140 caracteres o menos.`,
+    null, {maxTokens:4000, system:'Devuelves SIEMPRE y SOLO un array JSON de strings válido, en el mismo orden y cantidad que la entrada, sin texto adicional.'});
+  const arr=_parseJSONArray(raw);
+  return Array.isArray(arr)&&arr.length===items.length?arr.map(s=>String(s||'').slice(0,140)):rows.map(()=>'');
+}
+
+// Búsqueda web cruzada (solo DENUE-primario) — usa el tool de búsqueda web nativo de Claude vía
+// gcCallClaude (ya soporta opts.tools, ver definición). 1 llamada por empresa (no se puede batchear
+// una búsqueda web real de varias empresas a la vez sin confundir resultados) — acotado a los
+// leads ya entregados, igual que el resto de los cross-match.
+async function csvBatchWebCheck(rows){
+  await Promise.all(rows.map(async(r)=>{
+    try{
+      const query=`${r.partner_name||''} ${r.state_id||''} México`.trim();
+      const raw=await gcCallClaude(`Busca en la web información reciente y relevante sobre esta empresa mexicana para prospección B2B: "${query}"${r.Website?` (posible sitio: ${r.Website})`:''}.
+Confirma si sigue operando y da 1-2 datos útiles para un vendedor (a qué se dedica, tamaño aproximado, algo reciente o relevante). Si no encuentras nada confiable, dilo brevemente en vez de inventar.
+Responde en español, MÁXIMO 200 caracteres, sin markdown, sin explicar tu proceso de búsqueda — solo el dato final.`,
+        null, {maxTokens:600, system:'Respondes siempre en texto plano, directo, máximo 200 caracteres, sin markdown ni disclaimers de tu proceso.', tools:[{type:'web_search_20250305', name:'web_search', max_uses:1}]});
+      r.web=String(raw||'').trim().slice(0,200);
+    }catch(e){ console.warn('csvBatchWebCheck:',r.partner_name,e); r.web=''; }
+  }));
 }
 // Popup (no toast) al lanzar una búsqueda — el AE necesita quedar bien enterado de que el
 // teléfono tarda unos minutos y de que se le va a avisar por la campana, no un aviso que
 // desaparece solo a los 3.5s. Mismo overlay que showNavWarning (.disc-popup-overlay).
-window.csvShowSearchStartedPopup=function(){
+window.csvShowSearchStartedPopup=function(fuentePrimaria){
+  const esDenue=fuentePrimaria==='denue';
   const existing=document.getElementById('leadSearchStartedPopup'); if(existing) existing.remove();
   const overlay=document.createElement('div');
   overlay.className='disc-popup-overlay'; overlay.id='leadSearchStartedPopup';
   overlay.innerHTML=`
     <div style="background:white;border-radius:16px;width:100%;max-width:440px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
       <div style="font-size:40px;text-align:center;margin-bottom:12px">🔍</div>
-      <h3 style="font-size:17px;font-weight:700;text-align:center;margin-bottom:12px">Buscando tus leads en Apollo</h3>
+      <h3 style="font-size:17px;font-weight:700;text-align:center;margin-bottom:12px">Buscando tus leads en ${esDenue?'DENUE':'Apollo'}</h3>
       <ul style="font-size:14px;color:var(--gray-600);margin:0 0 20px;padding-left:20px;display:flex;flex-direction:column;gap:8px">
         <li><strong>Regla dura:</strong> solo se entregan contactos con correo corporativo Y teléfono.</li>
-        <li>Si un lead sale duplicado, sin correo corporativo o sin teléfono, se descarta y <strong>se busca reposición automáticamente</strong> — por eso la búsqueda puede tardar de 2 a 15 minutos.</li>
+        ${esDenue
+          ?'<li>Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, se entrega igual solo con datos de la empresa.</li>'
+          :'<li>Si un lead sale duplicado, sin correo corporativo o sin teléfono, se descarta y <strong>se busca reposición automáticamente</strong> — por eso la búsqueda puede tardar de 2 a 15 minutos.</li>'}
         <li>Puedes seguir usando la app o cerrar esta ventana — te avisamos con la campana 🔔 en la esquina superior cuando la lista esté completa.</li>
       </ul>
       <button class="btn btn-primary btn-full" id="leadSearchStartedClose">Entendido</button>
@@ -8344,12 +8467,15 @@ window.csvRunLeadSearch=async function(){
   const seniorities=[...document.querySelectorAll('.csv-seniority-check:checked')].map(c=>c.value);
   const roleGroups=[...document.querySelectorAll('.csv-rolegroup-check:checked')].map(c=>c.value);
   const cantidad=document.getElementById('csvSearchCantidad')?.value||5;
+  const fuentePrimaria=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':'apollo';
   if(!estados.length&&!giro&&!contexto&&!instrucciones&&!roleGroups.length){ showNotif('Define al menos un estado, giro, rol, contexto o instrucciones para buscar','error'); return; }
   if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
   const btn=document.getElementById('csvSearchBtn'); btn.disabled=true; gcShowLoading('csvSearchLoading',true);
   try{
     // Giro ya es una etiqueta conocida (keyword directa); el contexto libre necesita que Claude lo
-    // interprete; las instrucciones ya dejaron sus keywords/títulos en _csvSearchParsed.
+    // interprete; las instrucciones ya dejaron sus keywords/títulos en _csvSearchParsed. giro (la
+    // clave interna, ej. "retail") se manda tal cual además de giroKeywords — el backend lo usa
+    // para mapear a industrias DENUE cuando fuentePrimaria es 'denue' (Apollo sigue usando keywords).
     let giroKeywords=giro?[IND_NAMES[giro]]:[];
     if(contexto) giroKeywords=giroKeywords.concat(await csvExtractKeywordsFromContexto(contexto));
     giroKeywords=[...new Set(giroKeywords.concat(_csvSearchParsed.keywords))].slice(0,10);
@@ -8358,13 +8484,13 @@ window.csvRunLeadSearch=async function(){
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
       body:JSON.stringify({
-        paisId, estados, seniorities, roleGroups, giroKeywords, extraTitles:_csvSearchParsed.extraTitles, cantidad:Number(cantidad)||5,
-        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null,
+        paisId, estados, seniorities, roleGroups, giroKeywords, giro, extraTitles:_csvSearchParsed.extraTitles, cantidad:Number(cantidad)||5,
+        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria,
       }),
     });
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
-    csvShowSearchStartedPopup();
+    csvShowSearchStartedPopup(fuentePrimaria);
   }catch(e){ showNotif('Error: '+e.message,'error'); }
   finally{ btn.disabled=false; gcShowLoading('csvSearchLoading',false); }
 };
@@ -8426,12 +8552,20 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
   btn.disabled=false; gcShowLoading('csvLoading',false);
 };
 
+// Los onchange inline de la tabla NO pueden referenciar `csvRows` directamente — csvRows vive en
+// el scope del <script type="module"> y un atributo onchange="..." corre en scope global clásico,
+// donde `csvRows` no existe (bug preexistente confirmado: cada edición manual tiraba un Uncaught
+// ReferenceError y se perdía en silencio). csvDeleteRow/csvAddRow sí funcionaban porque son
+// FUNCIONES definidas dentro del módulo y solo expuestas vía window — su cierre (closure) sí ve
+// csvRows aunque se invoquen desde un atributo global. Este helper sigue el mismo patrón.
+window.csvUpdateCell=function(i,key,val){ if(csvRows[i]) csvRows[i][key]=val; };
 function csvRenderTable(){
   const tbody=document.getElementById('csvTableBody'); if(!tbody) return;
   document.getElementById('csvRowCount').textContent=`(${csvRows.length} prospectos)`;
   tbody.innerHTML=csvRows.map((row,i)=>`<tr style="border-bottom:1px solid var(--gray-100)">
-    ${CSV_COLUMNS.map(col=>`<td style="padding:4px 6px;max-width:130px"><input type="text" value="${(row[col]||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvRows[${i}]['${col}']=this.value" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>`).join('')}
-    <td style="padding:4px 6px;max-width:160px"><input type="text" value="${(row.notes||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvRows[${i}].notes=this.value" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>
+    ${CSV_COLUMNS.map(col=>`<td style="padding:4px 6px;max-width:130px"><input type="text" value="${(row[col]||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvUpdateCell(${i},'${col}',this.value)" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>`).join('')}
+    <td style="padding:4px 6px;max-width:160px"><input type="text" value="${(row.notes||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvUpdateCell(${i},'notes',this.value)" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>
+    ${CSV_EXTRA_COLUMNS.map(c=>`<td style="padding:4px 6px;max-width:160px"><input type="text" value="${(row[c.key]||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvUpdateCell(${i},'${c.key}',this.value)" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>`).join('')}
     <td style="padding:4px"><button onclick="csvDeleteRow(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px">✕</button></td>
   </tr>`).join('');
   const emptyStates=csvRows.map((r,i)=>r.state_id?null:i+1).filter(Boolean);
@@ -8448,9 +8582,9 @@ window.csvAddRow=function(){
 };
 let _csvSessionId=null;   // sesión CSV actual (para actualizar en vez de duplicar)
 function csvBuildText(rows){
-  const headers=[...CSV_COLUMNS,'Notes'];
+  const headers=[...CSV_COLUMNS,'Notes',...CSV_EXTRA_COLUMNS.map(c=>c.label)];
   const esc=v=>'"'+(v||'').replace(/"/g,'""')+'"';
-  return [headers.join(','),...rows.map(r=>[...CSV_COLUMNS.map(c=>esc(r[c]||'')),esc(r.notes||'')].join(','))].join('\r\n');
+  return [headers.join(','),...rows.map(r=>[...CSV_COLUMNS.map(c=>esc(r[c]||'')),esc(r.notes||''),...CSV_EXTRA_COLUMNS.map(c=>esc(r[c.key]||''))].join(','))].join('\r\n');
 }
 function csvFileName(fuente){
   return `odoo-leads-${(fuente||'csv').replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;
