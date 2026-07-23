@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-23c buscador: fuente DENUE (selector Apollo/DENUE, cross-match) + ubicación de EMPRESA, tag de industria y nombre de consulta';
+const APP_BUILD_STAMP='2026-07-23d buscador: campanita "Listo para descargar" + toast al terminar + permiso de notificaciones al buscar + nombre de consulta en CSV creados';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1760,8 +1760,8 @@ window.cfgRequestNotifPermission=async function(){
 function csvNotifyLeadJobReady(job){
   if(!('Notification' in window) || Notification.permission!=='granted') return;
   const n=job.leads?.length||0;
-  const notif=new Notification('Tu búsqueda de leads está lista 🔔', {
-    body:`${job.nombre?job.nombre+': ':''}${n} de ${job.solicitados||'?'} leads listos en Apollo — email y teléfono ya disponibles.`,
+  const notif=new Notification('🔔 Búsqueda lista para descargar', {
+    body:`${job.nombre?job.nombre+': ':''}${n} de ${job.solicitados||'?'} leads listos para descargar — email y teléfono incluidos.`,
     tag:`leadSearchJob-${job.id}`,
   });
   notif.onclick=()=>{ window.focus(); notif.close(); csvOpenLeadJob(job.id); };
@@ -8291,7 +8291,12 @@ function csvSetupLeadJobsListener(){
     _leadJobsCache=snap.docs.map(d=>({id:d.id,...d.data()}));
     if(!_leadJobsFirstSnapshot){
       for(const job of _leadJobsCache){
-        if(job.status==='listo' && !job.read && _leadJobsKnownStatus.get(job.id)!=='listo') csvNotifyLeadJobReady(job);
+        if(job.status==='listo' && !job.read && _leadJobsKnownStatus.get(job.id)!=='listo'){
+          csvNotifyLeadJobReady(job); // notificación nativa del navegador (requiere permiso)
+          // Aviso visible dentro de la app en cualquier caso — aunque el AE no haya dado permiso
+          // de notificaciones o esté en otro módulo, se entera sin abrir la campanita.
+          showNotif(`🔔 ${job.nombre||'Tu búsqueda'} — lista para descargar (${job.leads?.length||0} leads)`,'success');
+        }
       }
     }
     _leadJobsKnownStatus=new Map(_leadJobsCache.map(j=>[j.id,j.status]));
@@ -8302,16 +8307,17 @@ function csvSetupLeadJobsListener(){
 function renderLeadJobsBell(){
   const wrap=document.getElementById('leadJobsBellWrap'); if(!wrap) return;
   const unread=_leadJobsCache.filter(j=>j.status==='listo'&&!j.read).length;
-  const statusLabel={buscando:'⏳ Buscando…',esperando_telefonos:'📞 Resolviendo teléfonos…',listo:'✅ Lista',error:'⚠️ Error en la búsqueda'};
+  const statusLabel={buscando:'⏳ Buscando…',esperando_telefonos:'📞 Resolviendo teléfonos…',listo:'✅ Listo para descargar',error:'⚠️ Error en la búsqueda'};
   const dropdown=_leadBellOpen?`<div class="lead-bell-dropdown">${
     _leadJobsCache.length?_leadJobsCache.map(j=>{
       const n=j.leads?.length||0;
-      const estatus=`${statusLabel[j.status]||j.status}${j.status==='listo'?` — ${n} lead${n!==1?'s':''}`:''}`;
+      const listo=j.status==='listo';
       // j.nombre (usuario_fechahora_consecutivo, lo pone el backend) identifica cada consulta;
-      // los jobs previos a ese cambio no lo traen y caen al estatus como título.
-      return `<div class="lead-bell-item" onclick="csvOpenLeadJob('${j.id}')">
-        <div style="font-weight:600">${j.nombre||estatus}</div>
-        <div style="color:var(--gray-400);font-size:11px;margin-top:2px">${j.nombre?`${estatus} · `:''}${j.solicitados||''} solicitados${!j.read&&j.status==='listo'?' · nuevo':''}</div>
+      // los jobs previos a ese cambio no lo traen y caen al estatus como título. El estatus
+      // "Listo para descargar" va en verde y resaltado (fondo) mientras no se haya abierto.
+      return `<div class="lead-bell-item" ${listo&&!j.read?'style="background:var(--success-light)"':''} onclick="csvOpenLeadJob('${j.id}')">
+        <div style="font-weight:600">${j.nombre||statusLabel[j.status]||j.status}</div>
+        <div style="font-size:11px;margin-top:3px;${listo?'color:var(--success);font-weight:700':'color:var(--gray-400)'}">${statusLabel[j.status]||j.status}${listo?` — ${n} de ${j.solicitados||n} lead${(j.solicitados||n)!==1?'s':''}`:` · ${j.solicitados||''} solicitados`}${listo&&!j.read?' · NUEVO':''}</div>
       </div>`;
     }).join(''):'<div class="lead-bell-empty">Sin búsquedas recientes</div>'
   }</div>`:'';
@@ -8341,6 +8347,13 @@ window.csvOpenLeadJob=async function(jobId){
 // Convierte los leads de un job (ya con email+teléfono resueltos) al shape de csvRows — misma
 // transformación que antes hacía csvRunLeadSearch al recibir la respuesta directa.
 function csvLoadJobIntoRows(job){
+  // Cada consulta es su PROPIO documento en "CSV creados": se resetea la sesión (si no, la
+  // descarga de esta consulta pisaría el doc de la anterior) y la fuente lleva el nombre de la
+  // consulta — misma nomenclatura que la campanita — para identificarla en el historial (antes
+  // todos decían solo "App Outbound" y no se distinguían).
+  _csvSessionId=null;
+  const fuenteInput=document.getElementById('csvFuente');
+  if(fuenteInput&&job.nombre) fuenteInput.value=`App Outbound · ${job.nombre}`;
   const tagsExtra=document.getElementById('csvTags')?.value.trim();
   const ae=document.getElementById('csvAE')?.value.trim()||'';
   csvRows=(job.leads||[]).map(row=>{
@@ -8451,6 +8464,12 @@ window.csvShowSearchStartedPopup=function(fuentePrimaria){
   document.getElementById('leadSearchStartedClose').onclick=()=>overlay.remove();
 };
 window.csvRunLeadSearch=async function(){
+  // El clic en "Buscar leads" es un gesto de usuario válido para pedir el permiso de
+  // notificaciones — si el AE nunca ha decidido, se le pide aquí para que la notificación de
+  // "listo para descargar" le funcione desde su primera búsqueda (no bloquea la búsqueda).
+  if('Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission().then(()=>{ document.getElementById('leadSearchNotifBanner')?.remove(); }).catch(()=>{});
+  }
   // Si el AE escribió instrucciones pero no las interpretó (o las editó después), se interpretan
   // aquí mismo antes de buscar — así el botón de buscar nunca ignora lo que el AE pidió en texto.
   const instrucciones=document.getElementById('csvSearchInstrucciones')?.value.trim()||'';
