@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-23 Columna "Costo total mensual" en la tabla informativa de líneas de código';
+const APP_BUILD_STAMP='2026-07-23 Fix paginación de la Propuesta PDF: ya no se recorta contenido largo';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -6725,12 +6725,13 @@ window.pricingGeneratePDF=function(){
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Inter',sans-serif;color:#21272B;background:white;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-/* LETTER pages (21.6 × 27.9 cm) */
-.page{width:816px;height:279mm;padding:0;position:relative;overflow:hidden;page-break-after:always;break-after:page;}
+/* LETTER pages (21.6 × 27.9 cm). min-height (no height fijo + sin overflow:hidden) para que el
+   contenido que no quepa en una página fluya a páginas físicas adicionales en vez de recortarse. */
+.page{width:816px;min-height:279mm;padding:0;position:relative;page-break-after:always;break-after:page;}
 .page:last-child{page-break-after:auto;break-after:auto;}
-.page-inner{padding:52px 68px 60px;height:279mm;display:flex;flex-direction:column;overflow:hidden;}
+.page-inner{padding:52px 68px 60px;min-height:279mm;display:flex;flex-direction:column;}
 /* Cover page */
-.cover{background:#f5f4f0;color:#21272B;height:279mm;display:flex;flex-direction:column;justify-content:space-between;padding:68px 68px 60px;overflow:hidden;position:relative;}
+.cover{background:#f5f4f0;color:#21272B;min-height:279mm;display:flex;flex-direction:column;justify-content:space-between;padding:68px 68px 60px;position:relative;}
 .cover::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,#d8d4cc 1.2px,transparent 1.2px);background-size:26px 26px;opacity:.5;pointer-events:none;}
 .cover-headline{font-family:'Inter',sans-serif;font-size:52px;font-weight:700;line-height:1.05;letter-spacing:-1.5px;color:white;margin-bottom:8px;}
 .cover-headline span{color:#FC787D;}
@@ -6777,8 +6778,11 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 .pay-row{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #f3f4f6;}
 .pay-row:last-child{border-bottom:none;background:#f0fdf4;border-radius:0 0 8px 8px;}
 /* Module cards */
-.mod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
-.mod-card{border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 11px;background:white;}
+/* flex-wrap en vez de CSS grid: los grids se cortan mal al paginar en impresión (Chrome puede
+   partir una fila de grid a la mitad incluso con break-inside:avoid); flex-wrap pagina de forma
+   confiable porque cada tarjeta es un bloque de flujo independiente. */
+.mod-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.mod-card{width:calc(25% - 6px);border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 11px;background:white;break-inside:avoid;page-break-inside:avoid;}
 .mod-card.sel{border-color:#714B67;background:#fdf8fc;}
 /* SH box */
 .sh-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;}
@@ -6800,10 +6804,15 @@ tr.sel-row td{color:#015c61;font-weight:700;}
 .impl-step-label{font-size:9.5px;color:#6b7280;font-weight:600;}
 /* Closing page */
 .closing{background:linear-gradient(135deg,#714B67 0%,#4a2d42 100%);min-height:1056px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18mm;}
+/* Evita que un elemento se corte a la mitad entre dos páginas físicas — el contenedor .page SÍ
+   puede fluir a varias páginas cuando su contenido no cabe en una sola (ver .page arriba). */
+.mod-card,.stat-box,.benefit-item,.inv-box,.pay-row,.sh-box,.impl-step,.closing,tr{
+  break-inside:avoid; page-break-inside:avoid;
+}
+thead{ display:table-header-group; }
 @media print{
   @page{size:216mm 279mm;margin:0;}
   html,body{width:816px;margin:0;padding:0;}
-  .page{page-break-inside:avoid;break-inside:avoid;height:279mm;}
   .page:last-child{page-break-after:avoid;break-after:avoid;}
 }
 </style></head><body>
