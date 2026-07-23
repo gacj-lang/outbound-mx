@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-22 buscador: email corporativo + teléfono obligatorios con reposición, contacto secundario en notas y búsqueda por instrucciones';
+const APP_BUILD_STAMP='2026-07-23 buscador: state_id con fallback al estado filtrado y formato (MX), nombre de consulta usuario_fechahora_consecutivo en la campana';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1761,7 +1761,7 @@ function csvNotifyLeadJobReady(job){
   if(!('Notification' in window) || Notification.permission!=='granted') return;
   const n=job.leads?.length||0;
   const notif=new Notification('Tu búsqueda de leads está lista 🔔', {
-    body:`${n} de ${job.solicitados||'?'} leads listos en Apollo — email y teléfono ya disponibles.`,
+    body:`${job.nombre?job.nombre+': ':''}${n} de ${job.solicitados||'?'} leads listos en Apollo — email y teléfono ya disponibles.`,
     tag:`leadSearchJob-${job.id}`,
   });
   notif.onclick=()=>{ window.focus(); notif.close(); csvOpenLeadJob(job.id); };
@@ -8248,9 +8248,12 @@ function renderLeadJobsBell(){
   const dropdown=_leadBellOpen?`<div class="lead-bell-dropdown">${
     _leadJobsCache.length?_leadJobsCache.map(j=>{
       const n=j.leads?.length||0;
+      const estatus=`${statusLabel[j.status]||j.status}${j.status==='listo'?` — ${n} lead${n!==1?'s':''}`:''}`;
+      // j.nombre (usuario_fechahora_consecutivo, lo pone el backend) identifica cada consulta;
+      // los jobs previos a ese cambio no lo traen y caen al estatus como título.
       return `<div class="lead-bell-item" onclick="csvOpenLeadJob('${j.id}')">
-        <div style="font-weight:600">${statusLabel[j.status]||j.status}${j.status==='listo'?` — ${n} lead${n!==1?'s':''}`:''}</div>
-        <div style="color:var(--gray-400);font-size:11px;margin-top:2px">${j.solicitados||''} solicitados${!j.read&&j.status==='listo'?' · nuevo':''}</div>
+        <div style="font-weight:600">${j.nombre||estatus}</div>
+        <div style="color:var(--gray-400);font-size:11px;margin-top:2px">${j.nombre?`${estatus} · `:''}${j.solicitados||''} solicitados${!j.read&&j.status==='listo'?' · nuevo':''}</div>
       </div>`;
     }).join(''):'<div class="lead-bell-empty">Sin búsquedas recientes</div>'
   }</div>`:'';
@@ -8290,7 +8293,10 @@ function csvLoadJobIntoRows(job){
       contact_name:row.contact_name||'', function:row.function||'',
       partner_name:row.partner_name||'', Website:row.Website||'',
       Email:row.Email||'', phone:row.phone||'', Tags_id:tagsFila.join(','), user_id:ae,
-      state_id:row.state_id||'', country_id:row.country_id||'', notes:row.notes||'',
+      // Para México el CRM espera el formato de MX_STATES ("Nuevo León (MX)") — _mxState también
+      // absorbe las variantes sin acento/en inglés que manda Apollo ("Nuevo Leon", "Mexico City").
+      state_id:(row.country_id==='Mexico'?(_mxState(row.state_id||row.estado_raw)||row.state_id):row.state_id)||'',
+      country_id:row.country_id||'', notes:row.notes||'',
     };
   });
   csvRenderTable();
