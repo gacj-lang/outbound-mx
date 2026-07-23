@@ -8166,8 +8166,15 @@ Devuelve EXCLUSIVAMENTE este objeto JSON (sin markdown):
 - cantidad: número de leads pedidos (1-25, default 5).
 - Usa null/arrays vacíos/"" para lo que la petición no mencione.`,
       null, {maxTokens:500, system:'Devuelves SIEMPRE y SOLO un objeto JSON válido, sin texto adicional.'});
-    const parsed=_parseJSONArray(raw)[0];
-    if(!parsed||typeof parsed!=='object') throw new Error('No se pudo interpretar la petición');
+    // Parseo de OBJETO dedicado — no usar _parseJSONArray aquí: ese helper está pensado para
+    // arrays y, si le das un objeto con arrays adentro (estados, keywords...), extrae el primer
+    // array interno en vez del objeto completo (bug encontrado en la prueba real del 2026-07-22).
+    let s=String(raw).trim();
+    const fence=s.match(/```(?:json)?\s*([\s\S]*?)```/i); if(fence) s=fence[1].trim();
+    const oa=s.indexOf('{'), ob=s.lastIndexOf('}');
+    if(oa<0||ob<=oa) throw new Error('No se pudo interpretar la petición');
+    const parsed=JSON.parse(s.slice(oa,ob+1).replace(/,\s*([\]}])/g,'$1'));
+    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed)) throw new Error('No se pudo interpretar la petición');
     // Llenar la UI con lo interpretado (mismo efecto que si el AE lo hubiera capturado a mano).
     const paisSel=document.getElementById('csvSearchPais');
     if(paisSel&&LEAD_SEARCH_COUNTRIES.some(c=>c.id===parsed.paisId)){ paisSel.value=parsed.paisId; csvRenderEstadoChips(); }
