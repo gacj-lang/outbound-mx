@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-23e CSV Builder: popup de salir solo con cambios sin guardar + botón Guardar y salir + "No hay datos en Apollo" cuando el cross-match DENUE no trae nada';
+const APP_BUILD_STAMP='2026-07-23f Nombre corto de archivo CSV: gram-fecha-hora-fuente (apollo|denue)';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -8622,8 +8622,21 @@ function csvBuildText(rows){
   const esc=v=>'"'+(v||'').replace(/"/g,'""')+'"';
   return [headers.join(','),...rows.map(r=>[...CSV_COLUMNS.map(c=>esc(r[c]||'')),esc(r.notes||''),...CSV_EXTRA_COLUMNS.map(c=>esc(r[c.key]||''))].join(','))].join('\r\n');
 }
-function csvFileName(fuente){
-  return `odoo-leads-${(fuente||'csv').replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;
+// Nomenclatura corta: gram-año-mes-día-hora-minuto-fuente. Para búsquedas de la app, el campo
+// fuente trae el nombre de consulta del backend ("App Outbound · gram_YYYY-MM-DD HH:MM_seq") —
+// de ahí salen gram y timestamp — y la fuente primaria (apollo|denue) viene en las filas
+// (_fuentePrimaria, también persistida en el historial). Para fuente manual (modo pegar) se usa
+// el gram del usuario actual, la hora de descarga (CDMX) y el texto de la fuente.
+function csvFileName(fuente,rows){
+  const m=(fuente||'').match(/([a-z0-9]+)_(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})/i);
+  if(m){
+    const primaria=(rows||[]).find(r=>r._fuentePrimaria)?._fuentePrimaria;
+    return `${m[1].toLowerCase()}-${m[2]}-${m[3]}-${m[4]}${primaria?'-'+primaria:''}.csv`;
+  }
+  const gram=(currentUserData?.gram||'ae').toLowerCase();
+  const stamp=new Date().toLocaleString('sv-SE',{timeZone:'America/Mexico_City'}).slice(0,16).replace(/[ :]/g,'-');
+  const label=(fuente||'csv').replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase();
+  return `${gram}-${stamp}-${label}.csv`;
 }
 function csvTriggerDownload(text,name){
   const blob=new Blob([text],{type:'text/csv;charset=utf-8;'});
@@ -8645,7 +8658,7 @@ async function csvPersist(opts={}){
 }
 window.csvDownload=async function(){
   if(!csvRows.length){ showNotif('Sin filas para descargar','error'); return; }
-  csvTriggerDownload(csvBuildText(csvRows), csvFileName(document.getElementById('csvFuente')?.value));
+  csvTriggerDownload(csvBuildText(csvRows), csvFileName(document.getElementById('csvFuente')?.value, csvRows));
   const id=await csvPersist({silent:true});   // queda guardado en el sistema, vinculado al usuario
   csvLoadHistory();
   showNotif(id?'CSV descargado y guardado ✓':'CSV descargado ✓','success');
@@ -8662,7 +8675,7 @@ window.csvDownloadSaved=async function(id){
   try{
     const snap=await getDoc(doc(db,'csvSessions',id)); if(!snap.exists()){ showNotif('Documento no encontrado','error'); return; }
     const r=snap.data();
-    csvTriggerDownload(r.csvText||csvBuildText(r.rows||[]), csvFileName(r.fuente));
+    csvTriggerDownload(r.csvText||csvBuildText(r.rows||[]), csvFileName(r.fuente, r.rows));
     showNotif('CSV descargado ✓','success');
   }catch(e){ showNotif('Error: '+e.message,'error'); }
 };
