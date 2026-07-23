@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-23 buscador: state_id con fallback al estado filtrado y formato (MX), nombre de consulta usuario_fechahora_consecutivo en la campana';
+const APP_BUILD_STAMP='2026-07-23b buscador: ubicación de la EMPRESA para state_id/ICP, tag automático de industria, y empleados/teléfonos extra/tecnologías en notas';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -8287,6 +8287,9 @@ function csvLoadJobIntoRows(job){
   const ae=document.getElementById('csvAE')?.value.trim()||'';
   csvRows=(job.leads||[]).map(row=>{
     const tagsFila=['AppOutbound','ApolloMX'];
+    // Tag automático con la industria que Apollo reporta para la empresa (viene en minúsculas y
+    // en inglés, ej. "consumer services" → "Consumer Services"); se suma a los tags del formulario.
+    if(row.industria) tagsFila.push(row.industria.replace(/,/g,' ').trim().replace(/\b\w/g,ch=>ch.toUpperCase()));
     if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
     return {
       name:`App Outbound - ${row.partner_name||''} - ${row.contact_name||''}`,
