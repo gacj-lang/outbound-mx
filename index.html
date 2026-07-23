@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-22 Fix tooltips del sidebar + líneas de código como tabla informativa (no suma al total)';
+const APP_BUILD_STAMP='2026-07-23 Desglose licencias vs Odoo.SH explícito en todas las filas de la comparativa';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -6623,7 +6623,7 @@ window.pricingGeneratePDF=function(){
       : fmtN(row.rateY2));
     const dLicCell=row.isMonthly?'—':(!row.licDiscApplicable?'<span style="color:#c0c0c0">N/A</span>':(row.licDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.licDiscPct}%</span>`:'—'));
     const licCell=`${row.licDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.licTotalList)}</s><br>`:''}${fmtN(row.licTotal)}`
-      +`${row.isMonthly&&row.shCost>0?`<div style="font-size:8px;color:#c0c0c0">lic. + Odoo.SH</div>`:''}`
+      +`${row.shCost>0?`<div style="font-size:8px;color:#c0c0c0">Licencias: ${fmtN(row.licOnly)} · Odoo.SH: ${fmtN(row.shCost)}</div>`:''}`
       +`${(!row.isMonthly&&row.licDiscPct===0&&row.savings>0)?`<div style="font-size:8px;color:#16a34a">Ahorro ${fmtN(row.savings)}</div>`:''}`;
     const implCell=!row.hasImpl?'—':(row.implDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.implList)}</s><br>${fmtN(row.implNet)}`:fmtN(row.implNet));
     const dImplCell=!row.hasImpl?'—':(row.implDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.implDiscPct}%</span>`:'—');

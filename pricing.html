@@ -2027,6 +2027,9 @@
       // Para mensual: costo mensual = tarifa × usuarios + SH mensual (+ impl si aplica)
       const shMensual    = getSHCost(0);   // costo SH para plan mensual
       const mensualTotal = tarifaBase * currentUsers + shMensual + (hasImpl ? implAfter : 0);
+      // Desglose licencias vs Odoo.SH — visible en TODAS las filas cuando aplica (no solo mensual)
+      const shCostRow  = getSHCost(i);
+      const licPortion = i === 0 ? (tarifaBase * currentUsers) : (licTotal - shCostRow);
 
       const isMXLocal  = currentCurrency.currency === 'MXN';
       const sinIvaTag  = isMXLocal ? '<div class="ct-base">+ IVA</div>' : '<div class="ct-base">USD</div>';
@@ -2070,7 +2073,7 @@
         <td class="td-disc-lic ${discLicUnlocked ? 'disc-cell-visible' : 'disc-cell-hidden'}">${licDiscCell}</td>
         <td>
           <div class="ct-total teal">${i === 0 ? (shMensual > 0 ? fmtMXN(tarifaBase * currentUsers + shMensual) : fmtMXN(tarifaBase * currentUsers)) : (licTotal ? fmtMXN(licTotal) : '—')}</div>
-          ${i === 0 && shMensual > 0 ? `<div class="ct-base">lic. + Odoo.SH</div>` : ''}
+          ${shCostRow > 0 ? `<div class="ct-base">Licencias: ${fmtMXN(licPortion)} · Odoo.SH: ${fmtMXN(shCostRow)}</div>` : ''}
           ${i !== 0 && activeLicDisc > 0 ? `<div class="ct-base" style="text-decoration:line-through;color:var(--muted)">${fmtMXN(getLicTotal(i, 0))}</div>` : ''}
           ${i !== 0 && savings > 0 && activeLicDisc === 0 ? `<div class="ct-base">Ahorro: ${fmtMXN(savings)}</div>` : ''}
         </td>
