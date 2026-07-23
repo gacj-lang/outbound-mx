@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-23d buscador: campanita "Listo para descargar" + toast al terminar + permiso de notificaciones al buscar + nombre de consulta en CSV creados';
+const APP_BUILD_STAMP='2026-07-23e CSV Builder: popup de salir solo con cambios sin guardar + botón Guardar y salir + "No hay datos en Apollo" cuando el cross-match DENUE no trae nada';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1402,7 +1402,14 @@ function loadSavedConfig(){
 // ── Unsaved work tracking ──
 function getUnsavedWarning(targetModule){
   if(disc.formActive) return {msg:'Tienes una sesión de Discovery abierta con información sin guardar.',detail:'Si sales ahora perderás los datos capturados en esta llamada.'};
-  if(csvRows.length>0) return {msg:`Tienes ${csvRows.length} prospectos procesados en el CSV Builder sin descargar ni guardar.`,detail:'Si sales ahora perderás los datos.'};
+  // _csvDirty (no solo csvRows.length): si el AE ya descargó o guardó y no ha editado nada
+  // después, no hay nada que perder — el popup era persistente incluso tras guardar (bug real
+  // reportado 2026-07-23).
+  if(csvRows.length>0 && _csvDirty) return {
+    msg:`Tienes ${csvRows.length} prospectos procesados en el CSV Builder sin descargar ni guardar.`,
+    detail:'Si sales ahora perderás los datos.',
+    onSave:async()=>{ const id=await csvPersist(); if(id) showNotif('Documento CSV guardado ✓','success'); },
+  };
   return null;
 }
 
@@ -1410,7 +1417,7 @@ window.showModule = function(moduleId, skipNavHighlight=false){
   // Warn before leaving if there's unsaved work
   const warn=getUnsavedWarning(moduleId);
   if(warn && moduleId!==cont.activeSection){
-    showNavWarning(warn, ()=>_doShowModule(moduleId, skipNavHighlight));
+    showNavWarning(warn, ()=>_doShowModule(moduleId, skipNavHighlight), warn.onSave);
     return;
   }
   _doShowModule(moduleId, skipNavHighlight);
@@ -7890,6 +7897,10 @@ function _csvMapStructured(text){
 }
 
 let csvRows=[];
+// true solo cuando hay cambios NO descargados/guardados — es lo que dispara el popup de "trabajo
+// sin guardar" (getUnsavedWarning). Se limpia en csvPersist (descarga y guardado pasan por ahí)
+// y al recargar una sesión ya guardada; se enciende al cargar/extraer/editar filas.
+let _csvDirty=false;
 let csvInputMode='paste';
 // Filtros del buscador de leads (100% Apollo) — nivel/seniority del contacto.
 const CSV_SENIORITY_OPTS=[
@@ -8101,7 +8112,7 @@ function renderCsvBuilder(){
       <div style="margin-top:32px"><h4 style="font-size:15px;font-weight:700;margin-bottom:12px">📁 CSV creados</h4>
         <div id="csvHistory"><div class="cdc-empty">Cargando...</div></div></div>
     </div>`;
-  csvRows=[]; _csvFileAttachment=null; _csvSessionId=null; csvLoadHistory();
+  csvRows=[]; _csvFileAttachment=null; _csvSessionId=null; _csvDirty=false; csvLoadHistory();
   csvRenderEstadoChips();
   csvSetInputMode(csvInputMode); // reconcilia toggle/fuente si el módulo se reabre ya en modo búsqueda
 }
@@ -8352,6 +8363,7 @@ function csvLoadJobIntoRows(job){
   // consulta — misma nomenclatura que la campanita — para identificarla en el historial (antes
   // todos decían solo "App Outbound" y no se distinguían).
   _csvSessionId=null;
+  _csvDirty=true; // leads recién cargados de la búsqueda: aún no descargados ni guardados
   const fuenteInput=document.getElementById('csvFuente');
   if(fuenteInput&&job.nombre) fuenteInput.value=`App Outbound · ${job.nombre}`;
   const tagsExtra=document.getElementById('csvTags')?.value.trim();
@@ -8375,7 +8387,10 @@ function csvLoadJobIntoRows(job){
       // absorbe las variantes sin acento/en inglés que manda Apollo ("Nuevo Leon", "Mexico City").
       state_id:(row.country_id==='Mexico'?(_mxState(row.state_id||row.estado_raw)||row.state_id):row.state_id)||'',
       country_id:row.country_id||'', notes:row.notes||'',
-      datos_denue:row.datos_denue||'', datos_apollo:row.datos_apollo||'', web:'', resumen:'',
+      // En DENUE-primario la columna DATOS APOLLO nunca debe quedar vacía: si el cross-match no
+      // encontró nada, se dice explícito (el backend nuevo ya manda el texto; esto cubre jobs
+      // creados antes de ese cambio).
+      datos_denue:row.datos_denue||'', datos_apollo:row.datos_apollo||(fuentes.includes('DENUE')?'No hay datos en Apollo':''), web:'', resumen:'',
       _fuentePrimaria:fuentes.includes('DENUE')?'denue':'apollo',
     };
   });
@@ -8563,6 +8578,7 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
       Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
       state_id:row.state_id||'', country_id:'Mexico', notes:row.notes||'',
     }));
+    _csvDirty=true; // prospectos recién extraídos: aún no descargados ni guardados
     csvRenderTable();
     document.getElementById('csvPreviewSection').style.display='block';
     document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
@@ -8577,7 +8593,7 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
 // ReferenceError y se perdía en silencio). csvDeleteRow/csvAddRow sí funcionaban porque son
 // FUNCIONES definidas dentro del módulo y solo expuestas vía window — su cierre (closure) sí ve
 // csvRows aunque se invoquen desde un atributo global. Este helper sigue el mismo patrón.
-window.csvUpdateCell=function(i,key,val){ if(csvRows[i]) csvRows[i][key]=val; };
+window.csvUpdateCell=function(i,key,val){ if(csvRows[i]){ csvRows[i][key]=val; _csvDirty=true; } };
 function csvRenderTable(){
   const tbody=document.getElementById('csvTableBody'); if(!tbody) return;
   document.getElementById('csvRowCount').textContent=`(${csvRows.length} prospectos)`;
@@ -8591,12 +8607,13 @@ function csvRenderTable(){
   const warn=document.getElementById('csvWarnings');
   if(warn) warn.innerHTML=emptyStates.length>0?`<div style="background:var(--warning-light);color:var(--warning);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px">⚠️ Filas sin estado: ${emptyStates.join(', ')} — revisa manualmente</div>`:'';
 }
-window.csvDeleteRow=function(i){ csvRows.splice(i,1); csvRenderTable(); };
+window.csvDeleteRow=function(i){ csvRows.splice(i,1); _csvDirty=true; csvRenderTable(); };
 window.csvAddRow=function(){
   const fuente=document.getElementById('csvFuente')?.value.trim()||'';
   const tags=document.getElementById('csvTags')?.value.trim();
   const ae=document.getElementById('csvAE')?.value.trim()||'';
   csvRows.push({name:fuente+' -  - ',contact_name:'',function:'',partner_name:'',Website:'',Email:'',phone:'',Tags_id:'Outbound-MX'+(tags?','+tags:''),user_id:ae,state_id:'',country_id:'Mexico',notes:''});
+  _csvDirty=true;
   csvRenderTable();
 };
 let _csvSessionId=null;   // sesión CSV actual (para actualizar en vez de duplicar)
@@ -8621,6 +8638,7 @@ async function csvPersist(opts={}){
   try{
     if(_csvSessionId){ await updateDoc(doc(db,'csvSessions',_csvSessionId),rec); }
     else { rec.createdAt=serverTimestamp(); const ref=await addDoc(collection(db,'csvSessions'),rec); _csvSessionId=ref.id; }
+    _csvDirty=false; // ya quedó persistido — salir del módulo deja de advertir
     if(!opts.silent) csvLoadHistory();
     return _csvSessionId;
   }catch(e){ if(!opts.silent) showNotif('Error al guardar: '+e.message,'error'); return null; }
@@ -8677,6 +8695,7 @@ window.csvReloadSession=async function(id){
   const snap=await getDoc(doc(db,'csvSessions',id)); if(!snap.exists()) return;
   const data=snap.data(); csvRows=data.rows||[];
   _csvSessionId=id;   // las nuevas descargas/guardados actualizan ESTE documento
+  _csvDirty=false;    // viene de un documento guardado — no hay nada que perder aún
   document.getElementById('csvFuente').value=data.fuente||'';
   csvRenderTable(); document.getElementById('csvPreviewSection').style.display='block';
   showNotif('Sesión recargada ✓','success');
