@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-23 Fix etiqueta usuario/mes + desglose completo (lic+SH+impl+IVA) en Total lic.+impl.';
+const APP_BUILD_STAMP='2026-07-23 Columna "Costo total mensual" en la tabla informativa de líneas de código';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -6683,7 +6683,8 @@ window.pricingGeneratePDF=function(){
   // propuesta: se factura por separado hasta que el desarrollo esté completamente terminado.
   const locUnits=ps.codeLines>0?Math.ceil(ps.codeLines/100):0;
   const locUnitRate=120; // MXN de referencia por cada 100 líneas extra (o fracción)
-  const locAnnualTotal=locUnits*locUnitRate*12;
+  const locMonthlyTotal=locUnits*locUnitRate;
+  const locAnnualTotal=locMonthlyTotal*12;
   const locLinesFmt=n=>Number(n||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
   const locInfoSection=ps.codeLines>0?`
     <div style="break-inside:avoid;margin-bottom:18px;border:1.5px solid #fde68a;border-radius:10px;padding:14px 16px;background:#fffdf5">
@@ -6696,6 +6697,7 @@ window.pricingGeneratePDF=function(){
           <th style="text-align:left;padding:6px 8px;color:#92400e;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em">Mantenimiento</th>
           <th style="text-align:right;padding:6px 8px;color:#92400e;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em"># líneas de código</th>
           <th style="text-align:right;padding:6px 8px;color:#92400e;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em">Costo mensual unitario</th>
+          <th style="text-align:right;padding:6px 8px;color:#92400e;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em">Costo total mensual</th>
           <th style="text-align:right;padding:6px 8px;color:#92400e;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em">Costo total anual</th>
         </tr></thead>
         <tbody>
@@ -6703,12 +6705,14 @@ window.pricingGeneratePDF=function(){
             <td style="padding:6px 8px;font-style:italic;color:#6b7280">Mantenimiento del desarrollo</td>
             <td style="padding:6px 8px;text-align:right">${locLinesFmt(ps.codeLines)}</td>
             <td style="padding:6px 8px;text-align:right">${fmtN(locUnitRate)}</td>
+            <td style="padding:6px 8px;text-align:right">${fmtN(locMonthlyTotal)}</td>
             <td style="padding:6px 8px;text-align:right">${fmtN(locAnnualTotal)}</td>
           </tr>
           <tr style="border-top:1.5px solid #92400e">
             <td style="padding:6px 8px;font-weight:700">Total</td>
             <td style="padding:6px 8px;text-align:right;font-weight:700">${locLinesFmt(ps.codeLines)}</td>
             <td></td>
+            <td style="padding:6px 8px;text-align:right;font-weight:700">${fmtN(locMonthlyTotal)}</td>
             <td style="padding:6px 8px;text-align:right;font-weight:700">${fmtN(locAnnualTotal)}</td>
           </tr>
         </tbody>

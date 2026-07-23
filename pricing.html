@@ -1309,19 +1309,21 @@
     </div>
     <table class="loc-info-table">
       <thead>
-        <tr><th>Mantenimiento</th><th># líneas de código</th><th>Costo mensual unitario</th><th>Costo total anual</th></tr>
+        <tr><th>Mantenimiento</th><th># líneas de código</th><th>Costo mensual unitario</th><th>Costo total mensual</th><th>Costo total anual</th></tr>
       </thead>
       <tbody>
         <tr>
           <td>Mantenimiento del desarrollo</td>
           <td id="loc-info-lines">—</td>
           <td id="loc-info-rate">—</td>
+          <td id="loc-info-monthly">—</td>
           <td id="loc-info-annual">—</td>
         </tr>
         <tr class="loc-info-total-row">
           <td>Total</td>
           <td id="loc-info-lines-total">—</td>
           <td></td>
+          <td id="loc-info-monthly-total">—</td>
           <td id="loc-info-annual-total">—</td>
         </tr>
       </tbody>
@@ -1540,10 +1542,14 @@
   function getLOCUnits() {
     return codeLines > 0 ? Math.ceil(codeLines / 100) : 0;
   }
-  function getLOCAnnualTotal() {
+  function getLOCMonthlyTotal() {
     const rate = getLOCUnitRate();
     if (codeLines <= 0 || !rate) return 0;
-    return getLOCUnits() * rate * 12;
+    return getLOCUnits() * rate;
+  }
+  function getLOCAnnualTotal() {
+    if (codeLines <= 0 || !getLOCUnitRate()) return 0;
+    return getLOCMonthlyTotal() * 12;
   }
 
   // Visibilidad de filas de la tabla (true = visible)
@@ -2496,9 +2502,10 @@
     if (badge) badge.style.display = hasLines ? '' : 'none';
     if (badge && hasLines) badge.textContent = codeLines;
 
-    const rate   = getLOCUnitRate();
-    const units  = getLOCUnits();
-    const annual = getLOCAnnualTotal();
+    const rate    = getLOCUnitRate();
+    const units   = getLOCUnits();
+    const monthly = getLOCMonthlyTotal();
+    const annual  = getLOCAnnualTotal();
 
     if (preview) {
       if (!hasLines) {
@@ -2508,7 +2515,7 @@
         preview.textContent = 'Tarifa no definida para este país — no se factura.';
       } else {
         preview.style.display = 'block';
-        preview.textContent = `${units} unidad${units > 1 ? 'es' : ''} × ${fmtMXN(rate)}/mes → ${fmtMXN(annual)}/año (informativo)`;
+        preview.textContent = `${units} unidad${units > 1 ? 'es' : ''} × ${fmtMXN(rate)}/mes = ${fmtMXN(monthly)}/mes → ${fmtMXN(annual)}/año (informativo)`;
       }
     }
 
@@ -2519,6 +2526,8 @@
         document.getElementById('loc-info-lines').textContent = linesFmt;
         document.getElementById('loc-info-lines-total').textContent = linesFmt;
         document.getElementById('loc-info-rate').textContent = rate ? fmtMXN(rate) : '—';
+        document.getElementById('loc-info-monthly').textContent = rate ? fmtMXN(monthly) : '—';
+        document.getElementById('loc-info-monthly-total').textContent = rate ? fmtMXN(monthly) : '—';
         document.getElementById('loc-info-annual').textContent = rate ? fmtMXN(annual) : '—';
         document.getElementById('loc-info-annual-total').textContent = rate ? fmtMXN(annual) : '—';
       }
