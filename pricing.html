@@ -2032,15 +2032,19 @@
       const licPortion = i === 0 ? (tarifaBase * currentUsers) : (licTotal - shCostRow);
 
       const isMXLocal  = currentCurrency.currency === 'MXN';
-      const sinIvaTag  = isMXLocal ? '<div class="ct-base">+ IVA</div>' : '<div class="ct-base">USD</div>';
       const totalListPrice = getLicTotal(i, 0) + currentImplPrice;
       const anyDiscount    = activeLicDisc > 0 || activeImplDisc > 0;
+      // Desglose completo: Licencia + SH (si aplica) + Implementación (si aplica) + IVA
+      const breakdownParts = [`Licencia ${fmtMXN(licPortion)}`];
+      if (shCostRow > 0) breakdownParts.push(`SH ${fmtMXN(shCostRow)}`);
+      if (hasImpl)       breakdownParts.push(`Impl. ${fmtMXN(implAfter)}`);
+      const breakdownLine = breakdownParts.join(' + ') + (isMXLocal ? ' + IVA' : ' · USD');
       const totalCell = i === 0
-        ? `<div class="ct-total teal" style="font-size:16px">${fmtMXN(mensualTotal)}</div>${sinIvaTag}`
+        ? `<div class="ct-total teal" style="font-size:16px">${fmtMXN(mensualTotal)}</div><div class="ct-base">${breakdownLine}</div>`
         : hasImpl && licTotal
-          ? `<div class="ct-total teal" style="font-size:18px">${fmtMXN(totalLicImpl)}</div>${anyDiscount ? `<div class="ct-base" style="text-decoration:line-through;color:var(--muted)">${fmtMXN(totalListPrice)}</div>` : sinIvaTag}`
+          ? `<div class="ct-total teal" style="font-size:18px">${fmtMXN(totalLicImpl)}</div><div class="ct-base">${breakdownLine}</div>${anyDiscount ? `<div class="ct-base" style="text-decoration:line-through;color:var(--muted)">${fmtMXN(totalListPrice)}</div>` : ''}`
           : licTotal
-            ? `<div class="ct-total teal" style="font-size:16px">${fmtMXN(licTotal)}</div><div class="ct-base">${isMXLocal ? 'solo licencias' : 'USD'}</div>`
+            ? `<div class="ct-total teal" style="font-size:16px">${fmtMXN(licTotal)}</div><div class="ct-base">${breakdownLine}</div>${activeLicDisc > 0 ? `<div class="ct-base" style="text-decoration:line-through;color:var(--muted)">${fmtMXN(getLicTotal(i, 0))}</div>` : ''}`
             : `<div style="color:var(--muted);font-size:13px;">—</div>`;
 
       tr.innerHTML = `
@@ -2058,7 +2062,7 @@
             <span style="font-family:var(--mono);font-weight:700;font-size:15px;color:var(--ink)">${fmtMXN(tarifaBase)}</span>
             ${renewalTip}
           </div>
-          <div class="ct-base">${i === 0 ? 'usuario / mes' : 'usuario'}</div>
+          <div class="ct-base">usuario / mes</div>
         </td>
         <td>
           ${(() => {

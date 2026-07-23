@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-23 Desglose licencias vs Odoo.SH explícito en todas las filas de la comparativa';
+const APP_BUILD_STAMP='2026-07-23 Fix etiqueta usuario/mes + desglose completo (lic+SH+impl+IVA) en Total lic.+impl.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -6627,10 +6627,15 @@ window.pricingGeneratePDF=function(){
       +`${(!row.isMonthly&&row.licDiscPct===0&&row.savings>0)?`<div style="font-size:8px;color:#16a34a">Ahorro ${fmtN(row.savings)}</div>`:''}`;
     const implCell=!row.hasImpl?'—':(row.implDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.implList)}</s><br>${fmtN(row.implNet)}`:fmtN(row.implNet));
     const dImplCell=!row.hasImpl?'—':(row.implDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.implDiscPct}%</span>`:'—');
-    const totCell=`${(row.licDiscPct>0||row.implDiscPct>0)?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.totalList)}</s><br>`:''}${fmtN(row.total)}`;
+    // Desglose completo: Licencia + SH (si aplica) + Implementación (si aplica) + IVA
+    const totBreakdownParts=[`Licencia ${fmtN(row.licOnly)}`];
+    if(row.shCost>0) totBreakdownParts.push(`SH ${fmtN(row.shCost)}`);
+    if(row.hasImpl)  totBreakdownParts.push(`Impl. ${fmtN(row.implNet)}`);
+    const totBreakdownLine=totBreakdownParts.join(' + ')+' + IVA';
+    const totCell=`${(row.licDiscPct>0||row.implDiscPct>0)?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.totalList)}</s><br>`:''}${fmtN(row.total)}<div style="font-size:7.5px;color:#c0c0c0;font-weight:400">${totBreakdownLine}</div>`;
     return `<tr class="${sel?'sel-row':''}">
       <td>${row.label}${row.isMonthly?'<span style="font-size:8px;background:#f0f0f0;color:#999;padding:1px 5px;border-radius:3px;margin-left:4px">Base</span>':''}${sel?'<span style="font-size:8px;background:#017E84;color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px">✓ Esta propuesta</span>':''}</td>
-      <td>${fmtN(row.rateY1)}<div style="font-size:7.5px;color:#c0c0c0">${row.isMonthly?'usr/mes':'usr'}</div></td>
+      <td>${fmtN(row.rateY1)}<div style="font-size:7.5px;color:#c0c0c0">usr/mes</div></td>
       <td>${y2Cell}</td>
       <td>${dLicCell}</td>
       <td>${licCell}</td>
