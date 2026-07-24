@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-23g Generación de contenidos: 7 momentos nuevos (confirmar sesión, caso de éxito, post-intromeet, envío de propuesta, seguimiento de cierre, ghost, reactivar Cold Opp) + 4 objetivos nuevos de cold calling (confirmar cita, rescate no-show, seguimiento de cierre, gatekeeper), basados en datos de outbound B2B';
+const APP_BUILD_STAMP='2026-07-24 buscador de leads: idioma del CRM Odoo (país con/sin acento), columna Web fusionada en Resumen (LinkedIn + búsqueda web para todas las fuentes)';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -7801,12 +7801,13 @@ const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Em
 // para que el AE decida en el importador de Odoo si las mapea a Notas u otro campo:
 // - datos_denue: se llena cuando la fuente primaria fue Apollo y hubo match contra DENUE.
 // - datos_apollo: se llena cuando la fuente primaria fue DENUE y hubo match contra Apollo.
-// - web: verificación web (solo leads DENUE-primarios, ver csvEnrichRowsWithAI).
-// - resumen: resumen ≤140 caracteres generado por IA, para TODAS las fuentes (ver csvEnrichRowsWithAI).
+// - resumen: resumen ≤140 caracteres generado por IA con investigación real (LinkedIn + sitio web
+//   de la empresa vía el tool de búsqueda nativo de Claude), para TODAS las fuentes — antes esa
+//   investigación vivía separada en una columna "Web" (solo DENUE-primario); se fusionó aquí para
+//   no duplicar columnas (ver csvEnrichRowsWithAI/csvBatchResumenes).
 const CSV_EXTRA_COLUMNS=[
   {key:'datos_denue', label:'DATOS DENUE'},
   {key:'datos_apollo', label:'DATOS APOLLO'},
-  {key:'web', label:'Web'},
   {key:'resumen', label:'Resumen'},
 ];
 const MX_STATES=['Aguascalientes (MX)','Baja California (MX)','Baja California Sur (MX)','Campeche (MX)','Chihuahua (MX)','Chiapas (MX)','Ciudad de México (MX)','Coahuila (MX)','Colima (MX)','Durango (MX)','Estado de Mexico (MX)','Guerrero (MX)','Guanajuato (MX)','Hidalgo (MX)','Jalisco (MX)','Michoacán (MX)','Morelos (MX)','Nayarit (MX)','Nuevo León (MX)','Oaxaca (MX)','Puebla (MX)','Querétaro (MX)','Quintana Roo (MX)','Sinaloa (MX)','San Luis Potosí (MX)','Sonora (MX)','Tabasco (MX)','Tamaulipas (MX)','Tlaxcala (MX)','Veracruz (MX)','Yucatán (MX)','Zacatecas (MX)'];
@@ -7814,9 +7815,12 @@ const MX_STATES=['Aguascalientes (MX)','Baja California (MX)','Baja California S
 // ── Buscador de leads (Lusha/Apollo) — países habilitados y sus estados/departamentos/provincias.
 // Solo los países que ya se platicaron con el equipo: México activo, Chile/Perú/Colombia/Ecuador
 // entran en Q3. México reutiliza MX_STATES (sin el sufijo ' (MX)') para no duplicar la lista.
+// 'en' es cómo el backend manda country_id (geo.js COUNTRIES[].enName) — sin acento, formato que
+// espera un Odoo en inglés. 'label' es la forma acentuada que espera un Odoo en español (ver
+// csvCountryIdFor, que elige entre las dos según el idioma del CRM que declara el AE).
 const LEAD_SEARCH_COUNTRIES=[
-  {id:'MX', label:'México'}, {id:'CL', label:'Chile'}, {id:'PE', label:'Perú'},
-  {id:'CO', label:'Colombia'}, {id:'EC', label:'Ecuador'},
+  {id:'MX', label:'México', en:'Mexico'}, {id:'CL', label:'Chile', en:'Chile'}, {id:'PE', label:'Perú', en:'Peru'},
+  {id:'CO', label:'Colombia', en:'Colombia'}, {id:'EC', label:'Ecuador', en:'Ecuador'},
 ];
 const LEAD_SEARCH_STATES={
   MX: MX_STATES.map(s=>s.replace(' (MX)','')),
@@ -7825,6 +7829,26 @@ const LEAD_SEARCH_STATES={
   CO: ['Amazonas','Antioquia','Arauca','Atlántico','Bolívar','Boyacá','Caldas','Caquetá','Casanare','Cauca','Cesar','Chocó','Córdoba','Cundinamarca','Bogotá D.C.','Guainía','Guaviare','Huila','La Guajira','Magdalena','Meta','Nariño','Norte de Santander','Putumayo','Quindío','Risaralda','San Andrés y Providencia','Santander','Sucre','Tolima','Valle del Cauca','Vaupés','Vichada'],
   EC: ['Azuay','Bolívar','Cañar','Carchi','Chimborazo','Cotopaxi','El Oro','Esmeraldas','Galápagos','Guayas','Imbabura','Loja','Los Ríos','Manabí','Morona Santiago','Napo','Orellana','Pastaza','Pichincha','Santa Elena','Santo Domingo de los Tsáchilas','Sucumbíos','Tungurahua','Zamora Chinchipe'],
 };
+
+// ── Idioma del CRM Odoo del AE — el campo país/state_id es sensible al idioma: un Odoo en
+// español espera el país CON acento ("México", "Perú"), uno en inglés lo espera SIN acento
+// ("Mexico", "Peru"). Se pregunta en el propio formulario de búsqueda (select #csvSearchCrmIdioma,
+// ver csvSearchModeBox) y se recuerda en localStorage como default para la próxima vez, pero
+// siempre queda visible y editable — nunca se asume en silencio.
+function csvGetCrmIdioma(){
+  const sel=document.getElementById('csvSearchCrmIdioma');
+  return sel ? sel.value : (localStorage.getItem('outboundCrmIdioma')||'es');
+}
+window.csvOnCrmIdiomaChange=function(){
+  const sel=document.getElementById('csvSearchCrmIdioma');
+  if(sel) localStorage.setItem('outboundCrmIdioma', sel.value);
+};
+// enName: país tal como lo manda el backend / se hardcodea hoy ("Mexico", "Peru", sin acento).
+function csvCountryIdFor(enName){
+  if(csvGetCrmIdioma()!=='es') return enName||'';
+  const c=LEAD_SEARCH_COUNTRIES.find(c=>c.en===enName);
+  return c ? c.label : (enName||'');
+}
 
 // ── Parser de CSV estructurado LOCAL (sin IA) — para exports de Apollo/LinkedIn/genéricos ──
 // Reextraer un CSV ya estructurado con la IA satura los tokens y trunca la respuesta.
@@ -8063,6 +8087,15 @@ function renderCsvBuilder(){
               placeholder="Ej. Quiero 5 directores de sistemas o dueños de manufactureras medianas (50 a 200 empleados) en Jalisco o Nuevo León"></textarea>
             <button class="btn btn-primary btn-sm" style="margin-top:8px" id="csvInterpretarBtn" onclick="csvInterpretarInstrucciones()">✨ Interpretar y llenar filtros</button>
             <div id="csvInterpretResumen" style="font-size:12px;margin-top:8px;color:var(--gray-600)"></div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Idioma del CRM (Odoo)</label>
+            <select class="input" id="csvSearchCrmIdioma" onchange="csvOnCrmIdiomaChange()">
+              <option value="es" ${(localStorage.getItem('outboundCrmIdioma')||'es')==='es'?'selected':''}>Español — país con acento (México, Perú)</option>
+              <option value="en" ${(localStorage.getItem('outboundCrmIdioma')||'es')==='en'?'selected':''}>English — país sin acento (Mexico, Peru)</option>
+            </select>
+            <span style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">En qué idioma tienes configurado tu CRM de Odoo — define cómo se escribe el país al exportar los leads.</span>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -8437,12 +8470,15 @@ function csvLoadJobIntoRows(job){
       Email:row.Email||'', phone:row.phone||'', Tags_id:tagsFila.join(','), user_id:ae,
       // Para México el CRM espera el formato de MX_STATES ("Nuevo León (MX)") — _mxState también
       // absorbe las variantes sin acento/en inglés que manda Apollo ("Nuevo Leon", "Mexico City").
+      // La comparación usa row.country_id CRUDO (siempre en inglés, tal como lo manda el backend)
+      // — es solo para decidir si aplica el formato MX_STATES, no tiene que ver con el idioma del
+      // CRM del AE. csvCountryIdFor() recién ahí decide si el país final queda con o sin acento.
       state_id:(row.country_id==='Mexico'?(_mxState(row.state_id||row.estado_raw)||row.state_id):row.state_id)||'',
-      country_id:row.country_id||'', notes:row.notes||'',
+      country_id:csvCountryIdFor(row.country_id)||'', notes:row.notes||'',
       // En DENUE-primario la columna DATOS APOLLO nunca debe quedar vacía: si el cross-match no
       // encontró nada, se dice explícito (el backend nuevo ya manda el texto; esto cubre jobs
       // creados antes de ese cambio).
-      datos_denue:row.datos_denue||'', datos_apollo:row.datos_apollo||(fuentes.includes('DENUE')?'No hay datos en Apollo':''), web:'', resumen:'',
+      datos_denue:row.datos_denue||'', datos_apollo:row.datos_apollo||(fuentes.includes('DENUE')?'No hay datos en Apollo':''), resumen:'',
       _fuentePrimaria:fuentes.includes('DENUE')?'denue':'apollo',
     };
   });
@@ -8452,58 +8488,33 @@ function csvLoadJobIntoRows(job){
   csvEnrichRowsWithAI(csvRows);
 }
 
-// ── Enriquecimiento con IA post-carga (columnas Web y Resumen) ──
+// ── Enriquecimiento con IA post-carga (columna Resumen) ──
 // Se llama SOLO sobre los leads que el backend ya confirmó/entregó (nunca sobre candidatos
-// descartados durante la búsqueda) — mismo principio de control de costo que ya aplica el
-// backend con los créditos de Apollo. Resumen aplica a cualquier fuente; Web solo a DENUE-primario
-// (dato más viejo/menos verificado que Apollo, ver estrategia acordada).
+// descartados durante la búsqueda) — mismo principio de control de costo que ya aplica el backend
+// con los créditos de Apollo. 1 llamada por lead con el tool de búsqueda web nativo de Claude
+// (LinkedIn + sitio de la empresa) — no se puede batchear una búsqueda real de varias empresas a
+// la vez sin confundir resultados. Antes esta investigación vivía separada en una columna "Web"
+// (solo DENUE-primario, dato menos verificado); se fusionó aquí y ahora aplica a TODAS las fuentes.
 window.csvEnrichRowsWithAI=async function(rows){
   if(!rows.length) return;
   try{
-    const resumenes=await csvBatchResumenes(rows);
-    resumenes.forEach((r,i)=>{ if(rows[i]) rows[i].resumen=r; });
+    await csvBatchResumenes(rows);
   }catch(e){ console.warn('csvEnrichRowsWithAI resumen:',e); }
   csvRenderTable();
-
-  const denueRows=rows.filter(r=>r._fuentePrimaria==='denue');
-  if(denueRows.length){
-    await csvBatchWebCheck(denueRows).catch(e=>console.warn('csvEnrichRowsWithAI web:',e));
-    csvRenderTable();
-  }
 };
 
-// Un solo batch (no 1 llamada por lead) — le pasamos a Claude solo los campos que importan para
-// resumir, y pedimos el array de vuelta en el MISMO orden/cantidad que los leads de entrada.
 async function csvBatchResumenes(rows){
-  const items=rows.map(r=>({
-    empresa:r.partner_name||'', contacto:r.contact_name||'', cargo:r.function||'',
-    ubicacion:r.state_id||r.country_id||'', industria:r.industria||'',
-    contexto:[r.notes,r.datos_denue,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400),
-  }));
-  const raw=await gcCallClaude(`Genera un resumen ULTRA BREVE (máximo 140 caracteres) por cada lead de ventas B2B en México, pensado para que un vendedor sepa en un vistazo por qué contactarlo y con qué gancho empezar. En español.
-LEADS:
-${JSON.stringify(items)}
-
-Devuelve EXCLUSIVAMENTE un array JSON de strings, EN EL MISMO ORDEN Y LA MISMA CANTIDAD que los leads de entrada (si hay ${items.length} leads, regresa exactamente ${items.length} strings): ["resumen1","resumen2",...]. Sin markdown, sin explicaciones. Cada string debe tener 140 caracteres o menos.`,
-    null, {maxTokens:4000, system:'Devuelves SIEMPRE y SOLO un array JSON de strings válido, en el mismo orden y cantidad que la entrada, sin texto adicional.'});
-  const arr=_parseJSONArray(raw);
-  return Array.isArray(arr)&&arr.length===items.length?arr.map(s=>String(s||'').slice(0,140)):rows.map(()=>'');
-}
-
-// Búsqueda web cruzada (solo DENUE-primario) — usa el tool de búsqueda web nativo de Claude vía
-// gcCallClaude (ya soporta opts.tools, ver definición). 1 llamada por empresa (no se puede batchear
-// una búsqueda web real de varias empresas a la vez sin confundir resultados) — acotado a los
-// leads ya entregados, igual que el resto de los cross-match.
-async function csvBatchWebCheck(rows){
   await Promise.all(rows.map(async(r)=>{
     try{
-      const query=`${r.partner_name||''} ${r.state_id||''} México`.trim();
-      const raw=await gcCallClaude(`Busca en la web información reciente y relevante sobre esta empresa mexicana para prospección B2B: "${query}"${r.Website?` (posible sitio: ${r.Website})`:''}.
-Confirma si sigue operando y da 1-2 datos útiles para un vendedor (a qué se dedica, tamaño aproximado, algo reciente o relevante). Si no encuentras nada confiable, dilo brevemente en vez de inventar.
-Responde en español, MÁXIMO 200 caracteres, sin markdown, sin explicar tu proceso de búsqueda — solo el dato final.`,
-        null, {maxTokens:600, system:'Respondes siempre en texto plano, directo, máximo 200 caracteres, sin markdown ni disclaimers de tu proceso.', tools:[{type:'web_search_20250305', name:'web_search', max_uses:1}]});
-      r.web=String(raw||'').trim().slice(0,200);
-    }catch(e){ console.warn('csvBatchWebCheck:',r.partner_name,e); r.web=''; }
+      const query=`${r.partner_name||''} ${r.contact_name||''} ${r.function||''} ${r.state_id||r.country_id||''}`.trim();
+      const contexto=[r.notes,r.datos_denue,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400);
+      const raw=await gcCallClaude(`Busca en LinkedIn y en la web (sitio de la empresa, noticias recientes) información sobre esta empresa y este contacto, para prospección B2B de Odoo: "${query}"${r.Website?` (posible sitio: ${r.Website})`:''}.
+${contexto?`Datos ya conocidos: ${contexto}`:''}
+Con eso, genera un resumen ULTRA BREVE (máximo 140 caracteres) pensado para que un vendedor sepa en un vistazo por qué contactar a esta empresa/contacto y con qué gancho empezar. Si la búsqueda no encuentra nada confiable, resume con los datos ya conocidos (industria, cargo) sin inventar nada.
+Responde en español, SOLO el resumen final, sin markdown, sin explicar tu proceso de búsqueda.`,
+        null, {maxTokens:700, system:'Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown ni disclaimers de tu proceso.', tools:[{type:'web_search_20250305', name:'web_search', max_uses:2}]});
+      r.resumen=String(raw||'').trim().slice(0,140);
+    }catch(e){ console.warn('csvBatchResumenes:',r.partner_name,e); r.resumen=''; }
   }));
 }
 // Popup (no toast) al lanzar una búsqueda — el AE necesita quedar bien enterado de que el
@@ -8628,7 +8639,7 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
       contact_name:row.contact_name||'', function:row.function||'',
       partner_name:row.partner_name||'', Website:row.Website||'',
       Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
-      state_id:row.state_id||'', country_id:'Mexico', notes:row.notes||'',
+      state_id:row.state_id||'', country_id:csvCountryIdFor('Mexico'), notes:row.notes||'',
     }));
     _csvDirty=true; // prospectos recién extraídos: aún no descargados ni guardados
     csvRenderTable();
@@ -8664,7 +8675,7 @@ window.csvAddRow=function(){
   const fuente=document.getElementById('csvFuente')?.value.trim()||'';
   const tags=document.getElementById('csvTags')?.value.trim();
   const ae=document.getElementById('csvAE')?.value.trim()||'';
-  csvRows.push({name:fuente+' -  - ',contact_name:'',function:'',partner_name:'',Website:'',Email:'',phone:'',Tags_id:'Outbound-MX'+(tags?','+tags:''),user_id:ae,state_id:'',country_id:'Mexico',notes:''});
+  csvRows.push({name:fuente+' -  - ',contact_name:'',function:'',partner_name:'',Website:'',Email:'',phone:'',Tags_id:'Outbound-MX'+(tags?','+tags:''),user_id:ae,state_id:'',country_id:csvCountryIdFor('Mexico'),notes:''});
   _csvDirty=true;
   csvRenderTable();
 };
