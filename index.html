@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-23f Nombre corto de archivo CSV: gram-fecha-hora-fuente (apollo|denue)';
+const APP_BUILD_STAMP='2026-07-23g Generación de contenidos: 7 momentos nuevos (confirmar sesión, caso de éxito, post-intromeet, envío de propuesta, seguimiento de cierre, ghost, reactivar Cold Opp) + 4 objetivos nuevos de cold calling (confirmar cita, rescate no-show, seguimiento de cierre, gatekeeper), basados en datos de outbound B2B';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -4481,13 +4481,43 @@ const GC_CHANNELS=[
 const GC_MOMENTOS=[
   {id:'primer_toque',label:'1er toque — Cold (primer contacto)'},
   {id:'segundo_toque',label:'2do toque — Seguimiento frío'},
-  {id:'tercer_toque',label:'3er toque — Reactivación'},
+  {id:'tercer_toque',label:'3er toque — Seguimiento frío (aporte de valor)'},
   {id:'cuarto_toque',label:'4to toque — Último intento antes de pausa'},
+  {id:'confirmar_sesion',label:'Confirmar sesión agendada (intromeet/demo)'},
+  {id:'post_intromeet',label:'Seguimiento post-intromeet'},
   {id:'post_demo',label:'Post-demo — Próximos pasos'},
+  {id:'caso_exito',label:'Compartir caso de éxito real'},
   {id:'compartir_recurso',label:'Compartir brochure / recurso'},
+  {id:'envio_propuesta',label:'Envío de propuesta comercial'},
+  {id:'seguimiento_cierre',label:'Seguimiento de cierre (negociación)'},
+  {id:'ghost',label:'Ya no responde (seguimiento sin culpa)'},
+  {id:'reactivar_cold_opp',label:'Reactivar oportunidad fría (Cold Opp, 60+ días)'},
   {id:'toque_final',label:'Toque final — Cierre o pausa'},
   {id:'evento_especial',label:'Evento especial'},
 ];
+// Reglas específicas por momento, basadas en datos publicados de outbound B2B (Gong, Instantly,
+// Belkins, benchmarks de WhatsApp LATAM) — se inyectan en el prompt de generación además de las
+// reglas de canal. 'confirmar_sesion' reutiliza el pipeline de "3 variantes" para producir las 3
+// etapas de recordatorio en vez de 3 tonos alternativos (mismo parser, sin tocar la UI).
+function gcMomentoInstructions(momento){
+  const rules={
+    tercer_toque:`REGLA DEL MOMENTO: sigue siendo parte de la MISMA secuencia en frío (no es reactivación de una oportunidad vieja). Aporta un ángulo 100% nuevo — dato de su industria, mini-caso o pregunta de diagnóstico — nunca repitas el pitch del 1er/2do toque.`,
+    toque_final:`REGLA DEL MOMENTO: este es el correo/mensaje de despedida (breakup) de la secuencia en frío. Es, según benchmarks de outbound, el que MÁS respuestas genera de toda la secuencia — cuídalo. Tono sin culpa ni reproche, pérdida-aversión suave (resume en una línea lo que queda sobre la mesa), y deja la puerta abierta de forma explícita. Después de este toque no hay más seguimiento en frío.`,
+    confirmar_sesion:`REGLA DEL MOMENTO — ESTRUCTURA ESPECIAL: en vez de 3 variantes alternativas de UN mismo mensaje, genera las 3 ETAPAS de la secuencia de confirmación (la confirmación inmediata reduce el no-show ~40%, y el recordatorio bien colocado lo reduce 30-50% adicional):
+VARIANTE 1 = confirmación INMEDIATA al agendar (enviar en los primeros 5 minutos): fecha, hora, duración (~30 min si es intromeet), qué van a ver, qué necesita tener listo o quién más debería entrar.
+VARIANTE 2 = recordatorio 24 horas antes: re-vende el valor de la sesión en 1 línea, confirma asistencia.
+VARIANTE 3 = recordatorio 1-2 horas antes, el mismo día: muy corto, con la liga/lugar a la mano.
+Todas deben sentirse como continuación de la misma conversación, no como 3 mensajes desconectados.`,
+    post_intromeet:`REGLA DEL MOMENTO: envíalo el MISMO día de la intromeet. Usa la memoria acumulada de la empresa (dolores detectados, notas de discovery) para resumir en sus propias palabras lo que el prospecto contó — eso demuestra que escuchaste. Confirma el siguiente paso acordado con fecha. Si la memoria no tiene datos de discovery, sé honesto y genérico en vez de inventar lo que se dijo.`,
+    post_demo:`REGLA DEL MOMENTO: conecta 2-3 cosas mostradas en la demo con los dolores específicos del prospecto (no listes features sueltas). Confirma el siguiente paso con fecha y pregunta si falta involucrar a alguien más en la decisión.`,
+    caso_exito:`REGLA DEL MOMENTO: se te dio abajo un CASO DE ÉXITO REAL de un cliente Odoo en una industria relacionada — úsalo TAL CUAL (empresa, resultado, fuente), nunca inventes otro caso ni cifras distintas. Cuéntalo como historia breve (empresa parecida → su problema → qué cambió → resultado concreto), y cierra preguntando si suena parecido a su situación.`,
+    envio_propuesta:`REGLA DEL MOMENTO: no es solo "aquí está tu propuesta" — recapitula en 2-3 líneas lo ACORDADO en la demo/llamadas (alcance, dolores) y propone una fecha/hora CONCRETA para revisarla juntos. El objetivo del mensaje es agendar esa revisión, no solo entregar el archivo.`,
+    seguimiento_cierre:`REGLA DEL MOMENTO: pregunta DIRECTO por el estatus de la aprobación interna (quién falta de decir sí, qué falta para firmar). Ofrece remover el obstáculo concreto (una llamada corta con quien falta, resolver una duda técnica). Si hay una fecha límite natural (arranque, cierre de mes, vigencia de condiciones), menciónala — nunca inventes urgencia artificial.`,
+    ghost:`REGLA DEL MOMENTO: el prospecto tenía interés y dejó de responder. Sin reclamo, sin víctima. Dale una salida fácil de responder — idealmente una pregunta cerrada o un semáforo de 2-3 opciones simples (ej. "1: sigue en pie / 2: lo retomamos más adelante / 3: ya no aplica") para que responder tome un segundo.`,
+    reactivar_cold_opp:`REGLA DEL MOMENTO: han pasado 60-90+ días desde el último contacto — esto es DISTINTO a un seguimiento de secuencia activa. Abre con el contexto honesto de la conversación anterior (usa la memoria de la empresa) y ancla el mensaje a una NOVEDAD real que justifique escribir hoy (algo que cambió: temporada, cierre fiscal, nueva función de Odoo, señal de la empresa). Si no hay una novedad real disponible en el contexto, dilo de forma honesta en vez de inventar una excusa.`,
+  };
+  return rules[momento]||'';
+}
 
 function renderGcTemplates(){
   const c=document.getElementById('gcContent');
@@ -4574,18 +4604,24 @@ window.gcGenerateTemplate=async function(){
 - Máx 1-2 emojis por mensaje
 - "corto": máx 3 líneas · "equilibrado": 5-8 líneas · "largo": 10-15 líneas
 - El AE puede presentarse de forma natural en la PRIMERA línea (ej. "Soy ${aeNombre} de Odoo")
+- Este canal funciona mejor como relación/seguimiento que como primer contacto 100% frío: si el
+  MOMENTO implica que ya hubo contacto previo (llamada, LinkedIn, correo, evento, referido),
+  referencia ese puente explícitamente en la primera línea
 - CTA claro al final — termina con la pregunta/CTA, SIN firma ni nombre suelto al cierre`,
     correo:`CANAL: Correo electrónico
-- Cada variante incluye ASUNTO (máx 50 caracteres, con intriga sin clickbait) + cuerpo
+- Cada variante incluye ASUNTO (2-5 palabras, con intriga sin clickbait, sin mayúsculas sostenidas
+  ni signos de admiración — las preguntas en el asunto suben aperturas) + cuerpo
+- Cuerpo BREVE: idealmente bajo 80 palabras (los correos cortos son los que más responden en
+  benchmarks de outbound B2B) salvo que la LONGITUD pedida sea "largo"
 - Personalización real en las primeras 2 líneas
 - Pain-first: menciona el problema antes de la solución
 - CTA único y claro · P.D. al final con hook adicional (efectivo en LATAM)
 - Termina con el CTA o la P.D., SIN firma de cierre ('Saludos', 'Atentamente', ni el nombre suelto)
 - Formato: "ASUNTO: [asunto]\\n---\\n[cuerpo]" dentro de cada variante`,
     linkedin:`CANAL: LinkedIn
-- ${momento==='primer_toque'?'NOTA DE CONEXIÓN: MÁXIMO 300 caracteres contando espacios — no excedas':'Mensaje post-conexión conversacional'}
+- ${momento==='primer_toque'?'NOTA DE CONEXIÓN: idealmente ~150 caracteres, nunca más de 300 — las notas cortas con una razón real de conexión aceptan más que las que llenan el límite con pitch':'Mensaje post-conexión conversacional, bajo 300 caracteres — los mensajes largos con pitch responden peor'}
 - NO empieces con "Hola [nombre]" directo — usa un hook primero
-- Demuestra que investigaste a la persona (sin ser invasivo)
+- Demuestra que investigaste a la persona (sin ser invasivo); si hay una señal de actividad reciente (post, cambio de puesto, evento) del contacto, ánclate a ella
 - Evita frases de vendedor ("solución perfecta", "empresa líder")
 - Termina con el CTA, SIN firma ni nombre suelto al cierre`,
   }[channel];
@@ -4602,6 +4638,10 @@ ${apptLink?`LINK DE AGENDADO DEL AE: ${apptLink} — inclúyelo como CTA cuando 
 ${gcToneInstructionBlock(gcToneExtraValue())} | LONGITUD: ${cont.length}
 
 ${channelRules}
+
+${gcMomentoInstructions(momento)}
+
+${momento==='caso_exito'?`CASO DE ÉXITO REAL A USAR (no inventes otro, no inventes cifras): ${(()=>{const c=pickOdooCase(cont.company?.giro);return `${c.empresa} (${c.giros.join('/')}, ${c.pais}) — ${c.resumen} Fuente: ${c.url}`;})()}`:''}
 
 ${odooResourcesBlock()}
 
@@ -5183,6 +5223,10 @@ function renderGcColdCalling(){
               <option value="referido">Venir referido de alguien</option>
               <option value="reactivar">Reactivar prospecto previo</option>
               <option value="evento">Invitar a / dar seguimiento a un evento</option>
+              <option value="confirmar_cita">Confirmar cita agendada (día antes)</option>
+              <option value="rescate_noshow">Rescatar no-show / reagendar</option>
+              <option value="seguimiento_cierre">Seguimiento de cierre (status del deal)</option>
+              <option value="gatekeeper">Pasar filtro de recepción / asistente</option>
             </select>
           </div>
           <div class="gc-selector"><label>Cargo del prospecto</label>
@@ -5199,6 +5243,8 @@ function renderGcColdCalling(){
         <h3>✍️ Estilo</h3>
         <div class="gc-selector">${renderToneSelector(cont.tone)}</div>
       </div>
+
+      <div style="font-size:12px;color:var(--gray-400);margin-bottom:14px">💡 Mejor ventana para llamar en frío según benchmarks de cold calling: miércoles/jueves, 10-11 am.</div>
 
       <button class="gc-generate-btn" id="gcCcBtn" onclick="gcGenerateColdCalling()">
         <span>📞</span> Generar guion de apertura
@@ -5268,6 +5314,12 @@ CARGO DEL PROSPECTO: ${cargo||'Director/Gerente'}
 NOMBRE DEL AE: ${aeNombre}
 OBJETIVO DE LA LLAMADA: ${obj.replace(/_/g,' ')}
 ${obj==='evento'?'IMPORTANTE: el objetivo de ESTA llamada es el evento — toda la estructura (hook, propósito, cierre) debe girar en torno a invitar al prospecto o darle seguimiento sobre el evento de referencia (usa el nombre, fecha y tema reales que encuentres con web_fetch), no un pitch genérico de Odoo.':''}
+${{
+  confirmar_cita:'IMPORTANTE: esta NO es una llamada de venta — es la llamada/mensaje de confirmación el día antes de una sesión ya agendada (intromeet o demo). Debe ser muy breve: re-vender el valor de la sesión en una frase, confirmar quién asiste, y confirmar hora. Nada de hook de industria ni manejo de objeciones de venta — las "objeciones" aquí son excusas para cancelar/mover la cita, maneja esas.',
+  rescate_noshow:'IMPORTANTE: el prospecto NO llegó a una sesión ya agendada. Llamas 10-15 minutos después de la hora. Tono CERO reproche ("se nos cruzó algo, seguro"). El objetivo es reagendar EN esta misma llamada, no prometer "te mando horarios después" — cierra con fecha/hora concreta antes de colgar.',
+  seguimiento_cierre:'IMPORTANTE: el deal ya pasó por demo y tiene propuesta enviada (etapa de negociación) — esto NO es una llamada de prospección. El objetivo es entender el estatus REAL del proceso de aprobación interna (quién falta de decir sí, qué frena la firma), aislar la objeción real, y cerrar con fecha concreta de arranque o firma. Modo escucha: en llamadas de calificación/cierre exitosas el vendedor habla ~43% del tiempo y escucha 57%.',
+  gatekeeper:'IMPORTANTE: quien contesta NO es el decisor — es recepción/asistente. Tono de par, no de vendedor suplicante. El objetivo NO es vender nada por teléfono: es conseguir pasar con el decisor o, si no se puede, obtener un dato pequeño (nombre completo del decisor correcto, mejor horario para llamar, o el correo directo). Las "objeciones" aquí son del tipo "no está", "manda un correo", "no puedo pasarte".',
+}[obj]||''}
 CONTEXTO PREVIO: ${ctx||'ninguno'}
 ${evento.promptLine}
 ${apptLink?`LINK PARA AGENDAR: ${apptLink}`:''}
