@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-24b CSV Builder: cada lead generado (búsqueda/pegar/manual) crea o actualiza su Empresa+Contacto en el CRM, atribuido al Account Executive del CSV';
+const APP_BUILD_STAMP='2026-07-24c Fix: Resumen quedaba vacío si la búsqueda web fallaba — ahora tiene respaldo sin web para nunca dejar la columna en blanco';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -8597,16 +8597,32 @@ window.csvEnrichRowsWithAI=async function(rows){
 
 async function csvBatchResumenes(rows){
   await Promise.all(rows.map(async(r)=>{
+    const contexto=[r.notes,r.datos_denue,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400);
+    // 1) Intento CON búsqueda web (LinkedIn + sitio de la empresa). Puede fallar por razones ajenas
+    // al lead (web_search no habilitado en la cuenta de Claude, sin resultados, se corta a media
+    // búsqueda) — nunca debe dejar la columna vacía, por eso hay un respaldo abajo (bug real
+    // reportado 2026-07-24: primera prueba DENUE real trajo Resumen en blanco).
     try{
       const query=`${r.partner_name||''} ${r.contact_name||''} ${r.function||''} ${r.state_id||r.country_id||''}`.trim();
-      const contexto=[r.notes,r.datos_denue,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400);
       const raw=await gcCallClaude(`Busca en LinkedIn y en la web (sitio de la empresa, noticias recientes) información sobre esta empresa y este contacto, para prospección B2B de Odoo: "${query}"${r.Website?` (posible sitio: ${r.Website})`:''}.
 ${contexto?`Datos ya conocidos: ${contexto}`:''}
 Con eso, genera un resumen ULTRA BREVE (máximo 140 caracteres) pensado para que un vendedor sepa en un vistazo por qué contactar a esta empresa/contacto y con qué gancho empezar. Si la búsqueda no encuentra nada confiable, resume con los datos ya conocidos (industria, cargo) sin inventar nada.
 Responde en español, SOLO el resumen final, sin markdown, sin explicar tu proceso de búsqueda.`,
-        null, {maxTokens:700, system:'Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown ni disclaimers de tu proceso.', tools:[{type:'web_search_20250305', name:'web_search', max_uses:2}]});
-      r.resumen=String(raw||'').trim().slice(0,140);
-    }catch(e){ console.warn('csvBatchResumenes:',r.partner_name,e); r.resumen=''; }
+        null, {maxTokens:1500, system:'Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown ni disclaimers de tu proceso.', tools:[{type:'web_search_20250305', name:'web_search', max_uses:2}]});
+      const resumen=String(raw||'').trim().slice(0,140);
+      if(resumen){ r.resumen=resumen; return; }
+      throw new Error('respuesta vacía con web_search');
+    }catch(e){ console.warn('csvBatchResumenes (con búsqueda web):',r.partner_name,e); }
+    // 2) Respaldo SIN búsqueda web, solo con los datos ya conocidos del lead — garantiza que la
+    // columna Resumen nunca quede vacía aunque la búsqueda web falle.
+    try{
+      const raw2=await gcCallClaude(`Genera un resumen ULTRA BREVE (máximo 140 caracteres) de este lead de ventas B2B para Odoo, pensado para que un vendedor sepa en un vistazo por qué contactarlo. Usa SOLO estos datos, sin inventar nada más:
+Empresa: ${r.partner_name||'nd'} | Contacto: ${r.contact_name||'nd'} | Cargo: ${r.function||'nd'} | Ubicación: ${r.state_id||r.country_id||'nd'}
+${contexto?`Contexto: ${contexto}`:''}
+Responde en español, SOLO el resumen final, sin markdown.`,
+        null, {maxTokens:300, system:'Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown.'});
+      r.resumen=String(raw2||'').trim().slice(0,140);
+    }catch(e2){ console.warn('csvBatchResumenes (respaldo sin web):',r.partner_name,e2); r.resumen=''; }
   }));
 }
 // Popup (no toast) al lanzar una búsqueda — el AE necesita quedar bien enterado de que el
