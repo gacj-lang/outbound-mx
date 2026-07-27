@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-24c Fix: Resumen quedaba vacío si la búsqueda web fallaba — ahora tiene respaldo sin web para nunca dejar la columna en blanco';
+const APP_BUILD_STAMP='2026-07-24d Buscador de leads: tags de industria normalizados al catálogo QS Project (A#-tipo de negocio, B#-tipo de producto)';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -8530,6 +8530,89 @@ async function csvSyncRowsToCRM(rows){
   }
 }
 
+// ── Tags de industria normalizados (archivo "QS Project - industry tags - Sheet1", Desktop) ──
+// A# = tipo de negocio, B# = tipo de producto/servicio. El usuario pidió EXACTAMENTE el formato
+// del archivo (mayúsculas, guiones, espacios — incluyendo el espacio final real de "Engineering "
+// en B57) — por eso el texto del tag SIEMPRE sale de estas listas, nunca de lo que redacte el
+// modelo; Claude solo elige el código (ej. "A12"/"B37"), nosotros armamos el string "A12-Construction".
+const QS_INDUSTRY_TYPES=[
+  {code:'A0',label:'TBC'}, {code:'A1',label:'Manufacturing'}, {code:'A2',label:'Non profit'},
+  {code:'A3',label:'Retail POS'}, {code:'A4',label:'Wholesale & distribution'}, {code:'A5',label:'Ecommerce'},
+  {code:'A6',label:'Mining, Drilling'}, {code:'A7',label:'Service'}, {code:'A8',label:'Finance & Insurance'},
+  {code:'A9',label:'Public services'}, {code:'A10',label:'Government contractor'}, {code:'A11',label:'SaaS, Cloud services'},
+  {code:'A12',label:'Construction'}, {code:'A13',label:'Transport, Logistics, 3PL'}, {code:'A14',label:'Rental, Subscriptions, Licences'},
+  {code:'A15',label:'Farming, Poultry'}, {code:'A16',label:'Telecommunications (Infrastructure)'}, {code:'A17',label:'Subcontract manufacturing'},
+  {code:'A18',label:'Reseller'}, {code:'A99',label:'Uncategorized'},
+];
+const QS_PRODUCT_TYPES=[
+  {code:'B0',label:'TBC'}, {code:'B1',label:'Aerospace'}, {code:'B2',label:'Military/Armament'},
+  {code:'B3',label:'Automotive, Transport'}, {code:'B4',label:'Chemical'}, {code:'B5',label:'Electronic & Electrical Equipment - Other'},
+  {code:'B6',label:'Healthcare, Life Sciences'}, {code:'B7',label:'Media / Communication / Advertising (other)'}, {code:'B8',label:'Telecommunications'},
+  {code:'B9',label:'Utilities'}, {code:'B10',label:'Waste Management / Recycling'}, {code:'B11',label:'Travel / Vacation'},
+  {code:'B12',label:'Public sector'}, {code:'B13',label:'Security'}, {code:'B14',label:'Design - Other'},
+  {code:'B15',label:'Research and Innovation'}, {code:'B16',label:'Cannabis / Vape'}, {code:'B17',label:'Refurb & Warranty'},
+  {code:'B18',label:'Apparel, Clothing, Accessories'}, {code:'B19',label:'Supply Chain / Logistics'}, {code:'B20',label:'Oil & Gas'},
+  {code:'B21',label:'Installations - Other'}, {code:'B22',label:'Digital Marketing / SEO'}, {code:'B23',label:'Building Materials'},
+  {code:'B24',label:'Consumer Goods - Other'}, {code:'B25',label:'Industrial Equipment / Machinery / Materials'}, {code:'B26',label:'Consulting'},
+  {code:'B27',label:'Arts, Entertainment, and Recreation'}, {code:'B28',label:'Accommodation - Other'}, {code:'B29',label:'Renewable Energy'},
+  {code:'B30',label:'Education'}, {code:'B31',label:'HR'}, {code:'B32',label:'Software'},
+  {code:'B33',label:'Agriculture, Forestry, And Fishing'}, {code:'B34',label:'IT Management, Software security'}, {code:'B35',label:'Smart Homes, IoT'},
+  {code:'B36',label:'Furniture & Fixtures'}, {code:'B37',label:'Construction, Architecture'}, {code:'B38',label:'Non-renewable Energy'},
+  {code:'B39',label:'Audio/Video Products'}, {code:'B40',label:'Maintenance'}, {code:'B41',label:'Transport Industry - Other'},
+  {code:'B42',label:'Signs, roadsigns'}, {code:'B43',label:'Electrical Engineering / Design'}, {code:'B44',label:'Law / Regulatory Services'},
+  {code:'B45',label:'Quality'}, {code:'B46',label:'Interior design'}, {code:'B47',label:'Laboratory/Research equipment'},
+  {code:'B48',label:'Packaging'}, {code:'B49',label:'Upholstery'}, {code:'B50',label:'Grocery Store'},
+  {code:'B51',label:'Food/Beverages - Other'}, {code:'B52',label:'Water systems / filtration'}, {code:'B53',label:'Battery Systems'},
+  {code:'B54',label:'Printing / Prints / Labels'}, {code:'B55',label:'Graphic design'}, {code:'B56',label:'Restaurant'},
+  {code:'B57',label:'Engineering '}, {code:'B99',label:'Uncategorized'},
+];
+function _qsTag(list,code){ const e=list.find(x=>x.code===String(code||'').trim()); return e?`${e.code}-${e.label}`:''; }
+
+// 1 sola llamada batch por job (no depende de tools, barato) — Claude elige el código A y el código
+// B más adecuados para cada empresa, usando la industria cruda de la fuente (Apollo/DENUE) + notas
+// como contexto. Si no clasifica claro, cae en A99/B99 (Uncategorized) — el propio archivo trae ese
+// bucket para exactamente este caso, no es una invención nuestra.
+async function csvClassifyIndustryTags(rows){
+  const items=rows.map(r=>({
+    empresa:r.partner_name||'', industria_fuente:r._industriaRaw||'',
+    contexto:[r.notes,r.datos_denue,r.datos_apollo].filter(Boolean).join(' | ').slice(0,300),
+  }));
+  const aList=QS_INDUSTRY_TYPES.map(a=>`${a.code}=${a.label}`).join(' | ');
+  const bList=QS_PRODUCT_TYPES.map(b=>`${b.code}=${b.label}`).join(' | ');
+  const fallback=()=>rows.map(()=>({a:_qsTag(QS_INDUSTRY_TYPES,'A99'), b:_qsTag(QS_PRODUCT_TYPES,'B99')}));
+  try{
+    const raw=await gcCallClaude(`Clasifica cada empresa de ventas B2B en EXACTAMENTE un código de tipo de negocio (LISTA A) y un código de tipo de producto/servicio (LISTA B). Usa "A99"/"B99" (Uncategorized) SOLO si de verdad no hay pista suficiente para elegir otro.
+LISTA A (tipo de negocio): ${aList}
+LISTA B (tipo de producto/servicio): ${bList}
+EMPRESAS:
+${JSON.stringify(items)}
+
+Devuelve EXCLUSIVAMENTE un array JSON, EN EL MISMO ORDEN Y LA MISMA CANTIDAD que las empresas de entrada (si hay ${items.length}, regresa exactamente ${items.length} objetos): [{"a":"A#","b":"B#"},...]. Los códigos deben venir EXACTAMENTE de las listas dadas (ej. "A12", "B37"). Sin markdown, sin explicaciones.`,
+      null, {maxTokens:4000, system:'Devuelves SIEMPRE y SOLO un array JSON válido, en el mismo orden y cantidad que la entrada, sin texto adicional.'});
+    const arr=_parseJSONArray(raw);
+    if(!Array.isArray(arr)||arr.length!==items.length) throw new Error('longitud de respuesta no coincide');
+    return arr.map(o=>({
+      a:_qsTag(QS_INDUSTRY_TYPES,o?.a)||_qsTag(QS_INDUSTRY_TYPES,'A99'),
+      b:_qsTag(QS_PRODUCT_TYPES,o?.b)||_qsTag(QS_PRODUCT_TYPES,'B99'),
+    }));
+  }catch(e){ console.warn('csvClassifyIndustryTags:',e); return fallback(); }
+}
+async function csvApplyIndustryTags(rows){
+  const withCompany=(rows||[]).filter(r=>(r.partner_name||'').trim());
+  if(!withCompany.length) return;
+  const tags=await csvClassifyIndustryTags(withCompany);
+  // NO se intenta "quitar tags A#/B# previos" con un split(',') — varias etiquetas del archivo
+  // QS traen coma interna (ej. "B37-Construction, Architecture") y volver a partir Tags_id por
+  // coma corta esas etiquetas a la mitad, dejando fragmentos huérfanos pegados para siempre. No
+  // hace falta: cada carga de job arma csvRows desde cero (.map crea objetos nuevos), así que
+  // esta función corre una sola vez por fila — simplemente se suma al Tags_id ya armado.
+  withCompany.forEach((r,i)=>{
+    const {a,b}=tags[i]||{};
+    r.Tags_id=[r.Tags_id,a,b].filter(Boolean).join(',');
+  });
+  csvRenderTable();
+}
+
 // Convierte los leads de un job (ya con email+teléfono resueltos) al shape de csvRows — misma
 // transformación que antes hacía csvRunLeadSearch al recibir la respuesta directa.
 function csvLoadJobIntoRows(job){
@@ -8548,10 +8631,6 @@ function csvLoadJobIntoRows(job){
     const tagsFila=['AppOutbound'];
     if(fuentes.includes('Apollo')) tagsFila.push('ApolloMX');
     if(fuentes.includes('DENUE')) tagsFila.push('DenueMX');
-    // Tag automático con la industria que reporta la fuente (Apollo la da en inglés y minúsculas,
-    // ej. "consumer services" → "Consumer Services"; DENUE ya viene en español/Title Case); se
-    // suma a los tags del formulario.
-    if(row.industria) tagsFila.push(row.industria.replace(/,/g,' ').trim().replace(/\b\w/g,ch=>ch.toUpperCase()));
     if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
     return {
       name:`App Outbound - ${row.partner_name||''} - ${row.contact_name||''}`,
@@ -8571,6 +8650,7 @@ function csvLoadJobIntoRows(job){
       datos_denue:row.datos_denue||'', datos_apollo:row.datos_apollo||(fuentes.includes('DENUE')?'No hay datos en Apollo':''), resumen:'',
       _fuentePrimaria:fuentes.includes('DENUE')?'denue':'apollo',
       _origen:fuentes.includes('DENUE')?'Bases de datos':'Apollo',
+      _industriaRaw:row.industria||'',
     };
   });
   csvRenderTable();
@@ -8578,6 +8658,7 @@ function csvLoadJobIntoRows(job){
   document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
   csvEnrichRowsWithAI(csvRows);
   csvSyncRowsToCRM(csvRows).catch(e=>console.warn('csvSyncRowsToCRM:',e));
+  csvApplyIndustryTags(csvRows).catch(e=>console.warn('csvApplyIndustryTags:',e));
 }
 
 // ── Enriquecimiento con IA post-carga (columna Resumen) ──
