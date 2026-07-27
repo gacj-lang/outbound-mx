@@ -930,7 +930,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-24 buscador de leads: idioma del CRM Odoo (país con/sin acento), columna Web fusionada en Resumen (LinkedIn + búsqueda web para todas las fuentes)';
+const APP_BUILD_STAMP='2026-07-24b CSV Builder: cada lead generado (búsqueda/pegar/manual) crea o actualiza su Empresa+Contacto en el CRM, atribuido al Account Executive del CSV';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -8440,6 +8440,96 @@ window.csvOpenLeadJob=async function(jobId){
   showNotif(`${job.leads.length} de ${job.solicitados} leads listos ✓`,'success');
 };
 
+// ══════════════════════════════════════════
+// SYNC CSV Builder → Empresas/Contactos (colección 'companies')
+// Al generarse una lista (búsqueda, pegar/subir, o fila manual ya completada) cada lead se refleja
+// también como un registro real de Empresa+Contacto en el módulo Empresas — para que generar
+// contenidos y buscar estas compañías sea inmediato, sin depender de que el AE descargue/importe
+// el CSV a Odoo primero. Dedupe por dominio de Website (mismo criterio que dedupe.js del backend)
+// y, si no hay web, por nombre normalizado — nunca duplica la empresa si ya existe; el contacto se
+// agrega al arreglo contacts[] existente si no está ya (mismo correo o mismo nombre normalizado).
+// createdBy/createdByUid/createdByGram los pone saveCompany() a partir de currentUserData — el
+// MISMO account que va en el CSV como Account Executive (csvAE, ver renderCsvBuilder): cada
+// empresa nace atribuida al account que la generó, tal cual pide el CSV.
+function _csvDomainKey(url){
+  return String(url||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/[/?#].*$/,'');
+}
+function _csvNameKey(nombre){ return _csvNorm(nombre).replace(/[^a-z0-9 ]/g,'').trim(); }
+function _csvExtractFromNotes(notes, labels){
+  const text=String(notes||'');
+  for(const label of labels){
+    const re=new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*:\\s*(\\S+)','i');
+    const m=text.match(re);
+    if(m) return m[1].replace(/[|,;]+$/,'').trim();
+  }
+  return '';
+}
+function _csvContactMatches(existing, contact){
+  const ee=(existing.correo||existing.email||'').toLowerCase();
+  const ce=(contact.correo||'').toLowerCase();
+  if(ee&&ce) return ee===ce;
+  return _csvNameKey(existing.nombre)===_csvNameKey(contact.nombre);
+}
+// Adivina el 'origen' (enum de empShowCreate) a partir del texto libre de Fuente del lead en modo
+// pegar/subir — mejor esfuerzo, nunca inventa: si no reconoce nada, deja vacío para que el AE lo
+// llene a mano en Empresas (igual que ya es opcional en ese formulario).
+function _csvGuessOrigen(fuenteTexto){
+  const t=_csvNorm(fuenteTexto);
+  if(t.includes('linkedin')) return 'LinkedIn';
+  if(t.includes('apollo')) return 'Apollo';
+  if(t.includes('lusha')) return 'Lusha';
+  if(t.includes('google')) return 'Google';
+  if(t.includes('feria')) return 'Ferias comerciales';
+  return '';
+}
+async function csvSyncRowsToCRM(rows){
+  const withCompany=(rows||[]).filter(r=>(r.partner_name||'').trim());
+  if(!withCompany.length||!db) return;
+  let existing=[];
+  try{ existing=await searchCompanies(); }catch(e){ console.warn('csvSyncRowsToCRM load:',e); return; }
+  const byDomain=new Map(), byName=new Map();
+  existing.forEach(c=>{
+    const dk=_csvDomainKey(c.website); if(dk&&!byDomain.has(dk)) byDomain.set(dk,c);
+    const nk=_csvNameKey(c.nombre); if(nk&&!byName.has(nk)) byName.set(nk,c);
+  });
+  let creadas=0, actualizadas=0;
+  for(const row of withCompany){
+    try{
+      const dk=_csvDomainKey(row.Website);
+      const nk=_csvNameKey(row.partner_name);
+      const co=(dk&&byDomain.get(dk))||byName.get(nk);
+      const contact=row.contact_name?.trim()?{
+        nombre:row.contact_name.trim(), cargo:row.function||'', correo:row.Email||'',
+        phone:row.phone||'', linkedin:_csvExtractFromNotes(row.notes,['LinkedIn contacto','LinkedIn']),
+      }:null;
+      if(co){
+        if(contact&&!(co.contacts||[]).some(c=>_csvContactMatches(c,contact))){
+          const contacts=[...(co.contacts||[]),contact];
+          const saved=await saveCompany({...co,contacts}); if(!saved) continue;
+          co.contacts=contacts;
+          actualizadas++;
+        }
+      } else {
+        const nuevo={
+          nombre:row.partner_name.trim(), giro:'', tamaño:'', origen:row._origen||'',
+          website:row.Website||'', linkedin:_csvExtractFromNotes(row.notes,['LinkedIn empresa']),
+          contacts:contact?[contact]:[],
+        };
+        const id=await saveCompany(nuevo); if(!id) continue;
+        nuevo.id=id;
+        if(dk) byDomain.set(dk,nuevo);
+        if(nk) byName.set(nk,nuevo);
+        existing.push(nuevo);
+        creadas++;
+      }
+    }catch(e){ console.warn('csvSyncRowsToCRM row:',row.partner_name,e); }
+  }
+  if(creadas||actualizadas){
+    showNotif(`🏢 CRM: ${creadas} empresa${creadas===1?'':'s'} nueva${creadas===1?'':'s'}${actualizadas?`, ${actualizadas} actualizada${actualizadas===1?'':'s'} con contacto nuevo`:''}`,'success');
+    if(document.getElementById('empresasList')) empLoad().then(()=>empRender(_allEmpresas)).catch(()=>{});
+  }
+}
+
 // Convierte los leads de un job (ya con email+teléfono resueltos) al shape de csvRows — misma
 // transformación que antes hacía csvRunLeadSearch al recibir la respuesta directa.
 function csvLoadJobIntoRows(job){
@@ -8480,12 +8570,14 @@ function csvLoadJobIntoRows(job){
       // creados antes de ese cambio).
       datos_denue:row.datos_denue||'', datos_apollo:row.datos_apollo||(fuentes.includes('DENUE')?'No hay datos en Apollo':''), resumen:'',
       _fuentePrimaria:fuentes.includes('DENUE')?'denue':'apollo',
+      _origen:fuentes.includes('DENUE')?'Bases de datos':'Apollo',
     };
   });
   csvRenderTable();
   document.getElementById('csvPreviewSection').style.display='block';
   document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
   csvEnrichRowsWithAI(csvRows);
+  csvSyncRowsToCRM(csvRows).catch(e=>console.warn('csvSyncRowsToCRM:',e));
 }
 
 // ── Enriquecimiento con IA post-carga (columna Resumen) ──
@@ -8640,12 +8732,14 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
       partner_name:row.partner_name||'', Website:row.Website||'',
       Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
       state_id:row.state_id||'', country_id:csvCountryIdFor('Mexico'), notes:row.notes||'',
+      _origen:_csvGuessOrigen(fuente),
     }));
     _csvDirty=true; // prospectos recién extraídos: aún no descargados ni guardados
     csvRenderTable();
     document.getElementById('csvPreviewSection').style.display='block';
     document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
     showNotif(`${csvRows.length} prospecto${csvRows.length===1?'':'s'} extraído${csvRows.length===1?'':'s'}${usedLocal?' directo del CSV (sin IA)':''} ✓`,'success');
+    csvSyncRowsToCRM(csvRows).catch(e=>console.warn('csvSyncRowsToCRM:',e));
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('csvLoading',false);
 };
@@ -8656,7 +8750,20 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
 // ReferenceError y se perdía en silencio). csvDeleteRow/csvAddRow sí funcionaban porque son
 // FUNCIONES definidas dentro del módulo y solo expuestas vía window — su cierre (closure) sí ve
 // csvRows aunque se invoquen desde un atributo global. Este helper sigue el mismo patrón.
-window.csvUpdateCell=function(i,key,val){ if(csvRows[i]){ csvRows[i][key]=val; _csvDirty=true; } };
+// syncKeys: editar cualquiera de estos en una fila con empresa ya escrita dispara (debounced 2s,
+// un solo timer global — igual patrón que _empEditAutosaveT en Empresas) la sincronización a CRM.
+// Cubre tanto filas manuales (arrancan vacías, no hay nada que sincronizar hasta que el AE escribe
+// la empresa) como correcciones a filas ya cargadas por búsqueda/pegado.
+const _CSV_SYNC_KEYS=['partner_name','contact_name','function','Email','phone','Website'];
+let _csvSyncDebounceT=null;
+window.csvUpdateCell=function(i,key,val){
+  if(!csvRows[i]) return;
+  csvRows[i][key]=val; _csvDirty=true;
+  if(_CSV_SYNC_KEYS.includes(key)&&csvRows[i].partner_name?.trim()){
+    clearTimeout(_csvSyncDebounceT);
+    _csvSyncDebounceT=setTimeout(()=>{ csvSyncRowsToCRM([csvRows[i]]).catch(e=>console.warn('csvUpdateCell sync:',e)); }, 2000);
+  }
+};
 function csvRenderTable(){
   const tbody=document.getElementById('csvTableBody'); if(!tbody) return;
   document.getElementById('csvRowCount').textContent=`(${csvRows.length} prospectos)`;
