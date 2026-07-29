@@ -127,6 +127,12 @@ input,select,textarea{font-family:inherit;}
 .nav-item.active::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:white;border-radius:0 3px 3px 0;}
 .nav-icon{font-size:16px;width:20px;text-align:center;}
 .nav-badge{margin-left:auto;background:var(--warning);color:white;font-size:11px;font-weight:700;min-width:18px;height:18px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 5px;}
+.nav-download-cta{display:flex;align-items:center;gap:10px;margin:4px 16px 10px;padding:11px 12px;background:linear-gradient(135deg,var(--accent) 0%,#015358 100%);border-radius:var(--radius-sm);text-decoration:none;box-shadow:0 2px 8px rgba(1,126,132,.4);transition:all .15s;position:relative;}
+.nav-download-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(1,126,132,.5);text-decoration:none;}
+.nav-download-cta .nav-icon{font-size:18px;flex-shrink:0;}
+.nav-download-text{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;}
+.nav-download-text strong{font-size:12.5px;font-weight:700;color:white;line-height:1.25;}
+.nav-download-text span{font-size:10.5px;color:rgba(255,255,255,.8);display:flex;align-items:center;gap:4px;}
 /* Tooltip flotante del sidebar — vive en <body> (no dentro de .sidebar) porque
    .sidebar tiene overflow-y:auto, y eso recorta cualquier hijo posicionado fuera
    de su caja aunque sea position:absolute con left:100%. position:fixed + JS
@@ -899,6 +905,10 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')" data-tip="Métricas de uso y actividad del equipo."><span class="nav-icon">📊</span> Analytics</button>
       <div class="nav-section-label" style="margin-top:8px">Recursos</div>
       <button class="nav-item" id="nav-framework" onclick="showModule('framework')" data-tip="Guía de marca oficial: colores, tipografía y assets para tus materiales."><span class="nav-icon">🎨</span> Framework Visual</button>
+      <a class="nav-download-cta" href="assets/docs/proveedores-timbres-pac.pdf" download="Proveedores_de_Timbres_Odoo_Mexico.pdf" data-tip="Ficha para cliente con los 3 PACs (Quadrum, SW Sapien, Solución Factible): esquemas de contratación, precios de referencia y contacto directo.">
+        <span class="nav-icon">📄</span>
+        <span class="nav-download-text"><strong>Proveedores de Timbres</strong><span>⬇ Descargar PDF</span></span>
+      </a>
       <div class="nav-section-label" style="margin-top:8px">Gestión</div>
       <button class="nav-item" id="nav-manager" onclick="showModule('manager')" style="display:none" data-tip="Aprobaciones de usuarios, asignación de roles y edición de perfiles."><span class="nav-icon">👥</span> Manager<span class="nav-badge" id="pendingBadge"></span></button>
       <button class="nav-item" id="nav-settings" onclick="showModule('settings')" data-tip="Ajusta tu perfil e integraciones de la app."><span class="nav-icon">⚙️</span> Configuración</button>
@@ -930,7 +940,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-24d Buscador de leads: tags de industria normalizados al catálogo QS Project (A#-tipo de negocio, B#-tipo de producto)';
+const APP_BUILD_STAMP='2026-07-29 Botón de descarga en el menú (Recursos): ficha PDF de Proveedores de Timbres (Quadrum, SW Sapien, Solución Factible) para compartir con clientes';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
