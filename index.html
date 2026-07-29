@@ -940,7 +940,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-29c Hechos verificados Odoo 19 en ANTI_HALLUCINATION (MPS, consolidación, IA/costos, calidad) + longDesc Contabilidad/Manufactura/IA';
+const APP_BUILD_STAMP='2026-07-29d Buscador de leads: tags QS Project admite 1-3 códigos A (tipo de negocio) + 1 código B (tipo de producto)';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -8597,10 +8597,13 @@ const QS_PRODUCT_TYPES=[
 ];
 function _qsTag(list,code){ const e=list.find(x=>x.code===String(code||'').trim()); return e?`${e.code}-${e.label}`:''; }
 
-// 1 sola llamada batch por job (no depende de tools, barato) — Claude elige el código A y el código
-// B más adecuados para cada empresa, usando la industria cruda de la fuente (Apollo/DENUE) + notas
-// como contexto. Si no clasifica claro, cae en A99/B99 (Uncategorized) — el propio archivo trae ese
-// bucket para exactamente este caso, no es una invención nuestra.
+// 1 sola llamada batch por job (no depende de tools, barato) — Claude elige 1 a 3 códigos A (tipo
+// de negocio, puede ser más de uno si la empresa cae claramente en varias categorías — confirmado
+// por el usuario con un ejemplo real de Odoo: A7-Service + A13-Transport, Logistics, 3PL en el
+// mismo lead) y EXACTAMENTE un código B (tipo de producto/servicio, siempre uno solo) más adecuado
+// para cada empresa, usando la industria cruda de la fuente (Apollo/DENUE) + notas como contexto.
+// Si no clasifica claro, cae en A99/B99 (Uncategorized) — el propio archivo trae ese bucket para
+// exactamente este caso, no es una invención nuestra.
 async function csvClassifyIndustryTags(rows){
   const items=rows.map(r=>({
     empresa:r.partner_name||'', industria_fuente:r._industriaRaw||'',
@@ -8608,22 +8611,26 @@ async function csvClassifyIndustryTags(rows){
   }));
   const aList=QS_INDUSTRY_TYPES.map(a=>`${a.code}=${a.label}`).join(' | ');
   const bList=QS_PRODUCT_TYPES.map(b=>`${b.code}=${b.label}`).join(' | ');
-  const fallback=()=>rows.map(()=>({a:_qsTag(QS_INDUSTRY_TYPES,'A99'), b:_qsTag(QS_PRODUCT_TYPES,'B99')}));
+  const fallback=()=>rows.map(()=>({a:[_qsTag(QS_INDUSTRY_TYPES,'A99')], b:_qsTag(QS_PRODUCT_TYPES,'B99')}));
   try{
-    const raw=await gcCallClaude(`Clasifica cada empresa de ventas B2B en EXACTAMENTE un código de tipo de negocio (LISTA A) y un código de tipo de producto/servicio (LISTA B). Usa "A99"/"B99" (Uncategorized) SOLO si de verdad no hay pista suficiente para elegir otro.
-LISTA A (tipo de negocio): ${aList}
-LISTA B (tipo de producto/servicio): ${bList}
+    const raw=await gcCallClaude(`Clasifica cada empresa de ventas B2B en 1 a 3 códigos de tipo de NEGOCIO (LISTA A — puede ser más de uno SOLO si la empresa cae claramente en varias categorías, no fuerces más de uno si solo aplica uno) y EXACTAMENTE un código de tipo de PRODUCTO/SERVICIO (LISTA B — siempre uno solo, el más representativo). Usa "A99"/"B99" (Uncategorized) SOLO si de verdad no hay pista suficiente para elegir otro.
+LISTA A (tipo de negocio, 1 a 3 por empresa): ${aList}
+LISTA B (tipo de producto/servicio, exactamente 1 por empresa): ${bList}
 EMPRESAS:
 ${JSON.stringify(items)}
 
-Devuelve EXCLUSIVAMENTE un array JSON, EN EL MISMO ORDEN Y LA MISMA CANTIDAD que las empresas de entrada (si hay ${items.length}, regresa exactamente ${items.length} objetos): [{"a":"A#","b":"B#"},...]. Los códigos deben venir EXACTAMENTE de las listas dadas (ej. "A12", "B37"). Sin markdown, sin explicaciones.`,
+Devuelve EXCLUSIVAMENTE un array JSON, EN EL MISMO ORDEN Y LA MISMA CANTIDAD que las empresas de entrada (si hay ${items.length}, regresa exactamente ${items.length} objetos): [{"a":["A#","A#"],"b":"B#"},...] ("a" es un array con 1 a 3 códigos, "b" es un solo código). Los códigos deben venir EXACTAMENTE de las listas dadas (ej. "A12", "B37"). Sin markdown, sin explicaciones.`,
       null, {maxTokens:4000, system:'Devuelves SIEMPRE y SOLO un array JSON válido, en el mismo orden y cantidad que la entrada, sin texto adicional.'});
     const arr=_parseJSONArray(raw);
     if(!Array.isArray(arr)||arr.length!==items.length) throw new Error('longitud de respuesta no coincide');
-    return arr.map(o=>({
-      a:_qsTag(QS_INDUSTRY_TYPES,o?.a)||_qsTag(QS_INDUSTRY_TYPES,'A99'),
-      b:_qsTag(QS_PRODUCT_TYPES,o?.b)||_qsTag(QS_PRODUCT_TYPES,'B99'),
-    }));
+    return arr.map(o=>{
+      const aCodes=Array.isArray(o?.a)?o.a:[o?.a];
+      const aTags=[...new Set(aCodes.map(c=>_qsTag(QS_INDUSTRY_TYPES,c)).filter(Boolean))].slice(0,3);
+      return {
+        a: aTags.length?aTags:[_qsTag(QS_INDUSTRY_TYPES,'A99')],
+        b: _qsTag(QS_PRODUCT_TYPES,o?.b)||_qsTag(QS_PRODUCT_TYPES,'B99'),
+      };
+    });
   }catch(e){ console.warn('csvClassifyIndustryTags:',e); return fallback(); }
 }
 async function csvApplyIndustryTags(rows){
@@ -8637,7 +8644,7 @@ async function csvApplyIndustryTags(rows){
   // esta función corre una sola vez por fila — simplemente se suma al Tags_id ya armado.
   withCompany.forEach((r,i)=>{
     const {a,b}=tags[i]||{};
-    r.Tags_id=[r.Tags_id,a,b].filter(Boolean).join(',');
+    r.Tags_id=[r.Tags_id,...(a||[]),b].filter(Boolean).join(',');
   });
   csvRenderTable();
 }
