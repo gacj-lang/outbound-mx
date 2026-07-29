@@ -940,7 +940,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-29 Botón de descarga en el menú (Recursos): ficha PDF de Proveedores de Timbres (Quadrum, SW Sapien, Solución Factible) para compartir con clientes';
+const APP_BUILD_STAMP='2026-07-29b Regla dura de ortografía (acentos/mayúsculas) para TODO texto generado por IA en la app';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1012,6 +1012,11 @@ const ODOO_BUZZWORDS_BANNED=[
   'potenciar sinergias','sinergias','sinergia','potencializar','robusto',
   'plataforma de vanguardia','ecosistema',
 ];
+// ── Regla dura de ortografía — compartida por TODOS los prompts que generan texto libre. No es
+// una preferencia de estilo: un texto con faltas de ortografía frente a un cliente le resta toda
+// formalidad a Odoo. Se referencia desde ANTI_HALLUCINATION y también se agrega directo a los
+// system prompts que la sobreescriben (ej. csvBatchResumenes) porque esos NO heredan ANTI_HALLUCINATION.
+const SPANISH_ORTHOGRAPHY_RULE = `Ortografía impecable, SIEMPRE, sin excepción: usa todos los acentos/tildes correctos del español (á, é, í, ó, ú, ñ, ¿, ¡) y las mayúsculas/minúsculas correctas. Nunca omitas un acento por practicidad ni escribas "informacion", "como", "dia", "ano", "esta" (por "está") o similares sin su acento — son errores, no estilo ("información", "cómo", "día", "año", "está"). No inventes mayúsculas a media frase salvo nombres propios o siglas reales (RFC, CFDI, IVA, SAT). Antes de responder, revisa mentalmente el texto: cero faltas de ortografía es un requisito no negociable, igual de estricto que no inventar datos.`;
 // ── Regla anti-alucinación (system prompt para TODAS las llamadas de IA) ──
 const ANTI_HALLUCINATION = `Eres un asistente de ventas de Odoo México. Reglas CRÍTICAS e innegociables:
 - NUNCA inventes datos, nombres, fechas, cifras, estadísticas, casos de éxito ni fuentes. Si un dato no te fue proporcionado, NO lo fabriques.
@@ -1019,6 +1024,7 @@ const ANTI_HALLUCINATION = `Eres un asistente de ventas de Odoo México. Reglas 
 - Solo afirma capacidades de Odoo que sean reales. Si no estás seguro de que Odoo haga algo, NO lo afirmes; habla en términos generales de lo que Odoo sí hace.
 - Si no sabes algo o no tienes información suficiente, dilo ("No tengo información suficiente para…") en vez de adivinar o inferir.
 - Escribe SIEMPRE en español de México, natural y profesional. Evita palabras altisonantes o grandilocuentes, por ejemplo: ${ODOO_BUZZWORDS_BANNED.map(w=>`"${w}"`).join(', ')}. Lenguaje claro y humano.
+- ${SPANISH_ORTHOGRAPHY_RULE}
 - No dejes rastros de que el texto fue generado por IA.`;
 
 // Recursos OFICIALES de Odoo — URLs reales y verificadas. NUNCA inventar enlaces específicos;
@@ -8699,7 +8705,7 @@ async function csvBatchResumenes(rows){
 ${contexto?`Datos ya conocidos: ${contexto}`:''}
 Con eso, genera un resumen ULTRA BREVE (máximo 140 caracteres) pensado para que un vendedor sepa en un vistazo por qué contactar a esta empresa/contacto y con qué gancho empezar. Si la búsqueda no encuentra nada confiable, resume con los datos ya conocidos (industria, cargo) sin inventar nada.
 Responde en español, SOLO el resumen final, sin markdown, sin explicar tu proceso de búsqueda.`,
-        null, {maxTokens:1500, system:'Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown ni disclaimers de tu proceso.', tools:[{type:'web_search_20250305', name:'web_search', max_uses:2}]});
+        null, {maxTokens:1500, system:`Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown ni disclaimers de tu proceso. ${SPANISH_ORTHOGRAPHY_RULE}`, tools:[{type:'web_search_20250305', name:'web_search', max_uses:2}]});
       const resumen=String(raw||'').trim().slice(0,140);
       if(resumen){ r.resumen=resumen; return; }
       throw new Error('respuesta vacía con web_search');
@@ -8711,7 +8717,7 @@ Responde en español, SOLO el resumen final, sin markdown, sin explicar tu proce
 Empresa: ${r.partner_name||'nd'} | Contacto: ${r.contact_name||'nd'} | Cargo: ${r.function||'nd'} | Ubicación: ${r.state_id||r.country_id||'nd'}
 ${contexto?`Contexto: ${contexto}`:''}
 Responde en español, SOLO el resumen final, sin markdown.`,
-        null, {maxTokens:300, system:'Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown.'});
+        null, {maxTokens:300, system:`Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown. ${SPANISH_ORTHOGRAPHY_RULE}`});
       r.resumen=String(raw2||'').trim().slice(0,140);
     }catch(e2){ console.warn('csvBatchResumenes (respaldo sin web):',r.partner_name,e2); r.resumen=''; }
   }));
