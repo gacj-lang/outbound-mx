@@ -941,7 +941,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-29e Intromeet: fix visibilidad TL + fix duplicado al guardar + buscador reemplaza filtros; CSV Builder: tag Outbound-MX siempre, límites diarios DENUE 25/Apollo 10, import nativo Lusha con cross-match DENUE + Resumen + tags QS';
+const APP_BUILD_STAMP='2026-07-30 fix import Lusha: teléfono +52 se prioriza como principal sobre teléfonos de otros países (Odoo valida el teléfono contra country_id=México, un lada extranjero como principal se perdía al importar)';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -8011,11 +8011,19 @@ function _csvMapLusha(text){
     const emailsExtra=[workEmail,workEmail2,privateEmail].filter(e=>e&&e!==email);
 
     // Hasta 6 teléfonos por lead en Lusha — el principal va al campo phone del CSV, el resto a Notas
-    // (pedido explícito del usuario). Prioridad: Mobile > Direct phone > Phone (línea directa de la
-    // persona es más útil para outbound que un conmutador general).
+    // (pedido explícito del usuario). Prioridad base: Mobile > Direct phone > Phone (línea directa
+    // de la persona es más útil para outbound que un conmutador general) > sus variantes "2".
+    // PERO todo lead de este import se sube a Odoo con country_id=México — un teléfono con lada de
+    // otro país (+41, +34, +44...) como PRINCIPAL puede chocar con la validación de teléfono de
+    // Odoo (valida el número contra el país del registro) y quedar vacío al importar (bug real
+    // reportado por el usuario 2026-07-30: "no carga todos los teléfonos"). Por eso cualquier
+    // número +52 se prefiere como principal aunque no sea el de mayor prioridad de columna; solo si
+    // NINGUNO es +52 se usa el orden original (ej. contacto verdaderamente fuera de México).
     const phonesUniq=[...new Set([get(r,idx.mobile),get(r,idx.directPhone),get(r,idx.phone),get(r,idx.mobile2),get(r,idx.directPhone2),get(r,idx.phone2)].map(_cleanPhone).filter(Boolean))];
-    const phone=phonesUniq[0]||'';
-    const phonesExtra=phonesUniq.slice(1);
+    const _isMX=p=>p.trim().startsWith('+52');
+    const phonesOrdenados=[...phonesUniq.filter(_isMX),...phonesUniq.filter(p=>!_isMX(p))];
+    const phone=phonesOrdenados[0]||'';
+    const phonesExtra=phonesOrdenados.slice(1);
 
     const industria=[get(r,idx.industry),get(r,idx.subIndustry)].filter(Boolean).join(' — ');
     const linkedin=get(r,idx.linkedin);
