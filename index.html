@@ -940,7 +940,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-29b Regla dura de ortografía (acentos/mayúsculas) para TODO texto generado por IA en la app';
+const APP_BUILD_STAMP='2026-07-29c Hechos verificados Odoo 19 en ANTI_HALLUCINATION (MPS, consolidación, IA/costos, calidad) + longDesc Contabilidad/Manufactura/IA';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1017,6 +1017,17 @@ const ODOO_BUZZWORDS_BANNED=[
 // formalidad a Odoo. Se referencia desde ANTI_HALLUCINATION y también se agrega directo a los
 // system prompts que la sobreescriben (ej. csvBatchResumenes) porque esos NO heredan ANTI_HALLUCINATION.
 const SPANISH_ORTHOGRAPHY_RULE = `Ortografía impecable, SIEMPRE, sin excepción: usa todos los acentos/tildes correctos del español (á, é, í, ó, ú, ñ, ¿, ¡) y las mayúsculas/minúsculas correctas. Nunca omitas un acento por practicidad ni escribas "informacion", "como", "dia", "ano", "esta" (por "está") o similares sin su acento — son errores, no estilo ("información", "cómo", "día", "año", "está"). No inventes mayúsculas a media frase salvo nombres propios o siglas reales (RFC, CFDI, IVA, SAT). Antes de responder, revisa mentalmente el texto: cero faltas de ortografía es un requisito no negociable, igual de estricto que no inventar datos.`;
+// ── Hechos técnicos verificados de Odoo 19 — evita que la IA invente o desactualice info si el
+// tema sale en objeciones, discovery calls o propuestas. Verificado jul 2026 contra documentación
+// oficial de Odoo 19 (fuente ampliada: ~/Desktop/Preguntas Odoo/Respuestas_Cuestionario_Odoo19.xlsx,
+// 43 preguntas técnicas reales de un prospecto, con links de evidencia por pregunta).
+const ODOO_VERIFIED_FACTS = `HECHOS TÉCNICOS VERIFICADOS DE ODOO 19 (úsalos si el tema sale en la conversación; no los repitas si no vienen al caso):
+- Consolidación financiera: en Odoo 19 YA NO existe una app separada "Consolidation". Se hace vía Account Mapping + Multi-Ledgers dentro de Contabilidad.
+- Planificación de demanda: se llama Master Production Schedule (MPS), dentro de Manufactura (Planning). Permite planificar manualmente demanda futura por periodo (día/semana/mes) y generar reabastecimiento sugerido. No es lo mismo que las reglas de reabastecimiento automáticas — son mecanismos alternativos, no se combinan sobre el mismo producto.
+- Contabilidad México: el Lector XML (CFDI) auto-crea el borrador de factura de proveedor al subir el XML del SAT.
+- IA en Odoo 19 (app "AI"): incluye AI Agents, AI Fields, Ask AI (búsqueda en lenguaje natural), AI Document Sort e IA en Chat en vivo, SIN costo aparte en Enterprise. Lo que SÍ cobra créditos aparte (IAP): OCR de facturas/gastos (Document Digitization) y Lead Generation. NO está confirmado que la IA genere reportes de Spreadsheet ni pronósticos de Inventario (forecasting) — no lo afirmes si preguntan.
+- Calidad: no existe un reporte estándar llamado "Certificado de Análisis" — se personaliza a la medida (Studio o desarrollo). Sí existe registro de resultados de inspección por lote de fábrica.
+- Landed Cost (Inventario): distribuye costos adicionales (flete, aduana, seguro) sobre una recepción, por valor/cantidad/peso/volumen, con ajuste automático de costo y contabilidad.`;
 // ── Regla anti-alucinación (system prompt para TODAS las llamadas de IA) ──
 const ANTI_HALLUCINATION = `Eres un asistente de ventas de Odoo México. Reglas CRÍTICAS e innegociables:
 - NUNCA inventes datos, nombres, fechas, cifras, estadísticas, casos de éxito ni fuentes. Si un dato no te fue proporcionado, NO lo fabriques.
@@ -1025,7 +1036,9 @@ const ANTI_HALLUCINATION = `Eres un asistente de ventas de Odoo México. Reglas 
 - Si no sabes algo o no tienes información suficiente, dilo ("No tengo información suficiente para…") en vez de adivinar o inferir.
 - Escribe SIEMPRE en español de México, natural y profesional. Evita palabras altisonantes o grandilocuentes, por ejemplo: ${ODOO_BUZZWORDS_BANNED.map(w=>`"${w}"`).join(', ')}. Lenguaje claro y humano.
 - ${SPANISH_ORTHOGRAPHY_RULE}
-- No dejes rastros de que el texto fue generado por IA.`;
+- No dejes rastros de que el texto fue generado por IA.
+
+${ODOO_VERIFIED_FACTS}`;
 
 // Recursos OFICIALES de Odoo — URLs reales y verificadas. NUNCA inventar enlaces específicos;
 // usar solo estas páginas índice (la de clientes es filtrable por industria).
@@ -3432,7 +3445,7 @@ async function fetchIndustryPhoto(industria, page=1){
 // Cada módulo: { name, svgFile, desc, longDesc }
 const ODOO_APPS = {
   'Finanzas':[
-    {name:'Contabilidad',         svgFile:'account',              desc:'CFDI 4.0, conciliación bancaria',                              longDesc:'Ahorra tiempo con entrada automática de datos y gestiona tus finanzas desde cualquier lugar. Reportes en tiempo real, toma de decisiones informada y CFDI 4.0 incluido.'},
+    {name:'Contabilidad',         svgFile:'account',              desc:'CFDI 4.0, conciliación bancaria',                              longDesc:'Ahorra tiempo con entrada automática de datos y gestiona tus finanzas desde cualquier lugar. Reportes en tiempo real, toma de decisiones informada y CFDI 4.0 incluido, con Lector XML que crea automáticamente tus facturas de proveedor desde el XML del SAT.'},
     {name:'Facturación',          svgFile:'account',              desc:'Timbrado automático, notas de crédito',                        longDesc:'Simplifica la creación de facturas integrándose con Ventas, Proyectos y otras aplicaciones. Timbrado automático, notas de crédito, múltiples monedas y facturación recurrente.'},
     {name:'Gastos',               svgFile:'hr_expense',           desc:'Reporte y aprobación de gastos',                               longDesc:'Registra y aprueba gastos con un clic desde escritorio o celular. Se integra automáticamente con Contabilidad para asientos y reembolsos con seguimiento por empleado.'},
     {name:'Hoja de cálculo (BI)', svgFile:'spreadsheet',          desc:'Reportes y dashboards con datos del ERP en vivo',              longDesc:'Construye reportes y dashboards conectados en tiempo real a los datos de tu Odoo. Tablas dinámicas, gráficas y fórmulas que se actualizan automáticamente sin exportar a Excel.'},
@@ -3457,7 +3470,7 @@ const ODOO_APPS = {
   ],
   'Cadena de suministro':[
     {name:'Inventario',           svgFile:'stock',                desc:'Stock, reabasto automático, trazabilidad',                     longDesc:'Seguimiento en tiempo real, reabastecimiento automático y estrategias de almacenamiento optimizadas. Compatible con múltiples métodos de recolección, transportistas y trazabilidad completa.'},
-    {name:'Manufactura',          svgFile:'mrp',                  desc:'Órdenes de producción, MRP, BOM',                              longDesc:'Planificación de capacidad en tiempo real, control de componentes y costos de producción. Simula órdenes, gestiona listas de materiales y planifica recursos de forma eficaz con MRP.'},
+    {name:'Manufactura',          svgFile:'mrp',                  desc:'Órdenes de producción, MRP, BOM',                              longDesc:'Planificación de capacidad en tiempo real, control de componentes y costos de producción. Simula órdenes, gestiona listas de materiales y planifica recursos de forma eficaz con MRP, incluyendo un Programa Maestro de Producción para anticipar qué fabricar o comprar antes de que la demanda sea urgente.'},
     {name:'PLM',                  svgFile:'mrp_plm',              desc:'Gestión del ciclo de vida de productos',                       longDesc:'Controla las versiones de tus productos y gestiona las órdenes de cambio de ingeniería. Integrado con Manufactura para asegurar que la producción use siempre la versión correcta.'},
     {name:'Compras',              svgFile:'purchase',             desc:'Órdenes de compra, portal de proveedores',                     longDesc:'Simplifica el aprovisionamiento con solicitudes de cotización automatizadas, contratos flexibles y facturación de proveedores. Compatible con multiempresa y reportes integrales de eficiencia.'},
     {name:'Mantenimiento',        svgFile:'maintenance',          desc:'Mantenimiento preventivo y correctivo de equipos',             longDesc:'Programa y rastrea el mantenimiento de equipos con órdenes de trabajo preventivas y correctivas. Reduce tiempos muertos, gestiona refacciones e integra con Manufactura.'},
@@ -3489,7 +3502,7 @@ const ODOO_APPS = {
   ],
   'Productividad':[
     {name:'Conversaciones',       svgFile:'mail',                 desc:'Mensajería interna y canales de equipo',                       longDesc:'Chat interno, canales por proyecto o departamento y mensajería directa entre empleados. Integrado en toda la app para discutir registros sin salir del flujo de trabajo.'},
-    {name:'Inteligencia artificial',svgFile:'mail_bot',           desc:'Asistente IA integrado en Odoo',                               longDesc:'Funcionalidades de inteligencia artificial integradas en Odoo para sugerencias predictivas, completado automático de registros y análisis de datos. Potencia la toma de decisiones sin salir del ERP.'},
+    {name:'Inteligencia artificial',svgFile:'mail_bot',           desc:'Asistente IA integrado en Odoo',                               longDesc:'Agentes de IA configurables, autocompletado inteligente de campos y búsqueda en lenguaje natural (Ask AI) integrados en Odoo, sin salir del ERP. Incluido en tu suscripción Enterprise.'},
     {name:'IoT',                  svgFile:'iot',                  desc:'Integración con dispositivos físicos',                          longDesc:'Conecta dispositivos físicos —básculas, lectores de código de barras, impresoras e instrumentos de calidad— directamente a Odoo. Ideal para manufactura, POS y control de calidad.'},
     {name:'VoIP',                 svgFile:'voip',                 desc:'Llamadas y call center integrado al CRM',                      longDesc:'Realiza y recibe llamadas directamente desde Odoo con integración VoIP. Las llamadas se registran automáticamente en el CRM con notas, duración e historial por cliente.'},
     {name:'Artículos',            svgFile:'knowledge',            desc:'Base de conocimiento interna',                                 longDesc:'Crea y organiza una base de conocimiento con artículos, manuales y procedimientos. Los empleados acceden desde cualquier módulo de Odoo; los clientes la ven desde el portal de soporte.'},
