@@ -281,9 +281,10 @@ input,select,textarea{font-family:inherit;}
 .disc-list-wrap{max-width:1100px;}
 .disc-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
 .disc-list-header h2{font-size:22px;font-weight:700;}
-.disc-filters{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
-.disc-filter-btn{padding:6px 14px;border-radius:99px;border:1.5px solid var(--gray-200);font-size:13px;font-weight:500;background:white;color:var(--gray-500);cursor:pointer;transition:all .15s;}
-.disc-filter-btn.active{background:var(--purple);color:white;border-color:var(--purple);}
+.disc-search-wrap{position:relative;margin-bottom:20px;max-width:420px;}
+.disc-search-wrap .disc-search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--gray-400);pointer-events:none;}
+.disc-search-input{width:100%;padding:10px 14px 10px 38px;border-radius:10px;border:1.5px solid var(--gray-200);font-size:14px;color:var(--gray-700);background:white;transition:border-color .15s;}
+.disc-search-input:focus{outline:none;border-color:var(--purple);}
 .disc-sessions-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
 .disc-session-card{background:white;border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:20px;cursor:pointer;transition:all .2s;box-shadow:var(--shadow);}
 .disc-session-card:hover{border-color:var(--purple);box-shadow:var(--shadow-md);transform:translateY(-2px);}
@@ -940,7 +941,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-29d Buscador de leads: tags QS Project admite 1-3 códigos A (tipo de negocio) + 1 código B (tipo de producto)';
+const APP_BUILD_STAMP='2026-07-29e Intromeet: fix visibilidad TL + fix duplicado al guardar + buscador reemplaza filtros; CSV Builder: tag Outbound-MX siempre, límites diarios DENUE 25/Apollo 10, import nativo Lusha con cross-match DENUE + Resumen + tags QS';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -2163,12 +2164,9 @@ async function renderDiscoveryList(){
         <div><h2>🔍 Intromeet / Qcall</h2><p style="color:var(--gray-500);font-size:14px;margin-top:4px">Sesiones de discovery con tus prospectos</p></div>
         <button class="btn btn-primary" onclick="openDiscoveryForm(null)">+ Nueva sesión</button>
       </div>
-      <div class="disc-filters">
-        <button class="disc-filter-btn active" data-f="all" onclick="filterSessions(this,'all')">Todas</button>
-        <button class="disc-filter-btn" data-f="borrador" onclick="filterSessions(this,'borrador')">Borrador</button>
-        <button class="disc-filter-btn" data-f="en_proceso" onclick="filterSessions(this,'en_proceso')">En proceso</button>
-        <button class="disc-filter-btn" data-f="completado" onclick="filterSessions(this,'completado')">Completadas</button>
-        <button class="disc-filter-btn" data-f="archivado" onclick="filterSessions(this,'archivado')">Archivadas</button>
+      <div class="disc-search-wrap">
+        <span class="disc-search-icon">🔎</span>
+        <input type="text" id="discSearchInput" class="disc-search-input" placeholder="Buscar por empresa, cuenta, industria o dolor…" oninput="discSearchSessions(this.value)">
       </div>
       <div id="discSessionsGrid" class="disc-sessions-grid">
         <div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
@@ -2181,15 +2179,30 @@ let discSessionsAll=[];
 async function loadDiscoverySessions(){
   if(!db){ renderDiscSessionsOffline(); return; }
   const role=currentUserData?.role;
-  let q;
-  // Manager: solo orderBy (índice simple, auto-creado)
-  // AE / TL: where sin orderBy (evita necesidad de índice compuesto), se ordena en cliente
-  if(role==='manager') q=query(collection(db,'discoveryRecords'),orderBy('createdAt','desc'));
-  else if(role==='tl')  q=query(collection(db,'discoveryRecords'),where('tlId','==',currentUserData.uid));
-  else                  q=query(collection(db,'discoveryRecords'),where('aeUid','==',currentUserData.uid));
   try {
-    const snap=await getDocs(q);
-    discSessionsAll=snap.docs.map(d=>({id:d.id,...d.data()}));
+    let docs;
+    if(role==='manager'){
+      // Manager: solo orderBy (índice simple, auto-creado)
+      const snap=await getDocs(query(collection(db,'discoveryRecords'),orderBy('createdAt','desc')));
+      docs=snap.docs;
+    } else if(role==='tl'){
+      // TL: sus propios registros creados (aeUid==uid) UNIDOS a los de su equipo (tlId==uid) — un TL
+      // que crea su propia sesión NO le queda tlId==su propio uid (tlId guarda a SU manager, no a sí
+      // mismo), así que filtrar solo por tlId dejaba sus propias sesiones invisibles en esta lista
+      // aunque sí aparecían al abrirlas desde el Contacto (que consulta por companyId, sin este filtro).
+      const [ownSnap,teamSnap]=await Promise.all([
+        getDocs(query(collection(db,'discoveryRecords'),where('aeUid','==',currentUserData.uid))),
+        getDocs(query(collection(db,'discoveryRecords'),where('tlId','==',currentUserData.uid))),
+      ]);
+      const byId=new Map();
+      [...ownSnap.docs,...teamSnap.docs].forEach(d=>byId.set(d.id,d));
+      docs=[...byId.values()];
+    } else {
+      // AE: where sin orderBy (evita necesidad de índice compuesto), se ordena en cliente
+      const snap=await getDocs(query(collection(db,'discoveryRecords'),where('aeUid','==',currentUserData.uid)));
+      docs=snap.docs;
+    }
+    discSessionsAll=docs.map(d=>({id:d.id,...d.data()}));
     // Ordenar por fecha descendente en cliente
     discSessionsAll.sort((a,b)=>{
       const ta=a.createdAt?.toMillis?.()??a.createdAt?.seconds??0;
@@ -2209,10 +2222,13 @@ function renderDiscSessionsOffline(){
   g.innerHTML=`<div class="disc-empty"><div class="disc-empty-icon">📡</div><h3>Sin conexión a Firebase</h3><p>Configura Firebase en Ajustes para guardar y ver sesiones. Mientras tanto puedes trabajar en modo local.</p><button class="btn btn-primary" style="margin-top:16px" onclick="openDiscoveryForm(null)">Iniciar sesión local</button></div>`;
 }
 
-window.filterSessions=function(btn,filter){
-  document.querySelectorAll('.disc-filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  const filtered=filter==='all'?discSessionsAll:discSessionsAll.filter(s=>s.status===filter);
+window.discSearchSessions=function(term){
+  const q=_csvNorm(term||'');
+  if(!q){ renderDiscSessions(discSessionsAll); return; }
+  const filtered=discSessionsAll.filter(s=>{
+    const haystack=_csvNorm([s.empresa,s.aeName,s.aeGram,s.industriaNombre,...(s.tipoVenta||[]),...(s.dolores||[])].join(' | '));
+    return haystack.includes(q);
+  });
   renderDiscSessions(filtered);
 };
 
@@ -3274,6 +3290,7 @@ window.discCopyOutput=function(){
 // ── Save to Firestore ──
 // ── Autosave con debounce ──
 let _discAutosaveT=null;
+let _discSaveWriteLock=Promise.resolve(); // serializa creates/updates concurrentes (evita duplicar el registro si un autosave sigue en vuelo cuando dispara el siguiente)
 window.discAutosave=function(){
   if(!disc.formActive) return;
   // Autoguardar si ya existe el registro (reabierto) o hay algo significativo
@@ -3307,21 +3324,32 @@ window.discSaveRecord=async function(opts={}){
   if(silent){ if(ind){ ind.innerHTML='⏳ Guardando…'; ind.style.color='var(--gray-400)'; } }
   else if(btn){ btn.disabled=true; btn.textContent='Guardando...'; }
   try {
-    if(disc.recordId&&db){
-      await updateDoc(doc(db,'discoveryRecords',disc.recordId),record);
-    } else if(db){
-      record.createdAt=serverTimestamp();
-      const ref=await addDoc(collection(db,'discoveryRecords'),record);
-      disc.recordId=ref.id;
-    } else {
-      // Local fallback
-      const locals=JSON.parse(localStorage.getItem('disc_local')||'[]');
-      const idx=locals.findIndex(r=>r.id===disc.recordId);
-      const localRec={...record,id:disc.recordId||Date.now().toString(),createdAt:new Date().toISOString()};
-      if(idx>=0) locals[idx]=localRec; else locals.unshift(localRec);
-      localStorage.setItem('disc_local',JSON.stringify(locals));
-      disc.recordId=localRec.id;
-    }
+    // Encadenado sobre el lock: si un save anterior (p.ej. el addDoc que crea el registro) sigue en
+    // vuelo, este espera a que termine y fije disc.recordId ANTES de decidir create-vs-update — sin
+    // esto, dos autosaves disparados antes de que el primer addDoc resuelva ven recordId=null los
+    // dos y crean dos registros distintos (bug real: "borrador" duplicado al avanzar y re-guardar).
+    // El propio lock (_discSaveWriteLock) nunca queda rechazado (siempre .catch(()=>{})) para que un
+    // error puntual no envenene la cadena y bloquee todos los guardados futuros; thisWrite sí propaga
+    // el error hacia el try/catch de este llamado en particular.
+    const thisWrite=_discSaveWriteLock.catch(()=>{}).then(async()=>{
+      if(disc.recordId&&db){
+        await updateDoc(doc(db,'discoveryRecords',disc.recordId),record);
+      } else if(db){
+        record.createdAt=serverTimestamp();
+        const ref=await addDoc(collection(db,'discoveryRecords'),record);
+        disc.recordId=ref.id;
+      } else {
+        // Local fallback
+        const locals=JSON.parse(localStorage.getItem('disc_local')||'[]');
+        const idx=locals.findIndex(r=>r.id===disc.recordId);
+        const localRec={...record,id:disc.recordId||Date.now().toString(),createdAt:new Date().toISOString()};
+        if(idx>=0) locals[idx]=localRec; else locals.unshift(localRec);
+        localStorage.setItem('disc_local',JSON.stringify(locals));
+        disc.recordId=localRec.id;
+      }
+    });
+    _discSaveWriteLock=thisWrite.catch(()=>{});
+    await thisWrite;
     if(silent){
       if(ind){ ind.innerHTML='✓ Guardado automáticamente'; ind.style.color='var(--success)'; }
     } else {
@@ -7943,6 +7971,80 @@ const _MX_STATE_LOOKUP=(()=>{
   return m;
 })();
 function _mxState(raw){ if(!raw) return ''; return _MX_STATE_LOOKUP[_csvNorm(String(raw).replace(/\s*\(mx\)\s*$/i,''))]||''; }
+// Dominios de correo personal — se usan para decidir si el correo elegido es "corporativo" (y por
+// lo tanto sirve para adivinar el Website de la empresa) o personal (nunca se infiere Website de un
+// gmail/hotmail/etc, se dejaría un dominio ajeno a la empresa).
+const _CSV_FREE_MAIL_DOMAINS=new Set(['gmail.com','hotmail.com','outlook.com','yahoo.com','yahoo.com.mx','live.com','live.com.mx','icloud.com','aol.com','protonmail.com','msn.com','me.com']);
+
+// Parser dedicado para el export NATIVO de Lusha (ej. Export_User_Data_2026-07-29.csv) — columnas
+// fijas y conocidas, no hace falta adivinar como con _csvMapStructured (que de hecho NO reconoce
+// "Work email"/"LinkedIn profile"/"Primary industry" por no estar en sus listas de alias, y solo
+// capta 3 de los 6 teléfonos que trae Lusha — Mobile 2/Phone 2/Direct phone 2 se perdían). Se
+// detecta por firma de columnas exactas y corre ANTES del mapeo genérico en csvProcess.
+function _csvMapLusha(text){
+  if(!text||!text.includes('\n')) return null;
+  const firstLine=text.split(/\r?\n/)[0]||'';
+  const delim=_detectDelim(firstLine);
+  if(!firstLine.includes(delim)) return null;
+  const table=_parseDelimited(text, delim);
+  if(table.length<2) return null;
+  const header=table[0].map(_csvNorm);
+  const firma=['work email','private email','direct phone','primary industry','contact name','company name'];
+  if(!firma.every(n=>header.includes(n))) return null;
+  const col=name=>header.indexOf(_csvNorm(name));
+  const idx={
+    workEmail:col('Work email'), workEmail2:col('Work email 2'), privateEmail:col('Private email'),
+    mobile:col('Mobile'), mobile2:col('Mobile 2'), phone:col('Phone'), phone2:col('Phone 2'),
+    directPhone:col('Direct phone'), directPhone2:col('Direct phone 2'),
+    tags:col('Tags'), name:col('Contact name'), company:col('Company name'), title:col('Job title'),
+    linkedin:col('LinkedIn profile'), industry:col('Primary industry'), subIndustry:col('Primary sub-industry'),
+  };
+  const get=(r,i)=> i>=0&&i<r.length ? String(r[i]||'').trim() : '';
+  const out=[];
+  for(let k=1;k<table.length;k++){
+    const r=table[k];
+    const workEmail=get(r,idx.workEmail), workEmail2=get(r,idx.workEmail2), privateEmail=get(r,idx.privateEmail);
+    // Prioriza correo CORPORATIVO (Work email) sobre el personal — mismo criterio que el buscador
+    // de leads (Apollo, correo corporativo obligatorio). Si no hay ninguno corporativo, cae al
+    // personal para no perder el lead (a diferencia del buscador, aquí no hay reposición automática).
+    const email=workEmail||workEmail2||privateEmail;
+    const emailsExtra=[workEmail,workEmail2,privateEmail].filter(e=>e&&e!==email);
+
+    // Hasta 6 teléfonos por lead en Lusha — el principal va al campo phone del CSV, el resto a Notas
+    // (pedido explícito del usuario). Prioridad: Mobile > Direct phone > Phone (línea directa de la
+    // persona es más útil para outbound que un conmutador general).
+    const phonesUniq=[...new Set([get(r,idx.mobile),get(r,idx.directPhone),get(r,idx.phone),get(r,idx.mobile2),get(r,idx.directPhone2),get(r,idx.phone2)].map(_cleanPhone).filter(Boolean))];
+    const phone=phonesUniq[0]||'';
+    const phonesExtra=phonesUniq.slice(1);
+
+    const industria=[get(r,idx.industry),get(r,idx.subIndustry)].filter(Boolean).join(' — ');
+    const linkedin=get(r,idx.linkedin);
+    const tagsLusha=get(r,idx.tags);
+    const company=get(r,idx.company);
+
+    // Website: Lusha no lo trae — se infiere del dominio del correo CORPORATIVO elegido (nunca de
+    // uno personal). Mejor esfuerzo, nunca inventa: si no hay correo corporativo, queda vacío.
+    let website='';
+    const emailDomain=(email.split('@')[1]||'').toLowerCase().trim();
+    if(email===workEmail&&emailDomain&&!_CSV_FREE_MAIL_DOMAINS.has(emailDomain)) website='https://'+emailDomain;
+
+    const extra=[];
+    if(emailsExtra.length) extra.push('Correo extra: '+emailsExtra.join(' / '));
+    if(phonesExtra.length) extra.push('Tel. extra: '+phonesExtra.join(' / '));
+    if(industria) extra.push('Industria: '+industria);
+    if(linkedin) extra.push('LinkedIn: '+linkedin);
+    if(tagsLusha) extra.push('Tags Lusha: '+tagsLusha);
+
+    out.push({
+      contact_name:get(r,idx.name), function:get(r,idx.title), partner_name:company,
+      Website:website, Email:email, phone, state_id:'', notes:extra.join(' · '),
+      _industriaRaw:industria,
+    });
+  }
+  if(!out.some(o=>o.contact_name||o.partner_name||o.Email)) return null;
+  return out;
+}
+
 // Devuelve array de prospectos si reconoce un CSV estructurado, o null si no (→ fallback IA).
 function _csvMapStructured(text){
   if(!text||!text.includes('\n')) return null;
@@ -8183,8 +8285,8 @@ function renderCsvBuilder(){
 
           <div class="form-group" style="margin-bottom:0;max-width:220px">
             <label>Cantidad de leads</label>
-            <input type="number" class="input" id="csvSearchCantidad" min="1" max="25" value="5">
-            <span style="font-size:11px;color:var(--gray-400)">Se aplica tu tope semanal/mensual como AE.</span>
+            <input type="number" class="input" id="csvSearchCantidad" min="1" max="10" value="5">
+            <span style="font-size:11px;color:var(--gray-400)" id="csvSearchCantidadHint">Tope diario Apollo: 10 leads. Se aplica también tu tope semanal/mensual como AE.</span>
           </div>
 
           ${('Notification' in window && Notification.permission==='default')?`
@@ -8264,6 +8366,13 @@ window.csvOnFuenteChange=function(){
   if(contactoHint) contactoHint.textContent=denue
     ?'En DENUE no filtra qué empresas aparecen (ahí no hay dato de contacto) — solo se usa para preferir ese tipo de persona al cruzar con Apollo.'
     :'';
+  // Tope diario por fuente (2026-07-29): DENUE 25/día (gratis, datos INEGI), Apollo 10/día (gasta
+  // créditos reales) — el backend valida el mismo tope, esto solo evita pedir de más en la UI.
+  const cantIn=document.getElementById('csvSearchCantidad');
+  const cantHint=document.getElementById('csvSearchCantidadHint');
+  const tope=denue?25:10;
+  if(cantIn){ cantIn.max=String(tope); if(Number(cantIn.value)>tope) cantIn.value=String(tope); }
+  if(cantHint) cantHint.textContent=`Tope diario ${denue?'DENUE':'Apollo'}: ${tope} leads. Se aplica también tu tope semanal/mensual como AE.`;
 };
 window.csvRenderEstadoChips=function(){
   const box=document.getElementById('csvSearchEstadosBox'); if(!box) return;
@@ -8313,6 +8422,27 @@ Responde EXCLUSIVAMENTE con un array JSON de strings: ["keyword1","keyword2",...
   }catch(e){ console.warn('csvExtractKeywordsFromContexto:',e); return []; }
 }
 const MARK_JOB_READ_API_URL='https://thorough-curiosity-production-098d.up.railway.app/markLeadSearchJobRead';
+const DENUE_CROSSMATCH_API_URL='https://thorough-curiosity-production-098d.up.railway.app/denueCrossMatch';
+
+// Cross-match GRATIS contra DENUE (sin créditos, sin cuota) para filas que NO vinieron ya del
+// buscador Apollo/DENUE — pedido del usuario 2026-07-29 para que Pegar/subir archivo (ej. el export
+// nativo de Lusha) también llene la columna DATOS DENUE. Muta rows in-place y re-renderiza.
+async function csvCrossMatchDenue(rows){
+  const withCompany=(rows||[]).filter(r=>(r.partner_name||'').trim());
+  if(!withCompany.length||!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(DENUE_CROSSMATCH_API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
+      body:JSON.stringify({leads:withCompany.map(r=>({website:r.Website||'',empresa:r.partner_name||''}))}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    (data.resultados||[]).forEach((datosDenue,i)=>{ if(datosDenue) withCompany[i].datos_denue=datosDenue; });
+    csvRenderTable();
+  }catch(e){ console.warn('csvCrossMatchDenue:',e); }
+}
 
 // ── Búsqueda por instrucciones ──
 // El AE describe en texto libre qué leads quiere; Claude lo traduce a los filtros existentes
@@ -8664,7 +8794,7 @@ function csvLoadJobIntoRows(job){
   const ae=document.getElementById('csvAE')?.value.trim()||'';
   csvRows=(job.leads||[]).map(row=>{
     const fuentes=row.fuentes||[];
-    const tagsFila=['AppOutbound'];
+    const tagsFila=['Outbound-MX','AppOutbound'];
     if(fuentes.includes('Apollo')) tagsFila.push('ApolloMX');
     if(fuentes.includes('DENUE')) tagsFila.push('DenueMX');
     if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
@@ -8830,8 +8960,11 @@ window.csvProcess=async function(){
   try{
     let extracted=null, usedLocal=false;
     // 1) CSV/texto estructurado pegado (sin archivo binario) → parseo LOCAL: instantáneo, completo, sin truncado.
+    // _csvMapLusha primero: reconoce la firma exacta del export nativo de Lusha (columnas que
+    // _csvMapStructured no capta — Work email/LinkedIn profile/Primary industry — y los 6 teléfonos
+    // en vez de solo 3). Si no es un export de Lusha, cae al mapeo genérico de siempre.
     if(!_csvFileAttachment && rawData){
-      const local=_csvMapStructured(rawData);
+      const local=_csvMapLusha(rawData)||_csvMapStructured(rawData);
       if(local&&local.length){ extracted=local; usedLocal=true; }
     }
     // 2) Texto libre / PDF / imagen → IA (respaldo). Tokens altos para no truncar listas largas.
@@ -8865,7 +8998,8 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
       partner_name:row.partner_name||'', Website:row.Website||'',
       Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
       state_id:row.state_id||'', country_id:csvCountryIdFor('Mexico'), notes:row.notes||'',
-      _origen:_csvGuessOrigen(fuente),
+      _origen:_csvGuessOrigen(fuente), _industriaRaw:row._industriaRaw||'',
+      datos_denue:'', datos_apollo:'', resumen:'',
     }));
     _csvDirty=true; // prospectos recién extraídos: aún no descargados ni guardados
     csvRenderTable();
@@ -8873,6 +9007,12 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
     document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
     showNotif(`${csvRows.length} prospecto${csvRows.length===1?'':'s'} extraído${csvRows.length===1?'':'s'}${usedLocal?' directo del CSV (sin IA)':''} ✓`,'success');
     csvSyncRowsToCRM(csvRows).catch(e=>console.warn('csvSyncRowsToCRM:',e));
+    // Pegar/subir archivo se había quedado sin cross-match DENUE, tags de industria QS y columna
+    // Resumen (solo corrían para el flujo de búsqueda Apollo/DENUE) — pedido explícito del usuario
+    // 2026-07-29 para que TODA fuente llegue con los campos de salida completos.
+    csvCrossMatchDenue(csvRows).catch(e=>console.warn('csvCrossMatchDenue:',e));
+    csvApplyIndustryTags(csvRows).catch(e=>console.warn('csvApplyIndustryTags:',e));
+    csvEnrichRowsWithAI(csvRows);
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('csvLoading',false);
 };
