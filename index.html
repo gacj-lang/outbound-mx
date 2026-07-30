@@ -6416,6 +6416,185 @@ Solo para contadores certificados — normalmente 25 o 50h para empezar, con 50%
 Requieren 25h. Incluyen ayudar al cliente a construir una buena estrategia de SEO y capacitarlo en los fundamentos para que se vuelva autónomo. NO incluyen creación de contenido (copywriting), gestión de dominio, ni resultados inmediatos garantizados. Aplica tanto a quien construye su primer sitio en Odoo como a quien migra su sitio actual.`},
 ];
 
+// Quinto lote (2026-07-30, misma sesión): rama "Sales" dentro de MX Knowledge (3743) — distinta
+// de OUTBOUND-MX, es el árbol de ventas de TODO México (DS/CSTD/CSTI/AM/PR). Se exploró a fondo
+// "Vender funcionalidades" ("Nota: no compartir esta información con el cliente. Es para
+// aprendizaje del área comercial" — o sea, uso interno del equipo, igual que el resto de este
+// wiki) más Facturación MX y matices locales de Success Packs.
+const WIKI_SEED_5=[
+  {categoryId:'apps', icon:'💸', title:'Contabilidad y facturación en México: CFDI 4.0 y clientes extranjeros',
+    summary:'Qué es el CFDI 4.0, a partir de qué versión está disponible, y cómo configurar la facturación para clientes que están fuera de México.',
+    tags:['contabilidad','cfdi','facturacion','extranjero'],
+    source:'Odoo Knowledge — MX Knowledge / Sales / Vender funcionalidades / Contabilidad MX',
+    links:[],
+    bodyRaw:`Nota: este apartado es para tips de venta — para el repositorio técnico completo de localización, ver "[MX] Localization" dentro de Knowledge.
+
+## CFDI 4.0
+Solo está disponible a partir de la versión 14 de Odoo en adelante. Si un cliente está en una versión anterior, la recomendación es que migre a la versión más actualizada que le convenga — es un buen gancho para sugerir un Success Pack.
+
+## Facturación para clientes en el extranjero
+Para que el equipo de contabilidad pueda facturar sin problema a un cliente que está fuera de México, hay que configurar estos datos en el contacto:
+- C.P. 11520
+- País: México
+- RFC Genérico: XEXX010101000
+- La dirección y el nombre de la empresa deben ir acorde a lo que pida el cliente.
+- El régimen fiscal debe quedar como "Sin obligaciones".
+
+Si aparece un aviso de que ese RFC genérico ya se usó antes, no importa — es un RFC genérico y no afecta.
+
+## Tip práctico: cantidades negativas en una factura
+Las cantidades de los productos en una factura deben ser siempre positivas — el ajuste se hace en el precio unitario para que cuadre el monto total. Ejemplo: si el cliente pide reflejar "-3" de un producto a $4,080, en la factura va cantidad +3 con precio unitario -$4,080.`},
+
+  {categoryId:'apps', icon:'🐳', title:'Odoo.sh: cómo dimensionar hosting (workers, GB) y responder dudas de cargos extra',
+    summary:'Reglas prácticas para calcular workers y GB al recomendar Odoo.sh, cuándo conviene servidor dedicado, y cómo explicarle a un cliente por qué le suben el consumo de GB o por qué se generan backups automáticos.',
+    tags:['odoo-sh','hosting','workers','gb','objeciones'],
+    source:'Odoo Knowledge — MX Knowledge / Sales / Vender funcionalidades / Odoo SH',
+    links:[],
+    bodyRaw:`## Cómo dimensionar Odoo.sh para un cliente
+- 1 worker por cada 25 usuarios de licenciamiento (solo Odoo estándar, sin desarrollos — con desarrollos este número puede bajar hasta 6 usuarios por worker).
+- 1 worker por cada 5,000 visitantes al sitio web por día.
+- 1 GB por cada usuario de licenciamiento (se puede iniciar con 0.5 GB hasta que sea necesario aumentar).
+- Un worker soporta 8,064 peticiones por ciclo.
+
+## Servidor compartido vs. dedicado
+- Servidor compartido: hasta 8 workers, 20 staging y 512 GB — sin costo adicional (comparte instancia con otros clientes).
+- Servidor dedicado: para cuando se necesitan más de 8 workers o más de 512 GB — recursos no compartidos con otros clientes. Recomendado para empresas grandes (por lo general +100 usuarios). Siempre se valida el rendimiento con el equipo técnico de Odoo antes de decidir este esquema.
+
+## Cómo calcular los GB a vender al migrar de SaaS a SH
+1. Revisa el tamaño actual de la base en SaaS (Subscriptions > Databases > Databases): filestore + backup.
+2. Odoo SH almacena la base de producción + cada staging branch + los backups — como regla rápida, con 1 staging branch el espacio necesario es aproximadamente 5 veces el tamaño actual de la base (6 veces con 2 staging branches).
+3. No vendas al límite exacto — si la base llega al 95% de su capacidad, el sistema se vuelve lento y puede quedar inoperable. Sugiere siempre un margen (por ejemplo, el doble de lo mínimo calculado).
+
+## Cambiar de una versión intermedia de SaaS a SH
+Las versiones intermedias de Odoo Online no se pueden alojar en SH/On Premise — primero hay que actualizar a la siguiente versión principal. Si el cliente está en una versión intermedia y la siguiente versión principal aún no sale, las opciones son: usar el último backup antes de pasar a una versión abierta (se pierde información de esa versión intermedia), empezar una base desde cero, o esperar a que salga la siguiente versión principal. No existe downgrade — siempre verifica la versión del cliente antes de vender SH.
+
+## Respuestas ya armadas para objeciones comunes
+Cuando un cliente reclama que le subió el consumo de GB: explícale que el crecimiento de la base es normal y esperado a medida que el negocio crece (cada venta, cliente y transacción se guarda), y que toda su operación cabe en un espacio relativamente compacto comparado con el almacenamiento de un celular actual.
+
+Cuando un cliente reclama backups que no pidió: son generados automáticamente por el sistema como práctica estándar de la industria ERP — garantizan que la información se pueda recuperar ante cualquier imprevisto (fallas técnicas, desastres). No se pueden desactivar, y no impactan el rendimiento del sistema.`},
+
+  {categoryId:'apps', icon:'🌴', title:'Localización mexicana: Carta Porte, comercio exterior 2.0 y cancelación de facturas',
+    summary:'Qué cambió en el complemento de comercio exterior 2.0, cómo funciona la Carta Porte 3.0 (nacional e internacional), y los 4 motivos de cancelación de CFDI disponibles desde la versión 17.',
+    tags:['localizacion','carta-porte','comercio-exterior','cfdi','sat'],
+    source:'Odoo Knowledge — MX Knowledge / Sales / Vender funcionalidades / Localizaciones',
+    links:[],
+    bodyRaw:`Nota: este apartado es para tips de venta — para el repositorio técnico completo, ver "[MX] Localization" dentro de Knowledge.
+
+## Complemento de comercio exterior 2.0
+Conforme a lo publicado por el SAT (19 de diciembre de 2023), se actualizó el complemento de comercio exterior a la versión 2.0, reemplazando la 1.1 revisión E — Odoo ya tiene los cambios aplicados desde la V17 (requiere actualizar el módulo l10n_mx_edi). Los cambios principales: se elimina el campo "Tipo de Operación"; la clave de pedimento pasa a ser obligatoria; declarar las mercancías de exportación se vuelve obligatorio; declarar si las mercancías tienen denominación de origen se vuelve obligatorio; declarar la tasa de cambio a USD se vuelve obligatorio; los decimales del archivo pasan de 2 a 6.
+
+## Carta Porte 3.0
+Para tenerla disponible hay que revisar los módulos l10n_mx en la base (actualizar la lista de aplicaciones si no aparecen).
+- Nacional: se agrega el atributo "Peso bruto vehicular" en la configuración del vehículo; la información de carta porte vive en la pestaña "Información adicional" del movimiento de stock, sección "Guía de entrega"; hay que validar primero el movimiento para habilitar el botón "Generar Carta Porte".
+- Internacional (importación/exportación): el producto necesita configurado el código UNSPSC (distinto de 01010101), tipo de material, fracción arancelaria, unidad de medida de aduana y peso; el contacto de recepción/entrega debe tener un país distinto de México; si el tipo de documento es "Pedimento", se habilita un campo para el contacto a cargo de la importación (solo aplica para importaciones).
+
+## Motivos de cancelación de CFDI
+Hasta la versión 17 solo existían los motivos 01 y 02. Desde la V17, con la Reforma Fiscal 2022, ya están disponibles los 4 motivos:
+1. Comprobante emitido con errores con relación
+2. Comprobante emitido con errores sin relación
+3. No se llevó a cabo la operación
+4. Operación nominativa relacionada en una factura global
+
+Una factura no se puede cancelar si tiene un documento fiscal relacionado (nota de crédito, complemento de pago, etc.) — hay que cancelar esos documentos primero.
+
+## Reporte DIOT y Balance Mes 13
+El reporte DIOT refleja las operaciones con proveedores sujetas a IVA (ningún otro impuesto aparece ahí) — se genera desde el reporte de impuestos con el filtro DIOT. El Balance del Mes 13 (cierre fiscal) se exporta en XML para el SAT: se instala el módulo del Mes 13 (bases creadas después del 13 de febrero ya lo traen por defecto), se marca el asiento contable como "Asiento de cierre", y se descarga desde el reporte de balance de prueba con el filtro Mes 13 activado.`},
+
+  {categoryId:'apps', icon:'✍️', title:'Firma electrónica en México: validez legal y Odoo Sign vs. DocuSign',
+    summary:'Los 4 tipos de firma electrónica que existen en México, por qué la firma Simple (la que usa Odoo Sign) es válida para la mayoría de los contratos comerciales, y la ventaja frente a DocuSign.',
+    tags:['firma-electronica','legal','odoo-sign','docusign'],
+    source:'Odoo Knowledge — MX Knowledge / Sales / Vender funcionalidades / Firma Electrónica (marcado [SHAREABLE] — se puede compartir con el cliente)',
+    links:[],
+    bodyRaw:`En México existen 4 tipos de firma electrónica:
+
+## Digitalizada
+La imagen de una firma autógrafa escaneada. En general NO tiene valor legal porque no representa la forma original del consentimiento.
+
+## Simple
+Una firma por medios electrónicos que permite identificar a las partes firmantes (típicamente con links únicos accesibles solo desde el correo del firmante), inalterable y respaldada por un certificado electrónico. Tiene validez jurídica en México para la mayoría de las transacciones comerciales y empresariales. Odoo Sign cumple con todos estos requisitos, y al firmar un documento se puede exportar el certificado de firma. DocuSign, para comparar, también funciona con este mismo nivel de firma Simple — es decir, el mismo nivel legal que Odoo.
+
+## Avanzada
+Lo mismo que la Simple, pero con certeza adicional para identificar a las partes (autenticación por SMS, llamada de confirmación, código token, ubicación del firmante, biométricos). No es necesaria para que la firma sea válida legalmente en México, y no es común usarla en transacciones comerciales.
+
+## e.firma del SAT
+Firma basada en un archivo cifrado y personal que identifica inequívocamente al firmante. Se usa para trámites ante el SAT, entidades federativas o municipios — no es común para transacciones comerciales o empresariales.
+
+## Por qué Odoo Sign es un argumento de venta
+Con Odoo Sign se cumple lo que la mayoría de empresas necesita para firmar contratos, y viene incluido sin costo extra dentro de la licencia de Odoo — con la ventaja de estar integrado al resto del ERP. En otros softwares como DocuSign hay que sacar los documentos de otro sistema, firmarlos ahí, volver a subirlos, y encima pagar esa licencia aparte.`},
+
+  {categoryId:'herramientas', icon:'🔏', title:'Seguridad, privacidad y cumplimiento: qué mostrarle a un cliente que pregunta',
+    summary:'Las páginas oficiales de Odoo sobre seguridad, SLA, privacidad, GDPR y uso aceptable — para cuando un cliente pregunta por certificaciones o cumplimiento antes de decidirse.',
+    tags:['seguridad','privacidad','gdpr','cumplimiento','objeciones'],
+    source:'Odoo Knowledge — MX Knowledge / Sales / Vender funcionalidades / Seguridad del Sistema',
+    links:[
+      {label:'Seguridad', url:'https://www.odoo.com/es_ES/security'},
+      {label:'SLA de la nube', url:'https://www.odoo.com/es_ES/cloud-sla'},
+      {label:'Privacidad', url:'https://www.odoo.com/es_ES/privacy'},
+      {label:'GDPR', url:'https://www.odoo.com/es_ES/gdpr'},
+      {label:'Uso aceptable', url:'https://www.odoo.com/es_ES/acceptable-use'},
+    ],
+    bodyRaw:`Cuando un cliente pregunta por ciberseguridad, certificaciones, cumplimiento normativo o privacidad de datos, la respuesta oficial está en las páginas públicas de Odoo — son la fuente que puedes compartir directamente en vez de improvisar una respuesta.
+
+No compartimos los parámetros técnicos de hardware de Odoo.sh — si te preguntan por eso específicamente, la justificación oficial está en https://www.odoo.sh/faq#system_administrator.`},
+
+  {categoryId:'apps', icon:'💾', title:'IoT Box: qué es y cuándo se necesita',
+    summary:'Qué es una IoT Box, la diferencia entre la versión física y la virtual (gratis), y qué dispositivos sí o no funcionan con cada una.',
+    tags:['iot','hardware','pos'],
+    source:'Odoo Knowledge — MX Knowledge / Sales / Vender funcionalidades / Guía IoT (parcialmente marcado [SHAREABLE])',
+    links:[],
+    bodyRaw:`## Qué es y para qué sirve
+La IoT Box es una pequeña computadora que permite que Odoo interactúe con hardware que no se puede conectar directo por IP (impresoras específicas, básculas, terminales, etc.) — funciona como intermediario. También sirve para acelerar procesos, como imprimir una factura automáticamente en una impresora específica al hacer clic en "Imprimir Factura".
+
+## Física vs. virtual
+- IoT Box física: dispositivo físico (Raspberry Pi 4 Model B de 2GB, o alternativamente 3B+/4GB/8GB) — el cliente debe comprarla por su cuenta, Odoo ya no las provee. Costo: incluido en la tarifa de suscripción.
+- IoT Box virtual: software que se descarga en una computadora con Windows. Costo: gratis.
+
+## Requisitos para usar la Virtual IoT
+- Sistema operativo Windows.
+- Base de datos en Odoo 16 o posterior.
+
+## Qué funciona con la Virtual IoT (y qué no)
+- Disponible: dispositivos conectados localmente a la computadora (impresoras) y dispositivos seriales (Blackbox, básculas).
+- No disponible (todavía): terminales de pago y dispositivos de manufactura (cámaras, básculas industriales, herramientas de medición).`},
+
+  {categoryId:'proceso', icon:'🧾', title:'Facturación en México: qué pedirle al cliente antes de confirmar una venta',
+    summary:'Por qué necesitas la Constancia de Situación Fiscal antes de confirmar una orden, cómo registrar pagos por transferencia (PUE/PPD), y el texto de términos y condiciones para pagos en exhibiciones.',
+    tags:['facturacion','csf','pue','ppd','condiciones-de-pago'],
+    source:'Odoo Knowledge — MX Knowledge / Sales / Facturación / Facturación Clientes en México',
+    links:[],
+    bodyRaw:`## Antes de confirmar la orden de venta
+Los datos fiscales del cliente deben estar correctos antes de confirmar una orden de venta (SO) — para eso, pide siempre la Constancia de Situación Fiscal (CSF).
+- Llena los datos de contacto exactamente igual a como aparecen en la CSF.
+- En el campo de nombre va solo la Denominación/Razón Social — NO agregues el régimen de capital aunque el cliente lo tenga.
+- No olvides agregar el Régimen Fiscal en la pestaña "MX EDI" del contacto — ese dato está en la segunda hoja de la CSF del cliente.
+
+## Facturas por transferencia
+Solo puedes confirmar la orden si los datos fiscales están correctos Y el pago ya aparece en el archivo de Confirmación de pagos. Recuerda copiar en el chatter de la orden, según el método de pago:
+- PUE (Pago en Una sola Exhibición): forma de pago "Transferencia electrónica de fondos", método "PUE", y adjuntar el comprobante de pago.
+- PPD (Pago en Parcialidades o Diferido): mencionar si son 2 o 3 pagos, con la fecha y el porcentaje o monto de cada uno; forma de pago "Por definir", método "PPD".
+
+En ambos casos, selecciona el "Uso del CFDI" correcto en el campo correspondiente de la orden.
+
+## Términos y condiciones para pagos en exhibiciones
+Cuando la orden tiene pagos en exhibiciones (parcialidades), copia este texto en los Términos y Condiciones de la orden:
+
+"Esta propuesta sólo será válida si cumplen los pagos establecidos del monto total a pagar (en pesos más IVA): 50% como fecha límite el [fecha], 50% como fecha límite el [fecha]. De no recibir el total de los pagos en las fechas establecidas, se bloqueará la base de datos. Lo abonado hasta el momento no será reembolsable."`},
+
+  {categoryId:'herramientas', icon:'🚀', title:'Success Packs en México: reglas locales que no están en la guía global',
+    summary:'El pack de 10h (solo como upsell para clientes existentes), por qué Quickstart no vende proyectos de puro "preguntas y respuestas", y por qué nunca debes usar el "project estimator" de la página web cuando tú eres quien está ayudando a vender.',
+    tags:['success-packs','estimacion','upsell','quickstart'],
+    source:'Odoo Knowledge — MX Knowledge / Sales / Success Packs',
+    links:[],
+    bodyRaw:`## El pack de 10 horas
+A diferencia de los packs de 4h y 25h+, el de 10h SOLO se vende como pack secundario (upsell) para un cliente que ya implementó con Odoo antes — para un alcance específico que no amerita 25 horas completas. Ejemplos: un cliente que ya usó 50h y quiere agregar apps nuevas (ausencias, empleados); un proyecto de 25h para el flujo comercial básico que ahora quiere ajustes extra en sus rutas de inventario.
+
+## Por qué Quickstart no vende proyectos de solo "preguntas y respuestas"
+El equipo de Quickstart se enfoca en implementaciones con alcance claro y control del proyecto — no en proyectos centrados solo en responder preguntas sobre Odoo (eso ya está incluido en el Support de la suscripción). Las razones: los clientes no siempre conocen bien Odoo, no siempre tienen las habilidades o el tiempo de gestión de proyecto necesarias, y sin contexto claro las respuestas pueden ser poco útiles o tardadas de dar. Si un cliente necesita justo ese tipo de acompañamiento abierto, la alternativa es un "Expertise Project" — que requiere que el cliente ponga a alguien con buena capacidad de gestión de proyecto y conocimiento de Odoo de su lado.
+
+## Nunca uses el "project estimator" de la página cuando tú vendes con ayuda
+Esa herramienta de auto-estimación en la página de precios es solo para compras por cuenta propia del cliente (self-service). Cuando la venta se hace con la ayuda de un Business Advisor (o sea, vos), la responsabilidad de recomendar las horas correctas es tuya, basada en tu calificación y análisis del requerimiento — no del estimador automático.`},
+];
+
 // Lotes de semilla: cada uno se aplica una sola vez (sentinel wikiMeta/<key>), así se puede
 // seguir agregando contenido real de Knowledge en próximas sesiones sin duplicar lo ya sembrado.
 const WIKI_SEED_BATCHES=[
@@ -6423,6 +6602,7 @@ const WIKI_SEED_BATCHES=[
   {key:'seed2', articles:WIKI_SEED_2},
   {key:'seed3', articles:WIKI_SEED_3},
   {key:'seed4', articles:WIKI_SEED_4},
+  {key:'seed5', articles:WIKI_SEED_5},
 ];
 
 let _wikiSeedChecked=false;
