@@ -904,6 +904,8 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" id="nav-csv" onclick="showModule('csv')" data-tip="Construye y exporta listas de prospectos en CSV."><span class="nav-icon">📋</span> CSV Builder</button>
       <button class="nav-item" id="nav-pricing" onclick="showModule('pricing')" data-tip="Cotiza licencias, implementación e IVA de Odoo. Guarda registros y genera la propuesta comercial."><span class="nav-icon">💰</span> Pricing</button>
       <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')" data-tip="Métricas de uso y actividad del equipo."><span class="nav-icon">📊</span> Analytics</button>
+      <div class="nav-section-label" style="margin-top:8px">Conocimiento</div>
+      <button class="nav-item" id="nav-wiki" onclick="showModule('wiki')" data-tip="Wiki interna: proceso de venta, herramientas, apps y tips para resolver dudas y preparar demos."><span class="nav-icon">📚</span> Banco de Información</button>
       <div class="nav-section-label" style="margin-top:8px">Recursos</div>
       <button class="nav-item" id="nav-framework" onclick="showModule('framework')" data-tip="Guía de marca oficial: colores, tipografía y assets para tus materiales."><span class="nav-icon">🎨</span> Framework Visual</button>
       <a class="nav-download-cta" href="assets/docs/proveedores-timbres-pac.pdf" download="Proveedores_de_Timbres_Odoo_Mexico.pdf" data-tip="Ficha para cliente con los 3 PACs (Quadrum, SW Sapien, Solución Factible): esquemas de contratación, precios de referencia y contacto directo.">
@@ -1499,7 +1501,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
   tb.style.display='flex';
   const titles={home:'Inicio',empresas:'Empresas',discovery:'Intromeet / Qcall',gencontenidos:'Generación de contenidos',
     csv:'CSV Builder',pricing:'Pricing',propuesta:'Propuesta Comercial',analytics:'Analytics',
-    manager:'Panel de Manager',settings:'Configuración',framework:'Framework Visual'};
+    manager:'Panel de Manager',settings:'Configuración',framework:'Framework Visual',wiki:'Banco de Información'};
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
   const content=document.getElementById('moduleContent');
   const map={
@@ -1510,6 +1512,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
     analytics:renderAnalytics,
     manager:renderManagerPanel, settings:renderSettings,
     framework:renderFrameworkVisual,
+    wiki:renderWiki,
   };
   const fn=map[moduleId]; if(fn){ content.style.padding='28px'; content.innerHTML=''; fn(); }
 }
@@ -5822,6 +5825,399 @@ window.gcExportBrochure=async function(format){
 // ══════════════════════════════════════════
 // FRAMEWORK VISUAL MODULE
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// BANCO DE INFORMACIÓN — wiki interna de Outbound-MX
+// Fase 1: categorías fijas en código, artículos en Firestore (editables sin redeploy),
+// búsqueda por palabra clave. El buscador con IA (RAG sobre estos artículos) es la fase 2.
+// ══════════════════════════════════════════
+const WIKI_CATEGORIES=[
+  {id:'proceso',      icon:'🧭', label:'Proceso de venta Outbound-MX',   desc:'Flujo completo: prospección, ICP, intromeet, demo, propuesta y cierre.'},
+  {id:'herramientas', icon:'🧰', label:'Herramientas y recursos',        desc:'CRM, Lusha, Dialpad y demás herramientas del día a día.'},
+  {id:'apps',         icon:'🧩', label:'Funcionalidades por App',       desc:'Qué resuelve cada aplicación de Odoo, para armar demos con criterio.'},
+  {id:'demos',        icon:'🎯', label:'Tips y checklist para demos',   desc:'Qué preparar y revisar sí o sí antes de una primera demo.'},
+  {id:'casos',        icon:'🎬', label:'Casos de éxito y videos',       desc:'Ejemplos reales, grabaciones y referencias para usar en llamadas.'},
+];
+// Semilla inicial: contenido real tomado de Odoo Knowledge (MX Knowledge / OUTBOUND-MX),
+// verificado por Ariel. Se inserta una sola vez (ver wikiSeedIfEmpty) y desde ahí todo
+// el mantenimiento es vía la UI (manager), no vía código.
+const WIKI_SEED=[
+  {categoryId:'proceso', icon:'🌵', title:'Objetivos del área Outbound-MX',
+    summary:'Por qué existe el área de Outbound y hacia dónde apunta: contexto de adopción de ERP en LATAM/México y los 3 objetivos que la guían.',
+    tags:['objetivos','contexto','outbound-mx'],
+    source:'Odoo Knowledge — MX Knowledge / OUTBOUND-MX', links:[],
+    bodyRaw:`## Introducción al área
+A pesar del potencial que ofrecen los sistemas ERP para optimizar las operaciones empresariales, la adopción de estas soluciones sigue siendo limitada. Según estudios recientes, sólo alrededor del 20% de las empresas en LATAM utilizan algún tipo de sistema ERP; para México, al menos para 2013, se estimaba que menos del 6% de estas empresas tenían un ERP para gestionar sus procesos de negocio. Esta cifra está por debajo del promedio mundial, donde la adopción de sistemas ERP es significativamente más alta, alcanzando aproximadamente el 50%.
+
+## Objetivos del área
+El área de Outbound tiene como propósito impulsar el crecimiento y la expansión de Odoo en América Latina. Los siguientes objetivos están alineados con la estrategia general de DS, con un enfoque específico en la captación de nuevos clientes a través de estrategias de outbound marketing:
+
+## 👉🏼 Captación de nuevos clientes
+El principal objetivo del área de Outbound es lograr la captación efectiva de nuevos clientes para Odoo México, a través de estrategias proactivas de generación de leads: uso de motores de búsqueda y bases de datos, participación en ferias comerciales y networking estratégico.
+
+## 👉🏼 Incremento de la visibilidad de la marca
+Además de la captación de clientes, el área de Outbound se propone aumentar la visibilidad de la marca Odoo en LATAM: presencia sólida y consistente en los canales de comunicación relevantes, generando interés y reconocimiento de marca en el público objetivo.
+
+## 👉🏼 Evaluación y mejora continua
+El área de Outbound se compromete a evaluar constantemente sus actividades y resultados, para identificar áreas de mejora tanto operativa como del sistema: monitoreo de KPIs, retroalimentación del equipo de ventas hacia otras áreas de Odoo, y ajustes estratégicos según sea necesario.`},
+
+  {categoryId:'proceso', icon:'🥷', title:'El día a día del Outbound: de la prospección al cierre',
+    summary:'El flujo completo paso a paso: prospección y estructura del ICP, creación de lead, intromeeting, demo, propuesta, negociación y close won.',
+    tags:['proceso','icp','intromeet','demo','propuesta','negociacion','crm'],
+    source:'Odoo Knowledge — OUTBOUND-MX / Procesos y flujos de trabajo',
+    links:[
+      {label:'Documentación sobre duplicados', url:'https://accounts.odoo.com/odoo/action-5066/7824'},
+      {label:'Clip: creación de oportunidades', url:'https://drive.google.com/drive/folders/1wzlAxsBbF4zj63dVKoHgnHyEy6eeYGWi'},
+      {label:'Clip: intromeet con cliente real', url:'https://drive.google.com/file/d/1nYoJvNJcP--pPTvSNlBDMdji36GXw3ZM/view'},
+    ],
+    bodyRaw:`El día a día de un Outboy/Outgirl se divide en las siguientes actividades:
+
+## 🔍 1. Prospección
+Objetivo: identificar empresas potenciales que encajen con nuestro cliente ideal (ICP).
+
+Acciones clave:
+- Buscar empresas en bases como LinkedIn, Lusha o directorios sectoriales.
+- Filtrar por industria, tamaño (no exceder 250 empleados), país y tecnología usada.
+
+## 🧱 Estructura del ICP
+- Tamaño: pequeña o mediana empresa — 10 a 250 empleados.
+- Facturación: capacidad de invertir en software ERP — +5M MXN/año.
+- País/Región: estados de la república con mayor registro del sector.
+- Industria: sectores con flujos operativos claros y digitalización pendiente — manufactura, distribución, retail, servicios, etc.
+- Crecimiento: en expansión o buscando profesionalizar operaciones — contratando, abriendo sucursales, eCommerce nuevo.
+
+## 🔎 Cómo validar un ICP en una llamada
+Durante la primera interacción (intro call o correo), preguntas clave:
+- "¿Cuántas personas trabajan actualmente en tu empresa?"
+- "¿Qué herramientas utilizan hoy para gestionar sus operaciones?"
+- "¿Están buscando una solución integral o solo para ventas?"
+- "¿Qué tan urgente es para ustedes mejorar este proceso?"
+
+## 🧾 2. Creación de Lead o Contacto
+Campos mínimos obligatorios:
+- Nombre de la empresa
+- Contacto principal (nombre, cargo, correo, teléfono)
+- Tags
+- Fuente: Lusha / LinkedIn / Referido / Base de Datos / Networking
+
+## ☎️ 3. Intromeeting (llamada inicial / primer contacto)
+Objetivo: calificar al prospecto y despertar interés en Odoo. Duración aproximada: 30 min.
+
+Estructura sugerida:
+- Inicio (rapport): "Hola [nombre], te hablo de Odoo…"
+- Exploración: entender su modelo de negocio y retos actuales.
+- Pitch corto: conectar su necesidad con el valor de Odoo.
+
+## 🚀 4. Demostración (Demo)
+Objetivo: mostrar cómo Odoo resuelve los pain points del cliente.
+
+Antes de la demo:
+- Confirmar asistencia y enviar link al calendario.
+- Revisar módulos de interés (CRM, Inventario, eCommerce, etc.).
+
+Durante la demo:
+- Personaliza el ejemplo con el flujo del cliente.
+- Enfócate en beneficios, no solo en funciones.
+- Anota objeciones y comentarios.
+- Documenta por medio de grabación.
+
+## 💰 5. Propuesta Comercial
+Objetivo: presentar una propuesta alineada a sus necesidades y presupuesto.
+- Prepara la propuesta desde Odoo Sales o PDF personalizado.
+- Procura confirmar el envío de tu propuesta desde Odoo para evitar un self.
+
+## 🤝 6. Negociación
+Objetivo: alinear términos, resolver dudas y acelerar el cierre.
+- Escucha objeciones y responde con casos de éxito.
+- Define un timeline claro: "Si lo cerramos esta semana, podemos iniciar el onboarding el lunes."
+- Tip: si hay silencio, envía un mensaje tipo "¿Puedo ayudarte a revisar la propuesta?" o "¿Sigues interesado en avanzar?".
+
+## 🏁 7. Close Won
+Objetivo: formalizar el acuerdo y asegurar la transición con Customer Success.
+- Cambiar el estado a "Closed Won" en Odoo.
+- Confirmar pago o contrato firmado.
+- Crear ticket de onboarding o proyecto en QS.`},
+
+  {categoryId:'herramientas', icon:'🧭', title:'Etapas del pipeline en Odoo CRM',
+    summary:'Qué significa cada etapa del pipeline (Cold Opp → Won/Lost) y qué debe estar cargado en cada una.',
+    tags:['crm','pipeline','etapas'],
+    source:'Odoo Knowledge — OUTBOUND-MX / Herramientas y recursos',
+    links:[{label:'Documentación sobre motivos de pérdida', url:'https://accounts.odoo.com/odoo/knowledge/21515'}],
+    bodyRaw:`Desde ahora tu mejor amigo será el CRM: ahí registras todos tus seguimientos. Se conforma de las siguientes etapas:
+
+## Cold Opp
+En esta etapa colocamos todos los leads que no nos respondan después de los toques correspondientes.
+
+## Calificado
+Colocamos las oportunidades que ya tengan agendada una llamada de calificación, o que ya mostraron interés y es necesario moverlas de la etapa "Nuevo" para poder priorizarlas.
+
+## Qualified Sponsor
+Todas las oportunidades que ya hayamos calificado y que estemos pendientes de agendar una demostración, o ya hay una fecha agendada.
+
+## Proposition
+Oportunidades a las que ya se les dio demo y que ya tengan cotizaciones (siempre generar cotizaciones desde Odoo), en proceso de Follow-up Quote. En esta etapa debes haber establecido MRR esperado, NRR esperado, fecha de cierre esperada y prioridad (estrellas), si corresponde.
+
+## Negotiation
+Oportunidades con quienes ya estamos en proceso de negociación o es muy probable que puedan cerrarse en el mes corriente. Prioriza las actividades de esta etapa.
+
+## Won
+Han firmado las cotizaciones y su contrato comienza. El seguimiento continúa desde el módulo de Suscripciones — la oportunidad ya no se usa para seguimiento, así que no programes actividades ni registres notas ahí.
+
+## Lost
+Oportunidad que no prosperó para cierre.`},
+
+  {categoryId:'herramientas', icon:'🔍', title:'Lusha — enriquecimiento de contactos',
+    summary:'Para qué sirve Lusha, sus funcionalidades principales y cómo pedir acceso.',
+    tags:['lusha','prospeccion','herramientas'],
+    source:'Odoo Knowledge — OUTBOUND-MX / Herramientas y recursos',
+    links:[
+      {label:'Básicos de Lusha (Lusha 101)', url:'https://academy.lusha.com/courses/lusha-101/'},
+      {label:'Tutoriales de prospección avanzada', url:'https://academy.lusha.com/use-cases/prospecting/'},
+    ],
+    bodyRaw:`Ayuda a los profesionales de negocios a establecer una conexión rápida y verdadera con sus clientes potenciales, contactos y candidatos. La implicación B2B se basa en la confianza.
+
+## Funcionalidades principales
+- Búsqueda de contactos: encuentra correos electrónicos y teléfonos directos de responsables de toma de decisiones.
+- Extensión de navegador: obtiene datos en tiempo real mientras navegas por sitios como LinkedIn.
+- Enriquecimiento de datos: actualiza y completa listas de contactos masivamente en CRMs.
+- Cumplimiento: Lusha opera bajo normas de privacidad como el RGPD y la CCPA.
+
+## Cómo empezar
+Para comenzar a utilizar Lusha, solicita a tu TL el usuario con contraseña.`},
+];
+
+const wiki={all:[],activeCat:null};
+
+function wikiParseBody(raw){
+  const lines=(raw||'').split('\n');
+  const blocks=[]; let para=[], bullets=[];
+  const flushPara=()=>{ if(para.length){ blocks.push({type:'p',text:para.join(' ')}); para=[]; } };
+  const flushBullets=()=>{ if(bullets.length){ blocks.push({type:'ul',items:bullets}); bullets=[]; } };
+  for(const line of lines){
+    const t=line.trim();
+    if(!t){ flushPara(); flushBullets(); continue; }
+    if(t.startsWith('## ')){ flushPara(); flushBullets(); blocks.push({type:'h',text:t.slice(3)}); }
+    else if(t.startsWith('- ')||t.startsWith('• ')){ flushPara(); bullets.push(t.replace(/^[-•]\s*/,'')); }
+    else { flushBullets(); para.push(t); }
+  }
+  flushPara(); flushBullets();
+  return blocks;
+}
+
+async function renderWiki(){
+  const content=document.getElementById('moduleContent');
+  const isManager=currentUserData?.role==='manager';
+  content.innerHTML=`
+    <div style="max-width:1200px;margin:0 auto;padding:24px">
+      <div class="page-header" style="margin-bottom:20px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div><h2>📚 Banco de Información</h2><p>Wiki interna de Outbound-MX: procesos, herramientas, apps y tips para resolver dudas y preparar demos. Buscador con IA — próxima fase.</p></div>
+        ${isManager?`<button class="btn btn-primary" onclick="wikiShowEditor()">+ Nuevo artículo</button>`:''}
+      </div>
+      <input type="text" id="wikiSearch" class="input" placeholder="🔍 Buscar por palabra clave, tag o tema..." style="max-width:420px;margin-bottom:20px" oninput="wikiFilter()">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px">
+        ${WIKI_CATEGORIES.map(c=>`<button class="module-card" id="wikiCat-${c.id}" style="cursor:pointer" onclick="wikiSelectCategory('${c.id}')">
+          <div style="font-size:22px">${c.icon}</div>
+          <div style="font-weight:700;font-size:14px">${c.label}</div>
+          <div style="font-size:12px;color:var(--gray-500)">${c.desc}</div>
+          <div style="font-size:11px;color:var(--purple);font-weight:600;margin-top:4px" id="wikiCatCount-${c.id}">…</div>
+        </button>`).join('')}
+      </div>
+      <div id="wikiArticleList"><div class="cdc-empty">Cargando artículos...</div></div>
+    </div>`;
+  await wikiLoad();
+}
+
+let _wikiSeedChecked=false;
+async function wikiSeedIfEmpty(){
+  if(_wikiSeedChecked || !db) return; _wikiSeedChecked=true;
+  try{
+    const metaRef=doc(db,'wikiMeta','seed');
+    const metaSnap=await getDoc(metaRef);
+    if(metaSnap.exists()) return;
+    for(const a of WIKI_SEED){
+      await addDoc(collection(db,'wikiArticles'),{...a,createdAt:serverTimestamp(),updatedAt:serverTimestamp(),createdBy:'seed'});
+    }
+    await setDoc(metaRef,{seededAt:serverTimestamp(),count:WIKI_SEED.length});
+  }catch(e){ console.warn('wiki seed:',e); }
+}
+
+async function wikiLoad(){
+  const listEl=document.getElementById('wikiArticleList');
+  if(!db){ if(listEl) listEl.innerHTML='<div class="cdc-empty">Sin conexión a la base de datos.</div>'; return; }
+  await wikiSeedIfEmpty();
+  try{
+    const snap=await getDocs(query(collection(db,'wikiArticles'),orderBy('createdAt')));
+    wiki.all=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){
+    console.warn('wiki load:',e);
+    wiki.all=[];
+    if(listEl) listEl.innerHTML='<div class="cdc-empty">No se pudo cargar el Banco de Información. Intenta de nuevo en unos segundos.</div>';
+    return;
+  }
+  WIKI_CATEGORIES.forEach(c=>{
+    const n=wiki.all.filter(a=>a.categoryId===c.id).length;
+    const el=document.getElementById('wikiCatCount-'+c.id); if(el) el.textContent=n+' artículo'+(n===1?'':'s');
+  });
+  wikiFilter();
+}
+
+window.wikiSelectCategory=function(catId){
+  wiki.activeCat = wiki.activeCat===catId ? null : catId;
+  WIKI_CATEGORIES.forEach(c=>{ const el=document.getElementById('wikiCat-'+c.id); if(el) el.style.borderColor=(wiki.activeCat===c.id)?'var(--purple)':''; });
+  wikiFilter();
+};
+
+window.wikiFilter=function(){
+  const q=(document.getElementById('wikiSearch')?.value||'').toLowerCase().trim();
+  let list=wiki.all;
+  if(wiki.activeCat) list=list.filter(a=>a.categoryId===wiki.activeCat);
+  if(q) list=list.filter(a=>{
+    const hay=[a.title,a.summary,(a.tags||[]).join(' '),a.bodyRaw||''].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  wikiRenderList(list);
+};
+
+function wikiRenderList(list){
+  const el=document.getElementById('wikiArticleList'); if(!el) return;
+  if(!list.length){
+    el.innerHTML=`<div class="cdc-empty">Todavía no hay artículos aquí. ${currentUserData?.role==='manager'?'Usa "+ Nuevo artículo" para agregar el primero.':'Pronto vamos a sumar contenido.'}</div>`;
+    return;
+  }
+  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+    ${list.map(a=>{
+      const cat=WIKI_CATEGORIES.find(c=>c.id===a.categoryId);
+      return `<div class="card" style="padding:18px;cursor:pointer" onclick="wikiOpenArticle('${a.id}')">
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px">
+          <div style="font-size:22px">${a.icon||cat?.icon||'📄'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14.5px;font-weight:700">${a.title}</div>
+            <div style="font-size:11px;color:var(--purple);font-weight:600;margin-top:2px">${cat?.label||''}</div>
+          </div>
+        </div>
+        <div style="font-size:12.5px;color:var(--gray-500);line-height:1.5">${a.summary||''}</div>
+        ${(a.tags||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px">${a.tags.map(t=>`<span style="background:var(--purple-light);color:var(--purple);padding:2px 8px;border-radius:99px;font-size:10.5px">${t}</span>`).join('')}</div>`:''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+window.wikiOpenArticle=function(id){
+  const a=wiki.all.find(x=>x.id===id); if(!a) return;
+  document.getElementById('wikiArticlePopup')?.remove();
+  const cat=WIKI_CATEGORIES.find(c=>c.id===a.categoryId);
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='wikiArticlePopup';
+  const blocks=wikiParseBody(a.bodyRaw);
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:720px">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title">${a.icon||cat?.icon||'📄'} ${a.title}</div>
+      <div class="disc-popup-actions">
+        ${currentUserData?.role==='manager'?`<button class="btn btn-ghost btn-sm" onclick="wikiShowEditor('${id}')">✏️ Editar</button>
+        <button class="btn btn-ghost-danger btn-sm" onclick="wikiDelete('${id}')">🗑</button>`:''}
+        <button class="disc-copy-btn" onclick="document.getElementById('wikiArticlePopup').remove()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div class="disc-popup-body" style="font-family:'Inter',sans-serif;font-size:13.5px;line-height:1.7">
+      <div style="font-size:11px;color:var(--gray-400);margin-bottom:14px">${cat?.label||''}${a.source?` · Fuente: ${a.source}`:''}</div>
+      ${blocks.map(b=>{
+        if(b.type==='h') return `<h4 style="font-size:14px;font-weight:700;margin:16px 0 6px">${b.text}</h4>`;
+        if(b.type==='ul') return `<ul style="margin:0 0 10px 18px">${b.items.map(i=>`<li style="margin-bottom:2px">${i}</li>`).join('')}</ul>`;
+        return `<p style="margin-bottom:10px">${b.text}</p>`;
+      }).join('')}
+      ${(a.links&&a.links.length)?`<div style="border-top:1px solid var(--gray-200);margin-top:16px;padding-top:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:8px">Recursos (algunos requieren tu cuenta corporativa)</div>
+        ${a.links.map(l=>`<div style="margin-bottom:4px"><a href="${l.url}" target="_blank" style="font-size:13px;color:var(--purple)">🔗 ${l.label||l.url}</a></div>`).join('')}
+      </div>`:''}
+      ${(a.tags||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:16px">${a.tags.map(t=>`<span style="background:var(--purple-light);color:var(--purple);padding:2px 8px;border-radius:99px;font-size:10.5px">${t}</span>`).join('')}</div>`:''}
+    </div>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+};
+
+window.wikiShowEditor=function(id){
+  const a=id? wiki.all.find(x=>x.id===id) : null;
+  document.getElementById('wikiEditorPopup')?.remove();
+  document.getElementById('wikiArticlePopup')?.remove();
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='wikiEditorPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:640px">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title">${a?'✏️ Editar artículo':'+ Nuevo artículo'}</div>
+      <div class="disc-popup-actions"><button class="disc-copy-btn" onclick="document.getElementById('wikiEditorPopup').remove()">✕ Cerrar</button></div>
+    </div>
+    <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--gray-500)">Categoría</label>
+          <select id="wikiFCat" class="input">${WIKI_CATEGORIES.map(c=>`<option value="${c.id}" ${a?.categoryId===c.id?'selected':''}>${c.icon} ${c.label}</option>`).join('')}</select>
+        </div>
+        <div style="display:flex;gap:10px">
+          <div style="width:90px"><label style="font-size:12px;font-weight:600;color:var(--gray-500)">Ícono</label><input id="wikiFIcon" class="input" value="${a?.icon||''}" placeholder="📄"></div>
+          <div style="flex:1"><label style="font-size:12px;font-weight:600;color:var(--gray-500)">Título</label><input id="wikiFTitle" class="input" value="${a?.title||''}" placeholder="Título del artículo"></div>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--gray-500)">Resumen (se ve en la tarjeta)</label>
+          <input id="wikiFSummary" class="input" value="${a?.summary||''}" placeholder="Una línea que resuma el artículo">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--gray-500)">Contenido — usa "## " para encabezado y "- " para viñeta</label>
+          <textarea id="wikiFBody" class="input" rows="10" style="font-family:monospace;font-size:12.5px" placeholder="## Encabezado&#10;Texto del párrafo.&#10;- Punto uno&#10;- Punto dos">${a?.bodyRaw||''}</textarea>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--gray-500)">Enlaces — uno por línea, formato "Etiqueta | URL"</label>
+          <textarea id="wikiFLinks" class="input" rows="3" style="font-family:monospace;font-size:12.5px" placeholder="Documentación sobre X | https://...">${(a?.links||[]).map(l=>`${l.label} | ${l.url}`).join('\n')}</textarea>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--gray-500)">Tags (separados por coma)</label>
+          <input id="wikiFTags" class="input" value="${(a?.tags||[]).join(', ')}" placeholder="crm, demo, propuesta">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;color:var(--gray-500)">Fuente (opcional)</label>
+          <input id="wikiFSource" class="input" value="${a?.source||''}" placeholder="Odoo Knowledge — ...">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="wikiSaveArticle(${a?`'${id}'`:'null'})">${a?'Guardar cambios':'Crear artículo'}</button>
+      </div>
+    </div>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+};
+
+window.wikiSaveArticle=async function(id){
+  const title=document.getElementById('wikiFTitle').value.trim();
+  if(!title){ showNotif('El título es obligatorio','error'); return; }
+  const links=document.getElementById('wikiFLinks').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const [label,url]=l.split('|').map(s=>s.trim());
+    return {label:label||url, url:url||label};
+  });
+  const data={
+    categoryId:document.getElementById('wikiFCat').value,
+    icon:document.getElementById('wikiFIcon').value.trim(),
+    title,
+    summary:document.getElementById('wikiFSummary').value.trim(),
+    bodyRaw:document.getElementById('wikiFBody').value,
+    links,
+    tags:document.getElementById('wikiFTags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    source:document.getElementById('wikiFSource').value.trim(),
+    updatedAt:serverTimestamp(),
+  };
+  try{
+    if(id){ await updateDoc(doc(db,'wikiArticles',id),data); showNotif('Artículo actualizado ✓','success'); }
+    else{ data.createdAt=serverTimestamp(); data.createdBy=currentUser?.email||'manager'; await addDoc(collection(db,'wikiArticles'),data); showNotif('Artículo creado ✓','success'); }
+    document.getElementById('wikiEditorPopup')?.remove();
+    await wikiLoad();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
+window.wikiDelete=async function(id){
+  if(!confirm('¿Eliminar este artículo del Banco de Información?')) return;
+  try{
+    await deleteDoc(doc(db,'wikiArticles',id));
+    document.getElementById('wikiArticlePopup')?.remove();
+    showNotif('Artículo eliminado','info');
+    await wikiLoad();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
 function renderFrameworkVisual(){
   const content=document.getElementById('moduleContent');
   content.innerHTML=`
