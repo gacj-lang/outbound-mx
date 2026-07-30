@@ -941,7 +941,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-30b fix tags QS: texto del tag normalizado (,→/ y sin espacios) para que Odoo no parta en varios tags las etiquetas con coma interna (ej. B18) al importar el CSV';
+const APP_BUILD_STAMP='2026-07-30c fix clasificación tags QS: espera el Resumen antes de clasificar (antes corrían en paralelo y nunca se veían) + prompt corrige sesgo de clasificar por la industria del CLIENTE en vez del negocio propio de la empresa';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -8747,19 +8747,34 @@ function _qsTag(list,code){ const e=list.find(x=>x.code===String(code||'').trim(
 // de negocio, puede ser más de uno si la empresa cae claramente en varias categorías — confirmado
 // por el usuario con un ejemplo real de Odoo: A7-Service + A13-Transport, Logistics, 3PL en el
 // mismo lead) y EXACTAMENTE un código B (tipo de producto/servicio, siempre uno solo) más adecuado
-// para cada empresa, usando la industria cruda de la fuente (Apollo/DENUE) + notas como contexto.
-// Si no clasifica claro, cae en A99/B99 (Uncategorized) — el propio archivo trae ese bucket para
-// exactamente este caso, no es una invención nuestra.
+// para cada empresa. Si no clasifica claro, cae en A99/B99 (Uncategorized) — el propio archivo
+// trae ese bucket para exactamente este caso, no es una invención nuestra.
+// Ajuste 2026-07-30 (bug real reportado por el usuario: "la asignación de tags está rara, no
+// cuadra con el Resumen"): la causa era doble.
+// 1) csvApplyIndustryTags corría en PARALELO con csvEnrichRowsWithAI (Resumen) — la clasificación
+//    nunca veía el Resumen porque aún no existía cuando se armaba el contexto. Ahora el llamador
+//    espera el Resumen primero (ver csvProcess/csvLoadJobIntoRows) y aquí se usa r.resumen como
+//    fuente PRINCIPAL de contexto (viene de investigación web real, mucho más rico que las notas
+//    crudas) — industria_fuente/notas quedan como respaldo si el Resumen no dice nada útil.
+// 2) El prompt no distinguía el negocio PROPIO de la empresa de la industria de SUS CLIENTES —
+//    ej. un mayorista que vende equipo para hoteles se clasificaba como "Accommodation" (la
+//    industria de a quién le vende) en vez de "Wholesale & distribution" (lo que la empresa
+//    realmente ES/hace). Se agregó instrucción explícita + ejemplo para corregir ese sesgo.
 async function csvClassifyIndustryTags(rows){
   const items=rows.map(r=>({
-    empresa:r.partner_name||'', industria_fuente:r._industriaRaw||'',
-    contexto:[r.notes,r.datos_denue,r.datos_apollo].filter(Boolean).join(' | ').slice(0,300),
+    empresa:r.partner_name||'',
+    resumen:r.resumen||'',
+    industria_fuente:r._industriaRaw||'',
+    contexto:[r.notes,r.datos_denue,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400),
   }));
   const aList=QS_INDUSTRY_TYPES.map(a=>`${a.code}=${a.label}`).join(' | ');
   const bList=QS_PRODUCT_TYPES.map(b=>`${b.code}=${b.label}`).join(' | ');
   const fallback=()=>rows.map(()=>({a:[_qsTag(QS_INDUSTRY_TYPES,'A99')], b:_qsTag(QS_PRODUCT_TYPES,'B99')}));
   try{
     const raw=await gcCallClaude(`Clasifica cada empresa de ventas B2B en 1 a 3 códigos de tipo de NEGOCIO (LISTA A — puede ser más de uno SOLO si la empresa cae claramente en varias categorías, no fuerces más de uno si solo aplica uno) y EXACTAMENTE un código de tipo de PRODUCTO/SERVICIO (LISTA B — siempre uno solo, el más representativo). Usa "A99"/"B99" (Uncategorized) SOLO si de verdad no hay pista suficiente para elegir otro.
+
+REGLA CLAVE: clasifica el negocio PROPIO de la empresa — qué ES o qué VENDE — nunca la industria de sus CLIENTES. Ejemplo: un mayorista que importa y vende equipo para hoteles es "Wholesale & distribution" (lo que él hace), NO "Accommodation" (eso describe a sus clientes, no a él). Si el "resumen" y la "industria_fuente" no coinciden, confía más en "resumen" (viene de investigación real de la empresa) — "industria_fuente" es solo una categoría amplia de la fuente de datos y puede ser genérica o imprecisa. Prefiere el código B más ESPECÍFICO que aplique (ej. si el resumen dice que venden purificadores de agua, usa el código de sistemas de agua/filtración en vez de uno genérico) — cae en B99 solo si de verdad no hay ninguna pista de qué vende.
+
 LISTA A (tipo de negocio, 1 a 3 por empresa): ${aList}
 LISTA B (tipo de producto/servicio, exactamente 1 por empresa): ${bList}
 EMPRESAS:
@@ -8838,9 +8853,10 @@ function csvLoadJobIntoRows(job){
   csvRenderTable();
   document.getElementById('csvPreviewSection').style.display='block';
   document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
-  csvEnrichRowsWithAI(csvRows);
+  // Resumen ANTES de tags — csvClassifyIndustryTags usa r.resumen como contexto principal, así
+  // que tiene que existir antes de clasificar (ver ajuste 2026-07-30 arriba de csvClassifyIndustryTags).
+  csvEnrichRowsWithAI(csvRows).then(()=>csvApplyIndustryTags(csvRows)).catch(e=>console.warn('csvApplyIndustryTags:',e));
   csvSyncRowsToCRM(csvRows).catch(e=>console.warn('csvSyncRowsToCRM:',e));
-  csvApplyIndustryTags(csvRows).catch(e=>console.warn('csvApplyIndustryTags:',e));
 }
 
 // ── Enriquecimiento con IA post-carga (columna Resumen) ──
@@ -9026,9 +9042,10 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
     // Pegar/subir archivo se había quedado sin cross-match DENUE, tags de industria QS y columna
     // Resumen (solo corrían para el flujo de búsqueda Apollo/DENUE) — pedido explícito del usuario
     // 2026-07-29 para que TODA fuente llegue con los campos de salida completos.
+    // Resumen ANTES de tags — csvClassifyIndustryTags usa r.resumen como contexto principal, así
+    // que tiene que existir antes de clasificar (ver ajuste 2026-07-30 en csvClassifyIndustryTags).
     csvCrossMatchDenue(csvRows).catch(e=>console.warn('csvCrossMatchDenue:',e));
-    csvApplyIndustryTags(csvRows).catch(e=>console.warn('csvApplyIndustryTags:',e));
-    csvEnrichRowsWithAI(csvRows);
+    csvEnrichRowsWithAI(csvRows).then(()=>csvApplyIndustryTags(csvRows)).catch(e=>console.warn('csvApplyIndustryTags:',e));
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('csvLoading',false);
 };
