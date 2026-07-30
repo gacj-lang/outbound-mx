@@ -941,7 +941,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-30 fix import Lusha: teléfono +52 se prioriza como principal sobre teléfonos de otros países (Odoo valida el teléfono contra country_id=México, un lada extranjero como principal se perdía al importar)';
+const APP_BUILD_STAMP='2026-07-30b fix tags QS: texto del tag normalizado (,→/ y sin espacios) para que Odoo no parta en varios tags las etiquetas con coma interna (ej. B18) al importar el CSV';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -8733,7 +8733,15 @@ const QS_PRODUCT_TYPES=[
   {code:'B54',label:'Printing / Prints / Labels'}, {code:'B55',label:'Graphic design'}, {code:'B56',label:'Restaurant'},
   {code:'B57',label:'Engineering '}, {code:'B99',label:'Uncategorized'},
 ];
-function _qsTag(list,code){ const e=list.find(x=>x.code===String(code||'').trim()); return e?`${e.code}-${e.label}`:''; }
+// El texto del tag que se escribe en Tags_id se normaliza para ser seguro en el import Many2many
+// de Odoo: Odoo separa el VALOR de la celda por comas para armar la lista de etiquetas, así que un
+// label con coma interna (ej. B18="Apparel, Clothing, Accessories") se parte en 3 tags espurios al
+// importar (bug real reportado por el usuario 2026-07-30). Fix pedido explícitamente por el
+// usuario: "," → "/" y sin espacios. Solo se normaliza el TEXTO FINAL del tag — la lista
+// QS_INDUSTRY_TYPES/QS_PRODUCT_TYPES de origen queda intacta (el prompt de clasificación para
+// Claude sigue viendo el label legible original, con comas y espacios).
+function _qsTagSafeLabel(label){ return String(label||'').replace(/,/g,'/').replace(/\s+/g,''); }
+function _qsTag(list,code){ const e=list.find(x=>x.code===String(code||'').trim()); return e?`${e.code}-${_qsTagSafeLabel(e.label)}`:''; }
 
 // 1 sola llamada batch por job (no depende de tools, barato) — Claude elige 1 a 3 códigos A (tipo
 // de negocio, puede ser más de uno si la empresa cae claramente en varias categorías — confirmado
