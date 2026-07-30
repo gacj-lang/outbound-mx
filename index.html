@@ -6245,12 +6245,184 @@ async function renderWiki(){
   await wikiLoad();
 }
 
+// Cuarto lote (2026-07-30, misma sesión): "Direct Sales process" — la metodología GLOBAL de
+// ventas dentro de DU Knowledge/DU Sales (no específica de MX). Complementa el proceso de
+// Outbound-MX con detalle táctico de demo, calificación, pipeline, cierre y presales.
+const WIKI_SEED_4=[
+  {categoryId:'demos', icon:'🎬', title:'Cómo preparar y dar una demo que convierta (playbook global de Direct Sales)',
+    summary:'Qué hacer antes, durante y después de la demo según la metodología global: base de datos personalizada, en qué enfocarte durante la sesión, cómo cerrar con precios y Success Packs, y el seguimiento posterior.',
+    tags:['demo','metodologia','quickstart','pricing','success-packs'],
+    source:'Odoo Knowledge — DU Sales / Direct Sales process (metodología global, no específica de MX)',
+    links:[],
+    bodyRaw:`Esta es la metodología global de Direct Sales para la fase de demostración — complementa el proceso específico de Outbound-MX con el detalle táctico de qué hacer en cada momento.
+
+## Antes de la demo
+- Relee tus notas de la llamada de calificación.
+- Resuelve tus dudas con colegas o tu TL antes de la sesión.
+- Crea una base de datos nueva e instala los módulos que el cliente quiere ver.
+- Personalízala con el nombre y logo del cliente, sus productos/servicios y sus clientes/proveedores reales (los que obtuviste en la calificación). Esto hace que el cliente se sienta reflejado y se involucre más, porque siente que está viendo un resumen de su propio negocio.
+
+## Durante la demo
+- Empieza con una breve presentación de Odoo como empresa — genera confianza antes de entrar al producto.
+- Mantente simple: no profundices en módulos que no identificaste como clave para ese cliente.
+- En los módulos clave, sí profundiza — muestra el beneficio real (velocidad de las operaciones, integración con otros módulos, impacto en tareas del día a día), no solo la función.
+- Comparte pantalla y graba la sesión. Habla despacio y con claridad; haz pausas y pregunta si hay dudas.
+- Si el cliente pide algo no factible o muy complejo: sé directo. Si no es posible, dilo — un desarrollo podría ser una solución, pero como el foco es el estándar, hay que advertirlo también. Si es solo complejo (no imposible), tranquiliza al cliente: es factible en estándar, pero necesita ayuda de consultoría porque va más allá del flujo básico que puedes mostrar en la demo. No profundices demasiado en el detalle — si el cliente ya no necesita tu ayuda de consultoría para lograrlo, perdiste el argumento de venta del pack.
+
+## Cómo cerrar la demo
+- Termina con la explicación de precios (adaptada al país del cliente) y haz una oferta en vivo desde la página de precios.
+- Pon el acento en el descuento por pago anual (y en el descuento por usuarios iniciales).
+- Menciona los Success Packs y la metodología Quickstart — cómo se implementa Odoo con ayuda de un consultor.
+- Menciona las cuotas de mantenimiento de forma proactiva, sobre todo si el cliente pidió personalizaciones durante la demo — es mejor que no sea una sorpresa más adelante; abordarlo aquí hace más simple la venta y evita que se vuelva un tema de discusión después.
+- Comparte la base de datos de la demo para que el cliente la pruebe por su cuenta.
+- Agenda un seguimiento aproximadamente una semana después, para darle tiempo de probar la solución.
+- Mueve la oportunidad a la etapa "Qualified Sponsor" y, si sientes que el cliente está interesado, llena el campo de ingreso esperado (expected revenue) con una estimación del MRR — esto ayuda al forecast del equipo.`},
+
+  {categoryId:'proceso', icon:'☎️', title:'Primer contacto y calificación: la llamada que define el éxito de la demo (metodología global)',
+    summary:'La regla de las 48-72 horas para el primer contacto, y cómo estructurar la llamada de calificación para que la demo tenga éxito.',
+    tags:['calificacion','primer-contacto','spin-selling','metodologia'],
+    source:'Odoo Knowledge — DU Sales / Direct Sales process',
+    links:[],
+    bodyRaw:`## Primer contacto: la regla de 48-72 horas
+En cuanto te asignan una oportunidad, tienes entre 48 y 72 horas para contactar al cliente — después de 3 días, la mayoría de los clientes ya se olvidó. Además, cuando alguien busca una solución no solo ve nuestra página: está comparando con otras opciones, así que ser el primero en contactar da una ventaja real sobre la competencia.
+
+El objetivo de esta primera llamada es presentarte y agendar la calificación — no es una llamada de venta. Al terminar, revisa que el contacto esté bien registrado en la oportunidad (o crea uno nuevo si falta).
+
+## Calificación: por qué es la llamada más importante
+Esta llamada determina el éxito de la demo. Aquí reúnes toda la información posible sobre el negocio del cliente: qué hacen, cómo trabajan, cómo contactan a sus clientes/proveedores, cuántos son, etc. Estás ofreciendo ayuda, no vendiendo todavía.
+
+Tips para manejarla bien:
+- No asumas lo que el cliente va a decir — déjalo hablar. Si algo no te queda claro, repite lo que entendiste y deja que confirme o corrija.
+- Toma el control de la estructura de la conversación: guía con tus preguntas para asegurarte de cubrir todos los aspectos que necesitas, avanzando módulo por módulo o flujo por flujo — sin saltar de un tema a otro.
+- Dale a la llamada una estructura clara: empieza con la idea general y luego profundiza módulo por módulo, en vez de ir directo al detalle de los problemas más grandes.
+- Al final de la llamada, explica cómo se implementaría Odoo (metodología Quickstart) — esto también te da pie para introducir los Success Packs, dejando claro que tienen costo.
+- Agenda la demo idealmente 2 o 3 días después.
+
+Una vez terminada, mueve la oportunidad a la etapa de Qualification.
+
+## Técnica de venta: SPIN Selling
+La metodología recomienda apoyarse en SPIN Selling durante la calificación y la demo — un método de preguntas para entender antes de proponer, organizado en 4 tipos de pregunta: Situación (contexto actual del cliente), Problema (qué no funciona), Implicación (qué consecuencias tiene ese problema si no se resuelve) y Necesidad-beneficio (qué pasaría si se resolviera). Ayuda a estructurar la conversación de calificación y a preparar mejor la demo y el cierre.`},
+
+  {categoryId:'herramientas', icon:'📋', title:'Gestión de pipeline en el CRM: Kanban, actividades y expected revenue (metodología global)',
+    summary:'Cómo mantener tu pipeline bajo control con la vista Kanban, actividades programadas, tags, ratings y el campo de ingreso esperado.',
+    tags:['crm','pipeline','kanban','productividad'],
+    source:'Odoo Knowledge — DU Sales / Direct Sales process',
+    links:[],
+    bodyRaw:`Herramientas del CRM para gestionar tus oportunidades de forma eficiente:
+
+## Vista Kanban
+Te da un panorama exacto de tu situación en todo momento — es el resumen visual de tu trabajo.
+
+## Actividades programadas
+Toda oportunidad debe tener al menos una actividad planeada. El widget de reloj (y la barra de progreso de cada fila) te dice si es una actividad futura (verde), de hoy (amarilla) o atrasada (roja); si no hay actividad programada, el widget aparece en gris. Crea un filtro propio que te muestre directamente todas las oportunidades sin actividad programada.
+
+## Tags y ratings
+Usa las estrellas (ratings) para darle más importancia a una oportunidad puntual, y los tags para clasificarlas y filtrarlas más fácil (algunos tags ya vienen predeterminados desde el proceso de generación del lead).
+
+## Expected revenue (ingreso esperado)
+Se llena desde la etapa "Qualified Sponsor" en adelante — ayuda al equipo a hacer un mejor forecast de los ingresos potenciales.
+
+## Plantillas de correo
+Usa las plantillas de correo predefinidas (con tu identificador agregado) para cuando el cliente no contesta las llamadas o necesita tus datos de contacto. Regla general: si después de tres llamadas el cliente no responde, se marca la oportunidad como "Lost".`},
+
+  {categoryId:'proceso', icon:'🤝', title:'Cierre, descuentos y qué pasa después de vender un Success Pack (metodología global)',
+    summary:'Reglas de descuento, cómo estructurar la negociación final, y el proceso de asignación de consultor y kick-off una vez que el cliente compra un Success Pack.',
+    tags:['cierre','negociacion','descuentos','success-packs','suscripciones'],
+    source:'Odoo Knowledge — DU Sales / Direct Sales process',
+    links:[],
+    bodyRaw:`## El seguimiento después de la demo
+Aproximadamente una semana después de la demo (para darle tiempo de probar la solución), agenda una llamada de seguimiento sobre la oferta ya enviada. Si quedan dudas, resuélvelas mostrando configuraciones simples desde la base de datos de la demo, sin entrar en más detalle del necesario. Pregunta si hay algo de la oferta que quiera ajustar.
+
+## Reglas de descuento
+- Hay descuento por usuarios iniciales y por contrato de pago anual.
+- Descuentos adicionales por contratos de 3 o 5 años se deben discutir directamente con tu Manager — no se otorgan por tu cuenta.
+- Si el cliente duda del tamaño de la inversión, se le puede sugerir empezar más chico (menos apps) e ir integrando el resto durante la implementación.
+- Si divides un Success Pack, la división debe ser de al menos 25% del pack original, con un mínimo de 50 horas.
+
+## Qué pasa después de vender un Success Pack
+- La asignación a un consultor solo ocurre una vez que el cliente pagó el pack.
+- Se envía un correo de kick-off al cliente con la metodología Quickstart explicada de nuevo.
+- Se agenda una Kick-off Call — un paso que el cliente no puede saltarse. Ahí el consultor valida que la información relevada sea correcta y completa, y si algo requiere personalización o desarrollo adicional.
+
+## Suscripciones: seguimiento post-venta
+- Suscripciones mensuales: seguimiento una vez por semana.
+- Suscripciones anuales o multianuales: seguimiento una vez al mes.
+- Si existe un pack de servicios asociado, revisa su estatus con el Project Manager antes de llamar al cliente.
+- Todo el seguimiento y las actividades se registran en la Suscripción, no en la oportunidad del CRM — esto facilita el traspaso a CST (Customer Success) 9 meses después de la fecha de inicio.
+
+## Escalamiento
+Como Account Manager de la suscripción eres responsable de la experiencia del cliente y de resolver los problemas que enfrente, sean comerciales o técnicos. Si surge un problema durante la implementación, define un plan junto con el Project Manager. Solo si el problema no se resuelve así, se escala al TL.`},
+
+  {categoryId:'herramientas', icon:'🧾', title:'Presales: cuándo pedir una estimación para algo fuera del estándar',
+    summary:'Cuándo crear un ticket de Presales, qué hacen el Presales Analyst y el Presales Support Consultant, y las etapas del proceso de estimación (SOW).',
+    tags:['presales','sow','estimacion','desarrollos'],
+    source:'Odoo Knowledge — DU Sales / Direct Sales process',
+    links:[],
+    bodyRaw:`Cuando durante la calificación o la demo un cliente pide algo que no es estándar (una personalización, un desarrollo, una integración), el camino correcto es presales — no prometer nada sin pasar por este proceso.
+
+## Los roles
+- Presales Analyst: revisa el alcance (Scope of Work / SOW), decide si es factible y da la estimación final de horas. Da estimaciones verbales preliminares y evalúa si existe una alternativa estándar o una personalización sencilla con Studio antes de asumir que se necesita desarrollo.
+- Presales Support Consultant: apoya al equipo de ventas respondiendo dudas de flujo y ayudando a preparar la demo cuando el requerimiento es complejo (brainstorming de soluciones).
+
+## Cómo te ayuda presales
+- Te puede dar un estimado preliminar (no oficial) antes de mandar tu SOW, para usar en comunicación informal con el cliente.
+- Antes de escalar al presales support, intenta investigar y discutirlo primero con tu TL o un colega.
+- Si el requerimiento coincide con una industria ya trabajada, puedes usar directamente el SOW de esa Industry Analysis en vez de armar uno nuevo.
+
+## Etapas del ticket (SOW)
+1. Nuevo: mandas tu SOW y queda en la fila para revisión (por orden de llegada) — espera a que el presales analyst se comunique antes de insistir.
+2. Necesita más información: el analyst pide algo que falta — es tu responsabilidad conseguirlo del cliente lo antes posible.
+3. En progreso (funcional): está en análisis, sin acción de tu parte salvo si lleva más de 2 días sin movimiento.
+4. Estimación técnica: pasa a un consultor técnico para estimar horas de desarrollo, si aplica.
+5. Hecho: ya tienes la estimación con la nota correspondiente.
+6. Necesita revisión: el analyst no está seguro de su propia estimación (o tú tienes una razón sólida, como haber vendido antes ese mismo flujo por menos horas) — no es válido pedir revisión solo porque crees que el cliente no va a pagar el estimado.
+
+## Reglas importantes
+- No cambies el SOW después de que la tarea quede marcada como "Hecho".
+- No modifiques la nota de un consultor una vez que ya estimó sobre ella.
+- No olvides adjuntar el SOW a tu cotización.`},
+
+  {categoryId:'herramientas', icon:'🏅', title:'Success Packs: tipos, cuándo venderlos y cómo se asignan',
+    summary:'Los distintos paquetes de consultoría (4h, 25-200h, mensuales, webdesign, fiduciarios, SEO), para quién es cada uno y el proceso de asignación de consultor.',
+    tags:['success-packs','consultoria','pricing','asignacion'],
+    source:'Odoo Knowledge — Worldwide Process / Our Services / Success packs',
+    links:[],
+    bodyRaw:`Para ayudar a los clientes a implementar su base de datos, se ofrecen servicios de consultoría por paquetes de horas ("Success Packs"). El consultor hace timesheet de cada hora trabajada hasta agotar el pack, y el cliente puede ver el consumo desde su portal.
+
+## Cómo funciona
+El rol del equipo comercial es estimar cuántas horas necesita el cliente (con ayuda de presales si hace falta). La asignación de un consultor solo se puede pedir una vez que el pack está firmado y pagado.
+
+## Descuento del primer pack
+Se ofrece 15% de descuento en el primer pack que compra un cliente (sin importar la cantidad de horas) — el segundo pack en adelante se vende a precio completo. Tip: usa este descuento para motivar la compra de un pack más grande (calcula cuánto se ahorra comprando 50h de una vez en vez de 2 packs de 25h).
+
+## Pack de 4 horas (Discovery pack)
+Para quién: clientes nuevos, clientes existentes que nunca tomaron un pack, o self subscribers — negocios pequeños (1 a 5 empleados) listos para arrancar en un plazo corto (máximo 1 semana después de asignado).
+Para qué sirve: una implementación corta de un flujo estándar, resolver dudas sobre un alcance estándar, mostrar buenas prácticas, explicar cómo importar datos (el consultor no hace la importación), o validar la factibilidad de una personalización con Studio (sin implementarla). No incluye nada técnico (desarrollos, integraciones, permisos avanzados).
+Requisitos que debes explicarle al cliente antes: entiende el proceso de timesheet, sabe que no podrá comprar otro pack de 4h, y ya sabe crear una base de datos, agregar usuarios e importar/exportar datos.
+
+## Packs de 25 a 200+ horas
+Para implementar nuevos módulos, capacitación y/o desarrollos. Se pueden vender packs de más de 200h ajustando la cotización, aunque no aparezcan así en la página web.
+
+## Packs mensuales (plan de pagos)
+Para clientes con problemas de flujo de caja, existe un esquema de pago mensual durante un año para los packs de 25h y 50h (monto de referencia global en EUR — confirma el precio vigente para México en el módulo de Pricing). No se puede acumular 2 packs mensuales al mismo tiempo.
+
+## Packs de webdesign
+Mismo esquema de precios y descuento de primer pack. Se puede arrancar un sitio con 25h si son máximo 5 páginas (el cliente aporta el contenido: textos e imágenes). Incluye la creación del sitio desde cero y la capacitación para que el cliente pueda agregar contenido después. No hay diferencia entre horas de webdesign o de implementación "clásica" — un pack de 100h se puede dividir, por ejemplo, 75h webdesign y 25h implementación.
+
+## Packs fiduciarios
+Solo para contadores certificados — normalmente 25 o 50h para empezar, con 50% de descuento (aplica a todos los packs que compren, no solo al primero). Incluye capacitación sobre cómo manejar las bases de datos de sus clientes en Odoo y resolución de dudas. No se pueden usar para implementación, desarrollos o webdesign.
+
+## Packs de SEO
+Requieren 25h. Incluyen ayudar al cliente a construir una buena estrategia de SEO y capacitarlo en los fundamentos para que se vuelva autónomo. NO incluyen creación de contenido (copywriting), gestión de dominio, ni resultados inmediatos garantizados. Aplica tanto a quien construye su primer sitio en Odoo como a quien migra su sitio actual.`},
+];
+
 // Lotes de semilla: cada uno se aplica una sola vez (sentinel wikiMeta/<key>), así se puede
 // seguir agregando contenido real de Knowledge en próximas sesiones sin duplicar lo ya sembrado.
 const WIKI_SEED_BATCHES=[
   {key:'seed', articles:WIKI_SEED},
   {key:'seed2', articles:WIKI_SEED_2},
   {key:'seed3', articles:WIKI_SEED_3},
+  {key:'seed4', articles:WIKI_SEED_4},
 ];
 
 let _wikiSeedChecked=false;
