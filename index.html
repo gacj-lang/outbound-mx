@@ -6595,6 +6595,45 @@ El equipo de Quickstart se enfoca en implementaciones con alcance claro y contro
 Esa herramienta de auto-estimación en la página de precios es solo para compras por cuenta propia del cliente (self-service). Cuando la venta se hace con la ayuda de un Business Advisor (o sea, vos), la responsabilidad de recomendar las horas correctas es tuya, basada en tu calificación y análisis del requerimiento — no del estimador automático.`},
 ];
 
+// Sexto lote (2026-07-30, misma sesión): rama Legal dentro de MX Knowledge. Se revisaron también
+// Admin, RH, Services, Learning & Development y Marketing en esta ronda — se descartaron por
+// completo (contenido 100% interno de organización de equipos/onboarding/nómina, no de venta).
+// Legal es la única de las 7 ramas de MX Knowledge (junto con Sales) con contenido administrativo
+// aprovechable para el wiki.
+const WIKI_SEED_6=[
+  {categoryId:'proceso', icon:'✍️', title:'Legal: firma de la Orden de Venta, contratos y NDA',
+    summary:'Por qué es obligatorio que el cliente firme la SO por el portal (o se pierde la comisión), cuándo se puede usar el NDA del cliente en vez del de Odoo, y cómo pedir documentación a Legal.',
+    tags:['legal','firma','so','nda','contratos','comision'],
+    source:'Odoo Knowledge — MX Knowledge / Legal',
+    links:[],
+    bodyRaw:`## Firma de la Orden de Venta (SO)
+Todas las órdenes de venta deben firmarse por el cliente a través del portal — incluso si van a pagar por transferencia. Si tienes una SO confirmada que el cliente todavía no firmó, compártesela para que la firme cuanto antes.
+
+Por qué importa: la SO no solo trae los datos de facturación y los productos/servicios contratados, también trae los términos y condiciones (políticas de devolución, plazos de pago, garantías, límites de responsabilidad). Un documento firmado da protección legal ante disputas o inconformidades.
+
+Es OBLIGATORIO tener todas las SO firmadas — si se realiza la venta sin la firma, se hace un decommission y ya no se puede comisionar después.
+
+## Contratos y NDA: siempre los de Odoo, salvo excepción
+Si un cliente pide firmar su propio documento (por ejemplo, su propio NDA) en vez del de Odoo, la regla es usar siempre el documento de Odoo. Solo en casos específicos (el cliente se pone exigente y es un buen deal) se puede pasar a firmar el NDA que ellos proporcionan, bajo revisión previa — y esto SOLO aplica a NDAs, los contratos de servicio siempre son los de Odoo, nunca los del cliente.
+
+Los documentos del cliente solo se mandan a revisión cuando el deal tiene más de 20 usuarios Y multianualidad de 2 años o más. Si el deal no cumple esos dos requisitos, el cliente tiene que aceptar los documentos de Odoo sin modificaciones.
+
+## Cómo enviar un NDA o contrato al cliente
+1. Mándalo siempre en formato Drive con acceso de Comentarista (nunca de editor).
+2. El ejecutivo de cuenta o el cliente son quienes llenan el documento.
+3. Una vez lleno, con el expediente completo del cliente, se manda a revisión (en Drive) — hay que incluir los correos de las personas que van a firmar, que siempre deben ser los representantes legales del cliente. Se envía al correo de legal (si ya hay una tarea abierta de ese cliente, se agrega ahí).
+4. Pasa a firma por parte de Odoo.
+
+Formato de envío: los documentos que se mandan a Legal para firma deben ser PDF y ya estar llenos — Legal solo revisa, no llena documentos. Cuando son contratos o NDA que trae el cliente, se mandan en Drive (Word) para poder dejar comentarios o pedir modificaciones ahí mismo.
+
+## Solicitar documentación de Odoo para un cliente
+Para pedir cualquier documentación de Odoo (o pedirle documentación a un cliente), se manda un correo a mxlegal@mail.odoo.com.
+- Se hace la solicitud por correo detallando la documentación que se necesita, con el TL en copia (en casos urgentes, el TL también puede mandar los documentos).
+- La respuesta llega sobre ese mismo hilo de correo.
+- No abras varios correos distintos para el mismo cliente — si ya mandaste uno pidiendo documentos y después el cliente quiere firmar el contrato, la solicitud va en la misma cadena del primer correo.
+- En el asunto va el nombre del cliente + "documentos" o "NDA/contrato" según el caso; el cuerpo del correo debe traer la información que se requiere. Si un mismo cliente pide documentos y contrato para firma, se manda un solo correo pidiendo ambas cosas.`},
+];
+
 // Lotes de semilla: cada uno se aplica una sola vez (sentinel wikiMeta/<key>), así se puede
 // seguir agregando contenido real de Knowledge en próximas sesiones sin duplicar lo ya sembrado.
 const WIKI_SEED_BATCHES=[
@@ -6603,6 +6642,7 @@ const WIKI_SEED_BATCHES=[
   {key:'seed3', articles:WIKI_SEED_3},
   {key:'seed4', articles:WIKI_SEED_4},
   {key:'seed5', articles:WIKI_SEED_5},
+  {key:'seed6', articles:WIKI_SEED_6},
 ];
 
 let _wikiSeedChecked=false;
