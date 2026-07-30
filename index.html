@@ -6241,8 +6241,43 @@ async function renderWiki(){
         </button>`).join('')}
       </div>
       <div id="wikiArticleList"><div class="cdc-empty">Cargando artículos...</div></div>
+      <div id="wikiCasosSection"></div>
     </div>`;
   await wikiLoad();
+}
+
+// La categoría "Casos de éxito" no vive en Firestore: reutiliza SUCCESS_STORIES_INDEX
+// (definido más arriba, la misma fuente verificada — odoo.com/blog/customer-reviews-6 — que ya
+// usa Generación de contenidos para insertar casos reales en brochures). Así no se duplica el
+// dato ni se puede desincronizar: si se agrega un caso nuevo ahí, aparece acá automáticamente.
+function wikiCasosMatch(q){
+  if(!q) return SUCCESS_STORIES_INDEX;
+  return SUCCESS_STORIES_INDEX.filter(c=>{
+    const hay=[c.empresa,c.pais,c.ubicacion,(c.giros||[]).join(' '),c.resumen].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+}
+function wikiRenderCasos(q){
+  const el=document.getElementById('wikiCasosSection'); if(!el) return;
+  if(wiki.activeCat!=='casos'){ el.innerHTML=''; return; }
+  const list=wikiCasosMatch(q);
+  el.innerHTML=`<div style="margin:${document.getElementById('wikiArticleList')?.children.length?'24px':'0'} 0 12px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400)">🏆 Casos reales de clientes Odoo (verificados, odoo.com/blog)</div>
+    </div>
+    ${!list.length?'<div class="cdc-empty">No hay casos que coincidan con tu búsqueda.</div>':`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+      ${list.map(c=>`<div class="card" style="padding:18px">
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px">
+          <div style="font-size:22px">🏆</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14.5px;font-weight:700">${c.empresa}</div>
+            <div style="font-size:11px;color:var(--purple);font-weight:600;margin-top:2px">${(c.giros||[]).join(' · ')} — ${c.ubicacion||c.pais}</div>
+          </div>
+        </div>
+        <div style="font-size:12.5px;color:var(--gray-500);line-height:1.5">${c.resumen}</div>
+        <div style="margin-top:10px"><a href="${c.url}" target="_blank" style="font-size:12.5px;color:var(--purple);font-weight:600">🔗 Leer caso completo</a></div>
+      </div>`).join('')}
+    </div>`}`;
 }
 
 // Cuarto lote (2026-07-30, misma sesión): "Direct Sales process" — la metodología GLOBAL de
@@ -6671,11 +6706,13 @@ async function wikiLoad(){
   }catch(e){
     console.warn('wiki load:',e);
     wiki.all=[];
-    if(listEl) listEl.innerHTML='<div class="cdc-empty">No se pudo cargar el Banco de Información. Intenta de nuevo en unos segundos.</div>';
-    return;
+    // Los artículos de Firestore no cargaron, pero "Casos de éxito" no depende de Firestore
+    // (usa SUCCESS_STORIES_INDEX, local) — seguimos para que esa categoría funcione igual.
+    if(listEl) listEl.innerHTML='<div class="cdc-empty">No se pudo cargar el resto del Banco de Información. Intenta de nuevo en unos segundos.</div>';
   }
   WIKI_CATEGORIES.forEach(c=>{
-    const n=wiki.all.filter(a=>a.categoryId===c.id).length;
+    let n=wiki.all.filter(a=>a.categoryId===c.id).length;
+    if(c.id==='casos') n+=SUCCESS_STORIES_INDEX.length;
     const el=document.getElementById('wikiCatCount-'+c.id); if(el) el.textContent=n+' artículo'+(n===1?'':'s');
   });
   wikiFilter();
@@ -6696,11 +6733,15 @@ window.wikiFilter=function(){
     return hay.includes(q);
   });
   wikiRenderList(list);
+  wikiRenderCasos(q);
 };
 
 function wikiRenderList(list){
   const el=document.getElementById('wikiArticleList'); if(!el) return;
   if(!list.length){
+    // La categoría "casos" muestra su contenido real (verificado) en #wikiCasosSection —
+    // no hace falta el mensaje de "todavía no hay artículos" ahí.
+    if(wiki.activeCat==='casos'){ el.innerHTML=''; return; }
     el.innerHTML=`<div class="cdc-empty">Todavía no hay artículos aquí. ${currentUserData?.role==='manager'?'Usa "+ Nuevo artículo" para agregar el primero.':'Pronto vamos a sumar contenido.'}</div>`;
     return;
   }
