@@ -6094,6 +6094,116 @@ Clave: usar la nota de traspaso con contexto completo (historial, interés, etap
 - Sistemas actuales y necesidades de integración (on-premise / cloud)`},
 ];
 
+// Tercer lote (2026-07-30, misma sesión): material de preparación para el workshop de
+// Logística (Imp & Exp) dentro de OUTBOUND-MX — el primer contenido real de "Funcionalidades
+// por App" con enfoque de vertical, más 2 piezas de "demos" (empatía + battlecard competitivo).
+const WIKI_SEED_3=[
+  {categoryId:'apps', icon:'📘', title:'Glosario: cómo hablar el idioma de un cliente de Comercio Exterior / Logística',
+    summary:'10 términos clave de comercio exterior y aduanas (Incoterms, Pedimento, Landed Costs, Cuentas Analíticas...) explicados en su lógica de negocio y su "gancho" en Odoo.',
+    tags:['logistica','comercio-exterior','aduanas','glosario','landed-costs','vertical'],
+    source:'Odoo Knowledge — OUTBOUND-MX / Trabajo previo para WS - Logística / Glosario Maestro',
+    links:[],
+    bodyRaw:`Material de trabajo previo para el equipo comercial: dominar estos conceptos te permite sonar como un experto frente al cliente y calificar la oportunidad con éxito. No los memorices pensando en la programación de Odoo — estúdialos pensando en qué fuga de dinero real resuelve cada uno.
+
+## Incoterms (International Commercial Terms)
+Reglas internacionales que definen en qué punto de la trayectoria de la mercancía se transfieren los costos y riesgos entre comprador y vendedor (FOB, CIF, DDP...). Determinan quién paga el flete, el seguro y los trámites aduanales.
+- El gancho en Odoo: en Ventas y Compras existe un campo nativo "Incoterm" que automatiza las condiciones de entrega y ayuda a estructurar los costos del pedido de forma transparente.
+
+## Pedimento Aduanal
+Documento fiscal oficial que avala la legal estancia y tenencia de las mercancías de importación/exportación ante la autoridad aduanera (el SAT en México). Es el documento más sagrado para un importador — un error puede congelar la operación o causar multas millonarias.
+- El gancho en Odoo: Odoo no valida aduanas (no reemplaza al gobierno), pero funciona como Expediente Digital Único — con la app Documentos, el cliente indexa el pedimento directo a la orden de compra o al contenedor para auditorías instantáneas.
+
+## Transitario / Freight Forwarder
+Intermediario que organiza el transporte internacional de mercancías: compra espacios por volumen y coordina la logística marítima, aérea y terrestre. Es quien factura conceptos complejos (fletes, recargos por combustible, demoras).
+- El gancho en Odoo: se gestiona como proveedor estratégico con Listas de Precios de Proveedor dinámicas, para cotizar fletes rápido desde el CRM.
+
+## Bill of Lading (B/L) o Guía Aérea (AWB)
+Contrato de transporte emitido por la naviera o aerolínea — funciona como título de propiedad de la mercancía en tránsito. Sin el B/L liberado, la aduana no permite retirar la mercancía del puerto (genera costos de almacenaje altísimos).
+- El gancho en Odoo: se vincula como documento clave en el seguimiento del proyecto de importación, para que el equipo operativo sepa si la carga ya fue liberada.
+
+## Despacho Aduanero
+Conjunto de trámites para que la mercancía entre o salga legalmente de un país (revisión de papeles, inspección física, pago de impuestos). Es el principal cuello de botella de la industria.
+- El gancho en Odoo: cada despacho es una etapa dentro del flujo Kanban de Proyectos, permitiendo automatizar alertas si un contenedor lleva más de 48 horas atorado en aduana.
+
+## Costes en Destino (Landed Costs)
+La funcionalidad estrella para comercio exterior: agrega costos "satélite" (flete internacional, honorarios del agente aduanal, aranceles, maniobras de puerto) al costo original del producto comprado en el extranjero.
+- Por qué es un argumento de venta fulminante: si un producto costó $1.00 USD pero traerlo costó $0.50 USD en logística, Odoo recalcula automáticamente el valor real del inventario a $1.50 USD — el margen de utilidad al vender es exacto, no estimado.
+
+## Cuentas Analíticas (Analytical Accounting)
+Contabilidad paralela (no fiscal) que agrupa ingresos y gastos por proyecto, barco, contenedor o expediente específico, sin alterar el catálogo de cuentas principal.
+- Por qué es un argumento de venta fulminante: le permite al director financiero ver exactamente cuánto se ganó o perdió en un embarque específico, unificando gastos de varios proveedores en una sola vista.
+
+## Campos de Propiedades (Properties Fields)
+La filosofía de Odoo v19+ para reemplazar el uso excesivo de Studio: crear campos personalizados desde la interfaz (por ejemplo "Número de Pedimento" o "Línea Naviera") sin código.
+- Por qué es un argumento de venta fulminante: hace el sistema flexible y escalable para una industria cambiante, sin líneas de código pesadas ni inestabilidad al actualizar de versión.
+
+## Margen Proyectado vs. Margen Real
+Métricas de rentabilidad en Proyectos: el Margen Proyectado es la ganancia estimada según la cotización original; el Margen Real se calcula conforme entran las hojas de horas y las facturas reales de proveedores logísticos.
+- Por qué es un argumento de venta fulminante: detecta fugas de dinero al instante — alerta si un flete cobró de más, permitiendo ajustar antes de cerrar el expediente del cliente.
+
+## Gestión Documental con IA (Odoo OCR / Documentos)
+Reconocimiento óptico de caracteres potenciado por IA que "lee" archivos PDF o imágenes.
+- Por qué es un argumento de venta fulminante: en comercio internacional se manejan cientos de facturas extranjeras y packing lists — en vez de transcribir línea por línea, el cliente arrastra el PDF y Odoo pre-llena el registro de la mercancía automáticamente.
+
+## Regla de oro comercial
+Cuando un cliente de logística se queja de que calcular el costo real de importación es un dolor de cabeza, la respuesta inmediata es: "En Odoo lo resolvemos de forma nativa con Landed Costs y Cuentas Analíticas". No le expliques cómo programar Odoo — muéstrale el glosario en acción.`},
+
+  {categoryId:'demos', icon:'🏢', title:'Caso ilustrativo: "un día sin Odoo" de un importador (para generar empatía en la demo)',
+    summary:'Narrativa de entrenamiento (no es un cliente real con nombre) que muestra, hora por hora, los dolores típicos de una empresa de importación/exportación sin un ERP — y cómo Odoo v19 los resuelve.',
+    tags:['logistica','comercio-exterior','empatia','narrativa','entrenamiento'],
+    source:'Odoo Knowledge — OUTBOUND-MX / Trabajo previo para WS - Logística / Caso de Estudio (narrativa de entrenamiento, no un caso real con nombre verificado)',
+    links:[],
+    bodyRaw:`Nota: esto NO es un caso de éxito real con nombre de cliente — es una narrativa de entrenamiento ("basada en un cliente real de la industria" pero anonimizada/compuesta) pensada para generar empatía antes de una demo con un prospecto de comercio exterior. Úsala para pensar: "si este cliente me llamara hoy, ¿sabría qué módulos ofrecerle?"
+
+## El escenario
+Una empresa mediana que importa componentes electrónicos desde Asia y los distribuye en Latinoamérica, con el negocio creciendo pero "administrativamente en caos". Un martes cualquiera, su contenedor más importante del mes queda detenido en la aduana.
+
+## Dolor 1 — Información dispersa (10:00 AM)
+La Commercial Invoice física no coincide con el PDF que mandaron por correo. Hay decenas de correos con el proveedor, varias versiones del Packing List en Excel, y el Pedimento preliminar está atorado en el WhatsApp de una persona que hoy no vino.
+- Dolor operativo: cero visibilidad del expediente digital — nadie sabe cuál es el documento correcto.
+
+## Dolor 2 — Fuga de dinero en vivo (2:00 PM)
+El contenedor debe quedarse varios días más en revisión, y eso genera cargos diarios de "Demoras" (renta del contenedor) más almacenaje — un gasto no presupuestado que hay que recalcular a mano en una hoja de cálculo gigante.
+- Dolor operativo: costos logísticos imprevistos que destruyen el margen sin que finanzas se entere a tiempo.
+
+## Dolor 3 — Ceguera financiera del director (5:30 PM)
+El Director General pregunta cuánto se ganó neto en los últimos contenedores. Las facturas de flete llegaron en dólares, la del agente aduanal en pesos con gastos de terceros, y la del transportista local ni siquiera se ha emitido. La respuesta es una estimación, no un dato real: la empresa está operando a ciegas sobre su rentabilidad.
+
+## El "momento aha" con Odoo v19
+- Expediente único con IA: la factura se arrastra a Odoo, la IA extrae los datos y crea el expediente — el agente aduanal descarga la versión correcta desde el Portal del Cliente sin un solo correo.
+- Alertas en tiempo real: si un contenedor se detiene en aduana, la etapa del proyecto cambia a "Retenido" en el Kanban y dispara una alerta automática al equipo de ventas.
+- Costeo perfecto (Landed Costs + Cuentas Analíticas): las facturas de demoras, fletes y aduanas se ligan a la Cuenta Analítica del contenedor y Odoo prorratea los costos automáticamente entre los productos importados — el director ve el Margen Real vs. Proyectado en un gráfico, sin tener que preguntar.
+
+## Preguntas para pensar antes de la sesión
+- Cuando un cliente dice "llevo mi control de importaciones en Excel", ¿qué riesgos reales está corriendo?
+- ¿Cómo le explicarías a un Director General el beneficio de conectar su CRM con los Landed Costs de Odoo, usando este ejemplo?`},
+
+  {categoryId:'demos', icon:'🕵️', title:'Cómo competir contra Excel, software aduanero y ERPs tradicionales (vertical Logística)',
+    summary:'Los 3 tipos de "competencia" más comunes en comercio exterior/logística (hojas de cálculo, software aduanero como CargoWise/SAAI, ERPs como SAP B1/NetSuite) y el argumento clave para cada uno.',
+    tags:['logistica','comercio-exterior','competencia','objeciones','battlecard'],
+    source:'Odoo Knowledge — OUTBOUND-MX / Trabajo previo para WS - Logística / Misión de Investigación',
+    links:[],
+    bodyRaw:`Antes de una sesión con un prospecto de comercio exterior o aduanas, vale la pena investigar qué sistema usa hoy. Estos son los 3 niveles más comunes y el argumento clave para cada uno con Odoo v19+.
+
+## Nivel 1 — Hojas de cálculo (Excel / Google Sheets)
+El rival más común: buena parte de las PyMEs que importan o exportan en LATAM gestionan su logística en un Excel avanzado que solo una persona sabe usar (números de contenedor en una pestaña, costos estimados en otra, fechas en otra).
+- Dónde les duele: cero automatización (captura manual de cada factura línea por línea) y fugas de dinero silenciosas (un recargo de flete imprevisto no actualiza la hoja de cálculo sola).
+- Argumento: "El Excel es excelente para analizar el pasado, pero paraliza tu operación en el presente. Con Odoo v19, nuestra IA (OCR) lee tus facturas comerciales y pre-llena tu inventario — tus márgenes proyectados y reales se calculan en tiempo real, sin depender de que alguien actualice una fórmula."
+
+## Nivel 2 — Software aduanero especializado (ej. CargoWise, SAAI, validadores locales)
+Sistemas diseñados exclusivamente para el despacho aduanero y la generación de pedimentos oficiales — rígidos, pero obligatorios por su conexión con las autoridades.
+- Dónde les duele: aislamiento total — tramitan bien el pedimento, pero son pésimos como CRM, no llevan control de proyectos ni portal web, y su módulo contable es muy limitado.
+- Argumento: "No venimos a sustituir tu validador aduanero oficial; venimos a conectarnos con él y a liberar a tu empresa del aislamiento operativo. Mientras tu sistema aduanero procesa el trámite legal, Odoo gestiona de punta a punta la relación con tu cliente (CRM), el control financiero con Cuentas Analíticas y el portal donde tus clientes ven en qué etapa va su contenedor sin llamarte."
+
+## Nivel 3 — ERPs corporativos tradicionales (ej. SAP Business One, Oracle NetSuite)
+Cuando la empresa crece, suele voltear a ver a estos sistemas para centralizar contabilidad, compras e inventarios.
+- Dónde les duele: costos de implementación altos (meses de consultoría para adaptarlos a la logística local) y lentitud para calcular rentabilidad en proyectos masivos con fórmulas pesadas.
+- Argumento: "A diferencia de los ERPs tradicionales que requieren meses de desarrollo para calcular la rentabilidad logística, Odoo v19 usa Campos de Propiedades nativos: adaptamos tus plantillas de expedientes y rastreamos números de booking o transportistas al instante y sin código, con márgenes proyectados y reales calculados de forma nativa."
+
+## Ejercicio antes de la sesión en vivo
+Identifica cuál de los 3 niveles es la realidad actual de tu prospecto, y prepara la respuesta a: si usa el software especializado (Nivel 2) y su equipo de ventas no sabe qué está haciendo el equipo de aduanas, ¿cómo usarías el módulo de Proyectos de Odoo para enganchar al Director General?`},
+];
+
 const wiki={all:[],activeCat:null};
 
 function wikiParseBody(raw){
@@ -6140,6 +6250,7 @@ async function renderWiki(){
 const WIKI_SEED_BATCHES=[
   {key:'seed', articles:WIKI_SEED},
   {key:'seed2', articles:WIKI_SEED_2},
+  {key:'seed3', articles:WIKI_SEED_3},
 ];
 
 let _wikiSeedChecked=false;
