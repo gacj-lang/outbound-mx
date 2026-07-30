@@ -6669,6 +6669,936 @@ Para pedir cualquier documentación de Odoo (o pedirle documentación a un clien
 - En el asunto va el nombre del cliente + "documentos" o "NDA/contrato" según el caso; el cuerpo del correo debe traer la información que se requiere. Si un mismo cliente pide documentos y contrato para firma, se manda un solo correo pidiendo ambas cosas.`},
 ];
 
+// Séptimo lote (2026-07-30, misma sesión): Rapid Packs de industria encontrados en un hub
+// "Compartido" del Knowledge (BE Knowledge / Sales / 1 bis. Outbound), fuera del árbol MX —
+// Construcción, Agencia Inmobiliaria, Gestión Inmobiliaria y Estudio de Arquitectura.
+const WIKI_SEED_7=[
+  {categoryId:'apps', icon:'🚧', title:'Construcción: qué funciona y qué está limitado en Odoo (Rapid Pack)',
+    summary:'Ficha del Rapid Pack de Construcción: flujo completo oportunidad→ejecución, qué NO trae de fábrica (WBS, control financiero profundo por obra, planeación tipo Primavera), preguntas para calificar antes de la demo y los módulos que entran en juego.',
+    tags:['construccion','rapid-pack','apps','vertical','modulos'],
+    source:'Odoo Knowledge — Compartido / Construcción (Rapid Pack)',
+    links:['https://apps.odoo.com/apps/modules/saas-19.3/construction_developer'],
+    bodyRaw:`Gestiona proyectos complejos con una plataforma unificada para la estimación, la planificación y la facturación. Integra la gestión de subcontratistas y la previsión de materiales en un único flujo de trabajo, con visibilidad en tiempo real de costos y cronogramas.
+
+## ¿Qué funciona? ☑️
+- Flujo completo desde oportunidad hasta ejecución
+- Creación automática de proyectos desde ventas
+- Registro de horas en campo (timesheets)
+- Gestión de compras para materiales
+- Control básico de inventario (herramientas y consumibles)
+- Facturación por avance o hitos
+- Documentación centralizada (contratos, planos)
+
+## ⚠️ Qué está limitado
+- No hay control financiero profundo por obra (costos reales vs. presupuestados detallados)
+- No hay WBS estructurado (Work Breakdown Structure real)
+- Control de subcontratistas limitado
+- Planeación avanzada de obra (tipo Primavera / MS Project) no incluida
+- Costeo avanzado requiere adaptación o desarrollo
+
+## 🧩 Consideraciones antes de la demo
+- ¿Manejan múltiples obras simultáneamente?
+- ¿Controlan costos por partida o solo global?
+- ¿Tienen subcontratistas?
+- ¿Necesitan planeación avanzada o solo ejecución?
+
+## Módulos que entran en juego
+- **CRM** — leads, pipeline, seguimiento de oportunidades
+- **Ventas** — cotizaciones con templates, kits, firma online, contratos
+- **Proyectos** — organiza la obra en etapas tipo "Cimientos", "Estructura", "Acabados"
+- **Planeación** — asignación de recursos, calendarios, carga de trabajo
+- **Partes de Horas** — registro de horas por tarea desde campo
+- **Compras** — automatiza requisición y órdenes de compra de material para entrega oportuna en obra
+- **Inventario** — control de materiales, herramientas y transferencias
+- **Servicio Externo** — intervenciones en sitio, seguimiento de trabajos
+- **Facturación** — por hitos, avance, tiempo o consolidada
+- **Documentos** — contratos, diseños y documentación centralizados
+- **Flotilla** — gestión de vehículos y maquinaria
+
+## Nota sobre customizaciones
+La fuente reporta que este Rapid Pack ya trae varias personalizaciones hechas (vía Studio, acciones de servidor y campos calculados) para: tipo de contrato (precio fijo vs. abierto desde la cotización), órdenes de venta a ancho completo, numeración automática de líneas replicada en factura, actualización automática de costos/APU's al confirmar compra o factura, gestión de necesidades de materiales desde la orden de venta (reservar/comprar/enviar directo), gestión del progreso con órdenes de cambio, observaciones ligadas a eventos de calendario, y desglose de naturaleza del costo (material, mano de obra, equipo, indirecto) en cada etapa. Esto implica costo de mantenimiento a futuro — para tenerlo en cuenta si el prospecto pregunta por escalabilidad.`},
+
+  {categoryId:'apps', icon:'🏗️', title:'Construcción en México: datos del sector, retos y glosario',
+    summary:'Contexto de la industria (aporta 6-7% del PIB, +4 millones de empleos, +90% PyMEs) y el glosario que te permite hablar el idioma del cliente: Factura AIU, Obra Negra/Blanca, WBS, Cuentas Analíticas y más.',
+    tags:['construccion','glosario','contexto','mexico','vertical'],
+    source:'Odoo Knowledge — Compartido / Construcción (Rapid Pack)',
+    links:[],
+    bodyRaw:`La construcción se caracteriza por su complejidad operativa, múltiples actores (proveedores, subcontratistas, clientes), alta demanda de control de costos y necesidad crítica de seguimiento de proyectos. Muchas constructoras siguen operando con hojas de cálculo, software contable limitado o herramientas propias del giro — de ahí la oportunidad de Odoo como ERP modular para digitalizar comercial, proyectos, compras, inventario, RH y contabilidad en un solo lugar.
+
+## 📊 Datos clave del sector en México
+- Aporta entre 6% y 7% del PIB nacional — uno de los motores principales de la economía.
+- Genera más de 4 millones de empleos directos, y millones más indirectos (proveedores, transportistas, arquitectos, ingenieros).
+- Más del 90% de las empresas del sector son PyMEs — de ahí la gran necesidad de organización y digitalización.
+
+## 🏗️ Retos actuales típicos
+- Falta de digitalización en constructoras medianas y pequeñas.
+- Procesos manuales dispersos, sin trazabilidad clara.
+- Visibilidad limitada en tiempo real de inventarios, avance de obra y estado financiero por proyecto.
+
+## 🔤 Glosario para sonar como experto frente al cliente
+- **Acta de Entrega**: documento que certifica la finalización de un proyecto.
+- **BIM (Building Information Modeling)**: tecnología de modelado 3D con información integrada (vs. CAD, que es dibujo técnico 2D).
+- **Comité de Obras**: grupo responsable de supervisar y aprobar proyectos.
+- **Costos Indirectos / Fijos / Variables**: distintos tipos de gasto según si se pueden atribuir a un proyecto específico y si varían con el volumen de trabajo.
+- **Cronograma**: plan temporal de inicio y fin de actividades (herramienta visual asociada: **Gantt Chart**).
+- **Estimación de Costos** / **Ingeniería de Costos**: cálculo y control de los costos proyectados de un proyecto.
+- **Factura AIU** (Administración, Imprevistos y Utilidad): concepto usado para calcular el IVA en contratos que requieren dividir sus costos (ingeniería civil, arquitectura, construcción) — desglosando estos tres conceptos.
+- **Factoraje**: financiamiento a corto plazo donde la empresa vende sus cuentas por cobrar a una entidad financiera a cambio de efectivo inmediato.
+- **Licencia de Construcción / Permiso Ambiental**: autorizaciones requeridas por autoridades para iniciar o ejecutar un proyecto.
+- **Obra Negra**: fase donde se completan las estructuras básicas, sin acabados. **Obra Blanca**: fase de acabados y detalles finales.
+- **Subcontratación**: contratación de terceros para parte del trabajo de un proyecto.
+- **Zonificación**: clasificación de áreas por uso (residencial, comercial, industrial).
+- **ROI (Rendimiento de Inversión)**: medida que evalúa la eficiencia de una inversión.
+
+## Regla de oro comercial
+Cuando el cliente hable de "obra negra vs. blanca", "AIU" o "avance físico", ya sabes de qué está hablando — úsalo para calificar qué tan sofisticado es su control de costos hoy y qué tan grande es el hueco que Odoo puede llenar.`},
+
+  {categoryId:'apps', icon:'🚫', title:'Construcción: objeciones comunes (AIU, insumos, nómina de obra) y cómo se resuelven',
+    summary:'Las 6 objeciones/huecos más frecuentes al vender Construcción (estimaciones de obra firmadas, explosión de insumos, subcontratistas, Factura AIU, complemento de servicios parciales, dependencia de Excel) y cómo se maneja la nómina formal vs. informal ("destajo") dentro de Odoo.',
+    tags:['construccion','objeciones','nomina','aiu','battlecard'],
+    source:'Odoo Knowledge — Compartido / Construcción (Rapid Pack)',
+    links:[],
+    bodyRaw:`## ¿Qué funcionalidades faltan en Odoo para Construcción? Principales objeciones
+- **Estimaciones de obra (números generadores)**: Odoo no incluye una función nativa para llevar estimaciones de avance físico firmadas por cliente o residente de obra.
+- **Explosión de insumos y matriz de materiales**: no hay herramienta nativa para explosionar insumos por concepto constructivo (conceptos de obra + unidades a consumir).
+- **Estimaciones de subcontratistas**: no hay proceso nativo para control de estimaciones parciales de subcontratos, con deducciones, avances, pagos progresivos y retenciones.
+- **Factura AIU**: en México se emite principalmente en construcción y servicios especializados, desglosando Administración/Imprevistos/Utilidad para calcular el IVA sobre la utilidad — es un caso de facturación que requiere revisar la configuración fiscal con el prospecto.
+- **Complemento de servicios parciales de construcción**: SÍ se puede desarrollar en Odoo. Si la base de datos es v19, el complemento se puede hacer sin necesidad de Odoo SH; si es otra versión, se necesita Odoo SH.
+- **Dependencia de hojas de cálculo**: el dolor de fondo que resuelve todo el Rapid Pack — aumenta el margen de error y complica la toma de decisiones frente a un flujo integrado (presupuesto → abastecimiento → ejecución → facturación).
+
+## Nómina formal vs. informal ("destajo") en Construcción
+**Nómina formal (empleados de planta)** — Odoo hace casi todo el trabajo con base en la ley y contratos fijos:
+1. Alta de empleados: RFC, CURP, NSS, cuenta bancaria.
+2. Control de asistencia: entradas/salidas con horario fijo.
+3. Cálculo y timbrado: Odoo genera el CFDI, calcula impuestos y crea el asiento contable automáticamente.
+4. Costo por proyecto: al asignar al empleado a una Cuenta Analítica, su sueldo se suma automáticamente al costo real de la obra.
+
+Flujo resumido: Registro (datos + contrato) → Operación (validar asistencias, calcular hoja de sueldo) → Contabilidad (crear/publicar asientos) → Pago (marcar dispersión, timbrar CFDI). El punto clave: vincular a cada colaborador con su Cuenta Analítica es lo que permite rastrear cuánto se gasta en mano de obra por proyecto específico.
+
+**Nómina informal o por "destajo"** (pago por avance de obra, metro cuadrado o "raya"): como la ley no regula estos conceptos de forma estándar, Odoo tiene limitaciones de automatización — el ajuste es manual (el encargado de obra/nómina ingresa el monto semanal según lo avanzado) y la interpretación depende del patrón o maestro de obra, no de una fórmula fija del sistema.
+
+## Referencia de casos de éxito reales mencionados en la fuente (para profundizar)
+- **Artdeko** (comercializadora de acabados para obra blanca) — ya está en el índice de casos de éxito del wiki.
+- **Bemaq** (renta de maquinaria de construcción y constructora) — mencionado en la fuente como caso de éxito, todavía no está en el índice de casos reales del wiki; vale la pena verificarlo y agregarlo si se confirma la fuente.`},
+
+  {categoryId:'demos', icon:'📋', title:'Construcción: cuestionario de calificación para primera llamada',
+    summary:'Preguntas por área (generales, contabilidad, RH, almacén/logística, integración, proyectos) para calificar a un prospecto de construcción antes de agendar la demo.',
+    tags:['construccion','calificacion','cuestionario','demos','vertical'],
+    source:'Odoo Knowledge — Compartido / Construcción (Rapid Pack)',
+    links:[],
+    bodyRaw:`## Preguntas generales
+- ¿Cuál es el tamaño de tu empresa y cuántos proyectos manejan al año? (número de empleados y estructura organizacional)
+- ¿Qué tipo de proyectos realizan principalmente? (residenciales, comerciales, infraestructura, etc.)
+
+## Contabilidad
+- ¿Cómo manejan la contabilidad y gestión financiera de sus proyectos? ¿Usan algún software contable específico?
+- ¿Cómo gestionan el flujo de efectivo, cuentas por cobrar y cuentas por pagar? ¿Tienen problemas con retrasos en pagos o cobros?
+- ¿Cómo gestionan los centros de costos? ¿Cómo realizan las estimaciones? ¿Cómo se administran las retenciones?
+
+## Recursos Humanos
+- ¿Cómo gestionan la contratación y capacitación del personal?
+- ¿Tienen un sistema para la gestión de la nómina?
+- ¿Cómo controlan la asistencia y la seguridad de los trabajadores en el sitio?
+
+## Almacenamiento y Logística
+- ¿Cómo gestionan el inventario de materiales de construcción? ¿Usan un sistema para el seguimiento del stock?
+- ¿Cómo manejan la logística y el almacenamiento de materiales en el sitio?
+
+## Integración y Escalabilidad
+- ¿Qué otros sistemas necesitan integrar con el ERP? (CRM, software de diseño, etc.)
+- ¿Cómo ven el crecimiento de su empresa en los próximos años y cómo creen que un ERP puede apoyarlos?
+
+## Proyectos
+- ¿Cómo gestionan la planificación y programación de sus proyectos?
+- ¿Qué métodos usan para monitorear el avance en tiempo real?
+- ¿Tienen un sistema para la comunicación entre personal de obra y oficina?
+- ¿Qué procesos tienen para gestión de contratos y documentación administrativa?
+- ¿Cuáles son los principales desafíos en la administración diaria de sus proyectos?`},
+
+  {categoryId:'apps', icon:'🏘️', title:'Agencia Inmobiliaria: qué funciona y qué está limitado en Odoo (Rapid Pack)',
+    summary:'Gestión completa del ciclo comercial (lead→cierre), publicación de propiedades, matching automático cliente-propiedad y firma digital — vs. lo que falta (CRM inmobiliario ultra especializado, integración a portales externos, avalúos automatizados).',
+    tags:['inmobiliaria','agencia-inmobiliaria','rapid-pack','apps','vertical'],
+    source:'Odoo Knowledge — Compartido / Construcción / Agencia Inmobiliaria (Rapid Pack)',
+    links:['https://www.odoo.com/es/industries/real-estate-agency'],
+    bodyRaw:`## ¿Qué funciona? ☑️
+- Gestión completa del ciclo comercial (lead → cierre de venta)
+- Publicación y administración de propiedades desde una app dedicada
+- Generación automática de leads desde sitio web o portales externos
+- Emparejamiento automático entre clientes y propiedades
+- Programación de visitas integrada con calendario
+- Seguimiento de ofertas y negociaciones desde CRM
+- Firma digital de documentos (ofertas, contratos)
+- Portal web inmobiliario listo para captar demanda
+- Gestión de comisiones por venta
+- Centralización de información de clientes y propiedades
+
+## ⚠️ Qué está limitado
+- No hay un CRM inmobiliario ultra especializado (tipo portales grandes con scoring avanzado de propiedades)
+- Gestión de portales externos (Inmuebles24, etc.) requiere integración adicional
+- No hay avalúos automatizados ni inteligencia de precios nativa
+- Control legal/contractual avanzado puede requerir configuración adicional
+- Gestión de rentas (leasing) no es el enfoque principal (requiere adaptar o usar Rental)
+- No incluye gestión financiera avanzada por propiedad (ROI, CAPEX detallado)
+
+## 🧩 Consideraciones antes de la demo
+- ¿Venden, rentan o ambos? ¿Publican en portales externos?
+- ¿Cómo gestionan hoy sus propiedades (Excel, CRM, etc.)?
+- ¿Tienen muchos agentes comerciales? ¿Manejan comisiones por agente o por propiedad?
+- ¿Qué tan importante es el sitio web como canal de captación? ¿Requieren matching automático cliente-propiedad?
+
+## Módulos que entran en juego
+- **CRM** — leads de compradores y propietarios, pipeline, seguimiento
+- **Propiedades** — app dedicada: datos, estado, precio, imágenes, disponibilidad
+- **Ventas** — cotizaciones, ofertas, negociación, firma digital, cierre
+- **Citas** — programación de visitas con sincronización de calendarios
+- **Sitio Web** — portal inmobiliario para publicar propiedades y captar tráfico
+- **Documentos / Firma** — contratos y documentos legales centralizados y firmados
+- **Marketing** — automatización de correos, campañas y seguimiento de leads
+- **Comisiones** — gestión de comisiones por agente o vendedor`},
+
+  {categoryId:'apps', icon:'🏠', title:'Gestión Inmobiliaria (property management): qué funciona y qué está limitado en Odoo',
+    summary:'Administración de rentas: propiedades, contratos de arrendamiento, facturación recurrente automática y control de ocupación tipo Gantt — vs. lo que falta (PMS enterprise multi-país, mantenimiento correctivo/preventivo avanzado, ROI detallado por propiedad).',
+    tags:['inmobiliaria','gestion-inmobiliaria','rentas','property-management','rapid-pack','apps'],
+    source:'Odoo Knowledge — Compartido / Construcción / Gestión inmobiliaria (Rapid Pack)',
+    links:['https://www.odoo.com/es_ES/industries/property-management'],
+    bodyRaw:`## ¿Qué funciona? ☑️
+- Gestión de propiedades (unidades, edificios, disponibilidad)
+- Administración de contratos de renta (leases)
+- Facturación recurrente automática (rentas y servicios)
+- Control de ocupación y vacantes (vista tipo Gantt)
+- Gestión de inquilinos, propietarios y proveedores
+- Seguimiento de oportunidades (venta/renta) desde CRM
+- Portal web para publicación de propiedades
+- Firma digital de contratos de arrendamiento
+- Registro de consumos (agua, luz) al inicio de contrato
+- Centralización de toda la información inmobiliaria
+
+## ⚠️ Qué está limitado
+- No es un PMS avanzado tipo enterprise (multi-country compliance complejo)
+- Gestión legal avanzada de contratos puede requerir configuración adicional
+- No incluye mantenimiento correctivo/preventivo avanzado (requiere Field Service o desarrollo)
+- Reportes financieros avanzados por propiedad (ROI detallado) son limitados
+- Integraciones con portales externos requieren desarrollo adicional
+- Gestión de grandes portfolios (nivel corporativo) puede requerir optimización
+
+## 🧩 Consideraciones antes de la demo
+- ¿Gestionan renta, venta o ambos? ¿Cuántas propiedades/unidades manejan?
+- ¿Cómo controlan hoy contratos y pagos? ¿Manejan facturación recurrente automatizada?
+- ¿Tienen control de ocupación/vacancia? ¿Requieren gestión de mantenimiento?
+- ¿Qué tan importante es el portal web?
+
+## Módulos que entran en juego
+- **CRM** — leads de inquilinos o compradores, pipeline comercial
+- **Propiedades** — unidades, edificios, disponibilidad
+- **Suscripciones** — contratos de renta y facturación recurrente
+- **Ventas** — cotizaciones, ofertas y firma digital
+- **Sitio Web** — portal para publicación de propiedades
+- **Contactos** — inquilinos, propietarios y proveedores
+- **Documentos / Firma** — contratos, leases y documentos legales
+- **Contabilidad** — gestión financiera integrada (rentas, ingresos)
+
+## Buyer persona mencionado en la fuente
+Gestión de Airbnb / rentas vacacionales, e inmobiliarias tradicionales.`},
+
+  {categoryId:'apps', icon:'✏️', title:'Estudio de Arquitectura: qué funciona y qué está limitado en Odoo',
+    summary:'Gestión de proyectos de diseño por fases (diseño→ejecución→entrega), timesheets y documentos técnicos — vs. lo que falta (no sustituye AutoCAD/Revit, no hay BIM nativo, no hay planeación tipo MS Project/Primavera). No genera líneas de código (no tiene customización propia).',
+    tags:['arquitectura','estudio-arquitectura','rapid-pack','apps','vertical'],
+    source:'Odoo Knowledge — Compartido / Construcción / Estudio de Arquitectura (Rapid Pack, archivado en la fuente)',
+    links:['https://apps.odoo.com/apps/modules/saas-19.1/architects'],
+    bodyRaw:`Nota: en la fuente original este artículo estaba marcado para archivarse — se conserva aquí porque el contenido sigue siendo útil como referencia rápida del giro.
+
+## ¿Qué funciona? ☑️
+- Gestión completa del ciclo comercial (lead → proyecto)
+- Creación automática de proyectos desde ventas
+- Gestión de proyectos por fases (diseño, ejecución, entrega)
+- Control de tareas y actividades por equipo
+- Registro de horas (timesheets) por colaborador o proyecto
+- Planificación de recursos y carga de trabajo
+- Gestión de documentos técnicos (planos, renders, contratos)
+- Facturación por avance, horas o hitos
+- Seguimiento de clientes y proyectos desde CRM
+- Colaboración centralizada entre equipos
+
+## ⚠️ Qué está limitado
+- No sustituye software especializado de diseño (AutoCAD, Revit, etc.)
+- No hay gestión avanzada BIM nativa
+- Control financiero avanzado por proyecto (costeo detallado) es limitado
+- No incluye planificación técnica avanzada tipo MS Project/Primavera
+- Gestión de subcontratistas o proveedores complejos requiere adaptación
+- No hay control documental técnico avanzado (versionado tipo repositorio)
+
+## 🧩 Consideraciones antes de la demo
+- ¿Trabajan por proyectos únicos o recurrentes?
+- ¿Cómo gestionan hoy sus proyectos (Excel, software especializado, etc.)?
+- ¿Facturan por horas, hitos o precio fijo? ¿Cuántas personas participan por proyecto?
+- ¿Necesitan control de horas por colaborador? ¿Manejan subcontratistas o todo es interno?
+- ¿Qué tan importante es la planificación de recursos?
+
+## Módulos que entran en juego
+- **CRM** — leads, oportunidades y seguimiento comercial
+- **Ventas** — cotizaciones, contratos, firma digital
+- **Proyectos** — gestión por fases, tareas y hitos
+- **Planeación** — asignación de recursos y carga de trabajo
+- **Partes de Horas** — registro de horas por tarea/proyecto
+- **Documentos** — planos, renders y archivos técnicos
+- **Facturación** — por horas, hitos o avance
+- **Compras** — proveedores y materiales
+- **Empleados** — gestión básica del equipo y roles`},
+];
+
+// Octavo lote (2026-07-30, misma sesión): playbook global de Direct Sales/Outbound encontrado en
+// BE Knowledge / Sales / "1 bis. Outbound". Se tradujo y filtró solo lo transferible a México —
+// se descartó todo lo 100% específico de Bélgica (T&Cs legales, mecánicas de pricing BE/Odoo.sh,
+// reglas de territorio de la oficina BE, plantilla de deducción fiscal belga).
+const WIKI_SEED_8=[
+  {categoryId:'herramientas', icon:'💯', title:'Glosario de actividades para loguear en el CRM',
+    summary:'Qué actividad usar para cada momento del ciclo de venta (llamada, no contactado, email, reunión, calificación, demo, seguimiento de cotización) — para que el pipeline sea consistente y reportable.',
+    tags:['crm','actividades','pipeline','glosario','herramientas'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Activities Lexicon',
+    links:[],
+    bodyRaw:`Registrar la actividad correcta en cada interacción con el lead es lo que hace que el pipeline sirva para reportar y para que cualquiera (tu TL, quien te cubra, quien reciba el traspaso) entienda el estado real de la oportunidad sin tener que preguntarte.
+
+## Actividades y cuándo usarlas
+- **Llamada**: contestaron el teléfono.
+- **No contactado / buzón**: llamaste pero no contestaron.
+- **Email**: cada vez que mandas un correo — también registra los que mandas o recibes desde Gmail si no quedaron logueados automáticamente.
+- **Reunión**: cuando haces una reunión de introducción.
+- **Calificación / Cita**: para una sesión de calificación.
+- **Primera demo**: para la primera demostración.
+- **Siguientes demos**: a partir de la segunda demostración en adelante.
+- **Demo reagendada**: cuando no se presentan a una reunión, sea cual sea el tipo de reunión.
+- **Seguimiento de cotización**: cuando haces un follow-up de cotización o una reunión de cierre.
+- **Pendiente / To-Do**: para lo que queda abierto — preguntas pendientes, presales, confirmar una reunión, etc.
+
+## Por qué importa
+No es solo disciplina administrativa: es lo que te protege si alguien más intenta tomar tu lead (ver reglas de duplicados) y lo que te permite preparar mejor la siguiente etapa sin tener que reconstruir la historia de memoria.`},
+
+  {categoryId:'herramientas', icon:'☀️', title:'Cómo generar listas de prospección en Lusha e importarlas a Odoo (paso a paso)',
+    summary:'El flujo completo: filtrar contactos en Lusha por industria/tamaño/ubicación, exportarlos, mapearlos a la plantilla de importación y convertirlos en oportunidades dentro del CRM.',
+    tags:['lusha','prospeccion','importar','leads','herramientas'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / How to generate lists on Lusha?',
+    links:[],
+    bodyRaw:`## 1. Filtra contactos en Lusha
+En la pestaña de prospección, filtra por: ubicación de la empresa (HQ), industria, tamaño de la empresa (empleados), ingresos (opcional), ubicación del contacto (similar a la de la empresa) y seniority.
+
+## 2. Selecciona y revisa los contactos
+Puedes activar la opción de excluir contactos que ya están guardados en la lista de alguien más — evita duplicados, aunque también reduce cuántos contactos ves (algunos duplicados viejos podrían valer la pena trabajarlos igual, úsalo con criterio). Al hacer clic en "Ver detalles" se revela la información del contacto, en lote o uno por uno.
+
+## 3. Agrégalos a una lista con nombre estandarizado
+Usa una convención de nombre tipo: **ORIGEN - Cliente/Zona - Fecha de exportación (AAMMDD) - Industria elegida.** Ese nombre de lista se usa después como campaña en Odoo para poder sacar reportes.
+
+## 4. Exporta e impórtalos a Odoo
+1. Exporta la lista de Lusha como CSV (máximo ~150 líneas por exportación).
+2. Ábrelo en Google Sheets.
+3. Usa tu plantilla de importación (columnas: nombre de oportunidad con fórmula, industria, nombre de empresa, nombre y datos del prospecto).
+4. Adapta la fórmula de la hoja de importación con el nombre de tu hoja.
+5. Descarga el archivo e impórtalo en Leads > Importar registros — Odoo importa la primera hoja del archivo, así que debe ser la de la plantilla de importación.
+6. Verifica que las columnas mapeen bien a los campos de Odoo (ej. nombre de empresa).
+7. En la primera importación, selecciona "Crear nuevos valores" para el campo de campaña.
+8. Encuentra tus leads con el filtro: Tipo = Lead Y Vendedor = tú (usa el operador "todos", no "cualquiera").
+9. Agrupa tus leads por campaña y selecciona todos para agregar etiquetas en lote (ej. "Outbound" + nombre de la industria).
+10. Convierte los leads en oportunidades desde la vista de lista.
+
+Con esto, los leads quedan convertidos en oportunidades y agregados a tu pipeline, listos para empezar a llamar.`},
+
+  {categoryId:'proceso', icon:'☎️', title:'Cadencia de prospección fría: cuántas llamadas y emails, y en qué días',
+    summary:'La cadencia de referencia del playbook global (día 1 al día 40, combinando llamadas, emails, LinkedIn e InMails) — un canvas para adaptar, no una receta rígida.',
+    tags:['prospeccion','cadencia','llamadas','email','cold-calling'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Calling Process',
+    links:[],
+    bodyRaw:`Los leads llegan de distintos canales (Lusha, prospección propia, eventos, ferias). Esta es la cadencia de referencia para prospección propia — es un canvas: siéntete libre de adaptarla, hacer más contactos o mantener el lead más tiempo si tiene sentido.
+
+## Cadencia día por día
+| Día | Acción 1 | Acción 2 | Acción 3 |
+|---|---|---|---|
+| D1 | Llamada 1 | Email 1 | |
+| D3 | Llamada 2 | Buzón de voz | |
+| D6 | Email 2 | Agregar en LinkedIn | |
+| D10 | Llamada 3 | InMail 1 | |
+| D14 | Email 3 | | |
+| D20 | Llamada 4 | InMail 2 | |
+| D30 | Llamada 5 | Buzón de voz | Email 4 |
+| D40 | Llamada 6 | Email 5 | |
+
+## Tips para los emails
+- Objeto de correo personalizado (evita mayúsculas completas y signos de exclamación, filtro anti-spam).
+- No lo hagas largo.
+- Incluye un call to action claro (link para agendar, "¿cuándo te puedo volver a llamar?", etc.).
+- Adapta tu vocabulario a la industria del prospecto.
+
+## Estructura de las 5 plantillas de email (adaptar a tu contexto/idioma)
+1. **Día 1** — gancho directo: mencionas que buscas platicar sobre la gestión de sus operaciones, que ya ayudas a jugadores similares del sector a centralizar sus procesos (ventas, inventario, contabilidad) en una sola plataforma, y propones 15 minutos con un link de agenda.
+2. **Día 6** — dato duro de productividad ("en promedio, X% más de productividad con Odoo").
+3. **Día 14** — pregunta retórica sobre cuántas herramientas distintas usan hoy, y cómo Odoo puede reemplazar varias.
+4. **Día 30** — último intento antes de archivar, con foco en automatizar un flujo específico que ya identificaste.
+5. **Día 40 (cierre)** — cierre formal del expediente, dejando la puerta abierta y el link de agenda por si acaso.
+
+## Reactivar leads viejos ("Cold Opps")
+Tres enfoques que puedes rotar:
+- **Aportar valor**: comparte un estudio o testimonio de la industria sin mencionar directamente a Odoo.
+- **Novedad/pretexto**: reengancha mencionando una función nueva de Odoo que podría interesarles.
+- **Check-in humano**: a los 3-6 meses del último intento, un mensaje simple tipo "¿cómo va todo?", sin venta directa.
+
+💡 Tip de la fuente: un P.D. personalizado funciona increíblemente bien en seguimientos de largo plazo — por ejemplo "vi que abrieron una oficina nueva, ¡felicidades!". Demuestra que no es un envío automático, sino que sigues de cerca el crecimiento de su empresa (nunca inventes el dato — solo si lo viste de verdad).`},
+
+  {categoryId:'proceso', icon:'📆', title:'Cadencia y plantillas para invitar prospectos a un evento de industria',
+    summary:'Dos cadencias distintas: una para invitar a gente a un evento (Event Prospection) y otra para dar seguimiento a quien ya se registró (Event Registration), con la estructura de cada email.',
+    tags:['eventos','prospeccion','cadencia','email'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Calling Process / Industry Event',
+    links:[],
+    bodyRaw:`## Prospección para invitar al evento
+Usa la misma cadencia día 1 a día 40 de la prospección estándar (ver "Cadencia de prospección fría"), pero con el gancho puesto en la invitación al evento.
+
+Estructura de los 5 emails de invitación:
+1. **Invitación exclusiva (lanzamiento)** — invitación personal al evento, con networking incluido y cupo limitado.
+2. **Foco en el módulo/tema específico** — qué se va a mostrar, pensado para su industria.
+3. **Ángulo networking** — la oportunidad de conocer pares de su mismo sector.
+4. **Prueba social + recordatorio de agenda** — qué va a pasar en el evento (presentación, ejercicio práctico, networking) más algún testimonio.
+5. **Última oportunidad** — último mensaje, últimos lugares disponibles.
+
+## Seguimiento de quien ya se registró
+| Día | Acción 1 | Acción 2 | Acción 3 |
+|---|---|---|---|
+| Día del registro | Llamada 1 | Buzón de voz | Agregar en LinkedIn |
+| D-2 | Email 1 (recordatorio) | | |
+| Día del evento | Email 2 (recordatorio) | | |
+| D+1 | Llamada 2 | Email 3 | |
+| D+7 | Email 4 | | |
+| D+14 | Llamada 3 | InMail 1 | |
+| D+21 | Llamada 4 | Buzón de voz | Email 5 |
+| D+30 | Llamada 5 | | |
+
+Estructura de los emails post-registro:
+1. **2 días antes** — recordatorio, ofrece alternativa virtual si no puede asistir en persona.
+2. **El día del evento** — recordatorio de último minuto.
+3. **Al día siguiente** — pide feedback del evento y propone una reunión de 15 minutos. 💡 Si platicaste con la persona durante el networking, menciona un detalle específico de esa conversación — ayuda mucho a conseguir la reunión.
+4. **7 días después** — seguimiento de proyecto.
+5. **21 días después (cierre)** — cierre del expediente si no hay respuesta, dejando la puerta abierta.`},
+
+  {categoryId:'herramientas', icon:'📧', title:'Plantillas de email para situaciones puntuales (fuera del ciclo estándar de prospección)',
+    summary:'Mensajes cortos para: retomar una conversación después de un tiempo sin contacto, compartir tus datos de contacto, dar seguimiento por LinkedIn/WhatsApp, y reagendar una cita perdida.',
+    tags:['email','plantillas','herramientas','whatsapp','linkedin'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Calling Process / Other Emails',
+    links:[],
+    bodyRaw:`Plantillas para momentos puntuales que no siguen la cadencia estándar de prospección — adapta el tono y los datos a tu caso.
+
+## Seguimiento de proyecto
+Retomar la conversación sobre las necesidades de gestión del prospecto después de un tiempo sin contacto, preguntando si algo cambió en su situación.
+
+## Compartir tus datos de contacto
+Mensaje corto para compartir tu teléfono/correo después de una llamada, para que quede fácil de encontrar.
+
+## Mensaje de LinkedIn / WhatsApp
+Mensaje corto después de que el prospecto probó Odoo (trial) o tuvo un primer contacto, proponiendo agendar una reunión.
+
+## Confirmación de cita agendada
+Qué esperar en la primera reunión ya agendada: entendimiento de la empresa, sus procesos, identificación de las apps relevantes, presupuesto/tiempos, y planeación de la demo. Sirve para que el prospecto llegue con expectativas claras.
+
+## Cita perdida (no-show)
+Mensaje para reagendar cuando el prospecto no se presentó a una cita — sin reproche, proponiendo directamente nueva fecha/hora.
+
+## Nota
+La fuente también incluía una plantilla de invitación al evento anual "Odoo Experience" (ofreciendo una sesión personalizada previa gratis) — aplica solo si hay un evento equivalente en México/LATAM.`},
+
+  {categoryId:'proceso', icon:'🗣️', title:'Plantilla de calificación: qué preguntar y cómo documentarlo',
+    summary:'La estructura de 3 partes para una buena calificación (panorama general, procesos de negocio con pain points, y proceso de decisión), el resumen que debe quedar en la oportunidad, y por qué loguear notas de inmediato te protege el deal.',
+    tags:['calificacion','crm','proceso','plantilla'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Qualification',
+    links:[],
+    bodyRaw:`## El objetivo de calificar
+Reunir la mayor cantidad de información posible sobre las necesidades y procesos del cliente — identificar, entender y analizar. Seguimos en un proceso de venta, pero en esta etapa casi no se habla de Odoo todavía: hay que ganarse el derecho a proponer la solución calificando bien primero.
+
+Sé curioso y completo — pregunta todo lo que puedas, no hay preguntas malas. Tip: ponte en modo "candidato a un puesto" — si empezaras a trabajar con ellos mañana, ¿qué necesitarías entender para preparar bien tu primer día? Toma un ejemplo concreto de un flujo concreto (te sirve después, en la demo).
+
+## Plantilla de calificación (3 partes)
+
+**1. Panorama general**
+Empresa / SPOC (persona de contacto) / historia de la empresa / software actual / número de empleados / situación (¿por qué estamos aquí?) y objetivos/necesidades generales.
+
+**2. Análisis de procesos de negocio** (por proceso o por app)
+Para cada proceso: Flujo / Pain points / Métricas.
+
+**3. Proceso de decisión y próximos pasos**
+Tiempos / proceso de decisión / quién decide / competidores / criterios de decisión / presupuesto / próximos pasos / comentarios extra.
+
+## Resumen para poner en la descripción de la oportunidad
+Sector / Apps relevantes / # usuarios + # empleados / Pain points / Presupuesto / Tiempos / Proceso de decisión / Sistema actual a reemplazar / Competidores / Próximos pasos.
+
+## Después de calificar
+- Loguea la actividad de calificación de inmediato.
+- Registra tus notas apenas termines la llamada (mensaje, no nota interna) — deben quedar completas y estructuradas. Esto te protege: si alguien más intenta tomar tu lead, solo se lo regresan si tú ya logueaste notas y actividad (ver reglas de duplicados/traspaso). También te ayuda a preparar mejor la demo.
+- Pon el resumen en la descripción de la oportunidad.
+- Manda un correo confirmando el siguiente paso y la invitación de calendario.
+
+Si no logueas tus notas y alguien más se queda con el lead o el deal, es tu responsabilidad.`},
+
+  {categoryId:'demos', icon:'🖥️', title:'Cómo dar una demo que convierta: tips tácticos',
+    summary:'Storytelling con el propio caso del cliente, hablar de precio pronto, mantener el control de la sesión, y usar los pain points detectados en la calificación como el momento "wow" — más el hábito de grabar tus buenas demos para que el equipo aprenda.',
+    tags:['demo','tips','storytelling','pain-points'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Demonstration',
+    links:[],
+    bodyRaw:`## Antes de la demo
+- Prepárala con tiempo, no la improvises.
+- Orienta la demo hacia el valor agregado, no hacia el recorrido genérico de funciones.
+- Sé específico — adapta la presentación a la realidad concreta de ese proyecto.
+- Prepara tu propuesta de precio (licencias/plan/pack) antes de entrar.
+- Si es una demo grande o complicada, pide hacer un ensayo (dry run) con tu equipo antes.
+
+## Tips durante la demo
+- **Storytelling**: engancha hablando de algo que el cliente ya te contó — haz la demo como si el cliente ya usara Odoo en su día a día, con el ejemplo concreto que dio en la calificación.
+- **Implementación**: menciona el pack de implementación lo antes posible; si algo no viene configurado de fábrica en ese pack, dilo con confianza (no es un defecto, es parte de la propuesta).
+- **Confianza**: eres el experto en Odoo frente al cliente, aunque acabes de empezar en el puesto.
+- **Control de la sesión**: mantén el control del flujo y de las preguntas — si algo no tiene que ver con lo que estás mostrando, puede esperar a que termines ese bloque.
+- **Efectos "wow"**: prepara de antemano algo específico para CADA cliente, basado en su pain point — ayuda muchísimo a cerrar. Frase tipo: "Me contaste que hoy batallas con esto. Mira, con Odoo es facilísimo — ya no hay error, ya no tienes que revisar dos veces."
+- **Pain points**: identifícalos lo antes posible en la calificación y tráelos de vuelta durante la demo, no los dejes solo en tus notas.
+- Cierra con claridad: ¿cuáles son los siguientes pasos, por qué, con quién y cuándo? Agenda la siguiente llamada o reunión ahí mismo, aunque todavía no hayan firmado.
+
+## Después de una buena demo
+Vale la pena grabarla y guardarla donde el equipo la pueda consultar (ej. una carpeta compartida), nombrada con un formato tipo "Industria - Cliente - Fecha" — para que otros AEs puedan aprender de una demo que sí funcionó.`},
+
+  {categoryId:'proceso', icon:'👁️', title:'Seguimiento post-venta (follow-up): por qué no es opcional',
+    summary:'Los 4 motivos por los que el follow-up mensual con el cliente no es una tarea administrativa sino un revenue driver — con la cadencia recomendada, qué revisar antes/durante/después de la llamada, y una plantilla lista para usar.',
+    tags:['follow-up','account-management','postventa','proceso'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Account Management / Followups',
+    links:[],
+    bodyRaw:`## Por qué el follow-up no es "opcional"
+- **Asegurar la satisfacción del cliente**: detectar problemas temprano (ej. si el cliente no se ha logueado en 3 semanas, es una señal de riesgo de adopción).
+- **Maximizar el potencial de ingresos**: detectar upsell de usuarios, plan, packs u hosting (ej. tras 2 meses, la empresa nota que Contabilidad + Inventario no le alcanza → oportunidad de Manufactura o Studio).
+- **Construir relación de largo plazo**: que el cliente sienta que no lo "abandonaste" después de que firmó.
+- **Mejorar el desempeño y la reputación del equipo**: el feedback sobre la implementación reduce el tiempo de futuras escalaciones y crea clientes que te recomiendan.
+
+Tu mejor fuente de leads nuevos es tu propia red y tus clientes actuales.
+
+## Cadencia recomendada
+Al menos 1 follow-up al mes durante los primeros 3 meses, luego 1 cada 3 meses. Sé proactivo — no esperes a que el cliente se queje. Revisa siempre cuándo fue el último contacto y escala riesgos temprano. Las llamadas son obligatorias; los correos son solo un resumen, no un sustituto.
+
+## Antes de la llamada
+Revisa las notas de la cuenta/suscripción, el feedback si hay un consultor de implementación asignado, y haz un check rápido: en qué versión está, si sigue usando el sistema activamente, qué módulos tiene y cuáles podrían interesarle según su giro, y si hay facturas pendientes o algo mal configurado.
+
+## Durante la llamada
+Qué se ha configurado desde la última llamada, cómo va el uso/feedback de los usuarios, cómo va la colaboración con el consultor si aplica, y sus dudas o preocupaciones específicas — identifica ahí mismo fortalezas y debilidades de su uso actual, es tu oportunidad para detectar upsells.
+
+## Después de la llamada
+Deja un resumen en la bitácora de la cuenta, mándale ese resumen al cliente, da feedback al consultor si aplica, y agenda la siguiente actividad directamente en la cuenta/suscripción.
+
+## El mito que hay que tirar
+"Si me salto el follow-up, tengo más tiempo para deals nuevos." La realidad: un mal follow-up genera más tiempo apagando incendios después, pérdida de ingresos recurrentes y estrés para todo el equipo (project managers, consultores, account managers) — aunque tus números personales de cierre no se vean afectados directamente. Piensa primero en la empresa, no solo en tu deal.
+
+## Plantilla de seguimiento mensual
+\`\`\`
+Situación:
+En producción:
+Próximos pasos:
+Necesidades extra:
+Revisión de contrato:
+Revisión de usuarios:
+----- Lo que sugerí:
+\`\`\``},
+
+  {categoryId:'proceso', icon:'🔚', title:'Handover: qué debe incluir un buen traspaso de cuenta',
+    summary:'Los riesgos de un mal traspaso (upsells perdidos, mala experiencia del cliente, mensajes inconsistentes) vs. los beneficios de uno completo, y la plantilla exacta que debe quedar documentada.',
+    tags:['handover','traspaso','account-management','plantilla'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Account Management / Handover',
+    links:[],
+    bodyRaw:`## Por qué importa un buen handover
+Un mal traspaso de cuenta genera: oportunidades de upsell perdidas, mala experiencia para el cliente, confianza rota, mensajes inconsistentes entre quien entra y quien sale, y disrupción operativa. Un traspaso fuerte, en cambio, da continuidad, una rampa de arranque más rápida para quien recibe la cuenta, ownership claro, y ayuda a detectar nuevas oportunidades desde el día uno.
+
+Un handover completo debe cubrir: infraestructura IT del cliente, entendimiento de su negocio, sus flujos de trabajo, estado del proyecto (qué módulos están en producción, horas usadas/restantes si hay un pack), próximos pasos (roadmap de negocio y de Odoo), y satisfacción general del cliente (riesgos, frustraciones, puntos altos).
+
+**La prueba de que un handover está bien hecho**: si quien recibe la cuenta puede responder preguntas del cliente sin tener que preguntar primero "¿cuál es el contexto?", el traspaso fue bueno.
+
+## Plantilla de handover
+\`\`\`
+Nombre de la empresa:
+Giro:
+Actividad:
+# empleados:
+
+Información de contacto
+Nombre del SPOC:
+Rol del SPOC:
+
+Alcance del proyecto
+Qué departamentos van a trabajar en Odoo:
+Qué software usaban antes:
+Cuáles son los flujos principales que van a hacer en Odoo:
+Fechas de la primera fase:
+Desarrollos (conectores, customizaciones...):
+Riesgos potenciales:
+
+Oportunidades de expansión identificadas
+Uso futuro:
+Departamentos:
+Usuarios:
+Cómo reaccionó el cliente a la oferta multianual:
+Qué departamentos no están usando Odoo todavía:
+Qué software siguen usando ahí:
+Momento estimado del upsell:
+\`\`\`
+
+Apenas tengas una cuenta nueva que manejar, tómate los 2 minutos de llenar esta nota — te ahorra mucho tiempo después.`},
+
+  {categoryId:'herramientas', icon:'❄️', title:'Prompt de IA para generar un script personalizado de cold calling',
+    summary:'Un prompt listo para pegar en cualquier LLM (Claude, ChatGPT): le das el nombre de la empresa, su sitio web y su LinkedIn, y te devuelve un análisis operativo rápido + un script de llamada en frío con apertura, pitch de 4 frases y manejo de la objeción más común.',
+    tags:['ia','prompt','cold-calling','herramientas','llamadas'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Prompt Script Cold Calling',
+    links:[],
+    bodyRaw:`Prompt para generar, en segundos, un script de llamada en frío adaptado a un prospecto específico. Pégalo en Claude o ChatGPT reemplazando los datos de entrada.
+
+## Cómo usarlo
+Copia el siguiente prompt completo, reemplaza [Nombre de la Empresa] / [URL] / [LinkedIn] con los datos reales del prospecto, y pégalo en tu asistente de IA de preferencia.
+
+## El prompt
+\`\`\`
+Rol: Eres un experto en prospección B2B en frío (Cold Calling), especializado en el ecosistema ERP de Odoo. Tu objetivo es generar un script muy preciso basado en las operaciones reales del prospecto.
+
+Datos de entrada: Empresa: [Nombre de la Empresa] / Sitio web: [URL] / LinkedIn: [URL]
+
+PASO 1 — Filtro de validación operativa (uso interno, no lo muestres en el resultado):
+1) ¿Hay precios públicos con carrito de compra? (Si no → es mayorista/fabricante/proveedor de servicios B2B, no retail clásico)
+2) ¿Hablan de "bodega/almacén" vs. "tienda/showroom"?
+3) ¿El producto/servicio se maneja a granel (tarimas, m², toneladas), por unidad, o se hace sobre pedido?
+
+PASO 2 — Matriz de pain point y solución Odoo (3 problemas ordenados por certeza):
+Nivel 1 (certeza absoluta, inherente al modelo de flujo) / Nivel 2 (media, deducida de fricciones visibles en el sitio) / Nivel 3 (hipotética, ligada a crecimiento o actividad en LinkedIn) — cada uno con un Pain Point y su Solución Odoo correspondiente, sin jerga técnica.
+
+PASO 3 — El entregable:
+1. Análisis operativo flash (máx 3 puntos): sector/micro-nicho exacto, modelo de flujo logístico, un elemento concreto "visto en el sitio".
+2. Script de llamada en frío:
+   - Apertura (estrictamente invariable): "Hola [Nombre del prospecto]. Para ser totalmente honesto, esta es una llamada de prospección. ¿Tienes 20 segundos para que te explique el motivo de mi llamada? Si no te interesa, no hay problema, lo dejamos ahí."
+   - Pitch (máx 4 frases cortas, usando el pain point de Nivel 1/2): (1) Gancho — "Vi en tu sitio que distribuyen [elemento] desde su bodega en [Ciudad]." (2) Pain point — "En su sector, notamos seguido que es un verdadero dolor de cabeza [pain point]." (3) Prueba con Odoo — "Por eso hemos equipado a empresas similares para ayudarles a [solución Odoo como beneficio]." (4) CTA — "Oye, tengo curiosidad: ¿cómo manejan eso hoy? [esperar respuesta] ¿Tiene sentido que platiquemos 20 minutos el próximo martes para ver cómo lo resolvimos para otros como ustedes?"
+   - Objeción ("ya tenemos una herramienta/ERP"): "Te entiendo perfecto, y eso es bueno. La diferencia con Odoo es que no necesariamente reemplazamos todo: conectamos tus herramientas actuales para eliminar los Excel o la doble captura que le hacen lento al equipo. Vale la pena verlo rápido, ¿no crees?"
+
+Restricciones de redacción: evita términos vagos (optimizar, digitalizar, proceso, sinergia, solución integral) — usa términos de piso (evitar doble captura, dejar de buscar una tarima, ver el margen neto). Tono directo, humilde y pragmático — nada de rodeos.
+\`\`\`
+
+Adapta el tono/vocabulario mexicano si el resultado sale con modismos de otro país (el prompt original viene de la cultura comercial belga — directa y pragmática, que en general funciona bien, pero revisa el resultado antes de usarlo tal cual).`},
+
+  {categoryId:'herramientas', icon:'✉️', title:'Prompt de IA para generar un cold email personalizado',
+    summary:'El equivalente en email al prompt de cold calling: genera un correo ultra-corto (menos de 75 palabras), tipo "de igual a igual" entre expertos de industria, con asunto de 2-3 palabras y un solo pain point como gancho.',
+    tags:['ia','prompt','cold-email','herramientas'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Prompt Cold Emailing',
+    links:[],
+    bodyRaw:`Prompt hermano del de cold calling, pensado para generar un cold email ultra-corto, legible en el celular en 3 segundos.
+
+## El prompt
+\`\`\`
+Rol: Eres un experto en copywriting de cold email B2B SaaS, especializado en el ecosistema Odoo. Objetivo: emails "de igual a igual" (Peer-to-Peer) ultra-cortos (menos de 75 palabras), legibles en celular en 3 segundos. Tono: directo, pragmático, asimétrico (como un experto de mercado compartiendo un dato, no como un vendedor lanzando un pitch).
+
+Datos de entrada: Empresa / Sitio web / LinkedIn.
+
+Paso 1 (uso interno): ¿Modelo B2C o B2B/Mayorista/Servicios? ¿Vocabulario de logística vs. retail vs. servicios? ¿Volumen físico, por unidad, o servicio intelectual? ¿Hay alguna noticia reciente útil como "rompehielos" (oficina nueva, contratación específica, premio ganado, producto nuevo, post relevante en LinkedIn)?
+
+Paso 2: Matriz de pain point, misma estructura de 3 niveles de certeza que el prompt de llamadas.
+
+Paso 3 — entregable:
+1. Análisis operativo flash (máx 3-4 puntos): sector y modelo de flujo, elemento concreto "visto en el sitio", el rompehielos si se encontró uno real.
+2. Plantilla de email:
+   - Asunto: 2-3 palabras máximo, en minúsculas (ej. "inventario en [Empresa]", "control de horas de proyecto").
+   - Cuerpo: "Hola [Nombre], viendo el modelo de [Empresa] en torno a [elemento específico visto en el sitio], me surgió una pregunta rápida. La mayoría de los líderes en el sector [micro-nicho] nos dicen que con este esquema, el cuello de botella más grande es [pain point con verbo de acción]. Normalmente termina generando un montón de Excels paralelos difíciles de mantener. Eso es justo lo que Odoo resolvió para [cliente de referencia], permitiéndoles [beneficio medible] sin ninguna doble captura. ¿Te late platicar 15 minutos el martes o jueves para ver cómo le hicieron? (Sin compromiso, solo para que lo tengas como referencia). [Firma]"
+   - P.D. opcional SOLO si encontraste un rompehielos real (ej. "P.D. ¡Felicidades por la apertura de su nueva sucursal!") — nunca lo inventes.
+
+Restricciones absolutas: máximo 75 palabras (sin contar el P.D.); un salto de línea por frase; nunca "espero que estés bien"; nada de jerga (digitalizar, optimizar, proceso, solución 360, ERP).
+\`\`\`
+
+Igual que con el prompt de llamadas: revisa que el resultado suene natural en español mexicano antes de mandarlo — el prompt original está calibrado para el tono comercial belga.`},
+
+  {categoryId:'demos', icon:'📣', title:'Checklist de descubrimiento para vender apps de Marketing',
+    summary:'Preguntas de calificación por app de Marketing (Email Marketing, Marketing Automation, Eventos, Elearning, CRM, dominio propio) y 7 ideas de "efecto wow" para usar durante la demo.',
+    tags:['marketing','demos','checklist','calificacion','apps'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / OB Workshops / [FR] PRESALES Marketing Apps Checklist',
+    links:[],
+    bodyRaw:`Preguntas clave para hacerle al lead según qué apps de Marketing le interesan, más ideas de flujo de demo que generan un "wow" concreto. Tip: duplica este checklist por cliente para ir llenando las respuestas directo ahí.
+
+## Email Marketing
+¿Ya mandan campañas de email hoy? ¿Con qué herramienta? ¿Qué tipo (newsletter, contenido promocional, lead magnet, seguimiento de pedido)? ¿Personalizan según filtros/segmentos? ¿Cuántos emails al día? ¿Cómo consiguen las direcciones? ¿Dan seguimiento a KPIs (open rate, CTR, conversiones)? ¿Prueban A/B en los asuntos? ¿Tienen problemas de entregabilidad o gestión de su base? ¿Cómo manejan las bajas y los rebotes?
+
+## Marketing Automation
+¿Tienen flujos automatizados (bienvenida, nutrición, reactivación)? ¿Cómo dan seguimiento a un lead después del primer contacto? ¿Necesitarían flujos disparados por comportamiento del usuario?
+
+## Eventos
+¿Organizan eventos (webinars, ferias)? ¿Cómo gestionan las inscripciones? ¿Dan seguimiento post-evento? ¿Cómo comunican a los participantes? ¿Son eventos recurrentes? ¿Generan leads a partir de los asistentes?
+
+## Elearning
+¿Ofrecen capacitaciones? ¿Cómo las entregan hoy? ¿Le dan seguimiento al progreso/certificación? ¿Lo usan con fines de marketing?
+
+## CRM
+¿Cómo gestionan sus leads hoy? ¿Tienen visión clara del pipeline? ¿Colaboran bien marketing y ventas? ¿Se pierden leads en el camino? ¿Reactivan leads perdidos? ¿Cómo llega un lead al CRM (formulario, manual, prospección)?
+
+## Dominio propio
+¿Usan su propio dominio para enviar correos desde Odoo? ¿Tienen más de un dominio?
+
+## 7 ideas de "efecto wow" para la demo
+1. Un lead llena un formulario web → se crea una oportunidad → seguimiento automático vía Marketing Automation.
+2. Guardas una plantilla en Email Marketing y la reutilizas en Marketing Automation.
+3. Lead scoring con IA para detectar leads calientes y asignar actividades automáticamente al equipo de ventas.
+4. Un solo clic manda un correo a todos los asistentes de un evento, y luego un seguimiento dinámico o encuesta vía automation.
+5. Flujos automatizados por WhatsApp vía Marketing Automation.
+6. Dos landing pages (B2B/B2C) etiquetadas — la creación de la oportunidad dispara un correo automático según la etiqueta, y el clic actualiza la etiqueta/etapa del pipeline.
+7. Usar IA para actualizar campos y generar correos automáticos.`},
+];
+
+// Noveno lote (2026-07-30, misma sesión): guías de industria (grupo 1 de 2) encontradas en el
+// mismo playbook BE Knowledge / Sales / 1 bis. Outbound → Industries. Son fichas de campaña de
+// prospección (pain points + tipo de email) pensadas originalmente para el mercado europeo — se
+// tradujeron los pain points y el gancho de venta, mientras que las listas de empresas de
+// referencia (Francia/Bélgica/Países Bajos/Suiza) se omitieron por no ser relevantes para México.
+const WIKI_SEED_9=[
+  {categoryId:'apps', icon:'☀️', title:'Vender a empresas de Paneles Solares: pain points y gancho de venta',
+    summary:'Monitoreo de instalaciones y reportes de proyecto, gestión de equipos, seguimiento de prospección y servicio postventa son los dolores más comunes del giro — Odoo tiene módulo de industria dedicado ("Solar Energy Systems").',
+    tags:['solar','energia-solar','vertical','apps','prospeccion'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Solar Panels',
+    links:[],
+    bodyRaw:`Odoo tiene un módulo de industria dedicado para este giro ("Solar Energy Systems") — es un punto a favor claro al posicionar la propuesta.
+
+## Pain points típicos del giro
+- Monitoreo de la actividad/instalaciones y reporte de avance de proyecto.
+- Gestión y coordinación de equipos de instalación en campo.
+- Seguimiento de prospección — mucho tiempo administrativo en el proceso de cotización y seguimiento comercial.
+- Servicio postventa (mantenimiento, garantías, refacciones).
+
+## Ángulo de venta
+El dolor de fondo es la desconexión entre la parte comercial (cotizar, dar seguimiento) y la operación en campo (instalación, servicio). Un ERP que una CRM + Proyectos + Servicio Externo + Inventario en un solo lugar resuelve la falta de visibilidad que hoy tienen entre "lo que se vendió" y "lo que se instaló y falta dar seguimiento".
+
+## Estructura de email de prospección (3 toques)
+Igual que la cadencia estándar de prospección fría: gancho + pain point + prueba con Odoo + CTA, adaptado a este giro. Un testimonial de un cliente del mismo giro (aunque sea de otro país) ayuda como prueba social si no tienes uno mexicano todavía.`},
+
+  {categoryId:'apps', icon:'🩺', title:'Vender a empresas de Dispositivos Médicos: pain points y gancho de venta',
+    summary:'Centralizar inventario/trazabilidad/control de calidad, facilitar transacciones internacionales con proveedores y clientes, y optimizar la planeación del ciclo de producción son los 3 pain points centrales del giro.',
+    tags:['dispositivos-medicos','manufactura','vertical','apps','prospeccion'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Medical Devices',
+    links:[],
+    bodyRaw:`## Pain points típicos del giro
+1. **Centralizar procesos de gestión** (inventario, trazabilidad, control de calidad, reabastecimiento) → simplifica la trazabilidad y ahorra tiempo — crítico en un giro donde la trazabilidad suele ser regulatoria, no opcional.
+2. **Facilitar transacciones internacionales** con proveedores y clientes → ganancia de productividad cuando hay importación/exportación de insumos o producto terminado.
+3. **Optimizar la planeación del ciclo de producción** → mejor pronóstico y reducción de costos.
+
+## Ángulo de venta
+En este giro la trazabilidad no es un "nice to have": suele ser un requisito regulatorio (lote, número de serie, control de calidad documentado). Un sistema que conecta inventario + calidad + compras + producción en un solo lugar, con trazabilidad de lote nativa, es un argumento fuerte frente a hojas de cálculo o sistemas desconectados.`},
+
+  {categoryId:'apps', icon:'🍻', title:'Vender a Microcervecerías: pain points y gancho de venta',
+    summary:'Gestión de inventario/materia prima, trazabilidad de lote (regulatoria), producción caótica con muchos pedidos simultáneos, complejidad administrativa con proveedores-distribuidores, y venta multicanal (tienda, bares, restaurantes, online).',
+    tags:['microcerveceria','manufactura','bebidas','vertical','apps'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Microbreweries',
+    links:[],
+    bodyRaw:`Odoo tiene un módulo de industria dedicado para este giro ("Microbrewery") — punto a favor claro al posicionar la propuesta.
+
+## Pain points típicos del giro
+- Gestión de inventario y materia prima (maltas, lúpulos, levaduras).
+- Trazabilidad de lote — suele ser un requisito regulatorio, no opcional.
+- Producción caótica cuando hay muchos pedidos simultáneos y distintas recetas/lotes en proceso.
+- Complejidad administrativa: pedidos, facturas y pagos con proveedores y distribuidores.
+- Optimizar la venta y distribución en varios canales a la vez (punto de venta propio, bares, restaurantes, online).
+
+## Ángulo de venta
+El dolor combina manufactura (trazabilidad de lote, recetas, producción) con venta multicanal (POS + distribución + e-commerce). Es un giro donde mostrar cómo Odoo conecta producción → inventario → venta en varios canales en un solo sistema suele generar el "momento aha", porque hoy normalmente llevan cada canal por separado.`},
+
+  {categoryId:'apps', icon:'👨‍🔧', title:'Vender a Ingeniería y Consultoría técnica: pain points y gancho de venta',
+    summary:'Gestión de proyectos y control de horas sin visibilidad de avance/rentabilidad, cotizaciones y facturación manual con pagos por fases, y documentación dispersa entre correo/servidores/nube.',
+    tags:['ingenieria','consultoria-tecnica','vertical','apps','proyectos'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Engineering Services',
+    links:[],
+    bodyRaw:`## Pain points típicos del giro
+1. **Gestión de proyectos y control de horas** — dependencia de Excel u herramientas desconectadas, sin visibilidad clara del avance ni de la rentabilidad real del proyecto.
+2. **Cotizaciones, facturación y control financiero** — cotizaciones manuales, facturación compleja cuando el pago es por fases del proyecto.
+3. **Centralización de documentos y colaboración** — planos, reportes y entregables dispersos entre correo, servidores propios y la nube.
+
+## Ángulo de venta
+El mensaje central: un despacho de ingeniería vive de vender horas/entregables con rentabilidad ajustada — si no sabe en tiempo real cuánto le está costando un proyecto vs. lo cotizado, está operando a ciegas. Proyectos + Partes de Horas + Facturación conectados resuelven justo eso, y Documentos centraliza lo que hoy vive disperso.`},
+
+  {categoryId:'apps', icon:'✈️', title:'Vender a empresas de Turismo: pain points y gancho de venta',
+    summary:'El artículo más detallado del grupo: 6 categorías de dolor — reservas/agenda, facturación y pagos, experiencia y comunicación con el cliente, gestión de inventario/equipo, marketing y fidelización, y seguimiento/reportes operativos.',
+    tags:['turismo','vertical','apps','reservas'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Tourism',
+    links:[],
+    bodyRaw:`## Pain points típicos del giro (6 categorías)
+- **Reservas y agenda**: sistemas anticuados, overbooking, sin confirmaciones automáticas.
+- **Facturación y pagos**: errores manuales, depósitos/pagos parciales, recordatorios de pago.
+- **Experiencia y comunicación con el cliente**: sin seguimiento personalizado, canales de comunicación dispersos, sin gestión de reseñas.
+- **Gestión de inventario y equipo**: seguimiento de vehículos/equipo deportivo, planeación de mantenimiento.
+- **Marketing y fidelización**: sin segmentación, sin CRM, sin analítica de campañas.
+- **Seguimiento operativo y reportes**: sin dashboards, datos dispersos.
+
+## Ángulo de venta
+Es el giro con más superficie de dolor identificada en la fuente — vale la pena profundizar cuál de las 6 categorías es la más dolorosa para el prospecto específico durante la calificación, en vez de intentar cubrir las 6 en la demo. Empieza por reservas/agenda (suele ser el dolor más visible y urgente) y usa las otras 5 como munición adicional según lo que el cliente mencione.`},
+
+  {categoryId:'apps', icon:'👕', title:'Vender a la Industria de la Moda: pain points y gancho de venta',
+    summary:'Dos sub-segmentos con dolores distintos — Merch (mercancía/promocionales): manejo de SKUs y quiebres de stock; Fashion (colecciones): complejidad de inventario por talla/color/material, transparencia de cadena de suministro y pronóstico de demanda.',
+    tags:['moda','fashion','retail','vertical','apps'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Fashion Industry',
+    links:[],
+    bodyRaw:`La fuente distingue dos sub-segmentos dentro del giro, con dolores distintos — vale la pena identificar cuál aplica al prospecto antes de armar el pitch.
+
+## Sub-segmento "Merch" (mercancía/promocionales)
+- Gestión de inventario (SKUs, quiebres de stock vs. sobre-stock).
+- Visibilidad de la cadena de suministro.
+- Seguimiento de pedidos personalizados/custom.
+- Planeación de producción.
+- Integración omnicanal (tienda física + online + mayoreo).
+
+## Sub-segmento "Fashion" (colecciones/marca)
+- Complejidad de inventario (colecciones, tallas, colores, materiales, todo combinado).
+- Transparencia de la cadena de suministro.
+- Retos de personalización/orden a medida.
+- Cuellos de botella en producción (fechas de temporada que se cumplen a fuerza).
+- Integración omnicanal.
+- Pronóstico de demanda.
+
+## Ángulo de venta
+En ambos casos el dolor de fondo es la explosión combinatoria de variantes (SKU × talla × color × material) sin un sistema que la controle de forma nativa — Odoo maneja variantes de producto de forma estructurada, lo cual es un argumento fuerte frente a un control por Excel.`},
+
+  {categoryId:'apps', icon:'📱', title:'Vender a Agencias de Marketing: pain points y gancho de venta',
+    summary:'El artículo con el formato más "vendedor" del grupo — cada pain point viene emparejado con su solución Odoo explícita: herramientas fragmentadas, procesos manuales, seguimiento de proyectos de cliente, mala gestión de CRM y finanzas complejas.',
+    tags:['agencias-marketing','servicios','vertical','apps'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Marketing Agencies',
+    links:[],
+    bodyRaw:`Odoo tiene un módulo de industria dedicado para este giro ("Marketing Agency"). Este es el artículo mejor estructurado del grupo — cada dolor viene ya emparejado con su solución, ideal para usar casi textual en una llamada o email.
+
+## Pain points → Solución Odoo
+1. **Herramientas y sistemas fragmentados** → Odoo integra los módulos en una sola plataforma.
+2. **Procesos manuales que consumen tiempo** → automatiza facturación, reportes a cliente y partes de horas.
+3. **Dificultad para dar seguimiento a proyectos de cliente** → diagramas Gantt, asignación de tareas, control de presupuesto por proyecto.
+4. **Mala gestión de la relación con el cliente** → CRM centralizado con seguimientos automáticos.
+5. **Gestión financiera compleja** → módulo de contabilidad integrado.
+
+## Ángulo de venta
+Es el giro más fácil de pitchear porque el prospecto YA entiende de marketing/automatización — el argumento "ustedes le arman esto a sus clientes, nosotros se lo damos armado a ustedes" suele aterrizar bien.`},
+
+  {categoryId:'apps', icon:'🌱', title:'Vender a Agencias/Consultoras Ambientales: pain points y gancho de venta',
+    summary:'Gestión de proyectos con múltiples actores, reportes y documentación de cumplimiento ambiental, control de tiempo y facturación transparente, gestión de relación con el cliente, y planeación de recursos (asignar al experto correcto al proyecto correcto).',
+    tags:['ambiental','sustentabilidad','consultoria','vertical','apps'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Environmental Agencies',
+    links:[],
+    bodyRaw:`Odoo tiene un módulo de industria dedicado para este giro ("Environmental Agency").
+
+## Pain points típicos del giro
+- Gestión de proyectos complejos con coordinación de múltiples actores (cliente, autoridades, subcontratistas técnicos).
+- Reportes y documentación — impacto ambiental, cumplimiento regulatorio, recomendaciones técnicas.
+- Control de tiempo y facturación — facturación transparente y automatizada por horas/proyecto.
+- Gestión de relación con el cliente (CRM).
+- Planeación de recursos — asignar al experto correcto (por especialidad) al proyecto correcto.
+
+## Ángulo de venta
+Es un giro de consultoría especializada con mucha carga documental/regulatoria — el argumento de Documentos + Proyectos + Partes de Horas centralizados suele resonar con quien hoy arma reportes de cumplimiento a mano.`},
+
+  {categoryId:'apps', icon:'📆', title:'Vender a empresas de Gestión de Eventos: pain points y gancho de venta',
+    summary:'Planeación y coordinación de eventos simultáneos, contactos y proveedores desorganizados, control de presupuesto difícil (sobrecostos sin visibilidad en tiempo real), y comunicación interna ineficiente sobre quién es responsable de qué.',
+    tags:['eventos','gestion-eventos','vertical','apps'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Event Management',
+    links:[],
+    bodyRaw:`Odoo tiene un módulo de industria dedicado para este giro ("Event Management").
+
+## Pain points típicos del giro
+- Planeación y coordinación compleja cuando hay varios eventos simultáneos, con distintos equipos, sedes y proveedores.
+- Gestión desorganizada de contactos y proveedores — sin historial centralizado.
+- Control de presupuesto difícil — sobrecostos sin visibilidad en tiempo real.
+- Comunicación interna ineficiente — no queda claro quién es responsable de qué tarea.
+
+## Ángulo de venta
+El dolor de fondo es coordinación (equipos + proveedores + presupuesto) cuando hay varios eventos corriendo en paralelo. Proyectos + Compras + Contactos conectados en un solo lugar, con el presupuesto visible en tiempo real por evento, es el argumento central.`},
+];
+
+// Décimo lote (2026-07-30, misma sesión): resto de la librería de industrias BE (grupo 2 de 2).
+// De las 9 restantes solo 5 tenían contenido real (HVAC, Cosmética, Wholesale, Logística, Deportes)
+// — Real Estate, Beverage Distributor y Acoustic & Thermal Insulation eran artículos "stub" sin
+// pain points ni mailing (Real Estate incluso advierte "no prospectar, módulo no listo"), e
+// "Industry Q&A" solo apunta a otros 2 artículos fuera del alcance pedido. No se sembraron esos 4.
+const WIKI_SEED_10=[
+  {categoryId:'apps', icon:'👷', title:'Vender a instaladores de Climas y Sistemas de Calefacción (HVAC): pain points y gancho de venta',
+    summary:'Proceso de cotización desorganizado, dificultad para agendar técnicos/visitas, complejidad de inventario multi-bodega, y seguimiento débil de contratos de mantenimiento recurrente.',
+    tags:['hvac','climas','calefaccion','vertical','apps','servicio-tecnico'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / HVAC & heating system Installation',
+    links:[],
+    bodyRaw:`Odoo tiene un módulo de industria dedicado para este giro ("HVAC Services").
+
+## Pain points típicos del giro
+- **Proceso de venta y cotización desorganizado**: cotizaciones manuales, seguimiento de clientes por correo o Excel, precios inconsistentes entre vendedores.
+- **Problemas de agenda y asignación de recursos**: dificultad para coordinar horarios de técnicos, visitas a sitio y tiempos de instalación.
+- **Complejidad de inventario y cadena de suministro**: control de stock en varias bodegas, pedidos de refacciones retrasados, disponibilidad poco clara.
+- **Seguimiento débil de servicio postventa y mantenimiento**: contratos de mantenimiento recurrente que se olvidan, sin historial centralizado de intervenciones pasadas.
+- **Agenda de intervenciones/técnicos**: dificultad para organizar citas, rutas, equipos y trabajos de emergencia de forma eficiente.
+
+## Ángulo de venta
+El dolor combina venta técnica (cotizar bien, con precios consistentes) con operación de campo (agendar técnicos, controlar refacciones, no perder de vista los contratos de mantenimiento que se renuevan). CRM + Servicio Externo + Inventario + Suscripciones conectados es el argumento — sobre todo el punto de "no perder ningún contrato de mantenimiento" suele ser el gancho más fuerte porque es dinero recurrente que hoy se les escapa.`},
+
+  {categoryId:'apps', icon:'💄', title:'Vender a Manufactura Cosmética: pain points y gancho de venta',
+    summary:'7 pain points detallados: formulación/PLM, trazabilidad regulatoria, control de fechas de caducidad, planeación de producción (MRP), calidad/CAPA, costeo/COGS, e integración de datos entre áreas.',
+    tags:['cosmetica','manufactura','regulatorio','vertical','apps'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Cosmetic Manufacturing',
+    links:[],
+    bodyRaw:`Odoo tiene un módulo de industria dedicado para este giro ("Cosmetic Store").
+
+## Pain points típicos del giro (cada uno con su solución Odoo)
+1. **Gestión compleja de fórmulas y R&D** → módulo de PLM/lista de materiales (BOM) para versionar fórmulas.
+2. **Trazabilidad y cumplimiento regulatorio** (marcado como el más crítico) — en Europa se referencia el reglamento cosmético EU, REACH y el expediente de información del producto (PIF); en México el equivalente a revisar con el prospecto es el marco de COFEPRIS. El dolor de fondo es el mismo: poder rastrear cada lote y su documentación de cumplimiento.
+3. **Gestión de inventario y fechas de caducidad** (PAO — periodo después de apertura, y fecha de caducidad) → control FIFO/FEFO nativo.
+4. **Planeación de producción y capacidad** → MRP.
+5. **Gestión de calidad** → manejo de no conformidades y acciones correctivas (CAPA).
+6. **Gestión de costos y análisis de rentabilidad** → contabilidad analítica, costo de bienes vendidos (COGS).
+7. **Integración de procesos y datos** → un ERP integrado en vez de sistemas desconectados entre formulación, producción, calidad y ventas.
+
+## Ángulo de venta
+El punto 2 (trazabilidad regulatoria) suele ser el dolor más urgente y el más fácil de cuantificar en riesgo (multas, recall de producto) — es el mejor punto de entrada en la conversación, seguido de fechas de caducidad (punto 3) si el prospecto maneja inventario físico de insumos con vida útil corta.`},
+
+  {categoryId:'apps', icon:'👜', title:'Vender a Mayoristas (Wholesale): pain points y gancho de venta',
+    summary:'Gestión de inventario (quiebres vs. sobre-stock), sincronización de pedidos/compras/logística, seguimiento de la relación con clientes y proveedores, y facturación/reportes financieros — con vocabulario clave del giro (lead time, dropshipping, cross-docking).',
+    tags:['mayoreo','wholesale','distribucion','vertical','apps'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Wholesale',
+    links:[],
+    bodyRaw:`## Vocabulario específico del giro (para sonar como experto)
+Lead Time (tiempo de entrega), Dropshipping (envío directo desde el proveedor sin pasar por tu bodega), SKU (identificador único de producto), Cross-docking (transferir mercancía de recepción a envío casi sin almacenarla).
+
+## Pain points típicos del giro
+- **Gestión de inventario**: quiebres de stock y sobre-stock al mismo tiempo, en distintas líneas de producto.
+- **Gestión de pedidos y cadena de suministro**: sincronizar ventas, compras y logística sin que se pierda información entre áreas.
+- **Seguimiento de relación con clientes y proveedores**: sin un historial centralizado, se pierde contexto de negociaciones y acuerdos especiales.
+- **Facturación y reportes financieros**: visibilidad limitada de márgenes reales por cliente/producto.
+
+## Ángulo de venta
+El mensaje central: un mayorista vive de mover volumen con margen ajustado — cualquier fricción entre "lo que se vendió", "lo que hay en inventario" y "lo que hay que comprar" se traduce directo en quiebres de stock o capital inmovilizado en sobre-stock. Compras + Inventario + Ventas conectados en tiempo real es el argumento, con reducción de lead time como métrica concreta a ofrecer.`},
+
+  {categoryId:'apps', icon:'🚛', title:'Vender a empresas de Logística y Transporte: pain points y gancho de venta',
+    summary:'Gestión de flotilla y optimización de rutas, visibilidad y rastreo en tiempo real, gestión de almacén/inventario (WMS), y complejidad administrativa con documentos de transporte y aduanas.',
+    tags:['logistica','transporte','flotilla','vertical','apps'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Logistics & transport companies',
+    links:[],
+    bodyRaw:`Nota: Odoo no tiene un módulo de industria dedicado a transporte en general, pero sí existe el módulo "3PL Logistic Company" para operadores logísticos que administran bodegas de terceros.
+
+## Vocabulario específico del giro
+Freight (flete), Customs Clearance (despacho aduanal), Incoterms, Last Mile Delivery (última milla), TMS (sistema de gestión de transporte), Transit Time (tiempo de tránsito), Cross-docking, Payload (carga útil).
+
+## Pain points típicos del giro
+- 🚚 **Gestión de flotilla y optimización de rutas.**
+- 📍 **Visibilidad y rastreo en tiempo real** — dónde está cada envío en cada momento.
+- 📦 **Gestión de almacén e inventario (WMS)** — control de bodega propia o de terceros.
+- 📄 **Complejidad administrativa y cumplimiento** — documentos de transporte, aduanas.
+
+## Ángulo de venta
+Es un giro muy cercano al de Comercio Exterior/Logística ya documentado en el wiki (ver el glosario de Incoterms, Landed Costs y Cuentas Analíticas) — los mismos argumentos de trazabilidad de expediente digital y costeo real por embarque aplican aquí. La diferencia es que aquí el foco está más en la flotilla propia (rutas, choferes, mantenimiento de unidades) que en la parte aduanal.`},
+
+  {categoryId:'apps', icon:'🏆', title:'Vender a la Industria del Deporte (manufactura/retail deportivo): pain points y gancho de venta',
+    summary:'Lista de 10 pain points — sistemas fragmentados (Excel + software legado), variantes de producto complejas, inventario impreciso, producción con retrasos, trazabilidad limitada, tiempos de entrega largos de proveedores, estacionalidad de la demanda, canales B2B+DTC/e-commerce a la vez, CRM débil, y poca visibilidad de costos/márgenes de manufactura.',
+    tags:['deportes','sport-industry','manufactura','retail','vertical','apps'],
+    source:'Odoo Knowledge — BE Knowledge / Sales / 1 bis. Outbound / Industries / Sport Industry',
+    links:[],
+    bodyRaw:`Odoo tiene módulos de industria dedicados para este giro ("Sports Club", "Team Sports Club", "Sport Events") — aplican más al lado de clubes/eventos deportivos que al de manufactura, pero vale la pena mencionarlos si el prospecto también opera instalaciones deportivas.
+
+## Pain points típicos del giro (manufactura/retail de artículos deportivos)
+- Sistemas fragmentados (Excel + software heredado) sin visibilidad en tiempo real.
+- Variantes de producto y listas de materiales complejas, difíciles de administrar.
+- Imprecisiones de inventario que generan quiebres de stock o sobre-stock.
+- Problemas y retrasos en la programación de producción.
+- Trazabilidad limitada y retos de control de calidad.
+- Tiempos de entrega largos de proveedores e ineficiencias de compra.
+- Fluctuaciones estacionales de demanda y mal pronóstico.
+- Dificultad para manejar canales B2B y DTC/e-commerce al mismo tiempo.
+- CRM débil (para distribuidores, clubes, reparaciones, garantías).
+- Poca visibilidad de costos de manufactura y márgenes reales.
+
+## Ángulo de venta
+Es un giro con muchos pain points simultáneos — no intentes cubrirlos todos en la primera llamada. Prioriza según lo que el prospecto mencione primero: si se queja de quiebres de stock, entra por variantes de producto + inventario; si se queja de temporadas, entra por pronóstico de demanda; si vende en varios canales, entra por la integración omnicanal.`},
+];
+
 // Lotes de semilla: cada uno se aplica una sola vez (sentinel wikiMeta/<key>), así se puede
 // seguir agregando contenido real de Knowledge en próximas sesiones sin duplicar lo ya sembrado.
 const WIKI_SEED_BATCHES=[
@@ -6678,6 +7608,10 @@ const WIKI_SEED_BATCHES=[
   {key:'seed4', articles:WIKI_SEED_4},
   {key:'seed5', articles:WIKI_SEED_5},
   {key:'seed6', articles:WIKI_SEED_6},
+  {key:'seed7', articles:WIKI_SEED_7},
+  {key:'seed8', articles:WIKI_SEED_8},
+  {key:'seed9', articles:WIKI_SEED_9},
+  {key:'seed10', articles:WIKI_SEED_10},
 ];
 
 let _wikiSeedChecked=false;
