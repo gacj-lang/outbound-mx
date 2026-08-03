@@ -943,7 +943,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-07-30c fix clasificación tags QS: espera el Resumen antes de clasificar (antes corrían en paralelo y nunca se veían) + prompt corrige sesgo de clasificar por la industria del CLIENTE en vez del negocio propio de la empresa';
+const APP_BUILD_STAMP='2026-08-03 CSV Builder: DIRIND (directorio Proveedores Industriales 2023, 5256 empresas) como 3ra fuente del buscador de leads — filtro de categoría/estado/texto propio, columna DATOS DIRIND, cross-match bidireccional con Apollo/DENUE en búsqueda y en pegar/subir archivo';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -9848,14 +9848,16 @@ window.pricingDeleteSelected=async function(){
 const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Email','phone','Tags_id','user_id','state_id','country_id'];
 // Columnas adicionales (además de Notes) — no son campos nativos de Odoo, son texto consolidado
 // para que el AE decida en el importador de Odoo si las mapea a Notas u otro campo:
-// - datos_denue: se llena cuando la fuente primaria fue Apollo y hubo match contra DENUE.
-// - datos_apollo: se llena cuando la fuente primaria fue DENUE y hubo match contra Apollo.
+// - datos_denue: se llena cuando la fuente primaria NO fue DENUE y hubo match contra DENUE.
+// - datos_dirind: se llena cuando la fuente primaria NO fue DIRIND y hubo match contra DIRIND.
+// - datos_apollo: se llena cuando la fuente primaria fue DENUE/DIRIND y hubo match/enrich de Apollo.
 // - resumen: resumen ≤140 caracteres generado por IA con investigación real (LinkedIn + sitio web
 //   de la empresa vía el tool de búsqueda nativo de Claude), para TODAS las fuentes — antes esa
 //   investigación vivía separada en una columna "Web" (solo DENUE-primario); se fusionó aquí para
 //   no duplicar columnas (ver csvEnrichRowsWithAI/csvBatchResumenes).
 const CSV_EXTRA_COLUMNS=[
   {key:'datos_denue', label:'DATOS DENUE'},
+  {key:'datos_dirind', label:'DATOS DIRIND'},
   {key:'datos_apollo', label:'DATOS APOLLO'},
   {key:'resumen', label:'Resumen'},
 ];
@@ -10207,8 +10209,11 @@ function renderCsvBuilder(){
               <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
                 <input type="radio" name="csvSearchFuente" id="csvSearchFuenteDenue" value="denue" onchange="csvOnFuenteChange()"> 🇲🇽 DENUE
               </label>
+              <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
+                <input type="radio" name="csvSearchFuente" id="csvSearchFuenteDirind" value="dirind" onchange="csvOnFuenteChange()"> 🏭 DIRIND
+              </label>
             </div>
-            <span id="csvSearchFuenteHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE — si hay coincidencia, se agrega la columna DATOS DENUE.</span>
+            <span id="csvSearchFuenteHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE y DIRIND — si hay coincidencia, se agregan las columnas DATOS DENUE / DATOS DIRIND.</span>
           </div>
 
           <div style="border:1.5px solid var(--purple);border-radius:12px;padding:14px 16px;margin-bottom:18px;background:var(--purple-light)">
@@ -10235,7 +10240,7 @@ function renderCsvBuilder(){
                 ${LEAD_SEARCH_COUNTRIES.map(c=>`<option value="${c.id}">${c.label}</option>`).join('')}
               </select>
             </div>
-            <div class="form-group" style="margin:0"><label>Giro / Industria</label>
+            <div class="form-group" style="margin:0" id="csvSearchGiroBox"><label>Giro / Industria</label>
               <select class="input" id="csvSearchGiro">
                 <option value="">Cualquiera</option>
                 ${Object.entries(IND_NAMES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
@@ -10246,6 +10251,17 @@ function renderCsvBuilder(){
           <div class="form-group" style="margin-bottom:16px">
             <label>Estado(s) <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera del país elegido)</span></label>
             <div id="csvSearchEstadosBox" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;max-height:130px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
+          </div>
+
+          <!-- DIRIND tiene su propia taxonomía de categorías (98, del propio directorio) -- no
+          aplica el Giro/Industria de Apollo/DENUE. Oculto salvo que DIRIND esté seleccionado. -->
+          <div class="form-group" style="margin-bottom:16px;display:none" id="csvSearchDirindCategoriaBox">
+            <label>Categoría(s) DIRIND <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera)</span></label>
+            <div id="csvSearchDirindCategoriaChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando categorías…</span></div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;display:none" id="csvSearchDirindTextoBox">
+            <label>Buscar en nombre/descripción del anuncio DIRIND <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
+            <input type="text" class="input" id="csvSearchDirindTexto" placeholder="Ej. sand blast, refrigeración, envases...">
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -10339,41 +10355,81 @@ function renderCsvBuilder(){
 // DENUE es un directorio público de México (INEGI) — no cubre otros países, así que al elegirlo
 // se fuerza el selector de País a México y se bloquea (mismo patrón que "Fuente del lead" se
 // autocompleta/bloquea en modo búsqueda). Al volver a Apollo se libera.
-// Los filtros no significan lo mismo para las dos fuentes: Contexto adicional solo alimenta
-// keywords de Apollo (no hace nada en DENUE, así que se oculta) y Nivel/Función del contacto no
-// filtran qué EMPRESAS aparecen en DENUE (ahí no hay dato de contacto) — solo se usan para elegir
+// Los filtros no significan lo mismo entre fuentes: Contexto adicional solo alimenta keywords de
+// Apollo (no hace nada en DENUE/DIRIND, así que se oculta); Nivel/Función del contacto no filtran
+// qué EMPRESAS aparecen en DENUE/DIRIND (ahí no hay dato de contacto) — solo se usan para elegir
 // mejor a la persona en el cruce con Apollo una vez que la empresa ya se identificó, así que se
-// quedan visibles pero con la aclaración puesta en csvContactoFiltroHint.
+// quedan visibles pero con la aclaración puesta en csvContactoFiltroHint; Giro/Industria es la
+// taxonomía de Apollo/DENUE y no aplica a DIRIND (tiene su propia lista de 98 categorías, ver
+// csvLoadDirindCategorias) — se ocultan uno u otro según la fuente elegida.
 window.csvOnFuenteChange=function(){
-  const denue=document.getElementById('csvSearchFuenteDenue')?.checked;
+  const fuente=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':'apollo';
+  const soloMx=fuente==='denue'||fuente==='dirind'; // DENUE y DIRIND solo cubren México
   const paisSel=document.getElementById('csvSearchPais');
   const hint=document.getElementById('csvSearchFuenteHint');
   const contextoBox=document.getElementById('csvSearchContextoBox');
   const contactoHint=document.getElementById('csvContactoFiltroHint');
+  const giroBox=document.getElementById('csvSearchGiroBox');
+  const empBox=document.getElementById('csvSearchEmpMin')?.closest('div[style*="grid-template-columns"]');
+  const dirindCatBox=document.getElementById('csvSearchDirindCategoriaBox');
+  const dirindTextoBox=document.getElementById('csvSearchDirindTextoBox');
   if(paisSel){
-    paisSel.disabled=!!denue;
-    if(denue&&paisSel.value!=='MX'){ paisSel.value='MX'; csvRenderEstadoChips(); }
+    paisSel.disabled=soloMx;
+    if(soloMx&&paisSel.value!=='MX'){ paisSel.value='MX'; csvRenderEstadoChips(); }
   }
-  if(hint) hint.textContent=denue
-    ?'DENUE: directorio público de México (INEGI), teléfono y correo corporativo garantizados. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.'
-    :'Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE — si hay coincidencia, se agrega la columna DATOS DENUE.';
+  const HINTS={
+    apollo:'Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE y DIRIND — si hay coincidencia, se agregan las columnas DATOS DENUE / DATOS DIRIND.',
+    denue:'DENUE: directorio público de México (INEGI), teléfono y correo corporativo garantizados. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
+    dirind:'DIRIND: directorio impreso Proveedores Industriales 2023 (5,256 empresas), teléfono y correo del propio anuncio. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
+  };
+  if(hint) hint.textContent=HINTS[fuente];
+  if(giroBox) giroBox.style.display=fuente==='dirind'?'none':'';
+  if(dirindCatBox) dirindCatBox.style.display=fuente==='dirind'?'block':'none';
+  if(dirindTextoBox) dirindTextoBox.style.display=fuente==='dirind'?'block':'none';
+  if(fuente==='dirind') csvLoadDirindCategorias();
+  if(empBox) empBox.style.display=fuente==='dirind'?'none':'grid'; // DIRIND no trae dato de tamaño de empresa
   if(contextoBox){
-    contextoBox.style.display=denue?'none':'block';
+    contextoBox.style.display=fuente==='apollo'?'block':'none';
     // Se limpia al ocultarlo — si el AE ya había escrito algo, evita que quede ahí "atorado" sin
     // efecto y sin que se vea (al volver a Apollo, mejor que empiece en blanco que con texto viejo).
-    if(denue){ const ta=document.getElementById('csvSearchContexto'); if(ta) ta.value=''; }
+    if(fuente!=='apollo'){ const ta=document.getElementById('csvSearchContexto'); if(ta) ta.value=''; }
   }
-  if(contactoHint) contactoHint.textContent=denue
-    ?'En DENUE no filtra qué empresas aparecen (ahí no hay dato de contacto) — solo se usa para preferir ese tipo de persona al cruzar con Apollo.'
+  if(contactoHint) contactoHint.textContent=soloMx
+    ?`En ${fuente==='denue'?'DENUE':'DIRIND'} no filtra qué empresas aparecen (ahí no hay dato de contacto) — solo se usa para preferir ese tipo de persona al cruzar con Apollo.`
     :'';
-  // Tope diario por fuente (2026-07-29): DENUE 25/día (gratis, datos INEGI), Apollo 10/día (gasta
-  // créditos reales) — el backend valida el mismo tope, esto solo evita pedir de más en la UI.
+  // Tope diario por fuente: DENUE/DIRIND 25/día (gratis, en memoria), Apollo 10/día (gasta créditos
+  // reales) — el backend valida el mismo tope, esto solo evita pedir de más en la UI.
   const cantIn=document.getElementById('csvSearchCantidad');
   const cantHint=document.getElementById('csvSearchCantidadHint');
-  const tope=denue?25:10;
+  const tope=fuente==='apollo'?10:25;
+  const FUENTE_LABEL={apollo:'Apollo',denue:'DENUE',dirind:'DIRIND'};
   if(cantIn){ cantIn.max=String(tope); if(Number(cantIn.value)>tope) cantIn.value=String(tope); }
-  if(cantHint) cantHint.textContent=`Tope diario ${denue?'DENUE':'Apollo'}: ${tope} leads. Se aplica también tu tope semanal/mensual como AE.`;
+  if(cantHint) cantHint.textContent=`Tope diario ${FUENTE_LABEL[fuente]}: ${tope} leads. Se aplica también tu tope semanal/mensual como AE.`;
 };
+// Catálogo real de categorías DIRIND (98) — se pide UNA vez al backend y se cachea; se llama cada
+// vez que se selecciona la fuente DIRIND (csvOnFuenteChange) por si es la primera vez en la sesión.
+let _dirindCategoriasCache=null;
+window.csvLoadDirindCategorias=async function(){
+  const box=document.getElementById('csvSearchDirindCategoriaChips'); if(!box) return;
+  if(_dirindCategoriasCache){ csvRenderDirindCategoriaChips(); return; }
+  if(!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch('https://thorough-curiosity-production-098d.up.railway.app/dirindCategorias',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    _dirindCategoriasCache=data.categorias||[];
+    csvRenderDirindCategoriaChips();
+  }catch(e){ console.warn('csvLoadDirindCategorias:',e); box.innerHTML='<span style="font-size:12px;color:var(--danger)">No se pudieron cargar las categorías — reintenta</span>'; }
+};
+function csvRenderDirindCategoriaChips(){
+  const box=document.getElementById('csvSearchDirindCategoriaChips'); if(!box||!_dirindCategoriasCache) return;
+  const prevChecked=new Set([...box.querySelectorAll('.csv-dirind-cat-check:checked')].map(c=>c.value));
+  box.innerHTML=_dirindCategoriasCache.map(c=>`
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
+      <input type="checkbox" class="csv-dirind-cat-check" value="${c.replace(/"/g,'&quot;')}" ${prevChecked.has(c)?'checked':''}> ${c}
+    </label>`).join('');
+}
 window.csvRenderEstadoChips=function(){
   const box=document.getElementById('csvSearchEstadosBox'); if(!box) return;
   const paisId=document.getElementById('csvSearchPais')?.value||'MX';
@@ -10442,6 +10498,26 @@ async function csvCrossMatchDenue(rows){
     (data.resultados||[]).forEach((datosDenue,i)=>{ if(datosDenue) withCompany[i].datos_denue=datosDenue; });
     csvRenderTable();
   }catch(e){ console.warn('csvCrossMatchDenue:',e); }
+}
+const DIRIND_CROSSMATCH_API_URL='https://thorough-curiosity-production-098d.up.railway.app/dirindCrossMatch';
+// Mismo patrón que csvCrossMatchDenue, contra el dataset DIRIND (directorio Proveedores
+// Industriales 2023) — llena la columna DATOS DIRIND para filas que no vinieron ya del buscador
+// con fuente primaria DIRIND.
+async function csvCrossMatchDirind(rows){
+  const withCompany=(rows||[]).filter(r=>(r.partner_name||'').trim());
+  if(!withCompany.length||!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(DIRIND_CROSSMATCH_API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
+      body:JSON.stringify({leads:withCompany.map(r=>({website:r.Website||'',empresa:r.partner_name||''}))}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    (data.resultados||[]).forEach((datosDirind,i)=>{ if(datosDirind) withCompany[i].datos_dirind=datosDirind; });
+    csvRenderTable();
+  }catch(e){ console.warn('csvCrossMatchDirind:',e); }
 }
 
 // ── Búsqueda por instrucciones ──
@@ -10757,7 +10833,7 @@ async function csvClassifyIndustryTags(rows){
     empresa:r.partner_name||'',
     resumen:r.resumen||'',
     industria_fuente:r._industriaRaw||'',
-    contexto:[r.notes,r.datos_denue,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400),
+    contexto:[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400),
   }));
   const aList=QS_INDUSTRY_TYPES.map(a=>`${a.code}=${a.label}`).join(' | ');
   const bList=QS_PRODUCT_TYPES.map(b=>`${b.code}=${b.label}`).join(' | ');
@@ -10820,7 +10896,12 @@ function csvLoadJobIntoRows(job){
     const tagsFila=['Outbound-MX','AppOutbound'];
     if(fuentes.includes('Apollo')) tagsFila.push('ApolloMX');
     if(fuentes.includes('DENUE')) tagsFila.push('DenueMX');
+    if(fuentes.includes('DIRIND')) tagsFila.push('DirindMX');
     if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
+    // Prioridad para elegir _fuentePrimaria/_origen cuando 'fuentes' trae más de un valor (ej.
+    // ['DIRIND','Apollo']): el AE eligió DIRIND o DENUE como fuente EXPLÍCITA de la búsqueda —
+    // 'Apollo' ahí es solo el cross-match del contacto con nombre, nunca la fuente primaria real.
+    const fuentePrimaria=fuentes.includes('DIRIND')?'dirind':fuentes.includes('DENUE')?'denue':'apollo';
     return {
       name:`App Outbound - ${row.partner_name||''} - ${row.contact_name||''}`,
       contact_name:row.contact_name||'', function:row.function||'',
@@ -10833,12 +10914,13 @@ function csvLoadJobIntoRows(job){
       // CRM del AE. csvCountryIdFor() recién ahí decide si el país final queda con o sin acento.
       state_id:(row.country_id==='Mexico'?(_mxState(row.state_id||row.estado_raw)||row.state_id):row.state_id)||'',
       country_id:csvCountryIdFor(row.country_id)||'', notes:row.notes||'',
-      // En DENUE-primario la columna DATOS APOLLO nunca debe quedar vacía: si el cross-match no
-      // encontró nada, se dice explícito (el backend nuevo ya manda el texto; esto cubre jobs
+      // En DENUE/DIRIND-primario la columna DATOS APOLLO nunca debe quedar vacía: si el cross-match
+      // no encontró nada, se dice explícito (el backend nuevo ya manda el texto; esto cubre jobs
       // creados antes de ese cambio).
-      datos_denue:row.datos_denue||'', datos_apollo:row.datos_apollo||(fuentes.includes('DENUE')?'No hay datos en Apollo':''), resumen:'',
-      _fuentePrimaria:fuentes.includes('DENUE')?'denue':'apollo',
-      _origen:fuentes.includes('DENUE')?'Bases de datos':'Apollo',
+      datos_denue:row.datos_denue||'', datos_dirind:row.datos_dirind||'',
+      datos_apollo:row.datos_apollo||(fuentePrimaria!=='apollo'?'No hay datos en Apollo':''), resumen:'',
+      _fuentePrimaria:fuentePrimaria,
+      _origen:fuentePrimaria!=='apollo'?'Bases de datos':'Apollo',
       _industriaRaw:row.industria||'',
     };
   });
@@ -10868,7 +10950,7 @@ window.csvEnrichRowsWithAI=async function(rows){
 
 async function csvBatchResumenes(rows){
   await Promise.all(rows.map(async(r)=>{
-    const contexto=[r.notes,r.datos_denue,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400);
+    const contexto=[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400);
     // 1) Intento CON búsqueda web (LinkedIn + sitio de la empresa). Puede fallar por razones ajenas
     // al lead (web_search no habilitado en la cuenta de Claude, sin resultados, se corta a media
     // búsqueda) — nunca debe dejar la columna vacía, por eso hay un respaldo abajo (bug real
@@ -10900,17 +10982,18 @@ Responde en español, SOLO el resumen final, sin markdown.`,
 // teléfono tarda unos minutos y de que se le va a avisar por la campana, no un aviso que
 // desaparece solo a los 3.5s. Mismo overlay que showNavWarning (.disc-popup-overlay).
 window.csvShowSearchStartedPopup=function(fuentePrimaria){
-  const esDenue=fuentePrimaria==='denue';
+  const sinRondas=fuentePrimaria==='denue'||fuentePrimaria==='dirind'; // ya traen correo+teléfono propios, sin espera de reposición
+  const FUENTE_LABEL={apollo:'Apollo',denue:'DENUE',dirind:'DIRIND'};
   const existing=document.getElementById('leadSearchStartedPopup'); if(existing) existing.remove();
   const overlay=document.createElement('div');
   overlay.className='disc-popup-overlay'; overlay.id='leadSearchStartedPopup';
   overlay.innerHTML=`
     <div style="background:white;border-radius:16px;width:100%;max-width:440px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
       <div style="font-size:40px;text-align:center;margin-bottom:12px">🔍</div>
-      <h3 style="font-size:17px;font-weight:700;text-align:center;margin-bottom:12px">Buscando tus leads en ${esDenue?'DENUE':'Apollo'}</h3>
+      <h3 style="font-size:17px;font-weight:700;text-align:center;margin-bottom:12px">Buscando tus leads en ${FUENTE_LABEL[fuentePrimaria]||'Apollo'}</h3>
       <ul style="font-size:14px;color:var(--gray-600);margin:0 0 20px;padding-left:20px;display:flex;flex-direction:column;gap:8px">
         <li><strong>Regla dura:</strong> solo se entregan contactos con correo corporativo Y teléfono.</li>
-        ${esDenue
+        ${sinRondas
           ?'<li>Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, se entrega igual solo con datos de la empresa.</li>'
           :'<li>Si un lead sale duplicado, sin correo corporativo o sin teléfono, se descarta y <strong>se busca reposición automáticamente</strong> — por eso la búsqueda puede tardar de 2 a 15 minutos.</li>'}
         <li>Puedes seguir usando la app o cerrar esta ventana — te avisamos con la campana 🔔 en la esquina superior cuando la lista esté completa.</li>
@@ -10943,15 +11026,19 @@ window.csvRunLeadSearch=async function(){
   const seniorities=[...document.querySelectorAll('.csv-seniority-check:checked')].map(c=>c.value);
   const roleGroups=[...document.querySelectorAll('.csv-rolegroup-check:checked')].map(c=>c.value);
   const cantidad=document.getElementById('csvSearchCantidad')?.value||5;
-  const fuentePrimaria=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':'apollo';
-  if(!estados.length&&!giro&&!contexto&&!instrucciones&&!roleGroups.length){ showNotif('Define al menos un estado, giro, rol, contexto o instrucciones para buscar','error'); return; }
+  const fuentePrimaria=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':'apollo';
+  const categoriasDirind=fuentePrimaria==='dirind'?[...document.querySelectorAll('.csv-dirind-cat-check:checked')].map(c=>c.value):[];
+  const dirindTexto=fuentePrimaria==='dirind'?(document.getElementById('csvSearchDirindTexto')?.value.trim()||''):'';
+  const hayFiltro=fuentePrimaria==='dirind'?(estados.length||categoriasDirind.length||dirindTexto||instrucciones):(estados.length||giro||contexto||instrucciones||roleGroups.length);
+  if(!hayFiltro){ showNotif('Define al menos un filtro (estado, categoría/giro, texto, rol o instrucciones) para buscar','error'); return; }
   if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
   const btn=document.getElementById('csvSearchBtn'); btn.disabled=true; gcShowLoading('csvSearchLoading',true);
   try{
     // Giro ya es una etiqueta conocida (keyword directa); el contexto libre necesita que Claude lo
     // interprete; las instrucciones ya dejaron sus keywords/títulos en _csvSearchParsed. giro (la
     // clave interna, ej. "retail") se manda tal cual además de giroKeywords — el backend lo usa
-    // para mapear a industrias DENUE cuando fuentePrimaria es 'denue' (Apollo sigue usando keywords).
+    // para mapear a industrias DENUE cuando fuentePrimaria es 'denue' (Apollo sigue usando keywords;
+    // DIRIND usa su propia categoriasDirind/dirindTexto, no esto).
     let giroKeywords=giro?[IND_NAMES[giro]]:[];
     if(contexto) giroKeywords=giroKeywords.concat(await csvExtractKeywordsFromContexto(contexto));
     giroKeywords=[...new Set(giroKeywords.concat(_csvSearchParsed.keywords))].slice(0,10);
@@ -10961,7 +11048,7 @@ window.csvRunLeadSearch=async function(){
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
       body:JSON.stringify({
         paisId, estados, seniorities, roleGroups, giroKeywords, giro, extraTitles:_csvSearchParsed.extraTitles, cantidad:Number(cantidad)||5,
-        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria,
+        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria, categoriasDirind, dirindTexto,
       }),
     });
     const data=await res.json().catch(()=>({}));
@@ -11023,7 +11110,7 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
       Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
       state_id:row.state_id||'', country_id:csvCountryIdFor('Mexico'), notes:row.notes||'',
       _origen:_csvGuessOrigen(fuente), _industriaRaw:row._industriaRaw||'',
-      datos_denue:'', datos_apollo:'', resumen:'',
+      datos_denue:'', datos_dirind:'', datos_apollo:'', resumen:'',
     }));
     _csvDirty=true; // prospectos recién extraídos: aún no descargados ni guardados
     csvRenderTable();
@@ -11033,10 +11120,12 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
     csvSyncRowsToCRM(csvRows).catch(e=>console.warn('csvSyncRowsToCRM:',e));
     // Pegar/subir archivo se había quedado sin cross-match DENUE, tags de industria QS y columna
     // Resumen (solo corrían para el flujo de búsqueda Apollo/DENUE) — pedido explícito del usuario
-    // 2026-07-29 para que TODA fuente llegue con los campos de salida completos.
+    // 2026-07-29 para que TODA fuente llegue con los campos de salida completos. DIRIND (2026-08-03)
+    // se sumó al mismo cross-match gratis.
     // Resumen ANTES de tags — csvClassifyIndustryTags usa r.resumen como contexto principal, así
     // que tiene que existir antes de clasificar (ver ajuste 2026-07-30 en csvClassifyIndustryTags).
     csvCrossMatchDenue(csvRows).catch(e=>console.warn('csvCrossMatchDenue:',e));
+    csvCrossMatchDirind(csvRows).catch(e=>console.warn('csvCrossMatchDirind:',e));
     csvEnrichRowsWithAI(csvRows).then(()=>csvApplyIndustryTags(csvRows)).catch(e=>console.warn('csvApplyIndustryTags:',e));
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('csvLoading',false);
