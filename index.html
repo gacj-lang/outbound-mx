@@ -6574,20 +6574,14 @@ ${_histSummaryForAI()}`;
 };
 
 // ───────── Descargas ─────────
-const HIST_DOWNLOADS=[
-  {file:'ALL SALES - normalizado (canales+MRR, 2013-2026).csv', size:'9.4 MB', desc:'Histórico completo de ventas MX (2013-2026), canal/motion, MRR real y ajustado ya calculados.'},
-  {file:'Lead CRM - consolidado 2024-2026.csv', size:'56 MB', desc:'414,926 leads del CRM 2024-2026 con etapa, motivo de pérdida, canal e industria unificada.'},
-  {file:'Partners - normalizado (estado limpio).xlsx', size:'41 KB', desc:'657 partners con estado geográfico limpio — útil para cruzar whitespace de prospección.'},
-  {file:'Proyectos MX - normalizado.xlsx', size:'428 KB', desc:'7,266 proyectos de implementación en México con industria y tamaño de paquete de horas.'},
-];
+// Pendiente: estos archivos se hospedaban como estáticos en el repo público de GitHub Pages,
+// lo que los hacía descargables sin pasar por el login de la app (y dos de ellos traen
+// PII real: Partners incluye Complete Name/Email/Phone, Proyectos incluye nombres de cliente
+// en Title). Se quitaron del repo — falta moverlos a un storage con auth antes de reactivar esto.
+const HIST_DOWNLOADS=[];
 function histRenderDescargas(){
   return `
-    <div class="hist-callout">Estos son los archivos ya limpios que alimentan este dashboard — útiles si quieres cruzarlos en Excel/Sheets con otra fuente.</div>
-    ${HIST_DOWNLOADS.map(d=>`<div class="hist-dl-row">
-      <div><div class="hist-dl-name">${d.file}</div><div class="hist-dl-desc">${d.desc}</div></div>
-      <div style="display:flex;align-items:center;gap:12px"><span class="hist-dl-size">${d.size}</span>
-      <a class="btn btn-ghost" href="assets/reportes-odoo/${encodeURIComponent(d.file)}" download>Descargar</a></div>
-    </div>`).join('')}`;
+    <div class="hist-callout">⚠️ La descarga de archivos fuente está pausada — se está moviendo a un storage que sí requiera inicio de sesión (los archivos vivían como estáticos públicos en GitHub Pages, sin pasar por el login de la app). Pregúntale a tu manager si necesitas alguno de estos archivos mientras tanto.</div>`;
 }
 
 
