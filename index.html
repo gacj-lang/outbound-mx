@@ -6574,14 +6574,55 @@ ${_histSummaryForAI()}`;
 };
 
 // ───────── Descargas ─────────
-// Pendiente: estos archivos se hospedaban como estáticos en el repo público de GitHub Pages,
-// lo que los hacía descargables sin pasar por el login de la app (y dos de ellos traen
-// PII real: Partners incluye Complete Name/Email/Phone, Proyectos incluye nombres de cliente
-// en Title). Se quitaron del repo — falta moverlos a un storage con auth antes de reactivar esto.
-const HIST_DOWNLOADS=[];
+// Los archivos fuente ya NO viven como estáticos en outbound-app (era un repo público en GitHub
+// Pages — descargables sin login, y dos traían PII real). Ahora se sirven desde el backend de
+// Railway (mismo verifyCallerToken que usa el resto de la app, repo privado) vía /reportesOdoo.
+const REPORTES_ODOO_BASE='https://thorough-curiosity-production-098d.up.railway.app';
+let _histDescargasCache=null;
 function histRenderDescargas(){
-  return `
-    <div class="hist-callout">⚠️ La descarga de archivos fuente está pausada — se está moviendo a un storage que sí requiera inicio de sesión (los archivos vivían como estáticos públicos en GitHub Pages, sin pasar por el login de la app). Pregúntale a tu manager si necesitas alguno de estos archivos mientras tanto.</div>`;
+  if(!_histDescargasCache) setTimeout(histLoadDescargas,0);
+  return `<div id="histDescargasBody">${_histDescargasCache?histDescargasListHtml():'<div class="hist-callout">Cargando…</div>'}</div>`;
+}
+async function histLoadDescargas(){
+  if(!currentUser){ const b=document.getElementById('histDescargasBody'); if(b) b.innerHTML='<div class="hist-callout">Inicia sesión para ver las descargas.</div>'; return; }
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(REPORTES_ODOO_BASE+'/reportesOdoo',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    _histDescargasCache=data.archivos||[];
+  }catch(e){
+    console.warn('histLoadDescargas:',e);
+    const b=document.getElementById('histDescargasBody'); if(b) b.innerHTML='<div class="hist-callout">No se pudo cargar la lista de descargas — reintenta.</div>';
+    return;
+  }
+  const b=document.getElementById('histDescargasBody'); if(b) b.innerHTML=histDescargasListHtml();
+}
+function histDescargasListHtml(){
+  return `<div class="hist-callout">Archivos fuente del dashboard — requieren tu sesión iniciada, ya no son públicos.</div>
+    ${(_histDescargasCache||[]).map(d=>`<div class="hist-dl-row">
+      <div><div class="hist-dl-name">${d.label}</div><div class="hist-dl-desc">${d.desc}</div></div>
+      <button class="btn btn-ghost" onclick="histDownloadFile('${d.key}','${_histEsc(d.file)}')" id="histDlBtn-${d.key}">Descargar</button>
+    </div>`).join('')}`;
+}
+window.histDownloadFile=async function(key,filename){
+  const btn=document.getElementById('histDlBtn-'+key); if(btn){btn.disabled=true; btn.textContent='Bajando…';}
+  try{
+    if(!currentUser) throw new Error('Inicia sesión.');
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(REPORTES_ODOO_BASE+'/reportesOdoo/'+encodeURIComponent(key),{headers:{'Authorization':`Bearer ${idToken}`}});
+    if(!res.ok){ const data=await res.json().catch(()=>({})); throw new Error(data.error||`Error ${res.status}`); }
+    const blob=await res.blob();
+    histTriggerBlobDownload(blob, filename);
+  }catch(e){
+    console.warn('histDownloadFile:',e);
+    showNotif(e.message||'No se pudo descargar','error');
+  }finally{
+    if(btn){btn.disabled=false; btn.textContent='Descargar';}
+  }
+};
+function histTriggerBlobDownload(blob,name){
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
 }
 
 
