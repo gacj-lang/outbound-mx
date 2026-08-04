@@ -8973,7 +8973,7 @@ window.empOpenDetail=async function(id){
         ${disc.map(d=>{const r=d.data();return docRow(r.empresa||co.nombre,`${r.aeName||''} · ${r.industriaNombre||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();openDiscoveryForm('${d.id}')`,`deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
 
       if(price.length) sections.push(`<div style="margin-bottom:16px">${secHead(`💰 Pricing (${price.length})`)}
-        ${price.map(d=>{const r=d.data();return docRow(`${r.edition||'Pricing'} · ${r.users||0} usuarios`,`${fmtMXN(r.total)} · ${r.implHrs||0} hrs impl${r.isSH?' · Odoo.SH':''}`,fmtDate(r.createdAt),'',`deleteRecord('pricingRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+        ${price.map(d=>{const r=d.data();window._pricingRecordsCache[d.id]=r;return docRow(`${r.edition||'Pricing'} · ${r.users||0} usuarios`,`${fmtMXN(r.total)} · ${r.implHrs||0} hrs impl${r.isSH?' · Odoo.SH':''}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();pricingOpenRecord('${d.id}')`,`deleteRecord('pricingRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
 
       if(broch.length) sections.push(`<div style="margin-bottom:16px">${secHead(`📄 Brochures (${broch.length})`)}
         ${broch.map(d=>{const r=d.data();return docRow(r.empresa||co.nombre,`${r.aeName||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),'',`deleteRecord('brochureApprovals','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
@@ -9006,7 +9006,7 @@ window.empOpenDetail=async function(id){
       }
 
       if(csv.length) sections.push(`<div style="margin-bottom:16px">${secHead(`📋 CSV Sessions (${csv.length})`)}
-        ${csv.map(d=>{const r=d.data();return docRow(`${r.fuente||'Sin fuente'} — ${r.rowCount||0} prospectos`,r.aeName||'',fmtDate(r.createdAt),'',`deleteRecord('csvSessions','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+        ${csv.map(d=>{const r=d.data();return docRow(`${r.fuente||'Sin fuente'} — ${r.rowCount||0} prospectos`,r.aeName||'',fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();showModule('csv');csvReloadSession('${d.id}')`,`deleteRecord('csvSessions','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
 
       docsEl.innerHTML=sections.length?sections.join(''):'<div class="cdc-empty">Sin documentos vinculados aún</div>';
     } catch(e){ console.error('empOpenDetail docs:',e); docsEl.innerHTML='<div class="cdc-empty">Error al cargar documentos: '+e.message+'</div>'; }
