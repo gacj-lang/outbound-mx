@@ -1021,6 +1021,25 @@ const MODULES = [
   { id:'pricing',       icon:'💰', label:'Pricing',                  desc:'Cotiza licencias, implementación e IVA de Odoo.',                     ready:true  },
   { id:'analytics',     icon:'📊', label:'Analytics',                desc:'Métricas de uso y actividad del equipo.',                            ready:true  },
 ];
+// Etapas del pipe (definición 2026-08 — Territory→Qualified es inmediato a la primera respuesta;
+// Qualified Sponsor y Proposition se disparan cuando el evento ya OCURRIÓ, no cuando se agenda,
+// porque es la señal más confiable dado que las actividades de Odoo no siempre se registran bien).
+const PIPE_STAGES = [
+  { name:'Cold Opp', bg:'var(--gray-100)', fg:'var(--gray-700)', body:'var(--gray-700)',
+    desc:'Opps que no contestaron tras la cadencia de 15 días. Se vuelven a trabajar con otro contacto de la misma cuenta.',
+    note:'Requiere actividad periódica de reactivación (ideal quincenal, máximo mensual).' },
+  { name:'Territory', bg:'var(--purple-light)', fg:'var(--purple)', body:'var(--gray-700)',
+    desc:'Leads nuevos cargados. Arranca la cadencia de 3 toques en 15 días naturales (L-V).' },
+  { name:'Qualified', bg:'var(--accent-light)', fg:'var(--accent)', body:'var(--gray-700)',
+    desc:'FCT — cualquier respuesta cuenta (sí, no, o "llámame después"). Mover aquí de inmediato al recibirla.',
+    note:'Es el dato clave para medir First Contact Time.' },
+  { name:'Qualified Sponsor', bg:'var(--warning-light)', fg:'var(--warning)', body:'var(--gray-700)',
+    desc:'La Intromeet ya se REALIZÓ — no basta con tenerla agendada.' },
+  { name:'Proposition', bg:'var(--success-light)', fg:'var(--success)', body:'var(--gray-700)',
+    desc:'La Demo ya se REALIZÓ y ya tiene cotización (implícita al terminar la demo).' },
+  { name:'Negotiation', bg:'var(--purple)', fg:'#fff', body:'rgba(255,255,255,.85)',
+    desc:'Fecha de pago fijada y/o en sesiones de cierre. Prioriza sus actividades.' },
+];
 const ASSETS = 'https://gacj-lang.github.io/outbound-mx/assets';
 
 // ── Asset helpers ────────────────────────────────────────
@@ -8638,6 +8657,21 @@ function renderHome(){
           <p>Bienvenido a <strong>Outbound México</strong> — tu centro de trabajo para el equipo de ventas de Odoo.</p>
         </div>
         <span class="role-pill role-${currentUserData?.role}">${currentUserData?.role?.toUpperCase()}</span>
+      </div>
+
+      <!-- ETAPAS DEL PIPE -->
+      <div class="cdc-panel" style="margin-bottom:24px">
+        <h3>🧭 Cómo usamos cada etapa del pipe</h3>
+        <p style="font-size:13px;color:var(--gray-500);margin:-6px 0 18px">El paso de <strong>Territory</strong> a <strong>Qualified</strong> debe ser <strong>inmediato</strong> en cuanto llega la primera respuesta — no esperar a agendar nada.</p>
+        <div style="display:flex;gap:0;overflow-x:auto;padding-bottom:8px;align-items:stretch">
+          ${PIPE_STAGES.map((s,i)=>`
+            ${i>0?`<div style="display:flex;align-items:center;flex:0 0 auto;padding:0 8px;color:var(--gray-300);font-size:18px">→</div>`:''}
+            <div style="flex:0 0 210px;background:${s.bg};border-radius:12px;padding:16px">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:${s.fg};margin-bottom:6px">${i+1}. ${s.name}</div>
+              <div style="font-size:13px;color:${s.body};line-height:1.4">${s.desc}</div>
+              ${s.note?`<div style="margin-top:8px;font-size:11px;font-weight:700;color:${s.fg}">${s.note}</div>`:''}
+            </div>`).join('')}
+        </div>
       </div>
 
       <!-- REFERENCIA: ACTIVIDADES EN ODOO CRM -->
