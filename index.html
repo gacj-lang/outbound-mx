@@ -958,6 +958,7 @@ input,select,textarea{font-family:inherit;}
         <span class="nav-download-text"><strong>Proveedores de Timbres</strong><span>⬇ Descargar PDF</span></span>
       </a>
       <div class="nav-section-label" style="margin-top:8px">Gestión</div>
+      <button class="nav-item" id="nav-metricas" onclick="showModule('metricas')" data-tip="Forecast por account (proyectado vs. logrado) y registro semanal de intromeets/demos, con histórico."><span class="nav-icon">🎯</span> Métricas</button>
       <button class="nav-item" id="nav-manager" onclick="showModule('manager')" style="display:none" data-tip="Aprobaciones de usuarios, asignación de roles y edición de perfiles."><span class="nav-icon">👥</span> Manager<span class="nav-badge" id="pendingBadge"></span></button>
       <button class="nav-item" id="nav-settings" onclick="showModule('settings')" data-tip="Ajusta tu perfil e integraciones de la app."><span class="nav-icon">⚙️</span> Configuración</button>
     </nav>
@@ -1547,7 +1548,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
   const titles={home:'Inicio',empresas:'Empresas',discovery:'Intromeet / Qcall',gencontenidos:'Generación de contenidos',
     csv:'Generación de leads',pricing:'Pricing',propuesta:'Propuesta Comercial',analytics:'Analytics',
     manager:'Panel de Manager',settings:'Configuración',framework:'Framework Visual',wiki:'Banco de Información',
-    historico:'Información Histórica'};
+    historico:'Información Histórica',metricas:'Métricas'};
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
   const content=document.getElementById('moduleContent');
   const map={
@@ -1560,6 +1561,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
     framework:renderFrameworkVisual,
     wiki:renderWiki,
     historico:renderHistorico,
+    metricas:renderMetricas,
   };
   const fn=map[moduleId]; if(fn){ content.style.padding='28px'; content.innerHTML=''; fn(); }
 }
@@ -1976,6 +1978,251 @@ window.saveClaudeKey=function(){
   localStorage.setItem('outbound_claude_key',k);
   showNotif('Claude API Key guardada ✓','success');
   setTimeout(()=>renderSettings(),800);
+};
+
+// ══════════════════════════════════════════
+// MÉTRICAS — Forecast (proyectado vs. logrado) y Actividad semanal (intromeets/demos)
+// Alcance por rol: manager=todo · tl=su equipo (tlId) + lo suyo · ae=solo lo suyo (aeUid).
+// KPI de referencia del equipo (20 intromeets/mes, 15 demos/mes) — solo se compara, no se fuerza.
+// Colecciones nuevas: forecastRecords (1 doc por account+mes) y metActivityRecords (1 doc por
+// account+semana), mismo patrón de scoping por rol que discoveryRecords/analytics.
+// ══════════════════════════════════════════
+const MET_KPI = { INTROMEETS_MES:20, DEMOS_MES:15 };
+const _metState = { tab:'forecast', forecasts:[], activities:[], people:[], tls:[] };
+
+function _metMonthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function _metMonthLabel(mk){ if(!mk) return '—'; const [y,m]=mk.split('-'); return new Date(+y,+m-1,1).toLocaleDateString('es-MX',{month:'long',year:'numeric'}); }
+function _metMondayOf(dateStr){
+  const d=new Date(dateStr+'T00:00:00'); const day=d.getDay();
+  d.setDate(d.getDate()+(day===0?-6:1-day));
+  return d.toISOString().slice(0,10);
+}
+function _metMXN(n){ return (n===null||n===undefined||n==='')?'—':'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0}); }
+
+async function renderMetricas(){
+  const content=document.getElementById('moduleContent');
+  const me=currentUserData||{};
+  const isTLorMgr = me.role==='tl'||me.role==='manager';
+  const isMgr = me.role==='manager';
+  const curMonth=_metMonthKey(new Date());
+  content.innerHTML=`
+    <div style="max-width:1100px;margin:0 auto;padding:24px">
+      <div class="page-header" style="margin-bottom:16px"><h2>🎯 Métricas</h2><p>Forecast por account (proyectado vs. logrado) y registro semanal de intromeets/demos.</p></div>
+      <div style="display:flex;gap:8px;margin-bottom:18px">
+        <button class="btn ${_metState.tab==='forecast'?'btn-primary':'btn-ghost'}" id="metTabForecast" onclick="metSetTab('forecast')">🎯 Forecast</button>
+        <button class="btn ${_metState.tab==='activity'?'btn-primary':'btn-ghost'}" id="metTabActivity" onclick="metSetTab('activity')">📅 Actividad semanal</button>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+        <input type="month" id="metFilterMonth" class="input" style="max-width:170px" value="${curMonth}" onchange="metApplyFilters()">
+        ${isTLorMgr?`<select id="metFilterAccount" class="input" style="max-width:200px" onchange="metApplyFilters()"><option value="">Todas las cuentas</option></select>`:''}
+        ${isMgr?`<select id="metFilterTL" class="input" style="max-width:180px" onchange="metApplyFilters()"><option value="">Todos los TL</option></select>`:''}
+      </div>
+      <div id="metBody"><div class="cdc-empty">Cargando métricas…</div></div>
+    </div>`;
+  await metLoadPeopleOptions();
+  await metLoadAll();
+}
+
+window.metSetTab=function(tab){
+  _metState.tab=tab;
+  const fb=document.getElementById('metTabForecast'), ab=document.getElementById('metTabActivity');
+  if(fb) fb.className='btn '+(tab==='forecast'?'btn-primary':'btn-ghost');
+  if(ab) ab.className='btn '+(tab==='activity'?'btn-primary':'btn-ghost');
+  metRenderBody();
+};
+
+async function metLoadPeopleOptions(){
+  const me=currentUserData||{}; const role=me.role;
+  if(!db){ _metState.people=[{uid:me.uid,name:me.name,gram:me.gram}]; _metState.tls=[]; return; }
+  try{
+    if(role==='manager'){
+      const snap=await getDocs(query(collection(db,'users'),where('status','==','active')));
+      const all=snap.docs.map(d=>({uid:d.id,...d.data()}));
+      _metState.people=all; _metState.tls=all.filter(u=>u.role==='tl');
+    } else if(role==='tl'){
+      const snap=await getDocs(query(collection(db,'users'),where('tlId','==',me.uid)));
+      const team=snap.docs.map(d=>({uid:d.id,...d.data()}));
+      _metState.people=[{uid:me.uid,name:me.name,gram:me.gram},...team]; _metState.tls=[];
+    } else {
+      _metState.people=[{uid:me.uid,name:me.name,gram:me.gram}]; _metState.tls=[];
+    }
+  }catch(e){ console.warn('metricas people:',e); _metState.people=[{uid:me.uid,name:me.name,gram:me.gram}]; _metState.tls=[]; }
+  const accSel=document.getElementById('metFilterAccount');
+  if(accSel){ accSel.innerHTML='<option value="">Todas las cuentas</option>'+_metState.people.map(p=>`<option value="${p.uid}">${p.name||p.gram||'Sin nombre'}</option>`).join(''); }
+  const tlSel=document.getElementById('metFilterTL');
+  if(tlSel){ tlSel.innerHTML='<option value="">Todos los TL</option>'+_metState.tls.map(t=>`<option value="${t.uid}">${t.name||t.gram||'Sin nombre'}</option>`).join(''); }
+}
+
+async function metLoadScoped(coll){
+  const me=currentUserData||{}; const role=me.role;
+  if(!db) return [];
+  try{
+    let docs;
+    if(role==='manager'){
+      const snap=await getDocs(query(collection(db,coll),orderBy('createdAt','desc')));
+      docs=snap.docs;
+    } else if(role==='tl'){
+      const [ownSnap,teamSnap]=await Promise.all([
+        getDocs(query(collection(db,coll),where('aeUid','==',me.uid))),
+        getDocs(query(collection(db,coll),where('tlId','==',me.uid))),
+      ]);
+      const byId=new Map();
+      [...ownSnap.docs,...teamSnap.docs].forEach(d=>byId.set(d.id,d));
+      docs=[...byId.values()];
+    } else {
+      const snap=await getDocs(query(collection(db,coll),where('aeUid','==',me.uid)));
+      docs=snap.docs;
+    }
+    return docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ console.warn('metricas '+coll+':',e); return []; }
+}
+
+async function metLoadAll(){
+  const body=document.getElementById('metBody');
+  if(!db){ if(body) body.innerHTML='<div class="cdc-empty">Requiere conexión a Firebase</div>'; return; }
+  const [forecasts,activities]=await Promise.all([metLoadScoped('forecastRecords'),metLoadScoped('metActivityRecords')]);
+  _metState.forecasts=forecasts; _metState.activities=activities;
+  metRenderBody();
+}
+
+window.metApplyFilters=function(){ metRenderBody(); };
+
+function _metFiltered(list, dateField){
+  const month=document.getElementById('metFilterMonth')?.value||'';
+  const account=document.getElementById('metFilterAccount')?.value||'';
+  const tl=document.getElementById('metFilterTL')?.value||'';
+  return list.filter(r=>{
+    if(account && r.aeUid!==account) return false;
+    if(tl && r.tlId!==tl) return false;
+    if(month){
+      if(dateField==='month'){ if(r.month!==month) return false; }
+      else { if(!r.weekStart || !r.weekStart.startsWith(month)) return false; }
+    }
+    return true;
+  });
+}
+
+function metRenderBody(){
+  const body=document.getElementById('metBody'); if(!body) return;
+  if(_metState.tab==='forecast') metRenderForecast(body); else metRenderActivity(body);
+}
+
+function metRenderForecast(body){
+  const me=currentUserData||{};
+  const month=document.getElementById('metFilterMonth')?.value||_metMonthKey(new Date());
+  const mine=_metState.forecasts.find(r=>r.aeUid===me.uid && r.month===month);
+  const rows=_metFiltered(_metState.forecasts,'month').sort((a,b)=>b.month.localeCompare(a.month));
+  const formCard=`
+    <div class="card" style="padding:20px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">🎯 Tu objetivo — ${_metMonthLabel(month)}</h3>
+      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Se fija idealmente el día 15 del mes anterior. Al cierre de mes, registra lo logrado para ver la variación.</p>
+      <div class="form-grid-2">
+        <div class="form-group"><label>Objetivo MRR (Mex$)</label><input type="number" id="metFcTargetMRR" class="input" value="${mine?.targetMRR??''}" placeholder="Ej. 11000"></div>
+        <div class="form-group"><label>Objetivo NRR (Mex$)</label><input type="number" id="metFcTargetNRR" class="input" value="${mine?.targetNRR??''}" placeholder="Ej. 60000"></div>
+      </div>
+      <input type="hidden" id="metFcMonth" value="${month}">
+      <button class="btn btn-primary" style="margin-top:6px" onclick="metSaveForecastTarget()">Guardar objetivo</button>
+      ${mine?`
+      <div class="form-grid-2" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100)">
+        <div class="form-group"><label>Logrado MRR (Mex$)</label><input type="number" id="metActualMRR_self" class="input" value="${mine.actualMRR??''}" placeholder="Al cierre de mes"></div>
+        <div class="form-group"><label>Logrado NRR (Mex$)</label><input type="number" id="metActualNRR_self" class="input" value="${mine.actualNRR??''}" placeholder="Al cierre de mes"></div>
+      </div>
+      <button class="btn btn-ghost" style="margin-top:6px" onclick="metSaveForecastActual('${mine.id}')">Registrar logrado</button>`:''}
+    </div>`;
+  const varTag=v=>v===null?'<span style="color:var(--gray-400)">—</span>':`<span style="color:${v>=0?'#2e7d32':'#c62828'};font-weight:700">${v>=0?'+':''}${v}%</span>`;
+  const tableRows=rows.map(r=>{
+    const varMRR=(r.actualMRR!=null&&r.targetMRR)?Math.round((r.actualMRR-r.targetMRR)/r.targetMRR*100):null;
+    const varNRR=(r.actualNRR!=null&&r.targetNRR)?Math.round((r.actualNRR-r.targetNRR)/r.targetNRR*100):null;
+    return `<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr 1fr;gap:8px;padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;align-items:center;font-size:13px">
+      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">${_metMonthLabel(r.month)}</div></div>
+      <div>${_metMXN(r.targetMRR)}</div><div>${_metMXN(r.actualMRR)} ${varTag(varMRR)}</div>
+      <div>${_metMXN(r.targetNRR)}</div><div>${_metMXN(r.actualNRR)} ${varTag(varNRR)}</div>
+      <div style="font-size:11px;color:var(--gray-400)">${r.actualSetAt?'Cerrado':'Abierto'}</div>
+    </div>`;
+  }).join('');
+  const header=`<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr 1fr;gap:8px;padding:0 12px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400)">
+    <div>Account / Mes</div><div>Objetivo MRR</div><div>Logrado MRR</div><div>Objetivo NRR</div><div>Logrado NRR</div><div>Estatus</div></div>`;
+  body.innerHTML=formCard+_aSection('📊 Histórico de forecast',header+(tableRows||'<div class="cdc-empty">Sin registros para este filtro</div>'));
+}
+
+window.metSaveForecastTarget=async function(){
+  if(!db||!currentUserData) return;
+  const month=document.getElementById('metFcMonth')?.value;
+  const targetMRR=parseFloat(document.getElementById('metFcTargetMRR')?.value)||0;
+  const targetNRR=parseFloat(document.getElementById('metFcTargetNRR')?.value)||0;
+  if(!month){ showNotif('Selecciona el mes','error'); return; }
+  const me=currentUserData;
+  try{
+    const existing=await getDocs(query(collection(db,'forecastRecords'),where('aeUid','==',me.uid),where('month','==',month)));
+    if(!existing.empty){
+      await updateDoc(doc(db,'forecastRecords',existing.docs[0].id),{targetMRR,targetNRR,targetSetAt:serverTimestamp()});
+    } else {
+      await addDoc(collection(db,'forecastRecords'),{aeUid:me.uid,aeName:me.name,aeGram:me.gram,tlId:me.tlId||null,month,targetMRR,targetNRR,targetSetAt:serverTimestamp(),actualMRR:null,actualNRR:null,actualSetAt:null,createdAt:serverTimestamp()});
+    }
+    showNotif('Objetivo guardado ✓','success');
+    await metLoadAll();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
+window.metSaveForecastActual=async function(recordId){
+  const actualMRR=parseFloat(document.getElementById('metActualMRR_self')?.value)||0;
+  const actualNRR=parseFloat(document.getElementById('metActualNRR_self')?.value)||0;
+  try{
+    await updateDoc(doc(db,'forecastRecords',recordId),{actualMRR,actualNRR,actualSetAt:serverTimestamp()});
+    showNotif('Logrado registrado ✓','success');
+    await metLoadAll();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
+function metRenderActivity(body){
+  const month=document.getElementById('metFilterMonth')?.value||_metMonthKey(new Date());
+  const rows=_metFiltered(_metState.activities,'week').sort((a,b)=>(b.weekStart||'').localeCompare(a.weekStart||''));
+  const totalIntromeets=rows.reduce((a,r)=>a+(r.intromeets||0),0);
+  const totalDemos=rows.reduce((a,r)=>a+(r.demos||0),0);
+  const kpiTag=(v,target)=>`<span style="color:${v>=target?'#2e7d32':'#c62828'};font-weight:700">${v}/${target}</span>`;
+  const formCard=`
+    <div class="card" style="padding:20px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">📅 Registrar semana</h3>
+      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Elige cualquier día de la semana — se ajusta automáticamente al lunes.</p>
+      <div class="form-grid-2">
+        <div class="form-group"><label>Semana</label><input type="date" id="metWeekStart" class="input"></div>
+        <div></div>
+        <div class="form-group"><label>Intromeets realizados</label><input type="number" id="metIntromeets" class="input" placeholder="0"></div>
+        <div class="form-group"><label>Demos realizadas</label><input type="number" id="metDemos" class="input" placeholder="0"></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:6px" onclick="metSaveWeeklyActivity()">Guardar</button>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <div class="card" style="flex:1;min-width:200px;padding:18px 20px"><div style="font-size:12.5px;color:var(--gray-500);margin-bottom:4px">Intromeets en ${_metMonthLabel(month)}</div><div style="font-size:24px">${kpiTag(totalIntromeets,MET_KPI.INTROMEETS_MES)}</div></div>
+      <div class="card" style="flex:1;min-width:200px;padding:18px 20px"><div style="font-size:12.5px;color:var(--gray-500);margin-bottom:4px">Demos en ${_metMonthLabel(month)}</div><div style="font-size:24px">${kpiTag(totalDemos,MET_KPI.DEMOS_MES)}</div></div>
+    </div>`;
+  const tableRows=rows.map(r=>`<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;align-items:center;font-size:13px">
+      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">Semana del ${r.weekStart}</div></div>
+      <div>${r.intromeets||0} intromeets</div><div>${r.demos||0} demos</div>
+    </div>`).join('');
+  const header=`<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;padding:0 12px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400)">
+    <div>Account / Semana</div><div>Intromeets</div><div>Demos</div></div>`;
+  body.innerHTML=formCard+_aSection('📊 Histórico de actividad',header+(tableRows||'<div class="cdc-empty">Sin registros para este filtro</div>'));
+}
+
+window.metSaveWeeklyActivity=async function(){
+  if(!db||!currentUserData) return;
+  const dateVal=document.getElementById('metWeekStart')?.value;
+  const intromeets=parseInt(document.getElementById('metIntromeets')?.value)||0;
+  const demos=parseInt(document.getElementById('metDemos')?.value)||0;
+  if(!dateVal){ showNotif('Selecciona la semana','error'); return; }
+  const weekStart=_metMondayOf(dateVal);
+  const me=currentUserData;
+  try{
+    const existing=await getDocs(query(collection(db,'metActivityRecords'),where('aeUid','==',me.uid),where('weekStart','==',weekStart)));
+    if(!existing.empty){
+      await updateDoc(doc(db,'metActivityRecords',existing.docs[0].id),{intromeets,demos,updatedAt:serverTimestamp()});
+    } else {
+      await addDoc(collection(db,'metActivityRecords'),{aeUid:me.uid,aeName:me.name,aeGram:me.gram,tlId:me.tlId||null,weekStart,intromeets,demos,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+    }
+    showNotif('Actividad guardada ✓','success');
+    await metLoadAll();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
 };
 
 // ══════════════════════════════════════════
