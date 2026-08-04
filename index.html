@@ -950,6 +950,7 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')" data-tip="Métricas de uso y actividad del equipo."><span class="nav-icon">📊</span> Analytics</button>
       <div class="nav-section-label" style="margin-top:8px">Conocimiento</div>
       <button class="nav-item" id="nav-wiki" onclick="showModule('wiki')" data-tip="Wiki interna: proceso de venta, herramientas, apps y tips para resolver dudas y preparar demos."><span class="nav-icon">📚</span> Banco de Información</button>
+      <button class="nav-item" id="nav-historico" onclick="showModule('historico')" data-tip="Ventas y CRM histórico de Odoo México: filtros por fecha/industria/canal, embudo, fuente de lead y buscador con IA."><span class="nav-icon">📈</span> Información Histórica</button>
       <div class="nav-section-label" style="margin-top:8px">Recursos</div>
       <button class="nav-item" id="nav-framework" onclick="showModule('framework')" data-tip="Guía de marca oficial: colores, tipografía y assets para tus materiales."><span class="nav-icon">🎨</span> Framework Visual</button>
       <a class="nav-download-cta" href="assets/docs/proveedores-timbres-pac.pdf" download="Proveedores_de_Timbres_Odoo_Mexico.pdf" data-tip="Ficha para cliente con los 3 PACs (Quadrum, SW Sapien, Solución Factible): esquemas de contratación, precios de referencia y contacto directo.">
@@ -1533,9 +1534,8 @@ window.showNavWarning=function(warn, onConfirm, onSave){
 function _doShowModule(moduleId, skipNavHighlight=false){
   if(!skipNavHighlight){
     document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
-    // La Propuesta Comercial vive dentro del flujo de Pricing, e Información Histórica dentro de
-    // Banco de Información — ninguna de las dos tiene botón propio en el nav.
-    const navId=moduleId==='propuesta'?'pricing':moduleId==='historico'?'wiki':moduleId;
+    // La Propuesta Comercial vive dentro del flujo de Pricing (no tiene botón propio en el nav)
+    const navId=moduleId==='propuesta'?'pricing':moduleId;
     const n=document.getElementById('nav-'+navId); if(n) n.classList.add('active');
   }
   const mc=document.getElementById('mainContent');
@@ -6636,14 +6636,6 @@ async function renderWiki(){
         ${isManager?`<button class="btn btn-primary" onclick="wikiShowEditor()">+ Nuevo artículo</button>`:''}
       </div>
       <input type="text" id="wikiSearch" class="input" placeholder="🔍 Buscar por palabra clave, tag o tema..." style="max-width:420px;margin-bottom:20px" oninput="wikiFilter()">
-      <button class="module-card" style="cursor:pointer;width:100%;flex-direction:row;align-items:center;gap:14px;margin-bottom:16px;text-align:left" onclick="showModule('historico')">
-        <div style="font-size:26px">📈</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:14.5px">Información Histórica</div>
-          <div style="font-size:12.5px;color:var(--gray-500)">Ventas y CRM histórico de Odoo México: filtros por fecha/industria/canal, embudo, fuente de lead y buscador con IA.</div>
-        </div>
-        <div style="font-size:13px;color:var(--purple);font-weight:600;white-space:nowrap">Abrir →</div>
-      </button>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px">
         ${WIKI_CATEGORIES.map(c=>`<button class="module-card" id="wikiCat-${c.id}" style="cursor:pointer" onclick="wikiSelectCategory('${c.id}')">
           <div style="font-size:22px">${c.icon}</div>
