@@ -1040,6 +1040,22 @@ const PIPE_STAGES = [
   { name:'Negotiation', bg:'var(--purple)', fg:'#fff', body:'rgba(255,255,255,.85)',
     desc:'Fecha de pago fijada y/o en sesiones de cierre. Prioriza sus actividades.' },
 ];
+// Forecast — Regla 15-15 + escala de estrellas (prioridad) confirmada por el usuario 2026-08-04.
+const FORECAST_STARS = [
+  { stars:1, label:'En proceso', bg:'var(--gray-100)', fg:'var(--gray-700)', body:'var(--gray-700)',
+    desc:'Va bien, pero aún quedan demos y cosas por revisar con el cliente.' },
+  { stars:2, label:'Probable', bg:'var(--warning-light)', fg:'var(--warning)', body:'var(--gray-700)',
+    desc:'Buen feeling, pero todavía hay que trabajar para tener una fecha de pago.' },
+  { stars:3, label:'Forecast', bg:'var(--purple)', fg:'#fff', body:'rgba(255,255,255,.85)',
+    desc:'Negotiation, fecha de cierre y todos los requisitos de la oportunidad ya cumplidos.' },
+];
+const FORECAST_CHECKLIST = [
+  'Etapa Negotiation',
+  'Fecha de cierre cargada en el CRM',
+  '3 estrellas de prioridad',
+  'Fecha CONFIRMADA de pago y/o cotización',
+  'Constancia de Situación Fiscal (CSF) del cliente',
+];
 const ASSETS = 'https://gacj-lang.github.io/outbound-mx/assets';
 
 // ── Asset helpers ────────────────────────────────────────
@@ -8671,6 +8687,26 @@ function renderHome(){
               <div style="font-size:13px;color:${s.body};line-height:1.4">${s.desc}</div>
               ${s.note?`<div style="margin-top:8px;font-size:11px;font-weight:700;color:${s.fg}">${s.note}</div>`:''}
             </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- FORECAST -->
+      <div class="cdc-panel" style="margin-bottom:24px">
+        <h3>⭐ Cómo se arma el Forecast</h3>
+        <p style="font-size:13px;color:var(--gray-500);margin:-6px 0 18px"><strong>Regla 15-15:</strong> se empieza a forecastear el día 15 del mes anterior, con cierre máximo el día 15 del mes corriente.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px">
+          ${FORECAST_STARS.map(s=>`
+            <div style="background:${s.bg};border-radius:12px;padding:16px">
+              <div style="font-size:15px;letter-spacing:2px;margin-bottom:6px">${'⭐'.repeat(s.stars)}</div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:${s.fg};margin-bottom:6px">${s.label}</div>
+              <div style="font-size:13px;color:${s.body};line-height:1.4">${s.desc}</div>
+            </div>`).join('')}
+        </div>
+        <div style="background:var(--purple-light);border-radius:12px;padding:16px">
+          <div style="font-size:12px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">✅ Checklist para que SÍ cuente como forecast</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px 20px">
+            ${FORECAST_CHECKLIST.map(c=>`<div style="font-size:13px;color:var(--gray-700);display:flex;gap:8px"><span style="color:var(--purple)">✓</span>${c}</div>`).join('')}
+          </div>
         </div>
       </div>
 
