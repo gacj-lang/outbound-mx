@@ -8949,14 +8949,13 @@ window.empOpenDetail=async function(id){
     try{
       // IMPORTANTE: sin orderBy() para evitar requerir índice compuesto — se ordena en cliente
       const byDate=(a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0);
-      const [discR,brochR,csvR,priceR,freshCo]=await Promise.all([
+      const [discR,csvR,priceR,freshCo]=await Promise.all([
         getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',id))).catch(e=>{console.warn('disc:',e);return{docs:[]};}),
-        getDocs(query(collection(db,'brochureApprovals'),where('companyId','==',id))).catch(e=>{console.warn('broch:',e);return{docs:[]};}),
         getDocs(query(collection(db,'csvSessions'),where('companyId','==',id))).catch(e=>{console.warn('csv:',e);return{docs:[]};}),
         getDocs(query(collection(db,'pricingRecords'),where('companyId','==',id))).catch(e=>{console.warn('price:',e);return{docs:[]};}),
         getDoc(doc(db,'companies',id)).catch(()=>null),
       ]);
-      const disc=[...discR.docs].sort(byDate), broch=[...brochR.docs].sort(byDate), csv=[...csvR.docs].sort(byDate), price=[...priceR.docs].sort(byDate);
+      const disc=[...discR.docs].sort(byDate), csv=[...csvR.docs].sort(byDate), price=[...priceR.docs].sort(byDate);
       const savedContent=(freshCo?.exists?.()?freshCo.data().memory?.contenidos?.saved:null)||co.memory?.contenidos?.saved||[];
       window._empSavedCache={id, items:savedContent};
       const sections=[];
@@ -8974,9 +8973,6 @@ window.empOpenDetail=async function(id){
 
       if(price.length) sections.push(`<div style="margin-bottom:16px">${secHead(`💰 Pricing (${price.length})`)}
         ${price.map(d=>{const r=d.data();window._pricingRecordsCache[d.id]=r;return docRow(`${r.edition||'Pricing'} · ${r.users||0} usuarios`,`${fmtMXN(r.total)} · ${r.implHrs||0} hrs impl${r.isSH?' · Odoo.SH':''}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();pricingOpenRecord('${d.id}')`,`deleteRecord('pricingRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
-
-      if(broch.length) sections.push(`<div style="margin-bottom:16px">${secHead(`📄 Brochures (${broch.length})`)}
-        ${broch.map(d=>{const r=d.data();return docRow(r.empresa||co.nombre,`${r.aeName||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),'',`deleteRecord('brochureApprovals','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
 
       if(savedContent.length){
         const chLabel={whatsapp:'💬 WhatsApp',correo:'📧 Correo',linkedin:'👤 LinkedIn',cold_calling:'📞 Cold Calling',brochure:'📄 Brochure',imagen:'🖼 Imagen'};
