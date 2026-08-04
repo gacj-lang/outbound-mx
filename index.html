@@ -945,10 +945,9 @@ input,select,textarea{font-family:inherit;}
       <div class="nav-section-label" style="margin-top:8px">Módulos</div>
       <button class="nav-item" id="nav-discovery" onclick="showModule('discovery')" data-tip="Califica prospectos con preguntas guiadas y detecta sus necesidades."><span class="nav-icon">🔍</span> Intromeet / Qcall</button>
       <button class="nav-item" id="nav-gencontenidos" onclick="showModule('gencontenidos')" data-tip="Crea mensajes e imágenes para WhatsApp, correo y LinkedIn."><span class="nav-icon">✉️</span> Generación de contenidos</button>
-      <button class="nav-item" id="nav-csv" onclick="showModule('csv')" data-tip="Construye y exporta listas de prospectos en CSV."><span class="nav-icon">📋</span> CSV Builder</button>
+      <button class="nav-item" id="nav-csv" onclick="showModule('csv')" data-tip="Construye y exporta listas de prospectos en CSV."><span class="nav-icon">📋</span> Generación de leads</button>
       <button class="nav-item" id="nav-pricing" onclick="showModule('pricing')" data-tip="Cotiza licencias, implementación e IVA de Odoo. Guarda registros y genera la propuesta comercial."><span class="nav-icon">💰</span> Pricing</button>
       <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')" data-tip="Métricas de uso y actividad del equipo."><span class="nav-icon">📊</span> Analytics</button>
-      <button class="nav-item" id="nav-historico" onclick="showModule('historico')" data-tip="Ventas y CRM histórico de Odoo México: filtros por fecha/industria/canal, embudo, fuente de lead y buscador con IA."><span class="nav-icon">📈</span> Información Histórica</button>
       <div class="nav-section-label" style="margin-top:8px">Conocimiento</div>
       <button class="nav-item" id="nav-wiki" onclick="showModule('wiki')" data-tip="Wiki interna: proceso de venta, herramientas, apps y tips para resolver dudas y preparar demos."><span class="nav-icon">📚</span> Banco de Información</button>
       <div class="nav-section-label" style="margin-top:8px">Recursos</div>
@@ -1016,7 +1015,7 @@ const MANAGER = { gram:'gacj', name:'Geovani Ariel Jiménez Cruz', email:'gacj@o
 const MODULES = [
   { id:'discovery',     icon:'🔍', label:'Intromeet / Qcall',        desc:'Califica prospectos con preguntas guiadas y detecta sus necesidades.', ready:true  },
   { id:'gencontenidos', icon:'✉️', label:'Generación de contenidos', desc:'Crea mensajes e imágenes para WhatsApp, correo y LinkedIn.',          ready:true  },
-  { id:'csv',           icon:'📋', label:'CSV Builder',              desc:'Construye y exporta listas de prospectos en CSV.',                    ready:true  },
+  { id:'csv',           icon:'📋', label:'Generación de leads',      desc:'Construye y exporta listas de prospectos en CSV.',                    ready:true  },
   { id:'pricing',       icon:'💰', label:'Pricing',                  desc:'Cotiza licencias, implementación e IVA de Odoo.',                     ready:true  },
   { id:'analytics',     icon:'📊', label:'Analytics',                desc:'Métricas de uso y actividad del equipo.',                            ready:true  },
 ];
@@ -1483,7 +1482,7 @@ function getUnsavedWarning(targetModule){
   // después, no hay nada que perder — el popup era persistente incluso tras guardar (bug real
   // reportado 2026-07-23).
   if(csvRows.length>0 && _csvDirty) return {
-    msg:`Tienes ${csvRows.length} prospectos procesados en el CSV Builder sin descargar ni guardar.`,
+    msg:`Tienes ${csvRows.length} prospectos procesados en Generación de leads sin descargar ni guardar.`,
     detail:'Si sales ahora perderás los datos.',
     onSave:async()=>{ const id=await csvPersist(); if(id) showNotif('Documento CSV guardado ✓','success'); },
   };
@@ -1534,8 +1533,9 @@ window.showNavWarning=function(warn, onConfirm, onSave){
 function _doShowModule(moduleId, skipNavHighlight=false){
   if(!skipNavHighlight){
     document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
-    // La Propuesta Comercial vive dentro del flujo de Pricing (ya no tiene botón propio en el nav)
-    const navId=moduleId==='propuesta'?'pricing':moduleId;
+    // La Propuesta Comercial vive dentro del flujo de Pricing, e Información Histórica dentro de
+    // Banco de Información — ninguna de las dos tiene botón propio en el nav.
+    const navId=moduleId==='propuesta'?'pricing':moduleId==='historico'?'wiki':moduleId;
     const n=document.getElementById('nav-'+navId); if(n) n.classList.add('active');
   }
   const mc=document.getElementById('mainContent');
@@ -1545,7 +1545,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
   mc.classList.remove('topbar-hidden');
   tb.style.display='flex';
   const titles={home:'Inicio',empresas:'Empresas',discovery:'Intromeet / Qcall',gencontenidos:'Generación de contenidos',
-    csv:'CSV Builder',pricing:'Pricing',propuesta:'Propuesta Comercial',analytics:'Analytics',
+    csv:'Generación de leads',pricing:'Pricing',propuesta:'Propuesta Comercial',analytics:'Analytics',
     manager:'Panel de Manager',settings:'Configuración',framework:'Framework Visual',wiki:'Banco de Información',
     historico:'Información Histórica'};
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
@@ -1703,7 +1703,7 @@ function analyticsProspeccion(rows){
     <div style="flex:1;min-width:0"><span style="font-size:13px;font-weight:600">${r.name}</span> <span style="font-size:11px;color:var(--gray-400)">· ${r.csv} solicitud${r.csv===1?'':'es'}</span></div>
     <div style="flex:1;height:10px;background:var(--gray-100);border-radius:99px;overflow:hidden;max-width:220px"><div style="height:100%;width:${Math.round(r.opp/maxOpp*100)}%;background:#9333ea"></div></div>
     <div style="width:130px;text-align:right;font-size:13px;font-weight:700">${r.opp} <span style="font-weight:400;color:var(--gray-400);font-size:11px">oportunidades</span></div></div>`).join('');
-  return _aSection('🧩 Prospección (CSV Builder)',inner);
+  return _aSection('🧩 Prospección (Generación de leads)',inner);
 }
 
 function analyticsPeople(rows){
@@ -1908,7 +1908,7 @@ function renderSettings(){
         </div>
         <div class="card settings-card">
           <div class="card-header"><h3>🤖 Claude API (Anthropic)</h3><span class="status-dot ${ck?'dot-green':'dot-red'}"></span></div>
-          <p class="settings-desc">Motor de IA para todos los módulos — Discovery, CSV Builder, Seguimiento y Contenidos. Se guarda en este dispositivo.<br><a href="https://console.anthropic.com" target="_blank" class="link">Anthropic Console →</a></p>
+          <p class="settings-desc">Motor de IA para todos los módulos — Discovery, Generación de leads, Seguimiento y Contenidos. Se guarda en este dispositivo.<br><a href="https://console.anthropic.com" target="_blank" class="link">Anthropic Console →</a></p>
           <div class="form-group"><label>Claude API Key</label><input type="password" id="claudeApiKey" class="input" placeholder="sk-ant-api03-..." value="${ck}"></div>
           <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
             <button class="btn btn-primary" onclick="saveClaudeKey()">Guardar</button>
@@ -6636,6 +6636,14 @@ async function renderWiki(){
         ${isManager?`<button class="btn btn-primary" onclick="wikiShowEditor()">+ Nuevo artículo</button>`:''}
       </div>
       <input type="text" id="wikiSearch" class="input" placeholder="🔍 Buscar por palabra clave, tag o tema..." style="max-width:420px;margin-bottom:20px" oninput="wikiFilter()">
+      <button class="module-card" style="cursor:pointer;width:100%;flex-direction:row;align-items:center;gap:14px;margin-bottom:16px;text-align:left" onclick="showModule('historico')">
+        <div style="font-size:26px">📈</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14.5px">Información Histórica</div>
+          <div style="font-size:12.5px;color:var(--gray-500)">Ventas y CRM histórico de Odoo México: filtros por fecha/industria/canal, embudo, fuente de lead y buscador con IA.</div>
+        </div>
+        <div style="font-size:13px;color:var(--purple);font-weight:600;white-space:nowrap">Abrir →</div>
+      </button>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px">
         ${WIKI_CATEGORIES.map(c=>`<button class="module-card" id="wikiCat-${c.id}" style="cursor:pointer" onclick="wikiSelectCategory('${c.id}')">
           <div style="font-size:22px">${c.icon}</div>
@@ -10545,7 +10553,7 @@ function renderCsvBuilder(){
   const userId=fullName?`${fullName} (${gram})`:'';
   content.innerHTML=`
     <div style="max-width:900px;margin:0 auto;padding:24px">
-      <div class="page-header" style="margin-bottom:24px"><h2>📋 CSV Builder</h2><p>Convierte cualquier fuente de prospectos en un CSV listo para importar al CRM de Odoo.</p></div>
+      <div class="page-header" style="margin-bottom:24px"><h2>📋 Generación de leads</h2><p>Convierte cualquier fuente de prospectos en un CSV listo para importar al CRM de Odoo.</p></div>
       <div class="card" style="padding:24px;margin-bottom:20px">
         <h4 style="font-size:15px;font-weight:700;margin-bottom:16px">⚙️ Configuración</h4>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
