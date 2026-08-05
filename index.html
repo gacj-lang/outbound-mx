@@ -8800,6 +8800,7 @@ window.discShowPopup=function(sourceId,title){
 // MÓDULO EMPRESAS
 // ══════════════════════════════════════════
 async function renderEmpresas(){
+  _empMineOnly=false;
   const content=document.getElementById('moduleContent');
   content.innerHTML=`
     <div style="max-width:1100px;margin:0 auto;padding:24px">
@@ -8810,13 +8811,14 @@ async function renderEmpresas(){
           <button class="btn btn-primary" onclick="empShowCreate()">+ Nueva empresa</button>
         </div>
       </div>
-      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
         <input type="text" id="empSearch" class="input" placeholder="🔍 Buscar empresa..." style="max-width:280px" oninput="empFilter()">
         <select id="empIndFilter" class="input" style="max-width:200px" onchange="empFilter()">
           <option value="">Todas las industrias</option>
           ${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
         </select>
         ${(currentUserData?.role==='tl'||currentUserData?.role==='manager')?`<select id="empAccountFilter" class="input" style="max-width:180px" onchange="empFilter()"><option value="">Todas las cuentas</option></select>`:''}
+        <button id="empMineBtn" class="btn btn-ghost btn-sm" onclick="empToggleMine()">🙋 Mis empresas</button>
       </div>
       <div id="empresasList"><div class="cdc-empty">Cargando empresas...</div></div>
     </div>`;
@@ -8911,6 +8913,16 @@ function empRender(companies){
       </div>`;
     }).join('')}</div>`;
 }
+let _empMineOnly=false;
+window.empToggleMine=function(){
+  _empMineOnly=!_empMineOnly;
+  const btn=document.getElementById('empMineBtn');
+  if(btn){
+    btn.classList.toggle('btn-primary',_empMineOnly);
+    btn.classList.toggle('btn-ghost',!_empMineOnly);
+  }
+  empFilter();
+};
 window.empFilter=function(){
   const search=(document.getElementById('empSearch')?.value||'').toLowerCase();
   const ind=document.getElementById('empIndFilter')?.value||'';
@@ -8919,6 +8931,7 @@ window.empFilter=function(){
   if(search) filtered=filtered.filter(c=>(c.nombre||'').toLowerCase().includes(search)||(c.giro||'').toLowerCase().includes(search));
   if(ind) filtered=filtered.filter(c=>(c.giro||'').toLowerCase()===ind.toLowerCase());
   if(acct) filtered=filtered.filter(c=>c.createdBy===acct);
+  if(_empMineOnly) filtered=filtered.filter(c=>c.createdByUid?c.createdByUid===currentUserData?.uid:c.createdBy===currentUserData?.name);
   empRender(filtered);
 };
 window.empOpenDetail=async function(id){
