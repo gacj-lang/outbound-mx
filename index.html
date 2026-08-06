@@ -9187,6 +9187,7 @@ function applyPricingMsg(d){
   pricingState.implNotes=d.implNotes||'';
   pricingState.payTermIdx=d.payTermIdx??-1;
   pricingState.payStartDate=d.payStartDate||'';
+  pricingState.qeDate=d.qeDate||'';
   pricingState.isSH=d.isSH||false;
   pricingState.shWorkers=d.shWorkers||1;
   pricingState.shStaging=d.shStaging||0;
@@ -9220,7 +9221,7 @@ async function pricingUpsertRecord(d,opts={}){
     licDiscByPlan:Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null, implDiscByPlan:Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null, implPriceList:d.implPriceList||d.implPrice||null,
     isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0, shCost:d.shCost||0,
     codeLines:d.codeLines||0,
-    payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', implNotes:d.implNotes||'', odooPropUrl:pricingState.odooPropUrl||'',
+    payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', qeDate:d.qeDate||'', implNotes:d.implNotes||'', odooPropUrl:pricingState.odooPropUrl||'',
     rowVisible:Array.isArray(d.rowVisible)?d.rowVisible:null,
     updatedAt:serverTimestamp()
   };
@@ -9369,7 +9370,10 @@ window.pricingGeneratePDF=function(){
   const fmtN=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0}):'—';
   const fmt2=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
   const today=new Date().toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
-  const validity=new Date(Date.now()+30*864e5).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  // Vigencia: usa la fecha elegida en el pricing (qe-date); si no hay ninguna, cae a +30 días.
+  const validityDate=ps.qeDate?new Date(ps.qeDate+'T12:00:00'):new Date(Date.now()+30*864e5);
+  const validity=validityDate.toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  const validityDays=Math.max(0,Math.round((validityDate-new Date())/864e5));
   const folio='OD-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*9000+1000));
   const aeN=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'AE';
   const aeFullN=currentUserData?.name||'Account Executive'; const aeEmail=currentUserData?.email||'';
@@ -9571,7 +9575,12 @@ body{font-family:'Inter',sans-serif;color:#21272B;background:white;-webkit-print
 .page:last-child{page-break-after:auto;break-after:auto;}
 .page-inner{padding:52px 68px 60px;min-height:11in;display:flex;flex-direction:column;}
 /* Cover page */
-.cover{background:#f5f4f0;color:#21272B;min-height:11in;display:flex;flex-direction:column;justify-content:space-between;padding:68px 68px 60px;position:relative;}
+/* overflow:hidden a propósito: el cluster de apps decorativo se posiciona parcialmente fuera
+   del borde derecho (right:-100px, rotado) para dar un efecto de "recorte". Sin esto, el
+   bounding box de la página se calcula más ancho que la hoja Carta y Chrome aplica un
+   "shrink to fit" global a TODO el documento al imprimir — encoge todas las páginas por igual
+   y deja un margen enorme sin usar del lado derecho (y abajo). */
+.cover{background:#f5f4f0;color:#21272B;min-height:11in;display:flex;flex-direction:column;justify-content:space-between;padding:68px 68px 60px;position:relative;overflow:hidden;}
 .cover::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,#d8d4cc 1.2px,transparent 1.2px);background-size:26px 26px;opacity:.5;pointer-events:none;}
 .cover-headline{font-family:'Inter',sans-serif;font-size:52px;font-weight:700;line-height:1.05;letter-spacing:-1.5px;color:white;margin-bottom:8px;}
 .cover-headline span{color:#FC787D;}
@@ -9694,7 +9703,7 @@ thead{ display:table-header-group; }
       <div style="font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px;font-family:'Inter',sans-serif">Presentada por</div>
       <div style="font-size:18px;font-weight:700;color:#714B67;font-family:'Inter',sans-serif">${aeFullN}</div>
       <div style="font-size:14px;color:#9ca3af;font-family:'Inter',sans-serif">Account Executive · Odoo México${aeEmail?` · ${aeEmail}`:''}</div>
-      <div style="font-size:12px;color:#c2c8d0;margin-top:12px;font-family:'Inter',sans-serif">Vigencia: 30 días · hasta ${validity}</div>
+      <div style="font-size:12px;color:#c2c8d0;margin-top:12px;font-family:'Inter',sans-serif">Vigencia: ${validityDays} día${validityDays===1?'':'s'} · hasta ${validity}</div>
     </div>
   </div>
 
@@ -10154,6 +10163,7 @@ window.propLoadLastPricing=async function(){
     pricingState.company=co;
     pricingState.recordId=last.id;
     pricingState.odooPropUrl=last.odooPropUrl||'';
+    pricingState.qeDate=last.qeDate||'';
     // Load selected modules from company memory
     const memMods=co.memory?.pricing?.selectedApps||[];
     if(memMods.length) pricingState.selectedModules=memMods;
@@ -10527,6 +10537,7 @@ window.pricingGenerateProposalFromRecord=function(id){
   pricingState.contact=null;
   pricingState.recordId=id;
   pricingState.odooPropUrl=r.odooPropUrl||'';
+  pricingState.qeDate=r.qeDate||'';
   pricingState.result={editionName:r.edition,users:r.users,planIdx:r.planIdx,mensualRef:r.mensualRef,implPrice:r.implPrice,total:r.total,implHrs:r.implHrs||50};
   pricingState.users=r.users; pricingState.planIdx=r.planIdx;
   pricingState._mensualRef=fmt(r.mensualRef); pricingState._impl=fmt(r.implPrice);
