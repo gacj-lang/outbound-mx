@@ -1483,6 +1483,7 @@
   // ── DATA ──────────────────────────────────────────────────────────────────
   let currentUsers   = 1;
   let currentEdition = 1;
+  let editionManual  = false;  // true en cuanto el usuario (o un registro guardado) fija la edición a mano — desactiva el auto-switch de autoSwitchEditionForUsers()
   let currentPlanIdx = 5;
   let currentImplPrice = 0;   // default: sin paquete
   let currentImplHrs   = 0;
@@ -3020,6 +3021,7 @@
     document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
     currentEdition = i;
+    editionManual = true;
     // Auto-open Standard info when Standard is selected
 
     // Mostrar/ocultar bloque Odoo SH
@@ -3272,6 +3274,7 @@
 
   // ── AUTO SWITCH TO ODOO SH / PERSONALIZABLE ─────────────────────────────
   function autoSwitchEditionForUsers() {
+    if (editionManual) return; // el usuario ya fijó la edición a mano — no la pisamos al mover +/- usuarios
     const etabs = document.querySelectorAll('.etab');
     if (currentUsers >= 25 && currentEdition !== 2) {
       // Switch UP → Odoo SH (índice 2)
