@@ -6568,7 +6568,7 @@ const HIST_FUNNEL_STAGES = [
 ];
 const HIST_CUTOFF_MADURO = {Outbound:'2026-02-05', Inbound:'2026-04-18'};
 
-const _histState = {q1:HIST_QUARTERS[0], q2:HIST_QUARTERS[HIST_QUARTERS.length-1], motion:'ambos', industria:'todas', tab:'resumen'};
+const _histState = {q1:HIST_QUARTERS[0], q2:HIST_QUARTERS[HIST_QUARTERS.length-1], motion:'Inbound', industria:'todas', tab:'resumen'};
 let _histAiMessages = [];
 
 function _histMotions(){ return _histState.motion==='ambos' ? ['Outbound','Inbound'] : [_histState.motion]; }
