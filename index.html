@@ -989,7 +989,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-08-03 CSV Builder: DIRIND (directorio Proveedores Industriales 2023, 5256 empresas) como 3ra fuente del buscador de leads — filtro de categoría/estado/texto propio, columna DATOS DIRIND, cross-match bidireccional con Apollo/DENUE en búsqueda y en pegar/subir archivo';
+const APP_BUILD_STAMP='2026-08-06 Cadencias: Odoo real (dedupe+actividades) + correo real por Gmail OAuth del AE + WhatsApp asistido (wa.me). Nuevo en Generación de leads: checkboxes+Activar cadencia en Resultados, sub-pestañas Mis cadencias (biblioteca/editor/A-B) y Cadencias activas (dashboard+apagado de emergencia). Configuración: Conectar Gmail. Construcción inicial — pendiente credenciales de producción (ODOO_*, GOOGLE_OAUTH_*) para operar de verdad, ver Configuración → Cadencias — Gmail';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1918,6 +1918,13 @@ function renderSettings(){
           <button class="btn btn-primary" onclick="saveMyProfile()">Guardar mis datos</button>
         </div>
 
+        <!-- CADENCIAS — GMAIL -->
+        <div class="card settings-card">
+          <div class="card-header"><h3>🔁 Cadencias — Gmail</h3><span class="status-dot cfg-gmail-dot dot-red" id="cfgGmailDot"></span></div>
+          <p class="settings-desc">Conecta tu Gmail corporativo para que los correos de las cadencias salgan de tu propio buzón, no de una cuenta compartida. Solo tú puedes leer/mandar desde este acceso — la app nunca ve tu contraseña.</p>
+          <div id="cfgGmailBody"><span style="font-size:13px;color:var(--gray-400)">Revisando conexión…</span></div>
+        </div>
+
         <!-- SEGURIDAD -->
         <div class="card settings-card">
           <div class="card-header"><h3>🔑 Seguridad</h3></div>
@@ -1966,7 +1973,55 @@ function renderSettings(){
         </div>
       </div>
     </div>`;
+  setTimeout(cfgLoadGmailStatus,0);
 }
+
+// ───────── Cadencias — Gmail (Configuración → Mis datos) ─────────
+// Mismo backend Railway que Descargas/Buscador de leads (REPORTES_ODOO_BASE, declarada más abajo
+// en el módulo de Información Histórica) — reusa esa constante para no duplicar la URL del backend.
+async function cfgLoadGmailStatus(){
+  const dot=document.getElementById('cfgGmailDot'), body=document.getElementById('cfgGmailBody');
+  if(!dot||!body||!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(REPORTES_ODOO_BASE+'/cadences/gmail/status',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    dot.className='status-dot cfg-gmail-dot '+(data.connected?'dot-green':'dot-red');
+    body.innerHTML=data.connected
+      ? `<div style="display:flex;align-items:center;gap:12px"><span class="key-saved">✓ Conectado</span><button class="btn btn-ghost" onclick="cfgDisconnectGmail()">Desconectar</button></div>`
+      : `<button class="btn btn-primary" onclick="cfgConnectGmail()">Conectar Gmail</button>`;
+  }catch(e){
+    body.innerHTML=`<span style="font-size:13px;color:var(--red-500,#c0392b)">No se pudo revisar la conexión: ${e.message}</span>`;
+  }
+}
+window.cfgConnectGmail=async function(){
+  if(!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(REPORTES_ODOO_BASE+'/cadences/gmail/authurl',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    // Se abre en pestaña nueva — el callback del backend muestra una página de confirmación simple;
+    // al volver a esta pestaña, cfgLoadGmailStatus() se vuelve a llamar manualmente (botón abajo)
+    // o al reabrir Configuración.
+    window.open(data.url,'_blank');
+    showNotif('Autoriza el acceso en la pestaña nueva y vuelve aquí','info');
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+window.cfgDisconnectGmail=async function(){
+  if(!currentUser) return;
+  if(!confirm('¿Desconectar Gmail? Las cadencias activas que dependan de tu correo dejarán de mandar toques de email hasta que reconectes.')) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(REPORTES_ODOO_BASE+'/cadences/gmail/disconnect',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    showNotif('Gmail desconectado','success');
+    cfgLoadGmailStatus();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
 window.saveMyProfile=async function(){
   if(!db||!currentUser) return;
   const name=document.getElementById('cfgMyName')?.value.trim()||currentUserData?.name||'';
@@ -10875,14 +10930,37 @@ const CSV_ROLE_GROUP_OPTS=[
   {id:'rh',label:'Recursos Humanos'},
   {id:'direccion_general',label:'Dirección General'},
 ];
+// Sub-pestañas: Resultados (búsqueda/CSV, contenido original de este módulo) | Mis cadencias
+// (biblioteca+editor+A/B) | Cadencias activas (dashboard) — decisión de nav de la memoria del
+// proyecto: las cadencias NO son módulo nuevo del sidebar, viven dentro de Generación de leads.
+let csvActiveTab='resultados';
 function renderCsvBuilder(){
   const content=document.getElementById('moduleContent');
+  content.innerHTML=`
+    <div style="max-width:900px;margin:0 auto;padding:24px 24px 0">
+      <div class="page-header" style="margin-bottom:16px"><h2>📋 Generación de leads</h2><p>Convierte cualquier fuente de prospectos en un CSV listo para importar al CRM de Odoo, y activa cadencias reales sobre los resultados.</p></div>
+      <div style="display:flex;gap:4px;margin-bottom:0;border-bottom:1.5px solid var(--gray-200)">
+        ${[{id:'resultados',label:'📋 Resultados'},{id:'cadencias',label:'🔁 Mis cadencias'},{id:'activas',label:'📊 Cadencias activas'}].map(t=>`
+          <button class="csv-tab-btn" onclick="csvSetTab('${t.id}')"
+            style="padding:10px 16px;border:none;border-bottom:2.5px solid ${csvActiveTab===t.id?'var(--purple)':'transparent'};background:none;cursor:pointer;font-size:14px;font-weight:600;color:${csvActiveTab===t.id?'var(--purple)':'var(--gray-500)'};margin-bottom:-1.5px">${t.label}</button>`).join('')}
+      </div>
+    </div>
+    <div id="csvTabBody"></div>`;
+  csvRenderActiveTab();
+}
+window.csvSetTab=function(id){ csvActiveTab=id; renderCsvBuilder(); };
+function csvRenderActiveTab(){
+  const body=document.getElementById('csvTabBody'); if(!body) return;
+  if(csvActiveTab==='cadencias'){ cadRenderMisCadenciasTab(body); return; }
+  if(csvActiveTab==='activas'){ cadRenderActivasTab(body); return; }
+  csvRenderResultadosTab(body);
+}
+function csvRenderResultadosTab(content){
   const gram=currentUserData?.gram||'';
   const fullName=gram===MANAGER.gram?MANAGER.name:(AE_LIST[gram]||currentUserData?.name||'');
   const userId=fullName?`${fullName} (${gram})`:'';
   content.innerHTML=`
-    <div style="max-width:900px;margin:0 auto;padding:24px">
-      <div class="page-header" style="margin-bottom:24px"><h2>📋 Generación de leads</h2><p>Convierte cualquier fuente de prospectos en un CSV listo para importar al CRM de Odoo.</p></div>
+    <div style="max-width:900px;margin:0 auto;padding:20px 24px 24px">
       <div class="card" style="padding:24px;margin-bottom:20px">
         <h4 style="font-size:15px;font-weight:700;margin-bottom:16px">⚙️ Configuración</h4>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -11065,9 +11143,14 @@ function renderCsvBuilder(){
             </div>
           </div>
           <div id="csvWarnings" style="margin-bottom:12px"></div>
+          <div id="csvCadenceBar" style="display:none;align-items:center;gap:12px;background:var(--purple-light);border:1px solid var(--purple);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px">
+            <span id="csvCadenceBarCount" style="font-size:13px;font-weight:600;color:var(--purple)"></span>
+            <button class="btn btn-primary btn-sm" onclick="csvOpenCadenceModal()">🔁 Activar cadencia</button>
+          </div>
           <div style="overflow-x:auto">
             <table id="csvTable" style="width:100%;border-collapse:collapse;font-size:12px">
               <thead><tr style="background:var(--purple-light)">
+                <th style="padding:8px 10px"><input type="checkbox" id="csvSelectAllChk" onchange="csvToggleAllChk(this)"></th>
                 ${CSV_COLUMNS.map(c=>`<th style="padding:8px 10px;text-align:left;white-space:nowrap;font-size:11px;font-weight:700;color:var(--purple)">${c}</th>`).join('')}
                 <th style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--purple)">Notes</th>
                 ${CSV_EXTRA_COLUMNS.map(c=>`<th style="padding:8px 10px;text-align:left;white-space:nowrap;font-size:11px;font-weight:700;color:var(--purple)">${c.label}</th>`).join('')}
@@ -11896,15 +11979,633 @@ function csvRenderTable(){
   const tbody=document.getElementById('csvTableBody'); if(!tbody) return;
   document.getElementById('csvRowCount').textContent=`(${csvRows.length} prospectos)`;
   tbody.innerHTML=csvRows.map((row,i)=>`<tr style="border-bottom:1px solid var(--gray-100)">
+    <td style="padding:4px 6px"><input type="checkbox" class="csvRowChk" value="${i}" onchange="csvUpdateCadenceBar()"></td>
     ${CSV_COLUMNS.map(col=>`<td style="padding:4px 6px;max-width:130px"><input type="text" value="${(row[col]||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvUpdateCell(${i},'${col}',this.value)" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>`).join('')}
     <td style="padding:4px 6px;max-width:160px"><input type="text" value="${(row.notes||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvUpdateCell(${i},'notes',this.value)" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>
     ${CSV_EXTRA_COLUMNS.map(c=>`<td style="padding:4px 6px;max-width:160px"><input type="text" value="${(row[c.key]||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvUpdateCell(${i},'${c.key}',this.value)" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>`).join('')}
-    <td style="padding:4px"><button onclick="csvDeleteRow(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px">✕</button></td>
+    <td style="padding:4px;white-space:nowrap">
+      <button onclick="csvOpenCadenceModal([${i}])" title="Activar cadencia para este prospecto" style="background:none;border:none;color:var(--purple);cursor:pointer;font-size:14px">🔁</button>
+      <button onclick="csvDeleteRow(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px">✕</button>
+    </td>
   </tr>`).join('');
   const emptyStates=csvRows.map((r,i)=>r.state_id?null:i+1).filter(Boolean);
   const warn=document.getElementById('csvWarnings');
   if(warn) warn.innerHTML=emptyStates.length>0?`<div style="background:var(--warning-light);color:var(--warning);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px">⚠️ Filas sin estado: ${emptyStates.join(', ')} — revisa manualmente</div>`:'';
+  const selAll=document.getElementById('csvSelectAllChk'); if(selAll) selAll.checked=false;
+  csvUpdateCadenceBar();
 }
+
+// ───────── Selección + Activar cadencia (bloque) ─────────
+window.csvToggleAllChk=function(master){
+  document.querySelectorAll('.csvRowChk').forEach(c=>{ c.checked=master.checked; });
+  csvUpdateCadenceBar();
+};
+window.csvUpdateCadenceBar=function(){
+  const bar=document.getElementById('csvCadenceBar'); if(!bar) return;
+  const n=document.querySelectorAll('.csvRowChk:checked').length;
+  bar.style.display=n>0?'flex':'none';
+  const label=document.getElementById('csvCadenceBarCount'); if(label) label.textContent=`${n} seleccionado${n===1?'':'s'}`;
+};
+window.csvOpenCadenceModal=function(indices){
+  const idxs=indices&&indices.length?indices:[...document.querySelectorAll('.csvRowChk:checked')].map(c=>Number(c.value));
+  if(!idxs.length){ showNotif('Selecciona al menos un prospecto','error'); return; }
+  const rows=idxs.map(i=>csvRows[i]).filter(Boolean);
+  const sinEmail=rows.filter(r=>!r.Email).length;
+  if(sinEmail>0 && !confirm(`${sinEmail} prospecto(s) sin correo — no recibirán los toques de email de la cadencia (sí LinkedIn/Llamada/WhatsApp). ¿Continuar?`)) return;
+  openCadenceActivationModal(rows);
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+// Modal de activación de cadencia — 3 pantallas (elegir cadencia → contenido → revisión
+// obligatoria). Decisión de UX de la memoria del proyecto: el método de contenido se elige UNA
+// sola vez para todo el lote (nunca por lead), el texto usa merge-tags {{nombre}}/{{empresa}} en
+// vez de regenerarse por empresa, y la revisión es obligatoria sin excepción antes de confirmar.
+// El generador de IA reusa gcCallClaude/GC_MOMENTOS/gcMomentoInstructions (Template de mensaje) —
+// NO es un generador paralelo — pero corre con su propio estado (_cad), nunca toca `cont` (el
+// estado global de Generación de contenidos), para no interferir entre módulos.
+// ══════════════════════════════════════════════════════════════════════════
+let _cad=null;
+async function cadApi(path,opts={}){
+  if(!currentUser) throw new Error('Sesión inválida.');
+  const idToken=await currentUser.getIdToken();
+  const res=await fetch(REPORTES_ODOO_BASE+path,{
+    method:opts.method||'GET',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
+    body:opts.body?JSON.stringify(opts.body):undefined,
+  });
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+  return data;
+}
+
+async function openCadenceActivationModal(rows){
+  if(!currentUser){ showNotif('Inicia sesión','error'); return; }
+  _cad={ leads:rows, templates:[], templateId:'sugerida', steps:[], variantBSteps:null,
+    screen:0, method:'ia', tone:'formal', toneExtra:'', contexto:'', aiOptions:null, content:{A:{},B:{}} };
+  cadRenderOverlay();
+  try{
+    const data=await cadApi('/cadences/templates');
+    _cad.templates=data.templates||[];
+    const chosen=_cad.templates.find(t=>t.id===_cad.templateId)||_cad.templates.find(t=>t.isDefault)||_cad.templates[0];
+    if(chosen){ _cad.templateId=chosen.id; _cad.steps=chosen.steps||[]; _cad.variantBSteps=chosen.variantBSteps||null; }
+    cadRenderOverlay();
+  }catch(e){ showNotif('No se pudieron cargar las cadencias: '+e.message,'error'); }
+}
+function cadRenderOverlay(){
+  if(!_cad) return;
+  let overlay=document.getElementById('cadModal');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='cadModal';
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.addEventListener('click',e=>{ if(e.target===overlay) cadCloseModal(); });
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML=`<div style="background:white;border-radius:14px;max-width:780px;width:100%;max-height:92vh;overflow-y:auto;padding:28px">${cadScreenHtml()}</div>`;
+}
+window.cadCloseModal=function(){ document.getElementById('cadModal')?.remove(); _cad=null; };
+function cadScreenHtml(){
+  if(!_cad.templates.length) return `<div style="text-align:center;padding:40px;color:var(--gray-400)">Cargando cadencias…</div>`;
+  if(_cad.screen===0) return cadScreen0Html();
+  if(_cad.screen===1) return cadScreen1Html();
+  return cadScreen2Html();
+}
+window.cadGoScreen=function(n){ _cad.screen=n; cadRenderOverlay(); };
+function cadStepIcon(ch){ return {email:'✉️',whatsapp:'💬',call:'📞',linkedin:'👤'}[ch]||'•'; }
+function cadEmailSteps(){ return _cad.steps.filter(s=>s.channel==='email'); }
+function cadTimelineHtml(steps){
+  return steps.map(s=>`<div style="display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--gray-100);font-size:13px">
+    <span style="font-weight:700;color:var(--purple);min-width:50px">Día ${s.day}</span>
+    <span>${cadStepIcon(s.channel)} ${_esc(s.label||s.channel)}</span>
+  </div>`).join('');
+}
+
+// ── Pantalla 0: elegir cadencia ──
+function cadScreen0Html(){
+  const t=_cad.templates.find(x=>x.id===_cad.templateId);
+  return `
+    <h3 style="font-size:18px;font-weight:700;margin-bottom:4px">🔁 Activar cadencia</h3>
+    <p style="color:var(--gray-500);font-size:13px;margin-bottom:16px">${_cad.leads.length} prospecto${_cad.leads.length===1?'':'s'} seleccionado${_cad.leads.length===1?'':'s'}</p>
+    <div class="form-group"><label>Cadencia</label>
+      <select class="input" id="cadTemplateSel" onchange="cadSelectTemplate(this.value)">
+        ${_cad.templates.map(tt=>`<option value="${tt.id}" ${tt.id===_cad.templateId?'selected':''}>${_esc(tt.name)}${tt.isDefault?' (sugerida)':''}</option>`).join('')}
+      </select>
+    </div>
+    <div style="margin-top:12px">
+      ${t?.variantBSteps?.length?`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div><div style="font-size:12px;font-weight:700;color:var(--gray-500);margin-bottom:6px">VARIANTE A</div>${cadTimelineHtml(_cad.steps)}</div>
+        <div><div style="font-size:12px;font-weight:700;color:var(--gray-500);margin-bottom:6px">VARIANTE B</div>${cadTimelineHtml(_cad.variantBSteps)}</div>
+      </div>`:cadTimelineHtml(_cad.steps)}
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+      <button class="btn btn-ghost" onclick="cadCloseModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="cadGoScreen(1)">Siguiente →</button>
+    </div>`;
+}
+window.cadSelectTemplate=function(id){
+  const t=_cad.templates.find(x=>x.id===id); if(!t) return;
+  _cad.templateId=id; _cad.steps=t.steps||[]; _cad.variantBSteps=t.variantBSteps||null;
+  _cad.content={A:{},B:{}}; _cad.aiOptions=null; // cambiar de cadencia invalida el contenido ya generado
+  cadRenderOverlay();
+};
+
+// ── Pantalla 1: método de contenido (solo toques de correo — WhatsApp se llena en la revisión) ──
+function cadContentReady(){
+  const emailSteps=cadEmailSteps();
+  if(!emailSteps.length) return true;
+  const variants=_cad.variantBSteps?.length?['A','B']:['A'];
+  return variants.every(v=>emailSteps.every(s=>_cad.content[v]?.[s.day]?.subject && _cad.content[v]?.[s.day]?.html));
+}
+function cadScreen1Html(){
+  return `
+    <h3 style="font-size:18px;font-weight:700;margin-bottom:4px">✍️ Contenido de los correos</h3>
+    <p style="color:var(--gray-500);font-size:13px;margin-bottom:16px">Se define UNA sola vez para toda la secuencia y para los ${_cad.leads.length} prospectos — el texto usa {{nombre}}/{{empresa}}, no se repregunta por cada uno. Los toques de WhatsApp/Llamada/LinkedIn se completan en la pantalla de revisión.</p>
+    <div style="display:flex;gap:8px;margin-bottom:18px">
+      <button class="btn ${_cad.method==='ia'?'btn-primary':'btn-ghost'}" onclick="cadSetMethod('ia')">✨ Asistente IA</button>
+      <button class="btn ${_cad.method==='plantillas'?'btn-primary':'btn-ghost'}" onclick="cadSetMethod('plantillas')">📝 Plantillas</button>
+      <button class="btn ${_cad.method==='cero'?'btn-primary':'btn-ghost'}" onclick="cadSetMethod('cero')">✎ Desde cero</button>
+    </div>
+    <div id="cadMethodBody">${cadMethodBodyHtml()}</div>
+    <div style="display:flex;justify-content:space-between;gap:10px;margin-top:20px">
+      <button class="btn btn-ghost" onclick="cadGoScreen(0)">← Atrás</button>
+      <button class="btn btn-primary" onclick="cadGoReview()">Revisar →</button>
+    </div>`;
+}
+window.cadSetMethod=function(m){ _cad.method=m; cadRenderOverlay(); };
+window.cadGoReview=function(){
+  if(!cadContentReady()){ showNotif('Completa el asunto y cuerpo de todos los correos antes de continuar.','error'); return; }
+  _cad.screen=2; cadRenderOverlay();
+};
+function cadMethodBodyHtml(){
+  if(!cadEmailSteps().length) return `<p style="color:var(--gray-400);font-size:13px">Esta cadencia no tiene toques de correo — nada que generar aquí.</p>`;
+  if(_cad.method==='plantillas') return cadPlantillasBodyHtml();
+  if(_cad.method==='cero') return cadCeroBodyHtml();
+  return cadIaBodyHtml();
+}
+
+// -- Camino IA --
+function cadToneInstructionBlock(){
+  if(_cad.tone!=='personalizado') return `TONO: ${_cad.tone}`;
+  const saved=(currentUserData?.customTonePrompt||'').trim();
+  const extra=(_cad.toneExtra||'').trim();
+  return `TONO PERSONALIZADO (definido por el AE en Configuración): ${saved||'(no configurado — usa un tono profesional consultivo por defecto)'}${extra?`\nINSTRUCCIÓN ADICIONAL: ${extra}`:''}`;
+}
+function cadIaBodyHtml(){
+  return `
+    <div class="gc-selector" style="margin-bottom:12px"><label>Tono</label>
+      <select class="input" id="cadToneSel" onchange="cadSetTone(this.value)">
+        ${TONES.map(t=>`<option value="${t.id}" ${_cad.tone===t.id?'selected':''}>${t.icon} ${t.label}</option>`).join('')}
+      </select>
+    </div>
+    ${_cad.tone==='personalizado'?`<div class="form-group"><label>Instrucción adicional (opcional)</label><textarea class="input" oninput="cadSetToneExtra(this.value)" style="min-height:60px">${_esc(_cad.toneExtra||'')}</textarea></div>`:''}
+    <div class="form-group"><label>Contexto adicional (opcional)</label><textarea class="input" maxlength="200" oninput="cadSetContexto(this.value)" placeholder="Ej. Empresas de manufactura mediana, mencionar cierre fiscal...">${_esc(_cad.contexto||'')}</textarea></div>
+    <button class="gc-generate-btn" id="cadGenBtn" onclick="cadGenerateAI()"><span>✨</span> Generar</button>
+    <div class="gc-loading" id="cadGenLoading"><div class="gc-spinner"></div><span>Generando…</span></div>
+    <div id="cadAiOptions" style="margin-top:16px">${cadAiOptionsHtml()}</div>`;
+}
+window.cadSetTone=function(v){ _cad.tone=v; cadRenderOverlay(); };
+window.cadSetToneExtra=function(v){ _cad.toneExtra=v; };
+window.cadSetContexto=function(v){ _cad.contexto=v; };
+function cadAiOptionsHtml(){
+  if(!_cad.aiOptions) return '';
+  return _cad.aiOptions.map((o,i)=>`
+    <div style="border:1px solid var(--gray-200);border-radius:10px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:13px">Opción ${i+1}${_cad.variantBSteps?.length?(i===0?' → Variante A':' → Variante B'):''}</strong>
+        ${!_cad.variantBSteps?.length?`<button class="btn btn-sm btn-primary" onclick="cadUseOption(${i})">Usar esta</button>`:''}
+      </div>
+      ${Object.entries(o.days).map(([day,d])=>`<div style="font-size:12px;padding:6px 0;border-top:1px solid var(--gray-100)"><strong>Día ${day} — ${_esc(d.subject)}</strong><div style="color:var(--gray-500);margin-top:2px">${d.html}</div></div>`).join('')}
+    </div>`).join('');
+}
+window.cadUseOption=function(i){
+  _cad.content.A={..._cad.content.A,..._cad.aiOptions[i].days};
+  showNotif('Opción aplicada ✓','success');
+  cadRenderOverlay();
+};
+window.cadGenerateAI=async function(){
+  const btn=document.getElementById('cadGenBtn'); if(btn) btn.disabled=true;
+  gcShowLoading('cadGenLoading',true);
+  try{
+    const emailSteps=cadEmailSteps();
+    if(!emailSteps.length) throw new Error('Esta cadencia no tiene toques de correo.');
+    const aeNombre=currentUserData?.nombreTemplate||currentUserData?.name?.split(' ')[0]||'el AE';
+    const apptLink=currentUserData?.appointmentLink||'';
+    const stepsDesc=emailSteps.map(s=>`- Día ${s.day} (momento: ${GC_MOMENTOS.find(m=>m.id===s.momento)?.label||s.momento}): ${gcMomentoInstructions(s.momento)||'sin regla específica adicional'}`).join('\n');
+    const prompt=`Eres un experto en outbound B2B para México y LATAM, especializado en venta consultiva de plataformas SaaS tipo ERP (como Odoo). Vas a escribir el contenido de TODOS los correos de una cadencia de prospección de ${emailSteps.length} toque(s), para mandarse en automático a un LOTE de prospectos (no un prospecto específico) — el texto debe usar los merge-tags {{nombre}} y {{empresa}} donde vaya un dato personal, NUNCA inventes un nombre/empresa real.
+
+NOMBRE DEL AE (remitente): ${aeNombre}
+${apptLink?`LINK DE AGENDADO DEL AE: ${apptLink} — inclúyelo como CTA cuando sea apropiado`:''}
+${cadToneInstructionBlock()}
+CONTEXTO ADICIONAL: ${_cad.contexto||'ninguno'}
+
+TOQUES DE CORREO DE ESTA CADENCIA:
+${stepsDesc}
+
+CANAL: Correo electrónico
+- Cuerpo BREVE (bajo 80 palabras salvo que el contexto pida lo contrario), personalización con {{nombre}}/{{empresa}} en las primeras líneas, pain-first, un solo CTA claro, P.D. opcional
+- Sin firma de cierre ('Saludos', 'Atentamente', nombre suelto) — termina en el CTA
+- Da continuidad entre los toques: NO repitas el mismo ángulo/frase entre los distintos días
+- NO inventes datos específicos de una empresa — este texto se manda a un lote, debe funcionar para cualquier prospecto que matchee el ICP
+- NO uses markdown (nada de **negritas**, ## títulos ni viñetas con *)
+
+${odooResourcesBlock()}
+
+Genera 2 OPCIONES completas (ángulos claramente distintos entre sí), cada una con el texto de TODOS los días de correo listados arriba.
+Responde EXCLUSIVAMENTE con un array JSON válido, sin markdown ni texto fuera del JSON, con esta forma exacta:
+[{"opcion":1,"dias":[{"day":<número de día tal cual arriba>,"subject":"...","html":"..."}]},{"opcion":2,"dias":[...]}]`;
+    const raw=await gcCallClaude(prompt,null,{maxTokens:4000,system:ANTI_HALLUCINATION});
+    const parsed=_parseJSONArray(raw);
+    if(!Array.isArray(parsed)||!parsed.length) throw new Error('La IA no devolvió opciones válidas.');
+    _cad.aiOptions=parsed.map(o=>({days:Object.fromEntries((o.dias||[]).map(d=>[d.day,{subject:d.subject||'',html:(d.html||'').replace(/\n/g,'<br>')}]))}));
+    if(_cad.variantBSteps?.length && _cad.aiOptions.length>=2){
+      _cad.content.A={..._cad.content.A,..._cad.aiOptions[0].days};
+      _cad.content.B={..._cad.content.B,..._cad.aiOptions[1].days};
+      showNotif('2 opciones generadas — Opción 1 → Variante A, Opción 2 → Variante B ✓','success');
+    } else {
+      showNotif('2 opciones generadas — elige una con "Usar esta" ✓','success');
+    }
+    const box=document.getElementById('cadAiOptions'); if(box) box.innerHTML=cadAiOptionsHtml();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+  if(btn) btn.disabled=false; gcShowLoading('cadGenLoading',false);
+};
+
+// -- Camino Plantillas — biblioteca pública de snippets por momento (colección emailSnippets) --
+let _cadSnippetsCache=null;
+function cadPlantillasBodyHtml(){
+  if(_cadSnippetsCache===null){ setTimeout(cadLoadSnippets,0); return `<div style="color:var(--gray-400);font-size:13px">Cargando plantillas…</div>`; }
+  return cadEmailSteps().map(s=>{
+    const opts=(_cadSnippetsCache||[]).filter(sn=>sn.momento===s.momento);
+    return `<div style="border:1px solid var(--gray-200);border-radius:10px;padding:12px;margin-bottom:10px">
+      <strong style="font-size:13px">Día ${s.day} — ${GC_MOMENTOS.find(m=>m.id===s.momento)?.label||s.momento}</strong>
+      ${opts.length?opts.map(sn=>`<div style="margin-top:8px;padding:8px;background:var(--gray-50);border-radius:6px">
+        <div style="font-size:12px;font-weight:600">${_esc(sn.subject||'')}</div>
+        <div style="font-size:12px;color:var(--gray-500);margin:4px 0">${sn.html||''}</div>
+        <button class="btn btn-sm btn-ghost" onclick="cadUseSnippet(${s.day},'${sn.id}')">Usar esta</button>
+      </div>`).join(''):`<div style="font-size:12px;color:var(--gray-400);margin-top:6px">Sin plantillas guardadas para este momento — usa ✨ IA o ✎ Desde cero.</div>`}
+    </div>`;
+  }).join('');
+}
+async function cadLoadSnippets(){
+  try{
+    const snap=await getDocs(collection(db,'emailSnippets'));
+    _cadSnippetsCache=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ _cadSnippetsCache=[]; }
+  const body=document.getElementById('cadMethodBody'); if(body) body.innerHTML=cadMethodBodyHtml();
+}
+window.cadUseSnippet=function(day,snippetId){
+  const sn=(_cadSnippetsCache||[]).find(s=>s.id===snippetId); if(!sn) return;
+  _cad.content.A={..._cad.content.A,[day]:{subject:sn.subject,html:sn.html}};
+  if(_cad.variantBSteps?.length) _cad.content.B={..._cad.content.B,[day]:{subject:sn.subject,html:sn.html}};
+  showNotif(`Plantilla aplicada al día ${day} ✓`,'success');
+  cadRenderOverlay();
+};
+
+// -- Camino Desde cero --
+function cadCeroBodyHtml(){
+  const emailSteps=cadEmailSteps();
+  const variants=_cad.variantBSteps?.length?['A','B']:['A'];
+  return emailSteps.map(s=>variants.map(v=>`
+    <div style="border:1px solid var(--gray-200);border-radius:10px;padding:12px;margin-bottom:10px">
+      <strong style="font-size:13px">Día ${s.day}${variants.length>1?' — Variante '+v:''} — ${GC_MOMENTOS.find(m=>m.id===s.momento)?.label||s.momento}</strong>
+      <div class="form-group" style="margin-top:8px"><label>Asunto</label><input type="text" class="input" value="${_esc(_cad.content[v]?.[s.day]?.subject||'')}" oninput="cadSetCero(${s.day},'${v}','subject',this.value)"></div>
+      <div class="form-group"><label>Cuerpo (usa {{nombre}} / {{empresa}})</label><textarea class="input" style="min-height:80px" oninput="cadSetCero(${s.day},'${v}','html',this.value)">${_esc(_cad.content[v]?.[s.day]?.html||'')}</textarea></div>
+    </div>`).join('')).join('');
+}
+window.cadSetCero=function(day,variant,field,value){
+  _cad.content[variant]={..._cad.content[variant]};
+  _cad.content[variant][day]={..._cad.content[variant][day],[field]:value};
+};
+
+// ── Pantalla 2: revisión obligatoria (incluye WhatsApp — no pasó por el método de contenido) ──
+function cadStepsAllForReview(){
+  return _cad.variantBSteps?.length ? [{variant:'A',steps:_cad.steps},{variant:'B',steps:_cad.variantBSteps}] : [{variant:'A',steps:_cad.steps}];
+}
+function cadReviewStepCardHtml(variant,s){
+  const c=_cad.content[variant]?.[s.day]||{};
+  if(s.channel==='email'){
+    return `<div style="border:1px solid var(--gray-200);border-radius:10px;padding:12px;margin-bottom:8px">
+      <strong style="font-size:12px">Día ${s.day} · ✉️ Email — ${GC_MOMENTOS.find(m=>m.id===s.momento)?.label||s.momento}</strong>
+      <input type="text" class="input" style="margin-top:6px" value="${_esc(c.subject||'')}" oninput="cadReviewSet('${variant}',${s.day},'subject',this.value)">
+      <textarea class="input" style="margin-top:6px;min-height:70px" oninput="cadReviewSet('${variant}',${s.day},'html',this.value)">${_esc(c.html||'')}</textarea>
+    </div>`;
+  }
+  if(s.channel==='whatsapp'){
+    return `<div style="border:1px solid var(--gray-200);border-radius:10px;padding:12px;margin-bottom:8px">
+      <strong style="font-size:12px">Día ${s.day} · 💬 WhatsApp</strong>
+      <textarea class="input" style="margin-top:6px;min-height:60px" placeholder="Hola {{nombre}}, soy... (se abre en WhatsApp con este texto precargado, el AE da clic en enviar)" oninput="cadReviewSet('${variant}',${s.day},'waText',this.value)">${_esc(c.waText||'')}</textarea>
+    </div>`;
+  }
+  return `<div style="border:1px solid var(--gray-100);border-radius:10px;padding:10px 12px;margin-bottom:8px;color:var(--gray-500);font-size:12px">Día ${s.day} · ${cadStepIcon(s.channel)} ${_esc(s.label||s.channel)} — queda como actividad en Odoo, el AE lo hace directo (sin contenido generado).</div>`;
+}
+function cadScreen2Html(){
+  const groups=cadStepsAllForReview();
+  return `
+    <h3 style="font-size:18px;font-weight:700;margin-bottom:4px">👁 Revisión final</h3>
+    <p style="color:var(--gray-500);font-size:13px;margin-bottom:16px">Obligatorio revisar antes de activar — esto se manda tal cual a ${_cad.leads.length} prospecto(s) reales.</p>
+    <div style="display:${groups.length>1?'grid':'block'};grid-template-columns:1fr 1fr;gap:16px">
+      ${groups.map(g=>`<div>${groups.length>1?`<div style="font-size:12px;font-weight:700;color:var(--gray-500);margin-bottom:8px">VARIANTE ${g.variant}</div>`:''}${g.steps.map(s=>cadReviewStepCardHtml(g.variant,s)).join('')}</div>`).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:10px;margin-top:20px">
+      <button class="btn btn-ghost" onclick="cadGoScreen(1)">← Atrás</button>
+      <button class="btn btn-primary" id="cadConfirmBtn" onclick="cadSubmitActivation()">✓ Confirmar y activar</button>
+    </div>
+    <div class="gc-loading" id="cadConfirmLoading"><div class="gc-spinner"></div><span>Activando…</span></div>`;
+}
+window.cadReviewSet=function(variant,day,field,value){
+  _cad.content[variant]={..._cad.content[variant]};
+  _cad.content[variant][day]={..._cad.content[variant][day],[field]:value};
+};
+window.cadSubmitActivation=async function(){
+  const groups=cadStepsAllForReview();
+  for(const g of groups){
+    for(const s of g.steps){
+      const c=_cad.content[g.variant]?.[s.day]||{};
+      if(s.channel==='whatsapp' && !(c.waText||'').trim()){ showNotif(`Falta el texto de WhatsApp del día ${s.day}${groups.length>1?' (variante '+g.variant+')':''}`,'error'); return; }
+      if(s.channel==='email' && (!c.subject||!c.html)){ showNotif(`Falta contenido del correo del día ${s.day}${groups.length>1?' (variante '+g.variant+')':''}`,'error'); return; }
+    }
+  }
+  const btn=document.getElementById('cadConfirmBtn'); if(btn) btn.disabled=true;
+  gcShowLoading('cadConfirmLoading',true);
+  try{
+    const leads=_cad.leads.map(r=>({
+      empresa:r.partner_name||'', contacto:r.contact_name||'', firstName:(r.contact_name||'').split(' ')[0]||'',
+      email:r.Email||'', phone:r.phone||'', cargo:r.function||'', website:r.Website||'',
+      content:_cad.content,
+    }));
+    const data=await cadApi('/cadences/activate',{method:'POST',body:{
+      templateId:_cad.templateId, steps:_cad.steps, variantBSteps:_cad.variantBSteps, leads,
+    }});
+    const results=data.results||[];
+    const ok=results.filter(r=>r.ok).length;
+    const fail=results.filter(r=>!r.ok);
+    showNotif(`${ok} cadencia${ok===1?'':'s'} activada${ok===1?'':'s'}${fail.length?`, ${fail.length} con error (ver consola)`:''} ✓`,fail.length?'error':'success');
+    if(fail.length) console.warn('[cadencias] activaciones con error:',fail);
+    cadCloseModal();
+    document.querySelectorAll('.csvRowChk:checked').forEach(c=>{ c.checked=false; });
+    csvUpdateCadenceBar();
+  }catch(e){ showNotif('Error al activar: '+e.message,'error'); }
+  if(btn) btn.disabled=false; gcShowLoading('cadConfirmLoading',false);
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+// Tab "Mis cadencias" — biblioteca pública (Sugerida + creadas por el equipo) + editor de
+// timeline + A/B. La Sugerida se duplica para editar, nunca se edita directo (regla de la memoria).
+// ══════════════════════════════════════════════════════════════════════════
+let _cadLib={templates:null,editing:null};
+async function cadRenderMisCadenciasTab(bodyEl){
+  bodyEl.innerHTML=`<div style="max-width:900px;margin:0 auto;padding:20px 24px 24px" id="cadLibWrap"><div style="color:var(--gray-400);font-size:13px">Cargando…</div></div>`;
+  try{
+    const data=await cadApi('/cadences/templates');
+    _cadLib.templates=data.templates||[];
+  }catch(e){
+    document.getElementById('cadLibWrap').innerHTML=`<div class="cdc-empty">Error al cargar: ${_esc(e.message)}</div>`;
+    return;
+  }
+  cadLibRender();
+}
+function cadLibRender(){
+  const wrap=document.getElementById('cadLibWrap'); if(!wrap) return;
+  wrap.innerHTML=_cadLib.editing?cadLibEditorHtml():cadLibListHtml();
+}
+function cadLibListHtml(){
+  const rows=(_cadLib.templates||[]);
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <p style="color:var(--gray-500);font-size:13px;margin:0">Biblioteca pública del equipo — cualquiera puede usar o crear una cadencia.</p>
+      <button class="btn btn-primary btn-sm" onclick="cadLibNew()">+ Nueva cadencia</button>
+    </div>
+    <div style="display:grid;gap:14px">
+      ${rows.map(t=>`
+        <div class="card" style="padding:18px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+            <div>
+              <strong style="font-size:15px">${_esc(t.name)}</strong>
+              ${t.isDefault?'<span style="font-size:11px;font-weight:600;color:var(--purple);background:var(--purple-light);border-radius:99px;padding:2px 10px;margin-left:8px">Sugerida</span>':''}
+              ${t.variantBSteps?.length?'<span style="font-size:11px;font-weight:600;color:var(--gray-500);background:var(--gray-100);border-radius:99px;padding:2px 10px;margin-left:6px">A/B</span>':''}
+              <div style="font-size:12px;color:var(--gray-400);margin-top:2px">${(t.steps||[]).length} toques${t.variantBSteps?.length?` · variante B con ${t.variantBSteps.length}`:''}</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="cadLibEdit('${t.id}')">${t.isDefault?'Duplicar y editar':'✎ Editar'}</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${(t.steps||[]).map(s=>`<span style="font-size:11px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:99px;padding:3px 10px">Día ${s.day} ${cadStepIcon(s.channel)}</span>`).join('')}
+          </div>
+        </div>`).join('')||'<div class="cdc-empty">Sin cadencias todavía.</div>'}
+    </div>`;
+}
+window.cadLibNew=function(){
+  _cadLib.editing={id:null,name:'',steps:[{day:0,channel:'email',momento:'primer_toque',label:'Email — primer toque'}],variantBSteps:null};
+  cadLibRender();
+};
+window.cadLibEdit=function(id){
+  const t=(_cadLib.templates||[]).find(x=>x.id===id); if(!t) return;
+  _cadLib.editing=t.isDefault
+    ? {id:null,name:'Copia de '+t.name,steps:JSON.parse(JSON.stringify(t.steps||[])),variantBSteps:t.variantBSteps?JSON.parse(JSON.stringify(t.variantBSteps)):null}
+    : {id:t.id,name:t.name,steps:JSON.parse(JSON.stringify(t.steps||[])),variantBSteps:t.variantBSteps?JSON.parse(JSON.stringify(t.variantBSteps)):null};
+  cadLibRender();
+};
+window.cadLibCancelEdit=function(){ _cadLib.editing=null; cadLibRender(); };
+function cadLibStepRowHtml(target,idx,s){
+  return `<div style="display:grid;grid-template-columns:70px 130px 1fr 1fr 32px;gap:8px;align-items:center;margin-bottom:6px">
+    <input type="number" class="input" value="${s.day}" min="0" oninput="cadLibSetStep('${target}',${idx},'day',Number(this.value))" style="padding:6px 8px">
+    <select class="input" style="padding:6px 8px" onchange="cadLibSetStep('${target}',${idx},'channel',this.value)">
+      ${['linkedin','email','call','whatsapp'].map(ch=>`<option value="${ch}" ${s.channel===ch?'selected':''}>${cadStepIcon(ch)} ${ch}</option>`).join('')}
+    </select>
+    ${s.channel==='email'?`<select class="input" style="padding:6px 8px" onchange="cadLibSetStep('${target}',${idx},'momento',this.value)">
+      ${GC_MOMENTOS.map(m=>`<option value="${m.id}" ${s.momento===m.id?'selected':''}>${_esc(m.label)}</option>`).join('')}
+    </select>`:'<div></div>'}
+    <input type="text" class="input" value="${_esc(s.label||'')}" placeholder="Etiqueta (ej. Llamada de seguimiento)" oninput="cadLibSetStep('${target}',${idx},'label',this.value)" style="padding:6px 8px">
+    <button onclick="cadLibRemoveStep('${target}',${idx})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px">✕</button>
+  </div>`;
+}
+function cadLibEditorHtml(){
+  const e=_cadLib.editing;
+  return `
+    <div class="card" style="padding:22px">
+      <div class="form-group"><label>Nombre de la cadencia</label>
+        <input type="text" class="input" id="cadLibNameInput" value="${_esc(e.name)}" oninput="cadLibSetName(this.value)" placeholder="Ej. Manufactura — ciclo largo"></div>
+      <div style="margin-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <label style="font-weight:700;font-size:13px">Timeline${e.variantBSteps?' — Variante A':''}</label>
+          <button class="btn btn-ghost btn-sm" onclick="cadLibAddStep('A')">+ Toque</button>
+        </div>
+        ${e.steps.map((s,i)=>cadLibStepRowHtml('A',i,s)).join('')}
+      </div>
+      <div style="margin-top:14px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600">
+          <input type="checkbox" ${e.variantBSteps?'checked':''} onchange="cadLibToggleVariantB(this.checked)"> Probar A/B (timeline paralela, editable aparte)
+        </label>
+      </div>
+      ${e.variantBSteps?`<div style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <label style="font-weight:700;font-size:13px">Timeline — Variante B</label>
+          <button class="btn btn-ghost btn-sm" onclick="cadLibAddStep('B')">+ Toque</button>
+        </div>
+        ${e.variantBSteps.map((s,i)=>cadLibStepRowHtml('B',i,s)).join('')}
+      </div>`:''}
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+        <button class="btn btn-ghost" onclick="cadLibCancelEdit()">Cancelar</button>
+        <button class="btn btn-primary" onclick="cadLibSave()">💾 Guardar cadencia</button>
+      </div>
+    </div>`;
+}
+window.cadLibSetName=function(v){ _cadLib.editing.name=v; };
+window.cadLibAddStep=function(target){
+  const list=target==='B'?_cadLib.editing.variantBSteps:_cadLib.editing.steps;
+  list.push({day:0,channel:'linkedin',label:''});
+  cadLibRender();
+};
+window.cadLibRemoveStep=function(target,idx){
+  const list=target==='B'?_cadLib.editing.variantBSteps:_cadLib.editing.steps;
+  list.splice(idx,1);
+  cadLibRender();
+};
+window.cadLibSetStep=function(target,idx,field,value){
+  const list=target==='B'?_cadLib.editing.variantBSteps:_cadLib.editing.steps;
+  list[idx]={...list[idx],[field]:value};
+  if(field==='channel') cadLibRender(); // el select de momento solo aplica a 'email' — hay que redibujar la fila
+};
+window.cadLibToggleVariantB=function(checked){
+  _cadLib.editing.variantBSteps=checked?JSON.parse(JSON.stringify(_cadLib.editing.steps)):null;
+  cadLibRender();
+};
+window.cadLibSave=async function(){
+  const e=_cadLib.editing;
+  if(!e.name.trim()){ showNotif('Ponle nombre a la cadencia','error'); return; }
+  if(!e.steps.length){ showNotif('Agrega al menos un toque','error'); return; }
+  try{
+    await cadApi('/cadences/templates',{method:'POST',body:{id:e.id,name:e.name.trim(),steps:e.steps,variantBSteps:e.variantBSteps}});
+    showNotif('Cadencia guardada ✓','success');
+    _cadLib.editing=null; _cadLib.templates=null;
+    cadRenderMisCadenciasTab(document.getElementById('csvTabBody'));
+  }catch(err){ showNotif('Error: '+err.message,'error'); }
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+// Tab "Cadencias activas" — Activas / Respondieron / Detenidas + métricas + comparador A/B +
+// apagado de emergencia (solo manager).
+// ══════════════════════════════════════════════════════════════════════════
+let _cadActive={list:null,tab:'activa'};
+async function cadRenderActivasTab(bodyEl){
+  bodyEl.innerHTML=`<div style="max-width:900px;margin:0 auto;padding:20px 24px 24px" id="cadActiveWrap"><div style="color:var(--gray-400);font-size:13px">Cargando…</div></div>`;
+  try{
+    const [data,es]=await Promise.all([cadApi('/cadences/active'),cadApi('/cadences/emergencyStop')]);
+    _cadActive.list=data.cadences||[];
+    _cadActive.emergency=!!es.active;
+  }catch(e){
+    document.getElementById('cadActiveWrap').innerHTML=`<div class="cdc-empty">Error al cargar: ${_esc(e.message)}</div>`;
+    return;
+  }
+  cadActiveRender();
+}
+function cadActiveRender(){
+  const wrap=document.getElementById('cadActiveWrap'); if(!wrap) return;
+  const list=_cadActive.list||[];
+  const isManager=currentUserData?.role==='manager';
+  const counts={activa:list.filter(c=>c.status==='activa').length,respondio:list.filter(c=>c.status==='respondio').length,detenida:list.filter(c=>c.status==='detenida').length};
+  const totalPasosEnviados=list.reduce((n,c)=>n+(c.steps||[]).filter(s=>s.status==='hecho').length,0);
+
+  // Comparador A/B — agrupado por templateId, solo cuenta si hay leads en AMBAS variantes.
+  const porTemplate={};
+  list.forEach(c=>{ if(!c.variant) return; (porTemplate[c.templateId]=porTemplate[c.templateId]||{A:[],B:[]})[c.variant].push(c); });
+  const abCards=Object.entries(porTemplate).filter(([,v])=>v.A.length&&v.B.length).map(([tplId,v])=>{
+    const rate=arr=>arr.length?Math.round(100*arr.filter(c=>c.status==='respondio').length/arr.length):0;
+    return `<div class="card" style="padding:14px;margin-bottom:10px">
+      <strong style="font-size:13px">Comparador A/B</strong>
+      <div style="display:flex;gap:20px;margin-top:8px">
+        <div>A: ${v.A.length} leads · ${rate(v.A)}% respuesta</div>
+        <div>B: ${v.B.length} leads · ${rate(v.B)}% respuesta</div>
+      </div>
+      ${(v.A.length<10||v.B.length<10)?'<div style="font-size:11px;color:var(--warning);margin-top:6px">⚠️ Muestra chica — no saques conclusiones todavía</div>':''}
+    </div>`;
+  }).join('');
+
+  const filtered=list.filter(c=>c.status===_cadActive.tab);
+  wrap.innerHTML=`
+    <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="card" style="padding:14px 20px"><div style="font-size:22px;font-weight:700;color:var(--purple)">${counts.activa}</div><div style="font-size:12px;color:var(--gray-500)">Activas</div></div>
+      <div class="card" style="padding:14px 20px"><div style="font-size:22px;font-weight:700;color:var(--success)">${counts.respondio}</div><div style="font-size:12px;color:var(--gray-500)">Respondieron</div></div>
+      <div class="card" style="padding:14px 20px"><div style="font-size:22px;font-weight:700;color:var(--gray-400)">${counts.detenida}</div><div style="font-size:12px;color:var(--gray-500)">Detenidas</div></div>
+      <div class="card" style="padding:14px 20px"><div style="font-size:22px;font-weight:700">${totalPasosEnviados}</div><div style="font-size:12px;color:var(--gray-500)">Toques enviados</div></div>
+    </div>
+    ${abCards}
+    ${isManager?`<div class="card" style="padding:14px 18px;margin-bottom:16px;border:1.5px solid ${_cadActive.emergency?'var(--danger)':'var(--gray-200)'}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong style="font-size:13px">🛑 Apagado de emergencia</strong><div style="font-size:12px;color:var(--gray-500)">Detiene TODAS las cadencias activas ahora mismo, con nota en Odoo — solo manager.</div></div>
+        <button class="btn ${_cadActive.emergency?'btn-ghost':'btn-primary'}" onclick="cadToggleEmergency(${!_cadActive.emergency})">${_cadActive.emergency?'Reactivar':'Apagar todo'}</button>
+      </div>
+    </div>`:''}
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      ${[{id:'activa',label:`Activas (${counts.activa})`},{id:'respondio',label:`Respondieron (${counts.respondio})`},{id:'detenida',label:`Detenidas (${counts.detenida})`}].map(t=>`
+        <button class="btn ${_cadActive.tab===t.id?'btn-primary':'btn-ghost'} btn-sm" onclick="cadActiveSetTab('${t.id}')">${t.label}</button>`).join('')}
+    </div>
+    <div style="display:grid;gap:10px">
+      ${filtered.map(c=>`
+        <div class="card" style="padding:14px 18px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <strong style="font-size:14px">${_esc(c.companyName||'—')}</strong> <span style="color:var(--gray-400);font-size:12px">${_esc(c.leadName||'')}</span>
+              ${c.variant?`<span style="font-size:11px;background:var(--gray-100);border-radius:99px;padding:2px 8px;margin-left:6px">Variante ${c.variant}</span>`:''}
+              <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${c.aeEmail||''} · ${(c.steps||[]).filter(s=>s.status==='hecho').length}/${(c.steps||[]).length} toques</div>
+              ${c.stopReason?`<div style="font-size:12px;color:var(--gray-500);margin-top:2px">Motivo: ${_esc(c.stopReason)}</div>`:''}
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <a href="${c.odooLeadLink||'#'}" target="_blank" class="link" style="font-size:12px">Ver en Odoo →</a>
+              ${c.status==='activa'?`<button class="btn btn-ghost btn-sm" onclick="cadStopOne('${c.id}')">Detener</button>`:''}
+            </div>
+          </div>
+          ${cadActivePendingStepsHtml(c)}
+        </div>`).join('')||'<div class="cdc-empty">Sin cadencias en esta pestaña.</div>'}
+    </div>`;
+}
+// Toques manuales pendientes de HOY (whatsapp/call/linkedin) — email se manda solo, estos los
+// ejecuta el AE y confirma aquí. WhatsApp trae el link wa.me precargado (ver tarjeta dedicada).
+function cadActivePendingStepsHtml(c){
+  if(c.status!=='activa') return '';
+  const today=new Date().toISOString().slice(0,10);
+  const pend=(c.steps||[]).map((s,i)=>({...s,i})).filter(s=>s.status==='pendiente'&&s.channel!=='email'&&s.scheduledDate<=today);
+  if(!pend.length) return '';
+  return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--gray-100);display:flex;flex-wrap:wrap;gap:8px">
+    ${pend.map(s=>s.channel==='whatsapp'?cadWaButtonHtml(c,s):`
+      <div style="display:flex;align-items:center;gap:8px;background:var(--gray-50);border-radius:8px;padding:6px 10px;font-size:12px">
+        ${cadStepIcon(s.channel)} Día ${s.day} — ${_esc(s.label||s.channel)}
+        <button class="btn btn-ghost btn-sm" onclick="cadMarkStepDone('${c.id}',${s.i})">✓ Hecho</button>
+      </div>`).join('')}
+  </div>`;
+}
+// WhatsApp asistido — link wa.me con el texto YA resuelto (merge-tags aplicados en el backend al
+// activar), el AE da clic, WhatsApp abre con el mensaje precargado, el AE da clic en enviar desde
+// SU propio WhatsApp logueado (el sistema nunca manda nada solo — decisión explícita, sin riesgo
+// de baneo). "Ya lo envié" es una confirmación manual, no hay forma de detectar el envío real.
+function cadWaButtonHtml(c,s){
+  const text=s.content?.waText||'';
+  const phoneDigits=(c.leadPhone||'').replace(/[^\d]/g,'');
+  if(!phoneDigits){
+    return `<div style="font-size:12px;color:var(--warning);background:var(--warning-light);border-radius:8px;padding:6px 10px;display:flex;align-items:center;gap:8px">💬 Día ${s.day} — sin teléfono, no se puede abrir WhatsApp <button class="btn btn-ghost btn-sm" onclick="cadMarkStepDone('${c.id}',${s.i})">✓ Hecho igual</button></div>`;
+  }
+  const url=`https://wa.me/${phoneDigits}?text=${encodeURIComponent(text)}`;
+  return `<div style="display:flex;align-items:center;gap:8px;background:#e7f9ee;border-radius:8px;padding:6px 10px;font-size:12px">
+    💬 Día ${s.day}
+    <a href="${url}" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none">Abrir WhatsApp</a>
+    <button class="btn btn-ghost btn-sm" onclick="cadMarkStepDone('${c.id}',${s.i})">✓ Ya lo envié</button>
+  </div>`;
+}
+window.cadActiveSetTab=function(id){ _cadActive.tab=id; cadActiveRender(); };
+window.cadStopOne=async function(id){
+  if(!confirm('¿Detener esta cadencia? Se anota en Odoo y no se manda nada más.')) return;
+  try{ await cadApi(`/cadences/${id}/stop`,{method:'POST'}); showNotif('Cadencia detenida','success'); cadRenderActivasTab(document.getElementById('csvTabBody')); }
+  catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+window.cadMarkStepDone=async function(cadenceId,stepIdx){
+  try{ await cadApi(`/cadences/${cadenceId}/steps/${stepIdx}/markDone`,{method:'POST'}); showNotif('Toque marcado ✓','success'); cadRenderActivasTab(document.getElementById('csvTabBody')); }
+  catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+window.cadToggleEmergency=async function(active){
+  if(active&&!confirm('Esto detiene TODAS las cadencias activas de TODOS los AE ahora mismo. ¿Continuar?')) return;
+  try{ await cadApi('/cadences/emergencyStop',{method:'POST',body:{active}}); showNotif(active?'Apagado de emergencia activado':'Cadencias reactivadas','success'); cadRenderActivasTab(document.getElementById('csvTabBody')); }
+  catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
 window.csvDeleteRow=function(i){ csvRows.splice(i,1); _csvDirty=true; csvRenderTable(); };
 window.csvAddRow=function(){
   const fuente=document.getElementById('csvFuente')?.value.trim()||'';
