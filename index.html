@@ -10907,6 +10907,33 @@ let csvRows=[];
 // y al recargar una sesión ya guardada; se enciende al cargar/extraer/editar filas.
 let _csvDirty=false;
 let csvInputMode='paste';
+// Consumo de cuota del AE (semana/mes/diario por fuente) — se pide una vez al abrir el buscador de
+// leads y se cachea; csvRenderQuotaHint la combina con la fuente seleccionada para pintar el texto
+// junto a "Cantidad de leads". Antes de esto (pedido 2026-08-10, después del pico de gasto de
+// Claude API) el AE no tenía forma de ver su consumo, solo el tope fijo por fuente.
+let _quotaStatusCache=null;
+async function csvFetchQuotaStatus(){
+  if(!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch('https://thorough-curiosity-production-098d.up.railway.app/leadSearchQuotaStatus',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    _quotaStatusCache=data;
+  }catch(e){ console.warn('csvFetchQuotaStatus:',e); }
+  csvRenderQuotaHint();
+}
+function csvRenderQuotaHint(){
+  const cantHint=document.getElementById('csvSearchCantidadHint'); if(!cantHint) return;
+  const fuente=document.querySelector('input[name="csvSearchFuente"]:checked')?.value||'apollo';
+  const FUENTE_LABEL={apollo:'Apollo',denue:'DENUE',dirind:'DIRIND'};
+  const tope=fuente==='apollo'?10:25; // tope de AE por defecto — se ajusta abajo si ya llegó el consumo real
+  if(!_quotaStatusCache){ cantHint.textContent=`Tope diario ${FUENTE_LABEL[fuente]}: ${tope} leads. Se aplica también tu tope semanal/mensual como AE.`; return; }
+  const {limits,current}=_quotaStatusCache;
+  const dailyField=fuente==='denue'?'dayDenueCount':fuente==='dirind'?'dayDirindCount':'dayApolloCount';
+  const dailyLimit=fuente==='denue'?limits.dailyDenue:fuente==='dirind'?limits.dailyDirind:limits.dailyApollo;
+  cantHint.textContent=`Hoy ${FUENTE_LABEL[fuente]}: ${current[dailyField]||0}/${dailyLimit} · Semana: ${current.weekCount||0}/${limits.weekly} · Mes: ${current.monthCount||0}/${limits.monthly}`;
+}
 // Filtros del buscador de leads (100% Apollo) — nivel/seniority del contacto.
 const CSV_SENIORITY_OPTS=[
   {id:'owner',label:'Owner'},
@@ -11222,13 +11249,13 @@ window.csvOnFuenteChange=function(){
     ?`En ${fuente==='denue'?'DENUE':'DIRIND'} no filtra qué empresas aparecen (ahí no hay dato de contacto) — solo se usa para preferir ese tipo de persona al cruzar con Apollo.`
     :'';
   // Tope diario por fuente: DENUE/DIRIND 25/día (gratis, en memoria), Apollo 10/día (gasta créditos
-  // reales) — el backend valida el mismo tope, esto solo evita pedir de más en la UI.
+  // reales) — el backend valida el mismo tope, esto solo evita pedir de más en la UI. Usa el tope
+  // real del rol del AE si ya llegó (_quotaStatusCache), si no cae al tope de AE por defecto.
   const cantIn=document.getElementById('csvSearchCantidad');
-  const cantHint=document.getElementById('csvSearchCantidadHint');
-  const tope=fuente==='apollo'?10:25;
-  const FUENTE_LABEL={apollo:'Apollo',denue:'DENUE',dirind:'DIRIND'};
+  const limits=_quotaStatusCache?.limits;
+  const tope=limits?(fuente==='denue'?limits.dailyDenue:fuente==='dirind'?limits.dailyDirind:limits.dailyApollo):(fuente==='apollo'?10:25);
   if(cantIn){ cantIn.max=String(tope); if(Number(cantIn.value)>tope) cantIn.value=String(tope); }
-  if(cantHint) cantHint.textContent=`Tope diario ${FUENTE_LABEL[fuente]}: ${tope} leads. Se aplica también tu tope semanal/mensual como AE.`;
+  csvRenderQuotaHint();
 };
 // Catálogo real de categorías DIRIND (98) — se pide UNA vez al backend y se cachea; se llama cada
 // vez que se selecciona la fuente DIRIND (csvOnFuenteChange) por si es la primera vez en la sesión.
@@ -11283,6 +11310,10 @@ window.csvSetInputMode=function(mode){
     if(mode==='search'){ fuenteInput.value='App Outbound'; fuenteInput.readOnly=true; fuenteInput.style.background='var(--gray-50)'; }
     else if(fuenteInput.readOnly){ fuenteInput.value=''; fuenteInput.readOnly=false; fuenteInput.style.background=''; }
   }
+  // El consumo de cuota puede haber cambiado desde la última vez que se abrió el buscador (otra
+  // búsqueda en curso, otra pestaña) — se repide cada vez que se entra a modo búsqueda, no solo una
+  // vez por sesión.
+  if(mode==='search') csvFetchQuotaStatus();
 };
 // Buscador de leads (100% Apollo, con créditos) — backend en Railway, ver LEAD_SEARCH_API_URL.
 // La búsqueda ya no es síncrona: el backend crea un job y avisa por la campana 🔔 (ver
@@ -11772,34 +11803,22 @@ window.csvEnrichRowsWithAI=async function(rows){
   csvRenderTable();
 };
 
+// 2026-08-10: se quitó la búsqueda web (web_search_20250305) de este flujo — no aportaba lo
+// suficiente como para justificar el riesgo de costo: sin tope de concurrencia, un archivo grande
+// pegado/subido a CSV Builder puede disparar cientos de llamadas simultáneas, cada una con hasta 2
+// búsquedas reales y su contexto de resultados sin cachear (pico real: ~15M tokens en un día por un
+// solo archivo de 125 filas). El resumen ahora sale SOLO de los datos ya conocidos del lead.
 async function csvBatchResumenes(rows){
   await Promise.all(rows.map(async(r)=>{
     const contexto=[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400);
-    // 1) Intento CON búsqueda web (LinkedIn + sitio de la empresa). Puede fallar por razones ajenas
-    // al lead (web_search no habilitado en la cuenta de Claude, sin resultados, se corta a media
-    // búsqueda) — nunca debe dejar la columna vacía, por eso hay un respaldo abajo (bug real
-    // reportado 2026-07-24: primera prueba DENUE real trajo Resumen en blanco).
     try{
-      const query=`${r.partner_name||''} ${r.contact_name||''} ${r.function||''} ${r.state_id||r.country_id||''}`.trim();
-      const raw=await gcCallClaude(`Busca en LinkedIn y en la web (sitio de la empresa, noticias recientes) información sobre esta empresa y este contacto, para prospección B2B de Odoo: "${query}"${r.Website?` (posible sitio: ${r.Website})`:''}.
-${contexto?`Datos ya conocidos: ${contexto}`:''}
-Con eso, genera un resumen ULTRA BREVE (máximo 140 caracteres) pensado para que un vendedor sepa en un vistazo por qué contactar a esta empresa/contacto y con qué gancho empezar. Si la búsqueda no encuentra nada confiable, resume con los datos ya conocidos (industria, cargo) sin inventar nada.
-Responde en español, SOLO el resumen final, sin markdown, sin explicar tu proceso de búsqueda.`,
-        null, {maxTokens:1500, system:`Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown ni disclaimers de tu proceso. ${SPANISH_ORTHOGRAPHY_RULE}`, tools:[{type:'web_search_20250305', name:'web_search', max_uses:2}]});
-      const resumen=String(raw||'').trim().slice(0,140);
-      if(resumen){ r.resumen=resumen; return; }
-      throw new Error('respuesta vacía con web_search');
-    }catch(e){ console.warn('csvBatchResumenes (con búsqueda web):',r.partner_name,e); }
-    // 2) Respaldo SIN búsqueda web, solo con los datos ya conocidos del lead — garantiza que la
-    // columna Resumen nunca quede vacía aunque la búsqueda web falle.
-    try{
-      const raw2=await gcCallClaude(`Genera un resumen ULTRA BREVE (máximo 140 caracteres) de este lead de ventas B2B para Odoo, pensado para que un vendedor sepa en un vistazo por qué contactarlo. Usa SOLO estos datos, sin inventar nada más:
+      const raw=await gcCallClaude(`Genera un resumen ULTRA BREVE (máximo 140 caracteres) de este lead de ventas B2B para Odoo, pensado para que un vendedor sepa en un vistazo por qué contactarlo. Usa SOLO estos datos, sin inventar nada más:
 Empresa: ${r.partner_name||'nd'} | Contacto: ${r.contact_name||'nd'} | Cargo: ${r.function||'nd'} | Ubicación: ${r.state_id||r.country_id||'nd'}
 ${contexto?`Contexto: ${contexto}`:''}
 Responde en español, SOLO el resumen final, sin markdown.`,
         null, {maxTokens:300, system:`Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown. ${SPANISH_ORTHOGRAPHY_RULE}`});
-      r.resumen=String(raw2||'').trim().slice(0,140);
-    }catch(e2){ console.warn('csvBatchResumenes (respaldo sin web):',r.partner_name,e2); r.resumen=''; }
+      r.resumen=String(raw||'').trim().slice(0,140);
+    }catch(e){ console.warn('csvBatchResumenes:',r.partner_name,e); r.resumen=''; }
   }));
 }
 // Popup (no toast) al lanzar una búsqueda — el AE necesita quedar bien enterado de que el
