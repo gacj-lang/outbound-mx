@@ -1314,14 +1314,14 @@ const ODOO_PRICING = {
   personalizado:{nombre:'Personalizado', precio:'274', plataformas:'Odoo en línea · Odoo.sh · Local', extras:'+ Studio de Odoo · Multiempresas · API externa'},
 };
 function odooPricingHTML(){
-  const card=(p,color)=>`<div style="border:2px solid ${color};border-radius:14px;padding:16px 18px 18px;background:#fff;text-align:center;break-inside:avoid;page-break-inside:avoid">
+  const card=(p,color)=>`<div style="border:2px solid ${color};border-radius:14px;padding:12px 18px 14px;background:#fff;text-align:center;break-inside:avoid;page-break-inside:avoid">
     <div style="font-size:14px;font-weight:700;color:#21272B;margin-bottom:4px">${p.nombre}</div>
     <div style="font-family:'Caveat',cursive;font-size:42px;font-weight:700;color:#714B67;line-height:1">${p.precio}<span style="font-size:15px;font-weight:600;vertical-align:super;margin-left:2px">MXN</span></div>
     <div style="font-size:11px;color:#6b7280;margin-bottom:9px">por usuario / mes · todas las apps</div>
     <div style="font-size:12px;color:#374151;font-weight:600">${p.plataformas}</div>
     ${p.extras?`<div style="font-size:11px;color:#017E84;margin-top:6px;line-height:1.45">${p.extras}</div>`:''}
   </div>`;
-  return `<div style="margin-bottom:28px;break-inside:avoid;page-break-inside:avoid">
+  return `<div style="margin-bottom:18px;break-inside:avoid;page-break-inside:avoid">
     <div style="font-family:'Caveat',cursive;font-size:30px;font-weight:700;color:#714B67;margin-bottom:14px">Precios de <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2;color:#017E84">Odoo</span><span style="position:absolute;left:-2px;right:-2px;bottom:3px;height:34%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
       ${card(ODOO_PRICING.estandar,'#E4717A')}
@@ -3828,23 +3828,26 @@ const INDUSTRY_MAP = {
 };
 
 // ── Keywords de búsqueda de fotos (Pexels) por industria ──
+// Priorizan a la persona interactuando con una pantalla/tablet/computadora en su entorno de
+// trabajo — Pexels no tiene screenshots reales de Odoo, pero así la foto se siente "usando un
+// sistema" en vez de solo gente trabajando sin ninguna tecnología a la vista.
 const PHOTO_KEYWORDS = {
-  'Construcción':['construction site workers','engineer hard hat blueprint','construction team meeting'],
-  'Retail':['retail store staff','shop owner tablet','boutique salesperson customer'],
-  'Restaurante':['restaurant kitchen chef','cafe staff working','restaurant manager tablet'],
-  'Comercializadora':['warehouse worker logistics','distribution center staff','wholesale business team'],
-  'Manufactura':['factory workers production','manufacturing engineer','industrial workers tablet'],
-  'Software/IT':['software developers office','tech team meeting','programmers working laptop'],
-  'Servicios':['business professionals meeting','consulting team office','service team working'],
-  'Distribución':['logistics warehouse team','delivery distribution staff','supply chain workers'],
-  'Ecommerce':['online store packing','ecommerce warehouse','entrepreneur laptop shipping'],
-  'Salud':['medical staff clinic','healthcare professionals','pharmacy workers'],
-  'Educación':['teachers classroom technology','education staff meeting','school administration'],
-  'Inmobiliaria':['real estate agent client','property manager office','realtor showing'],
-  'Logística':['logistics team warehouse','transport fleet workers','supply chain office'],
-  'Agricultura':['agriculture farm workers','agribusiness technology','farming team'],
-  'Turismo':['hotel staff reception','hospitality team','travel agency office'],
-  'Otra':['business team office working','professionals meeting laptop','modern office teamwork'],
+  'Construcción':['construction manager tablet site','engineer laptop blueprint office','construction team computer planning'],
+  'Retail':['retail store tablet inventory','shop owner point of sale screen','boutique salesperson computer'],
+  'Restaurante':['restaurant manager tablet order','cafe staff computer register','restaurant point of sale screen'],
+  'Comercializadora':['warehouse worker tablet scanning','distribution manager computer screen','wholesale business laptop office'],
+  'Manufactura':['factory manager tablet production','manufacturing engineer computer screen','industrial worker digital tablet'],
+  'Software/IT':['software developer laptop screen','tech team computer office','programmer working laptop code'],
+  'Servicios':['business professional laptop office','consultant tablet meeting','service manager computer screen'],
+  'Distribución':['logistics manager tablet warehouse','delivery dispatcher computer screen','supply chain laptop office'],
+  'Ecommerce':['online store owner laptop','ecommerce warehouse tablet scanning','entrepreneur computer shipping screen'],
+  'Salud':['medical staff tablet clinic','healthcare professional computer screen','pharmacy worker tablet'],
+  'Educación':['teacher tablet classroom technology','school administrator computer office','education staff laptop meeting'],
+  'Inmobiliaria':['real estate agent tablet client','property manager computer office','realtor laptop presentation'],
+  'Logística':['logistics team tablet warehouse','transport dispatcher computer screen','supply chain manager laptop'],
+  'Agricultura':['farmer tablet technology field','agribusiness manager computer office','farming team digital tablet'],
+  'Turismo':['hotel staff tablet reception','hospitality manager computer screen','travel agent laptop office'],
+  'Otra':['business professional laptop office','manager tablet meeting','office team computer working'],
 };
 
 // Busca una foto en Pexels por industria. Devuelve {url, photographer} o null.
@@ -4454,7 +4457,7 @@ const cont={
   company:null, contact:null,
   tone:'interesante', length:'equilibrado', format:'1200x627',
   channel:'whatsapp',
-  imgStyle:'foto',
+  imgStyle:'foto', pubLength:'larga', // extensión del post de Publicación LinkedIn — 'corta' | 'larga'
   photoPage:1, lastPhoto:null, lastPubData:null,
   output:null,
   brCta:'prospeccion',
@@ -4813,6 +4816,17 @@ const LENGTHS=[
   {id:'equilibrado', label:'Equilibrado',icon:'••',desc:'80-120 palabras. Ideal para email frío y mensajes de seguimiento.'},
   {id:'largo',       label:'Largo',      icon:'•••',desc:'150-250 palabras. Para email con contexto o propuestas por mensaje.'},
 ];
+// Extensión específica del post de Publicación LinkedIn (post público de feed, no mensaje 1:1) —
+// separado de LENGTHS porque los rangos de palabras de un post de LinkedIn son otros.
+const GC_PUB_LENGTHS=[
+  {id:'corta', label:'Corta',   icon:'•',  words:'80-140',  desc:'Va directo al punto, se lee en segundos.'},
+  {id:'larga', label:'Extensa', icon:'••', words:'180-280', desc:'Post desarrollado, con más contexto y storytelling.'},
+];
+window.gcSetPubLength=function(id,el){
+  cont.pubLength=id;
+  document.querySelectorAll('[data-publen]').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+};
 
 function renderToneSelector(current,onchange){
   return `<div class="gc-tone-grid" id="gcTones">
@@ -5371,7 +5385,14 @@ function renderGcPublicacionLinkedIn(){
         <div class="form-group"><label>Estadística o dato de impacto (opcional)</label>
           <input type="text" class="input" id="gcPubStat" placeholder="Ej. +5,000 empresas · 13M usuarios · 40% reducción de costos operativos">
         </div>
+        <div class="form-group"><label>Extensión del post</label>
+          <div class="gc-tone-grid" id="gcPubLenGrid">
+            ${GC_PUB_LENGTHS.map(l=>`<button class="gc-tone-chip ${cont.pubLength===l.id?'active':''}"
+              data-publen="${l.id}" onclick="gcSetPubLength('${l.id}',this)">${l.icon} ${l.label} — ${l.words} palabras</button>`).join('')}
+          </div>
+        </div>
         ${gcEventoCheckboxHTML('pub')}
+        ${!currentUserData?.appointmentLink?`<div style="margin-top:10px;font-size:12px;color:var(--warning);background:var(--warning-light);border:1px solid #fde68a;border-radius:8px;padding:8px 12px">⚠️ No tienes un Link de Appointment configurado — el cierre del post invitará a agendar pero sin link directo. Configúralo en ⚙️ Configuración → Mis datos.</div>`:''}
       </div>
 
       <button class="gc-generate-btn" id="gcPubBtn" onclick="gcGeneratePub()">
@@ -5408,9 +5429,13 @@ window.gcOtraFoto=async function(){
 
 // Núcleo de generación de imagen comercial (headline/puntos/apps + capa visual). Reutilizado por
 // Publicación LinkedIn, y por el checkbox "Generar imagen" de Template de mensaje / Cold Calling.
-async function gcRunPubImageGen(ind, msg, stat, tono, evento, channel){
+async function gcRunPubImageGen(ind, msg, stat, tono, evento, channel, pubLength){
   evento=evento||{active:false,tools:null,toolChoice:null,promptLine:''};
   channel=channel||'pub';
+  pubLength=pubLength||cont.pubLength||'larga';
+  const isPost=(channel==='linkedin'||channel==='pub'); // post público de feed (vs. mensaje 1:1)
+  const wordsRange=isPost?(GC_PUB_LENGTHS.find(l=>l.id===pubLength)?.words||'180-280'):'40-80';
+  const apptLink=currentUserData?.appointmentLink||'';
   const _appNames=ODOO_APPS_FLAT.map(m=>m.name).join(', ');
   const copy=await gcCallClaude(`Genera el contenido para una imagen comercial de Odoo México dirigida a la industria de ${ind}, Y el texto de acompañamiento.
 INDUSTRIA TARGET: ${ind} | ${gcToneInstructionBlock(gcToneExtraValue())}
@@ -5422,6 +5447,7 @@ ${evento.active?(channel==='linkedin'||channel==='pub'
   ?`\nIMPORTANTE — la imagen es sobre el EVENTO: usa el headline/subheadline/puntos EXACTAMENTE como se describe en el esquema JSON de abajo (nombre del evento, fecha/hora/modalidad, puntos de contexto) — NO genérico de industria. El post_text debe funcionar como invitación o mención directa y explícita del evento, no una mención de pasada.`
   :`\nIMPORTANTE — la imagen es sobre el EVENTO: usa el headline/subheadline/puntos EXACTAMENTE como se describe en el esquema JSON de abajo (nombre del evento, fecha/hora/modalidad, puntos de contexto) — NO genérico de industria. El post_text debe mencionar el evento de forma natural dentro de un mensaje personalizado de outbound (WhatsApp/correo/LinkedIn 1:1) — está PROHIBIDO darle formato de ficha de evento: NO listes ubicación, horario, costo de entrada ni un link "Regístrate aquí" en líneas separadas tipo invitación formal; eso es exclusivo del post público de LinkedIn, aquí no se ocupa.`
 ):''}
+${isPost?`\nCIERRE OBLIGATORIO DEL POST (la "firma" del post, justo antes de los hashtags): SIEMPRE termina con una línea breve invitando a agendar una sesión con nosotros${apptLink?`, incluyendo LITERALMENTE este link (no lo modifiques ni inventes otro): ${apptLink}`:' — NO hay un link de agendado disponible, así que invita a agendar SIN inventar ninguna URL'}.`:''}
 
 Responde con este JSON exacto (sin markdown):
 {
@@ -5430,7 +5456,7 @@ Responde con este JSON exacto (sin markdown):
   "subheadline": "${evento.active?'Fecha, hora y modalidad del evento en una sola línea breve (ej. \\"15 de octubre · 17:00 hrs · Presencial\\"), usando SOLO los datos reales que encuentres en la página — si falta un dato, ómitelo sin inventarlo':'Frase secundaria de beneficio (máx 10 palabras)'}",
   "puntos": ["${evento.active?'2 a 3 puntos BREVES sobre la importancia o el contexto del evento (el tema que cubre, la audiencia, o por qué vale la pena asistir), tomados de la página — NO son features de Odoo':`efectos WOW MUY específicos de la industria de ${ind} con Odoo, cada uno máx 7 palabras — sigue la cantidad indicada en CANAL DE ENVÍO arriba. Ej. construcción: 'Costeo de obra en tiempo real', 'Facturación por avance automática'`}"],
   "apps": ["4 a 6 nombres EXACTOS de módulos Odoo relevantes para la industria de ${ind}, copiados LITERALMENTE de esta lista (no inventes nombres): ${_appNames}"],
-  "post_text": "Texto de acompañamiento (150-280 palabras si es LinkedIn; 40-80 palabras si es WhatsApp o correo — sigue CANAL DE ENVÍO). Emojis estratégicos. Estructura: gancho potente en la primera línea, desarrollo, los puntos WOW, reflexión/CTA${channel==='linkedin'||channel==='pub'?`, y hashtags (#odoo #erp #${ind.toLowerCase().replace(/[^a-z]/g,'')}) en su propia línea al final`:' (sin hashtags si no es LinkedIn)'}. Español de México. Tono de aporte de valor y venta consultiva, sin frases grandilocuentes."
+  "post_text": "Texto de acompañamiento (${wordsRange} palabras — sigue CANAL DE ENVÍO y la extensión pedida). Emojis estratégicos. Estructura: gancho potente en la primera línea, desarrollo, los puntos WOW, ${isPost?'cierre con la invitación a agendar (ver CIERRE OBLIGATORIO arriba)':'reflexión/CTA'}${isPost?`, y hashtags (#odoo #erp #${ind.toLowerCase().replace(/[^a-z]/g,'')}) en su propia línea al final, después del cierre`:' (sin hashtags si no es LinkedIn)'}. Español de México. Tono de aporte de valor y venta consultiva, sin frases grandilocuentes."
 }
 
 ${odooResourcesBlock()}
@@ -5509,7 +5535,7 @@ window.gcGeneratePub=async function(){
   btn.disabled=true; gcShowLoading('gcPubLoading',true);
   document.getElementById('gcPubOutput').classList.remove('show');
   try{
-    await gcRunPubImageGen(ind, msg, stat, tono, gcEventoContext('pub'));
+    await gcRunPubImageGen(ind, msg, stat, tono, gcEventoContext('pub'), 'pub', cont.pubLength);
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('gcPubLoading',false);
 };
@@ -5625,13 +5651,30 @@ function gcFitImgText(){
 // Composiciones para foto real — distintas "plantillas" para que no se sienta siempre el mismo molde
 const GC_PHOTO_COMPS=4;  // 0 split · 1 foto+tarjeta · 2 foto+overlay+texto blanco · 3 foto dominante+panel color
 const GC_PANEL_COLORS=['#714B67','#017E84','#1E3A5F','#5B3E54','#0F766E'];
+// Insignia flotante sobre la foto que ancla visualmente "esta operación se gestiona con Odoo" —
+// usa el módulo más relevante ya elegido por la IA para la industria. No es un screenshot real
+// (Pexels no tiene fotos de la interfaz de Odoo), es un refuerzo de marca sobre la foto de stock.
+function gcOdooBadge(data,f){
+  const appName=(data.apps||[])[0]||'';
+  const file=appName?brAppIcon(appName):'';
+  const iconSize=Math.round(f.w*.024);
+  const icon=file?`<img src="${ASSETS}/icons/apps/${file}.svg" crossorigin="anonymous" style="width:${iconSize}px;height:${iconSize}px;object-fit:contain;display:block" onerror="this.style.display='none'">`:'';
+  const label=appName?`Con Odoo ${appName}`:'Gestionado con Odoo';
+  return `<div style="position:absolute;top:${Math.round(f.w*.028)}px;right:${Math.round(f.w*.028)}px;background:rgba(255,255,255,.96);border-radius:999px;padding:${Math.round(f.w*.01)}px ${Math.round(f.w*.018)}px;display:flex;align-items:center;gap:${Math.round(f.w*.008)}px;box-shadow:0 ${Math.round(f.w*.006)}px ${Math.round(f.w*.02)}px rgba(0,0,0,.25);z-index:3">${icon}<span style="font-size:${Math.round(f.w*.0115)}px;font-weight:700;color:#21272B;white-space:nowrap">${label}</span></div>`;
+}
 function gcPhotoComposition(data,f,landscape,layout,sz,photoUrl){
   const comp=(data._photoComp||0)%GC_PHOTO_COMPS;
   const pad=Math.round(f.w*0.05);
   const rad=Math.round(f.w*.018);
   const pc=GC_PANEL_COLORS[(data._gradIdx||0)%GC_PANEL_COLORS.length];
-  const img=()=>`<img src="${photoUrl}" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block">`;
-  const photoLayer=`<div style="position:absolute;inset:0">${img()}</div>`;
+  // Fondo con background-image en vez de <img src> + object-fit:cover: html2canvas 1.4.1 no
+  // soporta object-fit — ignora el recorte y ESTIRA la foto al tamaño del contenedor, que es
+  // justo la deformación que se ve en el PNG descargado (la vista previa en el navegador sí
+  // respeta object-fit y por eso ahí se ve bien). background-size:cover sí lo respeta html2canvas
+  // y visualmente hace lo mismo que object-fit:cover.
+  const img=()=>`<div style="width:100%;height:100%;background-image:url('${photoUrl}');background-size:cover;background-position:center"></div>`;
+  const badge=gcOdooBadge(data,f);
+  const photoLayer=`<div style="position:absolute;inset:0">${img()}${badge}</div>`;
 
   // Comp 1 — Foto a sangre + tarjeta de texto clara flotante
   if(comp===1){
@@ -5655,13 +5698,13 @@ function gcPhotoComposition(data,f,landscape,layout,sz,photoUrl){
   if(comp===3){
     const tp=Math.round(f.w*.04);
     if(landscape){
-      return {inner:`<div style="flex:1.4;height:100%;position:relative;overflow:hidden">${img()}</div><div style="flex:1;background:${pc};display:flex;flex-direction:column;justify-content:center;padding:${tp}px;box-sizing:border-box">${gcBuildText(data,f,sz,layout,'dark')}</div>`,bg:pc,pad:0};
+      return {inner:`<div style="flex:1.4;height:100%;position:relative;overflow:hidden">${img()}${badge}</div><div style="flex:1;background:${pc};display:flex;flex-direction:column;justify-content:center;padding:${tp}px;box-sizing:border-box">${gcBuildText(data,f,sz,layout,'dark')}</div>`,bg:pc,pad:0};
     }
-    return {inner:`<div style="flex:1.2;width:100%;position:relative;overflow:hidden">${img()}</div><div style="background:${pc};padding:${tp}px;box-sizing:border-box">${gcBuildText(data,f,sz,layout,'dark')}</div>`,bg:pc,pad:0};
+    return {inner:`<div style="flex:1.2;width:100%;position:relative;overflow:hidden">${img()}${badge}</div><div style="background:${pc};padding:${tp}px;box-sizing:border-box">${gcBuildText(data,f,sz,layout,'dark')}</div>`,bg:pc,pad:0};
   }
   // Comp 0 — Split clásico (fondo claro, texto a un lado, foto al otro)
   const textBlock=`<div style="display:flex;flex-direction:column;justify-content:center;${landscape?`flex:1.15;padding-${layout.textRight?'left':'right'}:${pad}px`:''}">${gcBuildText(data,f,sz,layout,'light')}</div>`;
-  const photoCell=`<div style="${landscape?'flex:1;height:100%':'flex:1;min-height:0;margin-top:'+Math.round(f.w*.02)+'px'};border-radius:${rad}px;overflow:hidden">${img()}</div>`;
+  const photoCell=`<div style="${landscape?'flex:1;height:100%':'flex:1;min-height:0;margin-top:'+Math.round(f.w*.02)+'px'};border-radius:${rad}px;overflow:hidden;position:relative">${img()}${badge}</div>`;
   const inner=landscape?(layout.textRight?photoCell+textBlock:textBlock+photoCell):textBlock+photoCell;
   return {inner,bg:layout.bg,pad};
 }
@@ -6270,7 +6313,25 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
           </div><!-- /br-cover -->
 
           <!-- ════════ CONTENIDO (página 2 en adelante) ════════ -->
+          <!-- Orden: ¿Por qué Odoo?+datos clave (fijo, corto) → Apps (variable, el bloque flojo en
+               tamaño) → cierre: precios+clientes+caso+CTA+info útil. Así el bloque corto de arriba
+               se funde con el flujo de las apps en vez de quedar aislado, y el cierre (que si sobra
+               espacio es el que más lo nota) va todo junto al final — ver odooFactsHTML/odooPricingHTML. -->
           <div class="br-content" style="padding:0 48px 40px">
+            <!-- ¿Por qué Odoo? -->
+            <div style="background:#f5f0f3;border-radius:12px;padding:24px 28px;margin-bottom:28px;break-inside:avoid;page-break-inside:avoid">
+              <div style="font-family:'Caveat',cursive;font-size:30px;font-weight:700;color:#714B67;margin-bottom:14px">¿Por qué <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2">Odoo</span><span style="position:absolute;left:-2px;right:-2px;bottom:3px;height:34%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span>?</div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                ${(data.diferenciadores||[]).map(d=>`<div style="display:flex;align-items:flex-start;gap:10px">
+                  <div style="width:20px;height:20px;border-radius:50%;background:#017E84;color:white;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">✓</div>
+                  <div style="font-size:13px;color:#374151;line-height:1.5">${d}</div>
+                </div>`).join('')}
+              </div>
+            </div>
+
+            <!-- Datos clave (relleno útil verificado) -->
+            ${odooFactsHTML()}
+
             <!-- Apps -->
             <div style="font-family:'Caveat',cursive;font-size:34px;font-weight:700;color:#21272B;margin-bottom:16px">Lo que <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2;color:#017E84">Odoo</span><span style="position:absolute;left:-2px;right:-2px;bottom:4px;height:34%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span> hará por ti</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:32px">
@@ -6285,44 +6346,37 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
                 </div>`).join('')}
             </div>
 
-            <!-- Diferenciadores -->
-            <div style="background:#f5f0f3;border-radius:12px;padding:24px 28px;margin-bottom:28px;break-inside:avoid;page-break-inside:avoid">
-              <div style="font-family:'Caveat',cursive;font-size:30px;font-weight:700;color:#714B67;margin-bottom:14px">¿Por qué <span style="position:relative;display:inline-block"><span style="position:relative;z-index:2">Odoo</span><span style="position:absolute;left:-2px;right:-2px;bottom:3px;height:34%;background:#FBB130;opacity:.5;z-index:1;border-radius:3px"></span></span>?</div>
-              <div style="display:flex;flex-direction:column;gap:12px">
-                ${(data.diferenciadores||[]).map(d=>`<div style="display:flex;align-items:flex-start;gap:10px">
-                  <div style="width:20px;height:20px;border-radius:50%;background:#017E84;color:white;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">✓</div>
-                  <div style="font-size:13px;color:#374151;line-height:1.5">${d}</div>
-                </div>`).join('')}
-              </div>
-            </div>
-
-            <!-- Datos clave + precios (relleno útil verificado) -->
-            ${odooFactsHTML()}
+            <!-- ════ Cierre: precios + clientes + caso + CTA + info útil ════ -->
             ${odooPricingHTML()}
 
             <!-- Clientes México -->
-            <img src="${ASSETS}/clientes-mexico.svg" crossorigin="anonymous" style="width:100%;height:auto;display:block;margin-bottom:28px" onerror="this.style.display='none'">
+            <img src="${ASSETS}/clientes-mexico.svg" crossorigin="anonymous" style="width:100%;height:auto;display:block;margin-bottom:16px" onerror="this.style.display='none'">
 
             <!-- Caso de éxito REAL (Odoo customer reviews) -->
             ${data._caso?`
-            <div style="border-left:4px solid #FBB130;padding:6px 0 6px 20px;margin-bottom:32px;break-inside:avoid;page-break-inside:avoid">
+            <div style="border-left:4px solid #FBB130;padding:6px 0 6px 20px;margin-bottom:20px;break-inside:avoid;page-break-inside:avoid">
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:6px">Caso real de Odoo</div>
               <div style="font-size:15px;color:#21272B;line-height:1.55;margin-bottom:8px"><strong>${data._caso.empresa}</strong>${data._caso.pais?` · ${data._caso.pais}`:''} ${data._caso.resumen}</div>
               <a href="${data._caso.url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:12px;color:#714B67;font-weight:700;background:#faf5ff;border:1.5px solid #714B67;border-radius:8px;padding:6px 11px">Ver caso completo en odoo.com <span style="color:#FBB130;font-weight:800">↗</span></a>
               <div style="margin-top:6px;font-size:9px;color:#b9b9b9;line-height:1.5;font-family:'Inter',monospace;word-break:break-all">${data._caso.url}</div>
             </div>`:''}
 
-            <!-- CTA -->
-            <div style="background:#714B67;border-radius:12px;padding:24px 28px;color:white;display:flex;align-items:center;justify-content:space-between;gap:16px;break-inside:avoid;page-break-inside:avoid">
-              <div style="font-size:15px;font-weight:600;line-height:1.45;flex:1;white-space:pre-line"><span id="gcBrCtaText">${brGetCtaText(cont.brCta)}</span></div>
-              <div style="text-align:right;flex-shrink:0;border-left:1px solid rgba(255,255,255,.2);padding-left:16px">
-                ${aeNombre?`<div style="font-size:13px;font-weight:700">${aeNombre}</div>`:''}
-                <div style="font-size:11px;color:rgba(255,255,255,.65)">Account Executive</div>
-                ${currentUserData?.email?`<div style="font-size:11px;color:rgba(255,255,255,.5)">${currentUserData.email}</div>`:''}
-                ${currentUserData?.appointmentLink?`<div style="font-size:11px;color:#FBB130;margin-top:3px">Agenda una demo →</div>`:''}
+            <!-- CTA + Información útil agrupados en un solo bloque break-inside:avoid: si van sueltos,
+                 el CTA puede alcanzar a quedarse en la hoja anterior y dejar a Información útil sola,
+                 huérfana, en una hoja casi vacía (el bug que reportaste). Juntos, cuando no caben los
+                 dos se van juntos a la hoja siguiente y esta llega con más contenido. -->
+            <div style="break-inside:avoid;page-break-inside:avoid">
+              <div style="background:#714B67;border-radius:12px;padding:18px 28px;color:white;display:flex;align-items:center;justify-content:space-between;gap:16px">
+                <div style="font-size:15px;font-weight:600;line-height:1.45;flex:1;white-space:pre-line"><span id="gcBrCtaText">${brGetCtaText(cont.brCta)}</span></div>
+                <div style="text-align:right;flex-shrink:0;border-left:1px solid rgba(255,255,255,.2);padding-left:16px">
+                  ${aeNombre?`<div style="font-size:13px;font-weight:700">${aeNombre}</div>`:''}
+                  <div style="font-size:11px;color:rgba(255,255,255,.65)">Account Executive</div>
+                  ${currentUserData?.email?`<div style="font-size:11px;color:rgba(255,255,255,.5)">${currentUserData.email}</div>`:''}
+                  ${currentUserData?.appointmentLink?`<div style="font-size:11px;color:#FBB130;margin-top:3px">Agenda una demo →</div>`:''}
+                </div>
               </div>
+              ${odooInfoUtilHTML({mt:18})}
             </div>
-            ${odooInfoUtilHTML({mt:30})}
           </div>
         </div>
       </div>`;
