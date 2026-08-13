@@ -4930,7 +4930,12 @@ async function gcCallClaude(prompt, fileAttachment=null, opts={}){
   }
   const headers={'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'};
   if(fileAttachment?.type==='document') headers['anthropic-beta']='pdfs-2024-09-25';
-  const body={model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||4000,system:opts.system||ANTI_HALLUCINATION,messages:[{role:'user',content}]};
+  const usesWebFetch=(opts.tools||[]).some(t=>t?.type?.startsWith('web_fetch'));
+  // web_fetch (herramienta server-side) necesita este header beta — sin él, la llamada puede
+  // fallar en silencio a nivel de la herramienta (sin error HTTP) y Claude responde con una
+  // explicación en prosa en vez del JSON pedido ("Claude no devolvió un formato válido").
+  if(usesWebFetch) headers['anthropic-beta']='web-fetch-2025-09-10';
+  const body={model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||(usesWebFetch?6000:4000),system:opts.system||ANTI_HALLUCINATION,messages:[{role:'user',content}]};
   if(opts.tools) body.tools=opts.tools;
   if(opts.toolChoice) body.tool_choice=opts.toolChoice;
   const res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -4942,7 +4947,14 @@ async function gcCallClaude(prompt, fileAttachment=null, opts={}){
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
   // Cuando se usa web_fetch, la respuesta incluye bloques de tipo web_fetch_tool_result antes del texto final —
   // unimos SOLO los bloques de texto (puede haber más de uno si hay citas).
-  return (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n')||'';
+  const text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n')||'';
+  if(usesWebFetch){
+    // Diagnóstico para depurar en vivo desde la consola del navegador (F12) si vuelve a fallar —
+    // sin esto, no hay forma de saber si el fetch de la página falló, si se truncó por max_tokens,
+    // o si el modelo simplemente no devolvió texto.
+    console.log('gcCallClaude[web_fetch] stop_reason:', data.stop_reason, '· bloques:', (data.content||[]).map(b=>b.type), '· texto vacío:', !text.trim());
+  }
+  return text;
 }
 
 function gcShowLoading(id,show){
@@ -5504,8 +5516,13 @@ Reglas:
     parsed=JSON.parse(raw);
   } catch(e){
     console.error('gcRunPubImageGen: respuesta de Claude no es JSON válido', e, copy);
-    throw new Error(copy?.trim()
-      ? 'Claude no devolvió un formato válido — intenta de nuevo'
+    // Si no encontramos JSON pero SÍ hay texto, casi siempre es que Claude explicó en prosa por
+    // qué no pudo hacerlo (ej. "no pude acceder a la página del evento") — mostrar eso es mucho
+    // más útil que un mensaje genérico, sobre todo con "Vincular a evento" (web_fetch puede fallar
+    // por la URL en sí: página caída, bloquea bots, redirige, etc., no por un bug de la app).
+    const explicacion=copy?.trim();
+    throw new Error(explicacion
+      ? `Claude no devolvió el formato esperado. Dijo: "${explicacion.slice(0,220)}${explicacion.length>220?'…':''}"`
       : 'Claude no devolvió contenido (revisa la URL del evento o intenta de nuevo)');
   }
   if(!Array.isArray(parsed.puntos)) parsed.puntos=[];
