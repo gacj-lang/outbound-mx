@@ -4591,6 +4591,14 @@ window.gcSetContentMode=async function(mode){
     catch(e){ /* silencioso — la preferencia sigue aplicando en esta sesión aunque no se persista */ }
   }
 };
+// Candados de paso: una .gc-form-section puede declarar data-wizard-check="nombreDeFn" con una
+// función window.* que devuelve un mensaje (string) si falta algo crucial, o null/'' si está OK.
+// Genérico a propósito — igual que el resto del wizard, no conoce qué tipo de contenido es.
+function gcWizardLockMsg(section){
+  const fnName=section?.dataset?.wizardCheck;
+  if(!fnName||typeof window[fnName]!=='function') return null;
+  return window[fnName]()||null;
+}
 // Aplica (o quita) el envoltorio de pasos sobre las .gc-form-section YA renderizadas por el tipo
 // de contenido activo — no conoce ni le importa cuál sea, solo cuenta secciones y las muestra de
 // una en una cuando el modo es 'wizard'.
@@ -4608,6 +4616,7 @@ function gcApplyMode(){
   sections.forEach((s,i)=>{ s.style.display=i===_gcWizardStep?'':'none'; });
   const lastStep=_gcWizardStep===sections.length-1;
   if(genBtn) genBtn.style.display=lastStep?'':'none';
+  const lockMsg=gcWizardLockMsg(sections[_gcWizardStep]);
   const bar=document.createElement('div');
   bar.id='gcWizardBar';
   bar.className='gc-wizard-bar';
@@ -4616,24 +4625,57 @@ function gcApplyMode(){
       ${sections.map((_,i)=>`<span class="gc-wizard-dot ${i===_gcWizardStep?'active':i<_gcWizardStep?'done':''}">${i+1}</span>${i<sections.length-1?'<span class="gc-wizard-line"></span>':''}`).join('')}
     </div>
     <div class="gc-wizard-nav">
-      <button class="btn btn-ghost btn-sm" ${_gcWizardStep===0?'disabled':''} onclick="gcWizardStep(-1)">← Atrás</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn btn-ghost btn-sm" ${_gcWizardStep===0?'disabled':''} onclick="gcWizardStep(-1)">← Atrás</button>
+        <button class="btn btn-ghost btn-sm" onclick="gcWizardNew()" title="Limpia la empresa/contacto seleccionados y regresa al paso 1">🆕 Nuevo</button>
+      </div>
       <span class="gc-wizard-step-label">Paso ${_gcWizardStep+1} de ${sections.length}</span>
-      ${!lastStep?`<button class="btn btn-primary btn-sm" onclick="gcWizardStep(1)">Siguiente →</button>`:`<span class="gc-wizard-step-label" style="color:var(--success);font-weight:700">✓ Listo para generar</span>`}
+      ${!lastStep?`<button class="btn btn-primary btn-sm" onclick="gcWizardStep(1)">${lockMsg?'🔒 Completa este paso':'Siguiente →'}</button>`
+        :lockMsg?`<span class="gc-wizard-step-label" style="color:var(--warning);font-weight:700">🔒 Completa este paso para generar</span>`
+        :`<span class="gc-wizard-step-label" style="color:var(--success);font-weight:700">✓ Listo para generar</span>`}
     </div>`;
   sections[0].parentElement.insertBefore(bar,sections[0]);
 }
 window.gcWizardStep=function(delta){
   const c=document.getElementById('gcContent'); if(!c) return;
-  const total=c.querySelectorAll('.gc-form-section').length;
-  _gcWizardStep=Math.max(0,Math.min(total-1,_gcWizardStep+delta));
+  const sections=[...c.querySelectorAll('.gc-form-section')];
+  if(delta>0){
+    const lockMsg=gcWizardLockMsg(sections[_gcWizardStep]);
+    if(lockMsg){ showNotif('🔒 '+lockMsg,'error'); return; }
+  }
+  _gcWizardStep=Math.max(0,Math.min(sections.length-1,_gcWizardStep+delta));
   gcApplyMode();
   document.getElementById('gcWizardBar')?.scrollIntoView({block:'start',behavior:'smooth'});
+};
+// "Nuevo" — regresa al paso 1 y limpia empresa/contacto para arrancar otro registro sin tener que
+// darle "Atrás" varias veces. No reinicia tono/longitud/formato (son preferencia del AE, no del
+// registro) — el contenido ya generado se pierde porque gcShowSection vuelve a montar el formulario.
+window.gcWizardNew=function(){
+  cont.company=null; cont.contact=null; cont.output=null;
+  _gcWizardStep=0;
+  gcShowSection(cont.activeSection);
+  showNotif('Listo para un nuevo registro','success');
 };
 // Cierra el popover de modo si se hace clic fuera de él
 document.addEventListener('click',e=>{
   const pop=document.getElementById('gcModePopover'); if(!pop||pop.style.display==='none') return;
   if(!pop.contains(e.target) && !e.target.closest('.gc-mode-btn')) pop.style.display='none';
 });
+
+// ── Candados del Asistente guiado — validadores por sección (ver data-wizard-check en cada
+// .gc-form-section). Cada uno revisa lo mínimo indispensable para que ESE paso funcione, no todo
+// el formulario — el resto de campos son opcionales y se validan igual al generar.
+window.gcCheckCompanyStep=function(){
+  return cont.company?null:'Selecciona una empresa antes de continuar.';
+};
+window.gcCheckBrApps=function(){
+  const n=document.querySelectorAll('input[name="gcBrApp"]:checked').length;
+  return n>0?null:'Selecciona al menos una app antes de continuar.';
+};
+window.gcCheckPubMsg=function(){
+  const v=(document.getElementById('gcPubMsg')?.value||'').trim();
+  return v?null:'Escribe el mensaje o tema del post antes de continuar.';
+};
 
 const BR_CTA_OPTS=[
   {id:'prospeccion',        label:'Prospección — Agendar intromeet'},
@@ -4721,11 +4763,27 @@ const TONES=[
   {id:'misterioso',   label:'Misterioso',  icon:'🎯', desc:'Genera intriga, CTA implícito. Para prospectos difíciles o refresh de conversación.'},
   {id:'urgente',      label:'Urgente',     icon:'⚡', desc:'Crea FOMO sutil. Usar cuando hay un trigger (cierre fiscal, fin de período).'},
   {id:'empatico',     label:'Empático',    icon:'🤝', desc:'Entiende el dolor primero. Para prospectos en situaciones difíciles.'},
+  {id:'directo',      label:'Directo',     icon:'🧭', desc:'Antimanipulación: dice desde el primer mensaje que el propósito es Odoo como ERP. Cero pretextos ni trucos de venta.'},
   {id:'personalizado',label:'Personalizado',icon:'📝', desc:'Usa el prompt de tono que guardaste en Configuración → Mis datos.'},
 ];
+// Instrucción completa del tono "Directo" — se inyecta tal cual (no solo el id, como los demás
+// tonos) porque su punto central (evitar pretextos que escondan el propósito comercial real) no se
+// entiende con una sola palabra. Aplica igual en TODOS los toques de la cadencia y TODOS los canales:
+// no hay "mensaje 1 con pretexto" y "mensaje 2 ya en serio" — el propósito es honesto desde el toque 1.
+const TONO_DIRECTO_BLOCK=`TONO: directo — antimanipulación. Reglas obligatorias:
+- Declara el propósito comercial real desde la primera línea: quién eres (Odoo) y que escribes para ayudar a su negocio con lo que Odoo puede hacer como ERP. PROHIBIDO cualquier pretexto que disfrace el propósito comercial (falso interés personal, "solo quería platicar", excusa de encuesta/investigación/networking que no sea real, pregunta-gancho pensada para ocultar que es un mensaje de venta).
+- PROHIBIDAS las técnicas de manipulación clásicas: urgencia o escasez inventada, halagos genéricos vacíos, preguntas retóricas diseñadas para forzar un "sí", o cualquier frase que dé a entender que el mensaje no es una gestión comercial cuando sí lo es.
+- Nada de relleno para "calentar" antes de decir de qué se trata — al punto: quién eres, qué hace Odoo por SU tipo de negocio en concreto (nunca genérico) y el CTA.
+- Evita términos vagos de marketing (optimizar, digitalizar, sinergia, solución integral, transformación digital) — usa términos de piso: el problema concreto que resuelve, en su operación.
+- Directo no es agresivo ni frío: sigue siendo cortés y consultivo — la diferencia es que no hay ambigüedad sobre el propósito, no que falte respeto por el tiempo del prospecto.
+- No repitas la misma apertura ("Te escribo para...") en cada toque de la secuencia — la HONESTIDAD del propósito se mantiene en todos, la REDACCIÓN cambia.`;
 // Bloque de tono para inyectar en el prompt de la IA: si es "personalizado", usa el prompt guardado
 // por el AE (Configuración → Mis datos) + la instrucción extra de esta generación (si la escribió).
+// Si es "directo", usa el bloque completo de arriba — los demás tonos solo mandan el id (ver TONES).
 function gcToneInstructionBlock(extraNote){
+  if(cont.tone==='directo'){
+    return TONO_DIRECTO_BLOCK;
+  }
   if(cont.tone!=='personalizado'){
     return `TONO: ${cont.tone}`;
   }
@@ -5066,6 +5124,7 @@ function gcShowOutput(wrapId,content,variants=false,saveCtx=null){
             <span class="gc-variant-num" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--purple);background:var(--purple-light);padding:3px 10px;border-radius:99px">Variante ${i+1}</span>
             <div style="display:flex;gap:6px">
               <button class="gc-copy-btn" onclick="gcCopyVariant(${i})">📋 Copiar</button>
+              ${channel==='whatsapp'?`<button class="gc-copy-btn" style="border-color:#25D366;color:#128C7E" onclick="gcOpenWhatsApp(${i})">📲 Abrir en WhatsApp</button>`:''}
             </div>
           </div>
           ${body}
@@ -5092,10 +5151,10 @@ window.gcToggleVariant=function(i){
     if(btn) btn.innerHTML='Ver menos ▴';
   }
 };
-window.gcCopyVariant=async function(i){
-  const text=_gcVariants[i]||'';
-  await navigator.clipboard.writeText(text);
-  showNotif('Copiado ✓','success');
+// Guarda la variante {i} como touchpoint en la memoria de la empresa y pone el badge "✓ Guardado" —
+// compartido por gcCopyVariant y gcOpenWhatsApp, así no se duplica cada vez que se agrega una forma
+// nueva de "usar" una variante.
+async function gcSaveVariantTouch(i,text){
   if(!cont.company?.id) return;
   try{
     const ctx=window._gcSaveCtx||{tipo:'mensaje'};
@@ -5113,6 +5172,32 @@ window.gcCopyVariant=async function(i){
       if(chip) chip.insertAdjacentElement('afterend',badge);
     }
   } catch(e){ /* silent */ }
+}
+window.gcCopyVariant=async function(i){
+  const text=_gcVariants[i]||'';
+  await navigator.clipboard.writeText(text);
+  showNotif('Copiado ✓','success');
+  await gcSaveVariantTouch(i,text);
+};
+// Deja el número en formato que WhatsApp acepta en el link wa.me (solo dígitos, con lada de país).
+// Los números guardados como celular MX a 10 dígitos (sin 52) son el caso más común — se completa
+// aquí; cualquier otro largo se manda tal cual (ya trae lada) y que wa.me decida.
+function gcPhoneForWa(raw){
+  const digits=String(raw||'').replace(/\D/g,'');
+  if(!digits) return '';
+  return digits.length===10?'52'+digits:digits;
+}
+// "Abrir en WhatsApp" — copia el texto (por si el compositor de WhatsApp Web no respeta saltos de
+// línea del query string) y abre wa.me con el mensaje precargado, listo para revisar y mandar. Nunca
+// envía solo — el AE sigue dando clic en Enviar (mismo criterio que se usó para cadencias: liga
+// wa.me asistida, sin auto-envío, para no arriesgar el WhatsApp personal del AE).
+window.gcOpenWhatsApp=async function(i){
+  const text=_gcVariants[i]||'';
+  try{ await navigator.clipboard.writeText(text); }catch(e){ /* el link ya lleva el texto igual */ }
+  const phone=gcPhoneForWa(cont.contact?.phone);
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`,'_blank','noopener');
+  showNotif(phone?'WhatsApp Web abierto con el mensaje listo ✓':'Copiado ✓ — elige el contacto en WhatsApp Web','success');
+  await gcSaveVariantTouch(i,text);
 };
 // Guarda contenido seleccionado en la memoria de la empresa (companies/{id}.memory.contenidos.saved[])
 async function gcSaveContentToCompany(companyId,entry){
@@ -5205,7 +5290,7 @@ function renderGcTemplates(){
           </button>`).join('')}
       </div>
 
-      <div class="gc-form-section">
+      <div class="gc-form-section" data-wizard-check="gcCheckCompanyStep">
         <h3>🏢 Empresa y contacto</h3>
         ${gcCompanySection('tpl')}
       </div>
@@ -5242,6 +5327,7 @@ function renderGcTemplates(){
 }
 
 window.gcSetChannel=function(ch){
+  if(cont.channel===ch) return; // ya activo — no hay nada que cambiar
   cont.channel=ch;
   document.querySelectorAll('.gc-channel-btn').forEach(b=>{
     const active=b.dataset.channel===ch;
@@ -5253,6 +5339,10 @@ window.gcSetChannel=function(ch){
   // Si el checkbox de imagen está visible, refresca los formatos al canal recién elegido
   const fmtWrap=document.getElementById('gcTplImgFormats');
   if(fmtWrap){ cont.format=''; fmtWrap.innerHTML=gcImgFormatsGridHTML(); }
+  // El bloque de salida (#gcTplOutput) queda armado con el estilo del canal ANTERIOR (burbuja WA,
+  // tarjeta de correo, etc.) — sin esto, al cambiar de canal la vista se queda "trabada" mostrando
+  // ese resultado viejo aunque ya no corresponde a lo seleccionado, como si el clic no hubiera hecho nada.
+  document.getElementById('gcTplOutput')?.classList.remove('show');
 };
 
 window.gcGenerateTemplate=async function(){
@@ -5406,7 +5496,7 @@ function renderGcPublicacionLinkedIn(){
         </div>
       </div>
 
-      <div class="gc-form-section">
+      <div class="gc-form-section" data-wizard-check="gcCheckPubMsg">
         <h3>✍️ Contenido</h3>
         <div class="gc-selector-grid">
           <div class="gc-selector"><label>Tema / Industria</label>
@@ -5921,7 +6011,7 @@ function renderGcColdCalling(){
       <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">📞 Apertura de Cold Calling</h2>
       <p style="color:var(--gray-500);font-size:14px;margin-bottom:24px">Genera un guion de apertura para llamada en frío: primeras 60 segundos, hook de industria y manejo de objeciones iniciales.</p>
 
-      <div class="gc-form-section">
+      <div class="gc-form-section" data-wizard-check="gcCheckCompanyStep">
         <h3>🏢 Empresa y contacto</h3>
         ${gcCompanySection('cc')}
       </div>
@@ -6100,12 +6190,12 @@ function renderGcBrochure(){
         Genera un brochure consultivo de Odoo adaptado a la industria y dolores específicos del prospecto.
       </p>
 
-      <div class="gc-form-section">
+      <div class="gc-form-section" data-wizard-check="gcCheckCompanyStep">
         <h3>🏢 Empresa y contacto</h3>
         ${gcCompanySection('br')}
       </div>
 
-      <div class="gc-form-section">
+      <div class="gc-form-section" data-wizard-check="gcCheckBrApps">
         <h3>📱 Apps a destacar</h3>
         <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Selecciona las apps más relevantes — se organizan por categoría</p>
         <input type="text" class="input" id="gcBrAppSearch" placeholder="🔍 Buscar app... (ej. factura, inventario)" oninput="gcBrFilterApps(this.value)" style="max-width:320px;margin-bottom:14px">
