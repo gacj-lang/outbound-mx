@@ -11072,7 +11072,7 @@ function csvRenderResultadosTab(content){
                     ${LEAD_SEARCH_COUNTRIES.map(c=>`<option value="${c.id}">${c.label}</option>`).join('')}
                   </select>
                 </div>
-                <div class="form-group" style="margin:0" id="csvSearchGiroBox"><label>Giro / Industria <span style="font-weight:400;color:var(--gray-400)">(en Apollo, suma precisión — no excluye)</span></label>
+                <div class="form-group" style="margin:0;display:none" id="csvSearchGiroBox"><label>Giro / Industria</label>
                   <select class="input" id="csvSearchGiro">
                     <option value="">Cualquiera</option>
                     ${Object.entries(IND_NAMES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
@@ -11108,6 +11108,23 @@ function csvRenderResultadosTab(content){
               <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchDenueTextoBox">
                 <label>Buscar en nombre/actividad económica DENUE <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
                 <input type="text" class="input" id="csvSearchDenueTexto" placeholder="Ej. purificadoras de agua, talleres mecánicos...">
+              </div>
+
+              <!-- Filtros NATIVOS de Apollo (catálogo real de su propia UI, capturado 2026-08-12) —
+              reemplazan a Giro/Industria cuando fuente=Apollo. Se piden en vivo a /apolloFiltros
+              (csvLoadApolloFiltros) igual que csvLoadDirindCategorias/csvLoadDenueMunicipios: una
+              sola fuente de verdad, nunca una copia hardcodeada que se desincronice de lo que de
+              verdad manda apolloSearch(). A diferencia del viejo Giro (una etiqueta que se colaba
+              como keyword suelta, sin garantía real de filtrar), estos SÍ son los mismos parámetros
+              estructurados que usa Apollo internamente — lo que el AE marca aquí es exactamente lo
+              que Apollo va a exigir. -->
+              <div class="form-group" style="margin:16px 0 0" id="csvSearchApolloIndBox">
+                <label>Industria (Apollo) <span style="font-weight:400;color:var(--gray-400)">(catálogo real de Apollo, vacío = cualquiera)</span></label>
+                <div id="csvSearchApolloIndChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando industrias…</span></div>
+              </div>
+              <div class="form-group" style="margin:16px 0 0" id="csvSearchApolloSegBox">
+                <label>Segmento de mercado (Apollo) <span style="font-weight:400;color:var(--gray-400)">(opcional, vacío = cualquiera)</span></label>
+                <div id="csvSearchApolloSegChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando segmentos…</span></div>
               </div>
             </div>
           </div>
@@ -11195,6 +11212,7 @@ function csvRenderResultadosTab(content){
     </div>`;
   csvRows=[]; _csvFileAttachment=null; _csvSessionId=null; _csvDirty=false; csvLoadHistory();
   csvRenderEstadoChips();
+  csvLoadApolloFiltros(); // Apollo es la fuente por defecto (radio checked arriba) — se cargan sus filtros nativos de una vez
   csvSetInputMode(csvInputMode); // reconcilia toggle/fuente si el módulo se reabre ya en modo búsqueda
 }
 
@@ -11223,6 +11241,8 @@ window.csvOnFuenteChange=function(){
   const dirindTextoBox=document.getElementById('csvSearchDirindTextoBox');
   const denueTextoBox=document.getElementById('csvSearchDenueTextoBox');
   const municipioBox=document.getElementById('csvSearchMunicipioBox');
+  const apolloIndBox=document.getElementById('csvSearchApolloIndBox');
+  const apolloSegBox=document.getElementById('csvSearchApolloSegBox');
   if(paisSel){
     paisSel.disabled=soloMx;
     if(soloMx&&paisSel.value!=='MX'){ paisSel.value='MX'; csvRenderEstadoChips(); }
@@ -11233,11 +11253,16 @@ window.csvOnFuenteChange=function(){
     dirind:'DIRIND: directorio impreso Proveedores Industriales 2023 (5,256 empresas), teléfono y correo del propio anuncio. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
   };
   if(hint) hint.textContent=HINTS[fuente];
-  if(giroBox) giroBox.style.display=fuente==='dirind'?'none':'';
+  // Giro/Industria (catálogo nuestro de 15) ahora solo aplica a DENUE — Apollo tiene su propio
+  // catálogo real (industrias/segmentos abajo) y DIRIND el suyo (categorías).
+  if(giroBox) giroBox.style.display=fuente==='denue'?'':'none';
   if(dirindCatBox) dirindCatBox.style.display=fuente==='dirind'?'block':'none';
   if(dirindTextoBox) dirindTextoBox.style.display=fuente==='dirind'?'block':'none';
   if(denueTextoBox) denueTextoBox.style.display=fuente==='denue'?'block':'none';
+  if(apolloIndBox) apolloIndBox.style.display=fuente==='apollo'?'block':'none';
+  if(apolloSegBox) apolloSegBox.style.display=fuente==='apollo'?'block':'none';
   if(fuente==='dirind') csvLoadDirindCategorias();
+  if(fuente==='apollo') csvLoadApolloFiltros();
   if(empBox) empBox.style.display=fuente==='dirind'?'none':'grid'; // DIRIND no trae dato de tamaño de empresa
   if(municipioBox){
     const hayEstados=document.querySelectorAll('.csv-estado-check:checked').length>0;
@@ -11278,6 +11303,43 @@ function csvRenderDirindCategoriaChips(){
   box.innerHTML=_dirindCategoriasCache.map(c=>`
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
       <input type="checkbox" class="csv-dirind-cat-check" value="${c.replace(/"/g,'&quot;')}" ${prevChecked.has(c)?'checked':''}> ${c}
+    </label>`).join('');
+}
+// Catálogo REAL de Apollo (20 industrias + 11 segmentos de mercado, ver APOLLO_INDUSTRIES/
+// APOLLO_MARKET_SEGMENTS en apollo.js del backend) — mismo patrón que csvLoadDirindCategorias: se
+// pide UNA vez y se cachea, se llama cada vez que se elige/reabre en fuente Apollo por si es la
+// primera vez en la sesión.
+let _apolloFiltrosCache=null;
+window.csvLoadApolloFiltros=async function(){
+  const indBox=document.getElementById('csvSearchApolloIndChips'), segBox=document.getElementById('csvSearchApolloSegChips');
+  if(!indBox||!segBox) return;
+  if(_apolloFiltrosCache){ csvRenderApolloFiltrosChips(); return; }
+  if(!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch('https://thorough-curiosity-production-098d.up.railway.app/apolloFiltros',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    _apolloFiltrosCache={industrias:data.industrias||[],segmentos:data.segmentos||[]};
+    csvRenderApolloFiltrosChips();
+  }catch(e){
+    console.warn('csvLoadApolloFiltros:',e);
+    const msg='<span style="font-size:12px;color:var(--danger)">No se pudo cargar el catálogo — reintenta</span>';
+    indBox.innerHTML=msg; segBox.innerHTML=msg;
+  }
+};
+function csvRenderApolloFiltrosChips(){
+  const indBox=document.getElementById('csvSearchApolloIndChips'), segBox=document.getElementById('csvSearchApolloSegChips');
+  if(!indBox||!segBox||!_apolloFiltrosCache) return;
+  const prevInd=new Set([...indBox.querySelectorAll('.csv-apollo-ind-check:checked')].map(c=>c.value));
+  indBox.innerHTML=_apolloFiltrosCache.industrias.map(i=>`
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
+      <input type="checkbox" class="csv-apollo-ind-check" value="${i.id}" ${prevInd.has(i.id)?'checked':''}> ${i.label}
+    </label>`).join('');
+  const prevSeg=new Set([...segBox.querySelectorAll('.csv-apollo-seg-check:checked')].map(c=>c.value));
+  segBox.innerHTML=_apolloFiltrosCache.segmentos.map(s=>`
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
+      <input type="checkbox" class="csv-apollo-seg-check" value="${s.id}" ${prevSeg.has(s.id)?'checked':''}> ${s.label}
     </label>`).join('');
 }
 window.csvRenderEstadoChips=function(){
@@ -11434,23 +11496,31 @@ window.csvInterpretarInstrucciones=async function(){
   if(btn){ btn.disabled=true; btn.textContent='Interpretando…'; }
   try{
     const paisActual=document.getElementById('csvSearchPais')?.value||'MX';
+    const fuenteActual=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':'apollo';
+    // Industria/Segmento de Apollo (catálogo real, ver csvLoadApolloFiltros) solo se ofrecen a
+    // interpretar si ya se cargaron Y la fuente elegida es Apollo — en DENUE sigue mandando 'giro'
+    // (más simple, y es lo que el backend traduce a industria SCIAN).
+    const apolloCatalogoTxt=(fuenteActual==='apollo'&&_apolloFiltrosCache)?`
+- apolloIndustrias (ids del catálogo real de Apollo, 0 o más): ${_apolloFiltrosCache.industrias.map(i=>`${i.id}=${i.label}`).join(', ')}
+- apolloSegmentos (ids del catálogo real de Apollo, 0 o más): ${_apolloFiltrosCache.segmentos.map(s=>`${s.id}=${s.label}`).join(', ')}`:'';
     const raw=await gcCallClaude(`Un Account Executive de Odoo México escribió esta petición de búsqueda de leads B2B:
 "${texto}"
 
 Tradúcela a los filtros del buscador. Catálogos válidos (usa EXACTAMENTE estos valores):
 - paisId: ${LEAD_SEARCH_COUNTRIES.map(c=>c.id).join(', ')} (default "${paisActual}" si no se menciona país)
 - estados (según el país elegido): ${JSON.stringify(LEAD_SEARCH_STATES)}
-- giro (clave interna): ${Object.entries(IND_NAMES).map(([k,v])=>`${k}=${v}`).join(', ')} — o "" si ninguno aplica
+- giro (clave interna, SOLO úsalo si la fuente es DENUE): ${Object.entries(IND_NAMES).map(([k,v])=>`${k}=${v}`).join(', ')} — o "" si ninguno aplica
 - seniorities: owner, founder, c_suite, partner, vp, head, director, manager
-- roleGroups: it, finanzas, operaciones, compras, marketing, ventas, rh, direccion_general
+- roleGroups: it, finanzas, operaciones, compras, marketing, ventas, rh, direccion_general${apolloCatalogoTxt}
 
 Devuelve EXCLUSIVAMENTE este objeto JSON (sin markdown):
-{"paisId":"MX","estados":[],"empMin":null,"empMax":null,"giro":"","keywords":[],"seniorities":[],"roleGroups":[],"extraTitles":[],"cantidad":5}
-- keywords: 0-6 palabras clave EN INGLÉS que describan el tipo de empresa (industria, modelo de negocio, tecnología) cuando la petición pida algo sin filtro exacto.
+{"paisId":"MX","estados":[],"empMin":null,"empMax":null,"giro":"","apolloIndustrias":[],"apolloSegmentos":[],"keywords":[],"seniorities":[],"roleGroups":[],"extraTitles":[],"cantidad":5}
+- apolloIndustrias/apolloSegmentos: SOLO ids que aparezcan literalmente en los catálogos de arriba (si no se dieron catálogos arriba, deja ambos vacíos) — nunca inventes un id.
+- keywords: 0-6 palabras clave EN INGLÉS que describan el tipo de empresa (industria, modelo de negocio, tecnología) cuando la petición pida algo sin filtro exacto en los catálogos de arriba.
 - extraTitles: 0-10 títulos de puesto específicos (inglés y español) SOLO si la petición pide roles que no cubren bien los roleGroups.
 - cantidad: número de leads pedidos (1-25, default 5).
 - Usa null/arrays vacíos/"" para lo que la petición no mencione.`,
-      null, {maxTokens:500, system:'Devuelves SIEMPRE y SOLO un objeto JSON válido, sin texto adicional.'});
+      null, {maxTokens:600, system:'Devuelves SIEMPRE y SOLO un objeto JSON válido, sin texto adicional.'});
     // Parseo de OBJETO dedicado — no usar _parseJSONArray aquí: ese helper está pensado para
     // arrays y, si le das un objeto con arrays adentro (estados, keywords...), extrae el primer
     // array interno en vez del objeto completo (bug encontrado en la prueba real del 2026-07-22).
@@ -11468,6 +11538,15 @@ Devuelve EXCLUSIVAMENTE este objeto JSON (sin markdown):
     document.querySelectorAll('.csv-estado-check').forEach(c=>{ c.checked=estadosPedidos.has(c.value); });
     const giroSel=document.getElementById('csvSearchGiro');
     if(giroSel) giroSel.value=IND_NAMES[parsed.giro]?parsed.giro:'';
+    let apolloIndSel=new Set(), apolloSegSel=new Set();
+    if(fuenteActual==='apollo'&&_apolloFiltrosCache){
+      const idsIndValidos=new Set(_apolloFiltrosCache.industrias.map(i=>i.id));
+      const idsSegValidos=new Set(_apolloFiltrosCache.segmentos.map(s=>s.id));
+      apolloIndSel=new Set((parsed.apolloIndustrias||[]).filter(id=>idsIndValidos.has(id)));
+      apolloSegSel=new Set((parsed.apolloSegmentos||[]).filter(id=>idsSegValidos.has(id)));
+      document.querySelectorAll('.csv-apollo-ind-check').forEach(c=>{ c.checked=apolloIndSel.has(c.value); });
+      document.querySelectorAll('.csv-apollo-seg-check').forEach(c=>{ c.checked=apolloSegSel.has(c.value); });
+    }
     const empMinIn=document.getElementById('csvSearchEmpMin'), empMaxIn=document.getElementById('csvSearchEmpMax');
     if(empMinIn) empMinIn.value=parsed.empMin!=null?parsed.empMin:'';
     if(empMaxIn) empMaxIn.value=parsed.empMax!=null?parsed.empMax:'';
@@ -11484,7 +11563,9 @@ Devuelve EXCLUSIVAMENTE este objeto JSON (sin markdown):
     };
     const partes=[
       estadosPedidos.size?`Estados: ${[...estadosPedidos].join(', ')}`:'',
-      giroSel?.value?`Giro: ${IND_NAMES[giroSel.value]}`:'',
+      (fuenteActual==='denue'&&giroSel?.value)?`Giro: ${IND_NAMES[giroSel.value]}`:'',
+      apolloIndSel.size?`Industria: ${[..._apolloFiltrosCache.industrias.filter(i=>apolloIndSel.has(i.id)).map(i=>i.label)].join(', ')}`:'',
+      apolloSegSel.size?`Segmento: ${[..._apolloFiltrosCache.segmentos.filter(s=>apolloSegSel.has(s.id)).map(s=>s.label)].join(', ')}`:'',
       (parsed.empMin!=null||parsed.empMax!=null)?`Empleados: ${parsed.empMin??'?'}–${parsed.empMax??'?'}`:'',
       senPedidos.size?`Nivel: ${[...senPedidos].join(', ')}`:'',
       rolesPedidos.size?`Rol: ${[...rolesPedidos].join(', ')}`:'',
@@ -11632,6 +11713,15 @@ window.csvRetryLeadJob=function(jobId){
           const munSel=new Set(f.municipiosDenue);
           document.querySelectorAll('.csv-municipio-check').forEach(c=>{ c.checked=munSel.has(c.value); });
         },500);
+      }
+      if((!f.fuentePrimaria||f.fuentePrimaria==='apollo')&&(f.apolloIndustryIds?.length||f.apolloMarketSegments?.length)){
+        csvLoadApolloFiltros();
+        setTimeout(()=>{
+          const indSel=new Set(f.apolloIndustryIds||[]);
+          document.querySelectorAll('.csv-apollo-ind-check').forEach(c=>{ c.checked=indSel.has(c.value); });
+          const segSel=new Set(f.apolloMarketSegments||[]);
+          document.querySelectorAll('.csv-apollo-seg-check').forEach(c=>{ c.checked=segSel.has(c.value); });
+        },400);
       }
     },100);
     showNotif('Filtros de la búsqueda anterior cargados — revísalos y dale a "Buscar leads"','info');
@@ -11992,26 +12082,28 @@ window.csvRunLeadSearch=async function(){
   const categoriasDirind=fuentePrimaria==='dirind'?[...document.querySelectorAll('.csv-dirind-cat-check:checked')].map(c=>c.value):[];
   const dirindTexto=fuentePrimaria==='dirind'?(document.getElementById('csvSearchDirindTexto')?.value.trim()||''):'';
   const textoDenue=fuentePrimaria==='denue'?(document.getElementById('csvSearchDenueTexto')?.value.trim()||''):'';
+  const apolloIndustryIds=fuentePrimaria==='apollo'?[...document.querySelectorAll('.csv-apollo-ind-check:checked')].map(c=>c.value):[];
+  const apolloMarketSegments=fuentePrimaria==='apollo'?[...document.querySelectorAll('.csv-apollo-seg-check:checked')].map(c=>c.value):[];
   const hayFiltro=fuentePrimaria==='dirind'?(estados.length||categoriasDirind.length||dirindTexto||instrucciones)
     :fuentePrimaria==='denue'?(estados.length||municipiosDenue.length||giro||textoDenue||instrucciones)
-    :(estados.length||giro||instrucciones||roleGroups.length);
-  if(!hayFiltro){ showNotif('Define al menos un filtro (estado, categoría/giro, texto, rol o instrucciones) para buscar','error'); return; }
+    :(estados.length||apolloIndustryIds.length||apolloMarketSegments.length||instrucciones||roleGroups.length);
+  if(!hayFiltro){ showNotif('Define al menos un filtro (estado, categoría/giro/industria, texto, rol o instrucciones) para buscar','error'); return; }
   if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
   const btn=document.getElementById('csvSearchBtn'); btn.disabled=true; gcShowLoading('csvSearchLoading',true);
   try{
-    // Giro ya es una etiqueta conocida (keyword directa) — el backend además la traduce a
-    // organization_industry_tag_ids/market_segments reales cuando hay match (ver
-    // GIRO_TO_APOLLO_INDUSTRY en apollo.js); las instrucciones ya dejaron sus keywords/títulos en
-    // _csvSearchParsed. giro (la clave interna, ej. "retail") se manda tal cual además de
-    // giroKeywords — el backend lo usa para mapear a industrias DENUE cuando fuentePrimaria es
-    // 'denue' (DIRIND usa su propia categoriasDirind/dirindTexto, no esto).
-    const giroKeywords=[...new Set((giro?[IND_NAMES[giro]]:[]).concat(_csvSearchParsed.keywords))].slice(0,10);
+    // Giro/Industria (catálogo nuestro) ya no aplica a Apollo — Apollo manda su catálogo real
+    // directo (apolloIndustryIds/apolloMarketSegments, ver APOLLO_INDUSTRIES/APOLLO_MARKET_SEGMENTS
+    // en apollo.js). giro solo se usa hoy para DENUE (el backend lo traduce a industria SCIAN); se
+    // excluye explícitamente de giroKeywords en Apollo para que un giro que haya quedado
+    // seleccionado de una búsqueda DENUE anterior no se cuele como keyword suelta. Las instrucciones
+    // ya dejaron sus keywords/títulos en _csvSearchParsed, esas sí aplican a cualquier fuente.
+    const giroKeywords=[...new Set((fuentePrimaria!=='apollo'&&giro?[IND_NAMES[giro]]:[]).concat(_csvSearchParsed.keywords))].slice(0,10);
     const idToken=await currentUser.getIdToken();
     const res=await fetch(LEAD_SEARCH_API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
       body:JSON.stringify({
-        paisId, estados, municipiosDenue, seniorities, roleGroups, giroKeywords, giro, extraTitles:_csvSearchParsed.extraTitles, cantidad:Number(cantidad)||5,
+        paisId, estados, municipiosDenue, seniorities, roleGroups, giroKeywords, giro, apolloIndustryIds, apolloMarketSegments, extraTitles:_csvSearchParsed.extraTitles, cantidad:Number(cantidad)||5,
         empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria, categoriasDirind, dirindTexto, textoDenue,
       }),
     });
