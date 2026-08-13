@@ -989,7 +989,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-08-06 Cadencias: Odoo real (dedupe+actividades) + correo real por Gmail OAuth del AE + WhatsApp asistido (wa.me). Nuevo en Generación de leads: checkboxes+Activar cadencia en Resultados, sub-pestañas Mis cadencias (biblioteca/editor/A-B) y Cadencias activas (dashboard+apagado de emergencia). Configuración: Conectar Gmail. Construcción inicial — pendiente credenciales de producción (ODOO_*, GOOGLE_OAUTH_*) para operar de verdad, ver Configuración → Cadencias — Gmail';
+const APP_BUILD_STAMP='2026-08-13 Limpieza: se quita código muerto (cadencias/Odoo API/Gmail OAuth — feature descontinuada, la empresa no permite escribir a Odoo vía API externa) y helpers/funciones huérfanas de Pricing y Generación de contenidos.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1080,10 +1080,7 @@ const ODOO_INDUSTRY_ICONS = {
   turismo:'industry_hotel', otra:'industry_it',
 };
 // Helper para obtener URL de asset
-function assetUrl(type, name){ return `${ASSETS}/icons/${type}/${name}.svg`; }
-function appIconUrl(key){ return `${ASSETS}/icons/apps/${ODOO_APP_ICONS[key]||key}.svg`; }
 function industryIconUrl(giro){ const k=Object.keys(ODOO_INDUSTRY_ICONS).find(k=>k===giro?.toLowerCase()); return k?`${ASSETS}/icons/industry/${ODOO_INDUSTRY_ICONS[k]}.svg`:`${ASSETS}/icons/industry/industry_it.svg`; }
-function highlightUrl(n=1,bold=false){ return `${ASSETS}/highlights/${bold?'blue_highlight_bold':'blue_highlight'}_0${n}.svg`; }
 let CLAUDE_KEY_DEFAULT = ''; // Cargado desde Firestore — no guardar en código fuente
 let PEXELS_KEY = ''; // Banco de fotos para imágenes de LinkedIn — cargado desde Firestore config/app
 
@@ -2486,8 +2483,6 @@ window.discSetStatus = (v) => {
   const b=document.getElementById('discStatusSelHeader'); if(b&&b.value!==v) b.value=v;
   discAutosave();
 };
-window.discGetStatus = () => disc.status;
-
 // ── Sessions list view ──
 async function renderDiscoveryList(){
   const content=document.getElementById('moduleContent');
@@ -3897,56 +3892,18 @@ const ODOO_INDUSTRIES = {
 };
 
 // ── Pricing data (source: fullpricing-odoo.netlify.app) ──
+// El cálculo en sí vive en pricing.html (simulador embebido en iframe, ver renderPricingIframe),
+// que manda el resultado por postMessage — aquí solo se usan planLabels/editions para mostrar
+// tarjetas de referencia (renderPricingHome) y etiquetas de planes/edición guardados.
 const PRICING_DATA = {
-  planMonths:[1,12,24,36,48,60],
   planLabels:['Mensual','1 año','2 años','3 años','4 años','5 años'],
   editions:[
     {id:'standard',       name:'Estándar',      rates:[225,180,180,180,180,180], ratesY2:[285,228,228,228,228,228]},
     {id:'personalizable', name:'Personalizado', rates:[342,274,274,274,274,274], ratesY2:[425,340,340,340,340,340]},
     {id:'sh',             name:'Odoo.SH',        rates:[342,274,274,274,274,274], ratesY2:[425,340,340,340,340,340]},
   ],
-  implPackages:[
-    {hrs:12,  label:'12 horas',  price:12000},
-    {hrs:25,  label:'25 horas',  price:23000},
-    {hrs:50,  label:'50 horas',  price:44800},
-    {hrs:75,  label:'75 horas',  price:67800},
-    {hrs:100, label:'100 horas', price:80000},
-    {hrs:125, label:'125 horas', price:103000},
-    {hrs:150, label:'150 horas', price:124800},
-    {hrs:175, label:'175 horas', price:147800},
-    {hrs:200, label:'200 horas', price:160000},
-  ],
-  sh:{worker:{monthly:1440,annual:13824},staging:{monthly:360,annual:3456},gb:{monthly:5,annual:48}},
-  iva:0.16,
 };
-const pricingState = {company:null,contact:null,edition:null,planIdx:1,users:5,implHrs:50,customImpl:null,shWorkers:1,shStaging:0,shStorage:0,codeLines:0,result:null};
-
-function calcPricing(){
-  const ed=PRICING_DATA.editions.find(e=>e.id===pricingState.edition)||PRICING_DATA.editions[1];
-  const planIdx=pricingState.planIdx;
-  const months=PRICING_DATA.planMonths[planIdx];
-  const users=pricingState.users||1;
-  const rate=ed.rates[planIdx];
-  const rateY2=ed.ratesY2[planIdx];
-  const isMultiyear=months>12;
-  const licY1=rate*users*(Math.min(months,12));
-  const licY2plus=isMultiyear?rateY2*users*(months-12):0;
-  const licTotal=licY1+licY2plus;
-  const impl=pricingState.customImpl||(PRICING_DATA.implPackages.find(p=>p.hrs===pricingState.implHrs)||PRICING_DATA.implPackages[2]).price;
-  let shCost=0;
-  if(pricingState.edition==='sh'){
-    const isMonthly=months===1;
-    const yrs=Math.max(1,months/12);
-    shCost=(isMonthly?PRICING_DATA.sh.worker.monthly*months:PRICING_DATA.sh.worker.annual*yrs)*pricingState.shWorkers
-           +(isMonthly?PRICING_DATA.sh.staging.monthly*months:PRICING_DATA.sh.staging.annual*yrs)*pricingState.shStaging
-           +(isMonthly?PRICING_DATA.sh.gb.monthly*months:PRICING_DATA.sh.gb.annual*yrs)*pricingState.shStorage;
-  }
-  const subtotal=licTotal+impl+shCost;
-  const iva=subtotal*PRICING_DATA.iva;
-  const total=subtotal+iva;
-  const mensualRef=rate*users;
-  return {licY1,licY2plus,licTotal,impl,shCost,subtotal,iva,total,mensualRef,rate,rateY2,months,users,ed,planIdx};
-}
+const pricingState = {company:null,contact:null,planIdx:1,users:5,shWorkers:1,shStaging:0,shStorage:0,codeLines:0,result:null};
 
 async function saveCompany(data){
   if(!db) return null;
@@ -4812,28 +4769,6 @@ window.gcCopyVariant=async function(i){
     }
   } catch(e){ /* silent */ }
 };
-window.gcSaveVariant=async function(i,btn){
-  const text=_gcVariants[i]; if(!text) return;
-  if(!cont.company?.id){ showNotif('Selecciona una empresa primero','error'); return; }
-  const ctx=window._gcSaveCtx||{tipo:'mensaje'};
-  if(btn){ btn.disabled=true; btn.textContent='Guardando...'; }
-  try{
-    await gcSaveContentToCompany(cont.company.id,{
-      tipo:ctx.tipo||'mensaje',
-      momento:ctx.momento||'',
-      momLabel:ctx.momLabel||'',
-      contacto:cont.contact?.nombre||'',
-      texto:text,
-      variante:i+1,
-    });
-    if(btn){ btn.textContent='✓ Guardado'; btn.style.background='var(--success)'; btn.style.color='white'; }
-    showNotif('Variante guardada en la empresa ✓','success');
-  } catch(e){
-    showNotif('Error al guardar: '+e.message,'error');
-    if(btn){ btn.disabled=false; btn.textContent='💾 Guardar en empresa'; }
-  }
-};
-
 // Guarda contenido seleccionado en la memoria de la empresa (companies/{id}.memory.contenidos.saved[])
 async function gcSaveContentToCompany(companyId,entry){
   if(!db||!companyId) throw new Error('Sin conexión');
@@ -6021,7 +5956,6 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
           </div>
         </div>
       </div>`;
-    window._gcBrData=data;
     if(cont.company?.id){
       const brTexto=`${data.headline||''}\n${data.subtitulo||''}\n\n${data.intro||''}\n\nApps: ${(data.apps||[]).map(a=>a.nombre).join(', ')}\n\n${(data.diferenciadores||[]).join(' · ')}\n\nCTA: ${brGetCtaText(cont.brCta)}`;
       // Guarda el HTML del brochure para reconstruirlo y re-descargarlo desde la ficha (sin Storage)
@@ -6590,8 +6524,6 @@ function _histFilterFact(rows, cols, opts={}){
     return true;
   });
 }
-
-window.showModule_historicoInit = true; // marca de que el módulo está cargado
 
 async function renderHistorico(){
   const content=document.getElementById('moduleContent');
