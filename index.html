@@ -673,6 +673,37 @@ input,select,textarea{font-family:inherit;}
 .gc-submenu-item.active::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:var(--purple);border-radius:0 3px 3px 0;}
 .gc-submenu-icon{font-size:16px;width:20px;text-align:center;}
 .gc-content{flex:1;padding:28px;overflow-y:auto;}
+/* Historial rápido ("Generado hoy") dentro de Generación de contenidos */
+.gc-hist-panel{border:1px solid var(--gray-200);border-radius:10px;background:var(--gray-50);overflow:hidden;}
+.gc-hist-title{width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gray-500);background:none;border:none;cursor:pointer;}
+.gc-hist-row{display:flex;align-items:center;gap:9px;padding:9px 12px;border-top:1px solid var(--gray-200);background:white;font-size:12px;}
+.gc-hist-ic{width:24px;height:24px;border-radius:6px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.gc-hist-main{flex:1;min-width:0;}
+.gc-hist-co{font-weight:700;color:var(--gray-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gc-hist-meta{color:var(--gray-400);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gc-hist-reopen{font-size:10.5px;font-weight:700;color:var(--purple);white-space:nowrap;background:none;border:none;cursor:pointer;flex-shrink:0;}
+.gc-hist-reopen:hover{text-decoration:underline;}
+/* Toggle Formulario/Asistente guiado — botón fijo + popover, por cuenta */
+.gc-mode-btn{font-size:12px;font-weight:700;padding:7px 14px;border:1.5px solid var(--purple);color:var(--purple);background:white;border-radius:99px;cursor:pointer;}
+.gc-mode-btn:hover{background:var(--purple-light);}
+.gc-mode-popover{position:absolute;top:52px;right:28px;width:300px;background:white;border:1px solid var(--gray-200);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;z-index:40;}
+.gc-mode-opt{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:8px;border:none;background:none;cursor:pointer;}
+.gc-mode-opt:hover{background:var(--gray-50);}
+.gc-mode-opt.active{background:var(--purple-light);}
+.gc-mode-opt-top{display:flex;align-items:center;gap:8px;}
+.gc-mode-radio{width:14px;height:14px;border-radius:50%;border:2px solid var(--gray-300);flex-shrink:0;}
+.gc-mode-radio.on{border-color:var(--purple);background:radial-gradient(circle,var(--purple) 0 40%,transparent 42%);}
+.gc-mode-name{font-size:13px;font-weight:700;color:var(--gray-900);}
+.gc-mode-desc{font-size:11.5px;color:var(--gray-500);margin:4px 0 0 22px;line-height:1.4;}
+/* Asistente guiado — barra de pasos que envuelve las .gc-form-section ya renderizadas */
+.gc-wizard-bar{margin-bottom:20px;}
+.gc-wizard-dots{display:flex;align-items:center;gap:6px;margin-bottom:12px;}
+.gc-wizard-dot{width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;background:var(--gray-200);color:var(--gray-500);flex-shrink:0;}
+.gc-wizard-dot.active{background:var(--purple);color:#fff;}
+.gc-wizard-dot.done{background:var(--purple-light);color:var(--purple);}
+.gc-wizard-line{flex:1;height:2px;background:var(--gray-200);max-width:40px;}
+.gc-wizard-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.gc-wizard-step-label{font-size:12.5px;font-weight:600;color:var(--gray-500);}
 
 /* ════════════════════════════════════════
    GEN CONTENIDOS — Form styles
@@ -718,6 +749,15 @@ input,select,textarea{font-family:inherit;}
 .gc-variant-text{font-size:14px;line-height:1.7;color:var(--gray-900);white-space:pre-wrap;}
 .gc-channel-btn:hover{border-color:var(--purple)!important;}
 .gc-expand-btn:hover{text-decoration:underline;}
+/* Preview de variante por canal — Template de mensaje se lee como se va a recibir de verdad */
+.gc-wa-bubble{background:#dcf8c6;border-radius:10px 10px 10px 2px;padding:12px 14px;font-size:13.5px;color:#1c2b1f;line-height:1.6;}
+.gc-mail-card{border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;}
+.gc-mail-subj{background:var(--gray-50);padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--gray-700);border-bottom:1px solid var(--gray-200);}
+.gc-mail-body{padding:14px;font-size:13.5px;color:var(--gray-700);line-height:1.6;}
+.gc-li-card{border:1px solid var(--gray-200);border-radius:8px;padding:14px;}
+.gc-li-head{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+.gc-li-avatar{width:26px;height:26px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.gc-li-name{font-size:12.5px;font-weight:700;color:var(--gray-900);}
 .disc-popup-box .emp-saved-text:hover{background:var(--gray-100);border-radius:6px;}
 
 /* Image canvas */
@@ -953,6 +993,7 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" id="nav-historico" onclick="showModule('historico')" data-tip="Ventas y CRM histórico de Odoo México: filtros por fecha/industria/canal, embudo, fuente de lead y buscador con IA."><span class="nav-icon">📈</span> Información Histórica</button>
       <div class="nav-section-label" style="margin-top:8px">Recursos</div>
       <button class="nav-item" id="nav-framework" onclick="showModule('framework')" data-tip="Guía de marca oficial: colores, tipografía y assets para tus materiales."><span class="nav-icon">🎨</span> Framework Visual</button>
+      <button class="nav-item" id="nav-appcatalog" onclick="showModule('appcatalog')" data-tip="Las 49 apps de Odoo con su logo oficial, agrupadas por categoría — mismo índice que usan Brochure y Pricing."><span class="nav-icon">🗂️</span> Catálogo de apps</button>
       <a class="nav-download-cta" href="assets/docs/proveedores-timbres-pac.pdf" download="Proveedores_de_Timbres_Odoo_Mexico.pdf" data-tip="Ficha para cliente con los 3 PACs (Quadrum, SW Sapien, Solución Factible): esquemas de contratación, precios de referencia y contacto directo.">
         <span class="nav-icon">📄</span>
         <span class="nav-download-text"><strong>Proveedores de Timbres</strong><span>⬇ Descargar PDF</span></span>
@@ -1580,7 +1621,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
   const titles={home:'Inicio',empresas:'Empresas',discovery:'Intromeet / Qcall',gencontenidos:'Generación de contenidos',
     csv:'Generación de leads',pricing:'Pricing',propuesta:'Propuesta Comercial',analytics:'Analytics',
     manager:'Panel de Manager',settings:'Configuración',framework:'Framework Visual',wiki:'Banco de Información',
-    historico:'Información Histórica',metricas:'Métricas'};
+    historico:'Información Histórica',metricas:'Métricas',appcatalog:'Catálogo de apps'};
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
   const content=document.getElementById('moduleContent');
   const map={
@@ -1591,6 +1632,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
     analytics:renderAnalytics,
     manager:renderManagerPanel, settings:renderSettings,
     framework:renderFrameworkVisual,
+    appcatalog:renderAppCatalog,
     wiki:renderWiki,
     historico:renderHistorico,
     metricas:renderMetricas,
@@ -1949,6 +1991,15 @@ function renderSettings(){
             ${ck?'<span class="key-saved">✓ Activa</span>':'<span style="font-size:13px;color:var(--gray-400)">Sin configurar — los módulos de IA no funcionarán</span>'}
           </div>
         </div>
+        ${isManager?`<div class="card settings-card">
+          <div class="card-header"><h3>🖼️ Pexels (fotos para LinkedIn)</h3><span class="status-dot ${PEXELS_KEY?'dot-green':'dot-red'}"></span></div>
+          <p class="settings-desc">Banco de fotos reales para Publicación LinkedIn (estilo "Foto real"). Compartido para todo el equipo — se guarda en Firestore, nunca en el código del repo (que es público). Solo visible para managers.<br><a href="https://www.pexels.com/api/" target="_blank" class="link">Pexels API →</a></p>
+          <div class="form-group"><label>Pexels API Key</label><input type="password" id="pexelsApiKey" class="input" placeholder="563492ad6f9170..." value="${PEXELS_KEY}"></div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+            <button class="btn btn-primary" onclick="savePexelsKey()">Guardar</button>
+            ${PEXELS_KEY?'<span class="key-saved">✓ Activa para todo el equipo</span>':'<span style="font-size:13px;color:var(--gray-400)">Sin configurar — Publicación LinkedIn usa solo "Tarjeta gráfica"</span>'}
+          </div>
+        </div>`:''}
         <div class="card settings-card">
           <div class="card-header"><h3>🔔 Notificaciones del navegador</h3><span class="status-dot cfg-notif-dot ${_cfgNotifDotClass()}"></span></div>
           <p class="settings-desc">Te avisamos con una notificación del navegador — aunque no estés viendo esta pestaña — cuando una búsqueda de leads en Apollo termine de resolver el email y el teléfono.</p>
@@ -2011,6 +2062,19 @@ window.saveClaudeKey=function(){
   localStorage.setItem('outbound_claude_key',k);
   showNotif('Claude API Key guardada ✓','success');
   setTimeout(()=>renderSettings(),800);
+};
+
+// Key compartida de Pexels — vive SOLO en Firestore config/app (nunca en el código fuente del
+// repo, que es público). Solo managers ven este campo (ver isManager en renderSettings).
+window.savePexelsKey=async function(){
+  if(!db||currentUserData?.role!=='manager') return;
+  const k=document.getElementById('pexelsApiKey').value.trim();
+  try{
+    await setDoc(doc(db,'config','app'),{pexelsKey:k},{merge:true});
+    PEXELS_KEY=k;
+    showNotif(k?'Pexels API Key guardada ✓':'Pexels API Key eliminada','success');
+    setTimeout(()=>renderSettings(),800);
+  } catch(e){ showNotif('Error al guardar: '+e.message,'error'); }
 };
 
 // ══════════════════════════════════════════
@@ -2264,14 +2328,18 @@ window.metSaveWeeklyActivity=async function(){
 const IND_NAMES={ construccion:'Construcción',retail:'Retail',restaurante:'Restaurante',comercializadora:'Comercializadora',manufactura:'Manufactura',software:'Software/IT',servicios:'Servicios',distribucion:'Distribución',ecommerce:'Ecommerce',salud:'Salud',educacion:'Educación',inmobiliaria:'Inmobiliaria',logistica:'Logística',agricultura:'Agricultura',turismo:'Turismo',otra:'Otra' };
 const TV_NAMES={ cotizacion:'Cotización',suscripcion:'Suscripción',alquiler:'Alquiler',ecommerce:'Ecommerce',pos:'Punto de venta',campo:'Venta en campo',marketplace:'Marketplace / Ecommerce propio' };
 
+// Nombres SIEMPRE tal cual aparecen en ODOO_APPS_FLAT (única fuente de verdad de nombre+ícono) —
+// antes esta lista tenía sus propios nombres ("Punto de Venta", "eCommerce", "RRHH", "Fabricación")
+// que no existían en el catálogo real, y el match por substring de gcBrSelectRecommended fallaba
+// en silencio (Retail/Restaurante perdían PdV+eCommerce/Manufactura, Construcción perdía Empleados).
 const APPS_DB={
-  construccion:[{name:'Proyecto',reason:'Costeo de obra, avance y tareas en tiempo real'},{name:'Compras',reason:'OCs ligadas a obra, trazabilidad de materiales'},{name:'Inventario',reason:'Materiales y herramientas por almacén u obra'},{name:'Contabilidad',reason:'Margen por proyecto, facturación por estimaciones'},{name:'Ventas',reason:'Presupuestos de obra profesionales'},{name:'RRHH',reason:'Nómina fija y trabajadores eventuales'}],
-  retail:[{name:'Punto de Venta',reason:'POS integrado con inventario en tiempo real'},{name:'Inventario',reason:'Stock por tienda, reabasto automático'},{name:'Ventas',reason:'Pedidos B2B, listas de precio'},{name:'Contabilidad',reason:'P&L por tienda, cierre de caja automático'},{name:'eCommerce',reason:'Tienda online integrada con inventario físico'}],
-  restaurante:[{name:'Punto de Venta',reason:'Comandas, POS integrado con cocina'},{name:'Fabricación',reason:'Costeo de recetas, food cost en tiempo real'},{name:'Compras',reason:'Compras de insumos por receta'},{name:'Inventario',reason:'Merma, caducidades, reabasto por sucursal'},{name:'Contabilidad',reason:'Flujo diario por sucursal, conciliación delivery'}],
+  construccion:[{name:'Proyectos',reason:'Costeo de obra, avance y tareas en tiempo real'},{name:'Compras',reason:'OCs ligadas a obra, trazabilidad de materiales'},{name:'Inventario',reason:'Materiales y herramientas por almacén u obra'},{name:'Contabilidad',reason:'Margen por proyecto, facturación por estimaciones'},{name:'Ventas',reason:'Presupuestos de obra profesionales'},{name:'Empleados',reason:'Nómina fija y trabajadores eventuales'}],
+  retail:[{name:'PdV para tiendas',reason:'POS integrado con inventario en tiempo real'},{name:'Inventario',reason:'Stock por tienda, reabasto automático'},{name:'Ventas',reason:'Pedidos B2B, listas de precio'},{name:'Contabilidad',reason:'P&L por tienda, cierre de caja automático'},{name:'Comercio electrónico',reason:'Tienda online integrada con inventario físico'}],
+  restaurante:[{name:'PdV para restaurantes',reason:'Comandas, POS integrado con cocina'},{name:'Manufactura',reason:'Costeo de recetas, food cost en tiempo real'},{name:'Compras',reason:'Compras de insumos por receta'},{name:'Inventario',reason:'Merma, caducidades, reabasto por sucursal'},{name:'Contabilidad',reason:'Flujo diario por sucursal, conciliación delivery'}],
   comercializadora:[{name:'Ventas',reason:'Listas de precio por cliente, pedidos recurrentes'},{name:'Inventario',reason:'Lotes, caducidad, consignación'},{name:'Compras',reason:'OCs automáticas por stock mínimo'},{name:'Contabilidad',reason:'Cobranza, alertas de vencimiento, margen por cliente'},{name:'CRM',reason:'Seguimiento de cartera activa'}],
   otra:[{name:'Ventas',reason:'Cotizaciones, pedidos, seguimiento comercial'},{name:'Inventario',reason:'Control de stock en tiempo real'},{name:'Contabilidad',reason:'Facturación CFDI, visibilidad financiera'},{name:'CRM',reason:'Pipeline de ventas y prospectos'}],
 };
-const TV_APPS={ cotizacion:{name:'Ventas',reason:'Cotizaciones multi-línea, conversión automática a pedido'},suscripcion:{name:'Suscripciones',reason:'Facturación recurrente, renovaciones, pagos vencidos'},alquiler:{name:'Alquiler',reason:'Disponibilidad de activos, depósitos, logística'},ecommerce:{name:'eCommerce',reason:'Tienda online multi-canal, conciliación automática'},pos:{name:'Punto de Venta',reason:'POS multi-caja, métodos de pago, integración inventario'},campo:{name:'Ventas (móvil)',reason:'Toma de pedido en ruta, inventario por vehículo, cobro y CFDI en campo'} };
+const TV_APPS={ cotizacion:{name:'Ventas',reason:'Cotizaciones multi-línea, conversión automática a pedido'},suscripcion:{name:'Suscripciones',reason:'Facturación recurrente, renovaciones, pagos vencidos'},alquiler:{name:'Alquiler',reason:'Disponibilidad de activos, depósitos, logística'},ecommerce:{name:'Comercio electrónico',reason:'Tienda online multi-canal, conciliación automática'},pos:{name:'PdV para tiendas',reason:'POS multi-caja, métodos de pago, integración inventario'},campo:{name:'Ventas',reason:'Toma de pedido en ruta, inventario por vehículo, cobro y CFDI en campo'} };
 
 const WOW_DB={
   comercial:[
@@ -4390,10 +4458,179 @@ const cont={
   photoPage:1, lastPhoto:null, lastPubData:null,
   output:null,
   brCta:'prospeccion',
+  mode:'form', // 'form' | 'wizard' — preferencia de vista, por cuenta (ver gcSetContentMode)
   setSection(s){ this.activeSection=s; },
   discard(){ this.company=null; this.contact=null; this.output=null; },
   formActive:false,
 };
+
+// ── Historial rápido ("Generado hoy") — vive solo en memoria durante la sesión, para reabrir algo
+// generado hace un momento sin salir del módulo. El registro permanente sigue siendo la memoria de
+// la empresa (companies/{id}.memory.contenidos); esto es solo un atajo, no un reemplazo.
+let _gcSessionHistory=[]; // {id, icon, tipo, company, subtitle, ts, html, text} — más reciente primero
+let _gcHistIdSeq=0;
+let _gcHistOpen=true;
+// Quita ids y manejadores on* de un snippet ya renderizado, para poder reabrirlo en un modal sin
+// que sus botones (que ya no corresponden al estado actual) queden activos ni choquen con los ids
+// de la salida en vivo si sigue montada detrás.
+function gcSanitizeSnapshot(html){
+  const tmp=document.createElement('div');
+  tmp.innerHTML=html;
+  tmp.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+  tmp.querySelectorAll('*').forEach(el=>{
+    [...el.attributes].forEach(attr=>{ if(attr.name.startsWith('on')) el.removeAttribute(attr.name); });
+  });
+  return tmp.innerHTML;
+}
+function gcRelTime(ts){
+  const mins=Math.max(0,Math.round((Date.now()-ts)/60000));
+  if(mins<1) return 'justo ahora';
+  if(mins<60) return `hace ${mins} min`;
+  const hrs=Math.round(mins/60);
+  if(hrs<24) return `hace ${hrs} h`;
+  return `hace ${Math.round(hrs/24)} d`;
+}
+// Registra una salida recién generada y refresca el panel si está montado. wrapId es el elemento
+// ya renderizado del que se toma la foto visual (innerHTML) para el modal de "Reabrir".
+function gcPushHistory({icon,tipo,company,subtitle,wrapId,text}){
+  const wrap=document.getElementById(wrapId);
+  if(!wrap) return;
+  _gcSessionHistory.unshift({
+    id:++_gcHistIdSeq, icon, tipo, company:company||'', subtitle:subtitle||'',
+    ts:Date.now(), html:gcSanitizeSnapshot(wrap.innerHTML), text:text||'',
+  });
+  _gcSessionHistory=_gcSessionHistory.slice(0,8);
+  const slot=document.getElementById('gcHistSlot');
+  if(slot) slot.innerHTML=gcHistoryPanelHTML();
+}
+window.gcToggleHistPanel=function(){
+  _gcHistOpen=!_gcHistOpen;
+  const slot=document.getElementById('gcHistSlot');
+  if(slot) slot.innerHTML=gcHistoryPanelHTML();
+};
+function gcHistoryPanelHTML(){
+  if(!_gcSessionHistory.length) return '';
+  return `<div class="gc-hist-panel">
+    <button class="gc-hist-title" onclick="gcToggleHistPanel()">
+      <span>Generado hoy</span><span>${_gcHistOpen?'▴':'▾'}</span>
+    </button>
+    ${_gcHistOpen?_gcSessionHistory.map(h=>`
+      <div class="gc-hist-row">
+        <span class="gc-hist-ic">${h.icon}</span>
+        <div class="gc-hist-main">
+          <div class="gc-hist-co">${_esc(h.company||h.subtitle||h.tipo)}</div>
+          <div class="gc-hist-meta">${_esc(h.tipo)}${h.company&&h.subtitle?' · '+_esc(h.subtitle):''} · ${gcRelTime(h.ts)}</div>
+        </div>
+        <button class="gc-hist-reopen" onclick="gcReopenHistoryItem(${h.id})">Reabrir</button>
+      </div>`).join(''):''}
+  </div>`;
+}
+window.gcReopenHistoryItem=function(id){
+  const item=_gcSessionHistory.find(h=>h.id===id); if(!item) return;
+  document.getElementById('gcHistModal')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='gcHistModal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML=`<div style="background:white;border-radius:14px;max-width:760px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--gray-200)">
+      <div style="font-size:15px;font-weight:700">${item.icon} ${_esc(item.company||item.subtitle||item.tipo)}</div>
+      <div style="display:flex;gap:8px">
+        ${item.text?`<button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText(window._gcHistCopyText||'').then(()=>showNotif('Copiado ✓','success'))">📋 Copiar</button>`:''}
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('gcHistModal').remove()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div style="overflow:auto;padding:20px;background:var(--gray-50)">${item.html}</div>
+  </div>`;
+  window._gcHistCopyText=item.text||'';
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+};
+// ── Formulario o Asistente — preferencia por cuenta ──
+// El "Asistente guiado" NO duplica el formulario: envuelve las MISMAS .gc-form-section que ya
+// renderiza cada tipo de contenido (Publicación LinkedIn/Brochure/Cold Calling/Template) y muestra
+// una a la vez con navegación Atrás/Siguiente. Así el modo aplica a los 4 tipos sin reescribir cada
+// uno, y no hay estado ni validación duplicada — el botón "Generar" sigue siendo el mismo de siempre.
+let _gcWizardStep=0;
+const GC_MODE_OPTS=[
+  {id:'form',   icon:'📝', label:'Formulario', tag:'— recomendado', desc:'Todo en una pantalla, de arriba a abajo. Más rápido si ya generas contenido seguido y sabes qué quieres.'},
+  {id:'wizard', icon:'🪜', label:'Asistente guiado', tag:'', desc:'Un paso a la vez. Mejor si apenas estás conociendo el módulo.'},
+];
+function gcRenderModeBar(){
+  const bar=document.getElementById('gcModeBar'); if(!bar) return;
+  const current=GC_MODE_OPTS.find(m=>m.id===cont.mode)||GC_MODE_OPTS[0];
+  bar.innerHTML=`
+    <div style="display:flex;justify-content:flex-end;padding:14px 28px 0">
+      <button class="gc-mode-btn" onclick="gcToggleModePopover()">⇄ Vista: ${current.label}</button>
+    </div>
+    <div id="gcModePopover" class="gc-mode-popover" style="display:none">
+      ${GC_MODE_OPTS.map(m=>`
+        <button class="gc-mode-opt ${cont.mode===m.id?'active':''}" onclick="gcSetContentMode('${m.id}')">
+          <div class="gc-mode-opt-top">
+            <span class="gc-mode-radio ${cont.mode===m.id?'on':''}"></span>
+            <span class="gc-mode-name">${m.icon} ${m.label} <span style="color:var(--purple);font-weight:600">${m.tag}</span></span>
+          </div>
+          <p class="gc-mode-desc">${m.desc}</p>
+        </button>`).join('')}
+      <p style="font-size:10.5px;color:var(--gray-400);padding:6px 12px 2px">Se guarda en tu cuenta — no afecta a tus compañeros.</p>
+    </div>`;
+}
+window.gcToggleModePopover=function(){
+  const p=document.getElementById('gcModePopover'); if(!p) return;
+  p.style.display=p.style.display==='none'?'block':'none';
+};
+window.gcSetContentMode=async function(mode){
+  cont.mode=mode;
+  _gcWizardStep=0;
+  gcRenderModeBar();
+  gcApplyMode();
+  if(db&&currentUser){
+    try{ await updateDoc(doc(db,'users',currentUser.uid),{contentGenMode:mode}); currentUserData={...currentUserData,contentGenMode:mode}; }
+    catch(e){ /* silencioso — la preferencia sigue aplicando en esta sesión aunque no se persista */ }
+  }
+};
+// Aplica (o quita) el envoltorio de pasos sobre las .gc-form-section YA renderizadas por el tipo
+// de contenido activo — no conoce ni le importa cuál sea, solo cuenta secciones y las muestra de
+// una en una cuando el modo es 'wizard'.
+function gcApplyMode(){
+  const c=document.getElementById('gcContent'); if(!c) return;
+  document.getElementById('gcWizardBar')?.remove();
+  const sections=[...c.querySelectorAll('.gc-form-section')];
+  const genBtn=c.querySelector('.gc-generate-btn');
+  if(cont.mode!=='wizard'||sections.length===0){
+    sections.forEach(s=>s.style.display='');
+    if(genBtn) genBtn.style.display='';
+    return;
+  }
+  if(_gcWizardStep>=sections.length) _gcWizardStep=sections.length-1;
+  sections.forEach((s,i)=>{ s.style.display=i===_gcWizardStep?'':'none'; });
+  const lastStep=_gcWizardStep===sections.length-1;
+  if(genBtn) genBtn.style.display=lastStep?'':'none';
+  const bar=document.createElement('div');
+  bar.id='gcWizardBar';
+  bar.className='gc-wizard-bar';
+  bar.innerHTML=`
+    <div class="gc-wizard-dots">
+      ${sections.map((_,i)=>`<span class="gc-wizard-dot ${i===_gcWizardStep?'active':i<_gcWizardStep?'done':''}">${i+1}</span>${i<sections.length-1?'<span class="gc-wizard-line"></span>':''}`).join('')}
+    </div>
+    <div class="gc-wizard-nav">
+      <button class="btn btn-ghost btn-sm" ${_gcWizardStep===0?'disabled':''} onclick="gcWizardStep(-1)">← Atrás</button>
+      <span class="gc-wizard-step-label">Paso ${_gcWizardStep+1} de ${sections.length}</span>
+      ${!lastStep?`<button class="btn btn-primary btn-sm" onclick="gcWizardStep(1)">Siguiente →</button>`:`<span class="gc-wizard-step-label" style="color:var(--success);font-weight:700">✓ Listo para generar</span>`}
+    </div>`;
+  sections[0].parentElement.insertBefore(bar,sections[0]);
+}
+window.gcWizardStep=function(delta){
+  const c=document.getElementById('gcContent'); if(!c) return;
+  const total=c.querySelectorAll('.gc-form-section').length;
+  _gcWizardStep=Math.max(0,Math.min(total-1,_gcWizardStep+delta));
+  gcApplyMode();
+  document.getElementById('gcWizardBar')?.scrollIntoView({block:'start',behavior:'smooth'});
+};
+// Cierra el popover de modo si se hace clic fuera de él
+document.addEventListener('click',e=>{
+  const pop=document.getElementById('gcModePopover'); if(!pop||pop.style.display==='none') return;
+  if(!pop.contains(e.target) && !e.target.closest('.gc-mode-btn')) pop.style.display='none';
+});
 
 const BR_CTA_OPTS=[
   {id:'prospeccion',        label:'Prospección — Agendar intromeet'},
@@ -4428,6 +4665,9 @@ window.gcUpdateBrCta=function(type){
 function renderGenContenidos(){
   const content=document.getElementById('moduleContent');
   content.style.padding='0';
+  // La preferencia de vista (formulario/asistente) es por cuenta — se lee de currentUserData al
+  // entrar al módulo; los cambios durante la sesión se guardan ahí mismo (ver gcSetContentMode).
+  if(currentUserData?.contentGenMode) cont.mode=currentUserData.contentGenMode;
   content.innerHTML=`
     <div class="gc-layout">
       <nav class="gc-submenu">
@@ -4442,11 +4682,16 @@ function renderGenContenidos(){
             id="gcsub-${s.id}" onclick="gcShowSection('${s.id}')">
             <span class="gc-submenu-icon">${s.icon}</span>${s.label}
           </button>`).join('')}
+        <div id="gcHistSlot" style="padding:0 12px;margin-top:14px">${gcHistoryPanelHTML()}</div>
       </nav>
-      <div class="gc-content" id="gcContent">
-        <div style="display:flex;align-items:center;justify-content:center;padding:60px;color:var(--gray-400);font-size:14px">Cargando...</div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+        <div id="gcModeBar" style="position:relative"></div>
+        <div class="gc-content" id="gcContent" style="flex:1">
+          <div style="display:flex;align-items:center;justify-content:center;padding:60px;color:var(--gray-400);font-size:14px">Cargando...</div>
+        </div>
       </div>
     </div>`;
+  gcRenderModeBar();
   gcShowSection(cont.activeSection);
 }
 
@@ -4462,6 +4707,8 @@ window.gcShowSection=function(section){
     'templates':renderGcTemplates,
   };
   const fn=map[section]; if(fn){ c.innerHTML=''; fn(); }
+  _gcWizardStep=0;
+  gcApplyMode();
 };
 
 // ── Tone + Length helpers ──
@@ -4701,6 +4948,33 @@ function gcParseVariants(content){
   const cleaned=parts.map(p=>p.replace(/\*+$/,'').trim()).filter(Boolean);
   return cleaned.length>=2 ? cleaned : [String(content||'').trim()];
 }
+// Divide una variante de correo en Asunto/Cuerpo — gcGenerateTemplate le pide a Claude el formato
+// exacto "ASUNTO: [asunto]\n---\n[cuerpo]" para el canal correo.
+function gcParseEmailParts(text){
+  const s=String(text||'');
+  const sep=s.match(/\n?-{2,}\n?/);
+  if(sep){
+    const idx=s.indexOf(sep[0]);
+    return {subject:s.slice(0,idx).replace(/^ASUNTO:\s*/i,'').trim(), body:s.slice(idx+sep[0].length).trim()};
+  }
+  return {subject:'', body:s.trim()};
+}
+// Iniciales para el avatar de la preview de LinkedIn (ej. "Juan Pérez" → "JP")
+function gcInitials(name){
+  const parts=String(name||'').trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return '··';
+  return (parts[0][0]+(parts[1]?.[0]||'')).toUpperCase();
+}
+// Arma el bloque truncable de una variante (texto/expandir) — igual para los 3 canales, solo
+// cambia el envoltorio visual que la llama.
+function gcVariantTextHTML(i,text,extraStyle){
+  const LIMIT=180;
+  const long=text.length>LIMIT;
+  const preview=long?_esc(text.slice(0,LIMIT))+'…':_esc(text);
+  const textEl=`<div id="gcVarText${i}" data-full="${_esc(text)}" data-expanded="0" style="${extraStyle||''}">${preview}</div>`;
+  const expandBtn=long?`<button class="gc-expand-btn" id="gcVarExpandBtn${i}" onclick="gcToggleVariant(${i})" style="margin-top:8px;background:none;border:none;color:var(--purple);font-size:12.5px;font-weight:600;cursor:pointer;padding:0">Ver más ▾</button>`:'';
+  return {textEl,expandBtn};
+}
 function gcShowOutput(wrapId,content,variants=false,saveCtx=null){
   const wrap=document.getElementById(wrapId); if(!wrap) return;
   wrap.classList.add('show');
@@ -4708,13 +4982,31 @@ function gcShowOutput(wrapId,content,variants=false,saveCtx=null){
     const parts=gcParseVariants(content);
     _gcVariants=parts;
     window._gcSaveCtx=saveCtx||{tipo:'mensaje'};
-    const LIMIT=180;
+    const channel=saveCtx?.tipo;
+    const contactName=cont.contact?.nombre||cont.company?.nombre||'';
+    const regenBtn=saveCtx?.regenerateFn?`<button class="gc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="${saveCtx.regenerateFn}()">↺ Regenerar</button>`:'';
     wrap.innerHTML=`
-      <div class="gc-output-header"><span class="gc-output-label">${parts.length} variantes generadas</span></div>
+      <div class="gc-output-header">
+        <span class="gc-output-label">${parts.length} variantes generadas</span>
+        ${regenBtn?`<div class="gc-output-actions">${regenBtn}</div>`:''}
+      </div>
       <div class="gc-variants" style="display:flex;flex-direction:column;gap:14px">
       ${parts.map((p,i)=>{
-        const long=p.length>LIMIT;
-        const preview=long?_esc(p.slice(0,LIMIT))+'…':_esc(p);
+        let body;
+        if(channel==='whatsapp'){
+          const {textEl,expandBtn}=gcVariantTextHTML(i,p,'font-size:13.5px;line-height:1.6;');
+          body=`<div class="gc-wa-bubble">${textEl}</div>${expandBtn}`;
+        } else if(channel==='correo'){
+          const {subject,body:emailBody}=gcParseEmailParts(p);
+          const {textEl,expandBtn}=gcVariantTextHTML(i,emailBody,'font-size:13.5px;line-height:1.6;color:var(--gray-700);white-space:pre-wrap');
+          body=`<div class="gc-mail-card">${subject?`<div class="gc-mail-subj">Asunto: ${_esc(subject)}</div>`:''}<div class="gc-mail-body">${textEl}</div></div>${expandBtn}`;
+        } else if(channel==='linkedin'){
+          const {textEl,expandBtn}=gcVariantTextHTML(i,p,'font-size:13.5px;line-height:1.6;color:var(--gray-700);white-space:pre-wrap');
+          body=`<div class="gc-li-card"><div class="gc-li-head"><span class="gc-li-avatar">${gcInitials(contactName)}</span><span class="gc-li-name">${_esc(contactName||'Contacto')}</span></div>${textEl}</div>${expandBtn}`;
+        } else {
+          const {textEl,expandBtn}=gcVariantTextHTML(i,p,'font-size:13.5px;line-height:1.7;color:var(--gray-700);white-space:pre-wrap');
+          body=textEl+expandBtn;
+        }
         return `<div class="gc-variant-card" id="gcVar${i}" style="border:1.5px solid var(--gray-200);border-radius:12px;padding:16px;background:white">
           <div class="gc-variant-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <span class="gc-variant-num" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--purple);background:var(--purple-light);padding:3px 10px;border-radius:99px">Variante ${i+1}</span>
@@ -4722,8 +5014,7 @@ function gcShowOutput(wrapId,content,variants=false,saveCtx=null){
               <button class="gc-copy-btn" onclick="gcCopyVariant(${i})">📋 Copiar</button>
             </div>
           </div>
-          <div class="gc-variant-text" id="gcVarText${i}" data-full="${_esc(p)}" data-expanded="0" style="font-size:13.5px;line-height:1.7;color:var(--gray-700);white-space:pre-wrap">${preview}</div>
-          ${long?`<button class="gc-expand-btn" onclick="gcToggleVariant(${i})" style="margin-top:8px;background:none;border:none;color:var(--purple);font-size:12.5px;font-weight:600;cursor:pointer;padding:0">Ver más ▾</button>`:''}
+          ${body}
         </div>`;
       }).join('')}
       </div>`;
@@ -4738,7 +5029,7 @@ function gcShowOutput(wrapId,content,variants=false,saveCtx=null){
 window.gcToggleVariant=function(i){
   const el=document.getElementById('gcVarText'+i); if(!el) return;
   const full=el.dataset.full, expanded=el.dataset.expanded==='1';
-  const btn=el.parentElement.querySelector('.gc-expand-btn');
+  const btn=document.getElementById('gcVarExpandBtn'+i);
   if(expanded){
     el.textContent=full.slice(0,180)+'…'; el.dataset.expanded='0';
     if(btn) btn.innerHTML='Ver más ▾';
@@ -4982,7 +5273,8 @@ Reglas generales:
 - Español de México natural, directo, sin sonar a vendedor de catálogo
 - NO uses markdown (nada de **negritas**, ## títulos ni viñetas con *)
 - Formato EXACTO, cada marcador al inicio de su propia línea, sin adornos: "VARIANTE 1:\\n[texto]\\n\\nVARIANTE 2:\\n[texto]\\n\\nVARIANTE 3:\\n[texto]"`,null,{tools:evento.tools,toolChoice:evento.toolChoice});
-    gcShowOutput('gcTplOutput',text,true,{tipo:channel,momento,momLabel});
+    gcShowOutput('gcTplOutput',text,true,{tipo:channel,momento,momLabel,regenerateFn:'gcGenerateTemplate'});
+    gcPushHistory({icon:GC_CHANNELS.find(c=>c.id===channel)?.icon||'✉️',tipo:GC_CHANNELS.find(c=>c.id===channel)?.label||channel,company:cont.company?.nombre||'',subtitle:momLabel.split('—')[0].trim(),wrapId:'gcTplOutput',text});
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
       contenido:{tipo:channel,topic:ctx||momLabel,momento,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
       savedContent:{tipo:channel,momLabel,momento,contacto:cont.contact?.nombre||'',texto:text},
@@ -5190,8 +5482,10 @@ Reglas:
     }
   }
   renderGcImagePreview(parsed);
-  // Auto-guardar el post en la memoria de la empresa (si hay empresa en contenidos)
-  if(cont.company?.id){
+  // Auto-guardar el post en la memoria de la empresa — NUNCA para Publicación LinkedIn (channel
+  // 'pub'): es contenido genérico por industria, sin selector de empresa propio, no debe heredar
+  // en silencio la empresa que haya quedado seleccionada en Template/Brochure/Cold Calling.
+  if(cont.company?.id && channel!=='pub'){
     gcShowSavedBadge('gcPubOutput');
     const postTexto=parsed.post_text||`${parsed.headline||''}\n${parsed.subheadline||''}\n\n${(parsed.puntos||[]).map(p=>'• '+p).join('\n')}`;
     updateCompanyMemory(cont.company.id,'contenido',{
@@ -5199,6 +5493,9 @@ Reglas:
       savedContent:{tipo:'linkedin_post',momLabel:`Post LinkedIn · ${ind}`,contacto:'',texto:postTexto,headline:parsed.headline||''},
       touchpoint:{type:'linkedin_post',summary:`Post LinkedIn · ${ind} · ${parsed.headline||''}`}
     });
+  }
+  if(channel==='pub'){
+    gcPushHistory({icon:'💼',tipo:'Publicación LinkedIn',company:'',subtitle:`${ind} · ${parsed.headline||''}`,wrapId:'gcPubOutput',text:parsed.post_text||parsed.headline||''});
   }
   return parsed;
 }
@@ -5408,7 +5705,7 @@ function renderGcImagePreview(data){
       <span class="gc-output-label">${f.label}${photo?' · 📷 Foto real':' · 🎨 Gráfica'}</span>
       <div class="gc-output-actions">
         ${photo?`<button class="gc-copy-btn gc-otrafoto-btn" onclick="gcOtraFoto()">🔄 Otra foto</button>`:`<button class="gc-copy-btn" onclick="gcOtraGrafica()">🎲 Otra variante</button>`}
-        ${cont.company?`<button class="gc-copy-btn gc-saveimg-btn" onclick="gcSaveImageToCompany()">💾 Guardar en empresa</button>`:''}
+        ${cont.company&&data._channel!=='pub'?`<button class="gc-copy-btn gc-saveimg-btn" onclick="gcSaveImageToCompany()">💾 Guardar en empresa</button>`:''}
         <button class="gc-download-btn" onclick="gcDownloadImage()">⬇ Descargar PNG</button>
       </div>
     </div>
@@ -5684,8 +5981,12 @@ Reglas:
     const out=document.getElementById('gcCcOutput'); out.classList.add('show');
     out.innerHTML=`<div class="gc-output-header">
         <span class="gc-output-label">📞 Guion de Cold Calling${cont.company?.nombre?` · ${_esc(cont.company.nombre)}`:''}</span>
-        <div class="gc-output-actions"><button class="gc-copy-btn" onclick="gcCopyColdScript()">📋 Copiar</button></div>
+        <div class="gc-output-actions">
+          <button class="gc-copy-btn" onclick="gcCopyColdScript()">📋 Copiar</button>
+          <button class="gc-copy-btn" style="border-color:var(--purple);color:var(--purple)" onclick="gcGenerateColdCalling()">↺ Regenerar</button>
+        </div>
       </div>${ data ? gcRenderColdScript(data) : `<div class="gc-variant-card"><div class="gc-variant-text" style="white-space:pre-wrap">${_esc(raw)}</div></div>` }`;
+    gcPushHistory({icon:'📞',tipo:'Cold Calling',company:cont.company?.nombre||'',subtitle:obj.replace(/_/g,' '),wrapId:'gcCcOutput',text:plain});
     if(cont.company?.id){
       gcShowSavedBadge('gcCcOutput');
       updateCompanyMemory(cont.company.id,'contenido',{
@@ -5716,15 +6017,19 @@ function renderGcBrochure(){
       <div class="gc-form-section">
         <h3>📱 Apps a destacar</h3>
         <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Selecciona las apps más relevantes — se organizan por categoría</p>
-        ${Object.entries(ODOO_APPS).map(([cat,apps])=>`
-          <div style="margin-bottom:12px">
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin-bottom:6px">${cat}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-              ${apps.map(a=>`<label style="display:flex;align-items:center;gap:5px;padding:5px 10px;border:1.5px solid var(--gray-200);border-radius:99px;cursor:pointer;font-size:12px;user-select:none">
-                <input type="checkbox" name="gcBrApp" value="${a.name}" style="accent-color:var(--purple)"> ${a.name}
-              </label>`).join('')}
-            </div>
-          </div>`).join('')}
+        <input type="text" class="input" id="gcBrAppSearch" placeholder="🔍 Buscar app... (ej. factura, inventario)" oninput="gcBrFilterApps(this.value)" style="max-width:320px;margin-bottom:14px">
+        <div id="gcBrAppList">
+          ${Object.entries(ODOO_APPS).map(([cat,apps])=>`
+            <div style="margin-bottom:12px" data-br-cat-block>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin-bottom:6px">${cat}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                ${apps.map(a=>`<label data-br-app-name="${a.name.toLowerCase()}" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border:1.5px solid var(--gray-200);border-radius:99px;cursor:pointer;font-size:12px;user-select:none">
+                  <input type="checkbox" name="gcBrApp" value="${a.name}" style="accent-color:var(--purple)"> ${a.name}
+                </label>`).join('')}
+              </div>
+            </div>`).join('')}
+        </div>
+        <p id="gcBrAppEmpty" style="display:none;font-size:12.5px;color:var(--gray-400);padding:8px 0">Sin apps que coincidan con esa búsqueda.</p>
         <button class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="gcBrSelectRecommended()">✨ Seleccionar recomendadas por industria</button>
       </div>
 
@@ -5752,6 +6057,23 @@ function renderGcBrochure(){
   gcInitCP('br');
 }
 
+// Filtra el checklist de apps del Brochure mientras se escribe — oculta categorías sin match
+window.gcBrFilterApps=function(q){
+  const query=(q||'').trim().toLowerCase();
+  let anyVisible=false;
+  document.querySelectorAll('[data-br-cat-block]').forEach(block=>{
+    let blockHasMatch=false;
+    block.querySelectorAll('[data-br-app-name]').forEach(label=>{
+      const match=!query||label.dataset.brAppName.includes(query);
+      label.style.display=match?'':'none';
+      if(match) blockHasMatch=true;
+    });
+    block.style.display=blockHasMatch?'':'none';
+    if(blockHasMatch) anyVisible=true;
+  });
+  const empty=document.getElementById('gcBrAppEmpty');
+  if(empty) empty.style.display=anyVisible?'none':'block';
+};
 // Auto-select recommended apps based on company industry
 window.gcBrSelectRecommended=function(){
   const giro=cont.company?.giro||'';
@@ -5772,6 +6094,54 @@ function brIconImg(name,size=28){
   const f=brAppIcon(name);
   return `<img src="${ASSETS}/icons/apps/${f}.svg" style="width:${size}px;height:${size}px;object-fit:contain" crossorigin="anonymous" onerror="this.style.display='none'">`;
 }
+
+// ── Catálogo de apps — índice visual de ODOO_APPS, la MISMA fuente de verdad que usan Brochure,
+// Pricing/Propuesta y Publicación LinkedIn. Sirve para confirmar a simple vista que cada app tiene
+// su logo real cargando (si un ícono se rompe, aquí se ve de inmediato) y como referencia rápida
+// del nombre EXACTO a usar en cualquier lista nueva que se agregue (ej. APPS_DB) para no volver a
+// crear una segunda lista con nombres distintos.
+function renderAppCatalog(){
+  const c=document.getElementById('moduleContent');
+  const total=ODOO_APPS_FLAT.length;
+  c.innerHTML=`
+    <div style="max-width:980px">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:4px">🗂️ Catálogo de apps</h2>
+      <p style="color:var(--gray-500);font-size:14px;margin-bottom:8px">Las ${total} apps de Odoo con su logo oficial, agrupadas igual que en Brochure. Es el único índice nombre↔ícono de toda la app — Discovery, Brochure, Pricing/Propuesta y Publicación LinkedIn leen de aquí.</p>
+      <div class="form-group" style="max-width:340px;margin-bottom:20px">
+        <input type="text" class="input" id="appCatSearch" placeholder="🔍 Buscar app..." oninput="appCatFilter(this.value)">
+      </div>
+      <div id="appCatBody">
+        ${Object.entries(ODOO_APPS).map(([cat,apps])=>`
+          <div class="app-cat-block" data-cat-block>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin-bottom:10px">${cat}</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:14px;margin-bottom:22px">
+              ${apps.map(a=>`
+                <div class="app-cat-tile" data-app-name="${a.name.toLowerCase()}" style="display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:12px 8px;border:1.5px solid var(--gray-200);border-radius:10px">
+                  ${brIconImg(a.name,32)}
+                  <div style="font-size:12px;font-weight:600;color:var(--gray-900)">${a.name}</div>
+                </div>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+      <div id="appCatEmpty" style="display:none;text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Sin resultados para esa búsqueda.</div>
+    </div>`;
+}
+window.appCatFilter=function(q){
+  const query=(q||'').trim().toLowerCase();
+  let anyVisible=false;
+  document.querySelectorAll('[data-cat-block]').forEach(block=>{
+    let blockHasMatch=false;
+    block.querySelectorAll('[data-app-name]').forEach(tile=>{
+      const match=!query||tile.dataset.appName.includes(query);
+      tile.style.display=match?'':'none';
+      if(match) blockHasMatch=true;
+    });
+    block.style.display=blockHasMatch?'':'none';
+    if(blockHasMatch) anyVisible=true;
+  });
+  const empty=document.getElementById('appCatEmpty');
+  if(empty) empty.style.display=anyVisible?'none':'block';
+};
 
 function _parseJSON(raw){
   let s=String(raw).trim();
@@ -5956,6 +6326,7 @@ Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de Méx
           </div>
         </div>
       </div>`;
+    gcPushHistory({icon:'📄',tipo:'Brochure',company:cont.company?.nombre||'',subtitle:data.headline||'',wrapId:'gcBrOutput',text:`${data.headline||''}\n${data.subtitulo||''}`});
     if(cont.company?.id){
       const brTexto=`${data.headline||''}\n${data.subtitulo||''}\n\n${data.intro||''}\n\nApps: ${(data.apps||[]).map(a=>a.nombre).join(', ')}\n\n${(data.diferenciadores||[]).join(' · ')}\n\nCTA: ${brGetCtaText(cont.brCta)}`;
       // Guarda el HTML del brochure para reconstruirlo y re-descargarlo desde la ficha (sin Storage)
