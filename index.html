@@ -13780,7 +13780,7 @@ function cadRenderUploadPreview(){
   el.innerHTML=`<div class="card" style="padding:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
       <div style="font-weight:700">${_cadUploadRows.length} prospecto${_cadUploadRows.length===1?'':'s'} (${withEmail} con correo)</div>
-      <button class="btn btn-primary btn-sm" onclick="openCadenceActivationModal(_cadUploadRows)">📨 Activar cadencia</button>
+      <button class="btn btn-primary btn-sm" onclick="cadUpActivateAll()">📨 Activar cadencia</button>
     </div>
     <div style="max-height:340px;overflow:auto">
       <table style="width:100%;border-collapse:collapse;font-size:12.5px">
@@ -13797,6 +13797,11 @@ function cadRenderUploadPreview(){
   </div>`;
 }
 window.cadUpRemoveRow=function(i){ _cadUploadRows.splice(i,1); cadRenderUploadPreview(); };
+// Wrapper necesario porque el onclick inline corre en scope global clásico, donde _cadUploadRows
+// (variable del <script type="module">) no existe — mismo patrón/bug ya documentado para csvRows
+// (ver csvUpdateCell). openCadenceActivationModal(_cadUploadRows) directo en el onclick fallaba en
+// silencio (ReferenceError tragado por el atributo inline, sin abrir el modal).
+window.cadUpActivateAll=function(){ openCadenceActivationModal(_cadUploadRows); };
 
 // ── Tab: Historial por empresa — enviados + respuestas, con copiar al portapapeles ──
 function cadRenderHistorial(){
@@ -13918,7 +13923,7 @@ function cadRenderActivationModal(){
           </select>
         </div>
         <div class="form-group"><label>Tono</label>
-          <select class="input" onchange="_cadActivation.tone=this.value">
+          <select class="input" onchange="cadActSetTone(this.value)">
             ${TONES.map(t=>`<option value="${t.id}" ${t.id===_cadActivation.tone?'selected':''}>${t.icon} ${t.label}</option>`).join('')}
           </select>
         </div>
@@ -13934,6 +13939,7 @@ function cadRenderActivationModal(){
   document.body.appendChild(overlay);
 }
 window.cadActSetTemplate=function(id){ _cadActivation.templateId=id; document.getElementById('cadActStepsWrap').innerHTML=cadActStepsHtml(); };
+window.cadActSetTone=function(tone){ _cadActivation.tone=tone; };
 function cadActStepsHtml(){
   const tpl=cadCurrentTemplate();
   if(!tpl) return '<div class="cdc-empty">No hay plantillas — crea una en "Mis cadencias".</div>';
