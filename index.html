@@ -242,6 +242,10 @@ input,select,textarea{font-family:inherit;}
 .empty-state-sm{padding:8px 20px;color:var(--gray-400);font-size:13px;}
 .badge{padding:2px 8px;border-radius:99px;font-size:12px;font-weight:700;}
 .badge-warning{background:var(--warning-light);color:var(--warning);}
+.badge-success{background:var(--success-light);color:var(--success);}
+.badge-danger{background:var(--danger-light);color:var(--danger);}
+.badge-purple{background:var(--purple-light);color:var(--purple);}
+.badge-gray{background:var(--gray-100);color:var(--gray-500);}
 
 /* ── SETTINGS ── */
 .settings-wrap{max-width:700px;}
@@ -13580,8 +13584,36 @@ function cadComputeAB(list){
   const pct=n=>n.total?Math.round(100*n.respondio/n.total):0;
   return {A:{total:stats.A.total,pct:pct(stats.A)}, B:{total:stats.B.total,pct:pct(stats.B)}, smallSample:(stats.A.total<20||stats.B.total<20)};
 }
+// Métricas agregadas — inspirado en el dashboard de secuencias de Lusha Engage (Delivered/
+// Opened/Replied/Bounced por secuencia). Aquí cada "cadencia" ya es un contacto individual (no hay
+// nivel secuencia×contactos separado), así que se agrega directo sobre la lista completa.
+// "Abiertos" viene del pixel de tracking embebido en cada correo (ver cadenceSweep en el backend) —
+// como todo pixel de apertura, Gmail/Outlook con bloqueo de imágenes por default lo subestiman.
+function cadComputeStats(list){
+  let sent=0, opened=0;
+  list.forEach(c=>(c.steps||[]).forEach(s=>{ if(s.status==='hecho'){ sent++; if(s.opens>0) opened++; } }));
+  const bounced=list.filter(c=>c.stopReason==='Rebote detectado.').length;
+  const replied=list.filter(c=>c.status==='respondio').length;
+  return {sent, opened, bounced, replied, total:list.length};
+}
+function cadStatsRowHtml(stats){
+  const pct=(n,d)=>d?Math.round(100*n/d)+'%':'—';
+  return `<div class="hist-kpi-row">
+    <div class="hist-kpi-card"><div class="hist-kpi-label">📤 Enviados</div><div class="hist-kpi-val">${stats.sent}</div><div class="hist-kpi-sub">correos mandados en total</div></div>
+    <div class="hist-kpi-card"><div class="hist-kpi-label">⛔ Rechazados</div><div class="hist-kpi-val">${stats.bounced}</div><div class="hist-kpi-sub">${pct(stats.bounced,stats.total)} de las cadencias</div></div>
+    <div class="hist-kpi-card"><div class="hist-kpi-label">👀 Abiertos</div><div class="hist-kpi-val">${stats.opened}</div><div class="hist-kpi-sub">${pct(stats.opened,stats.sent)} de los enviados</div></div>
+    <div class="hist-kpi-card"><div class="hist-kpi-label">✅ Respondidos</div><div class="hist-kpi-val">${stats.replied}</div><div class="hist-kpi-sub">${pct(stats.replied,stats.total)} de las cadencias</div></div>
+  </div>`;
+}
+function cadEngagementBadge(c){
+  if(c.status==='respondio') return '<span class="badge badge-success">✅ Respondió</span>';
+  if(c.status==='activa') return '<span class="badge badge-purple">🟢 Activa</span>';
+  if(c.stopReason==='Rebote detectado.') return '<span class="badge badge-danger">⛔ Rebotó</span>';
+  return '<span class="badge badge-gray">⏸ Detenida</span>';
+}
 function cadActivasHtml(list){
   if(!list.length) return '<div class="cdc-empty">Sin cadencias activas todavía. Actívala desde Resultados en Generación de leads, o desde "Nueva cadencia".</div>';
+  const statsHtml=cadStatsRowHtml(cadComputeStats(list));
   const ab=cadComputeAB(list);
   const abHtml=ab?`<div class="card" style="margin-bottom:16px;padding:14px 18px">
       <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">Comparación A/B</div>
@@ -13590,18 +13622,24 @@ function cadActivasHtml(list){
       </div>
       ${ab.smallSample?'<div style="font-size:11px;color:var(--warning);margin-top:6px">⚠️ Muestra chica — toma esta comparación con cautela.</div>':''}
     </div>`:'';
-  const statusBadge={activa:'🟢 Activa',detenida:'⏸ Detenida',respondio:'✅ Respondió'};
-  return abHtml+list.map(c=>{
+  const rowsHtml=list.map(c=>{
     const nextStep=(c.steps||[]).find(s=>s.status==='pendiente');
+    const sentSteps=(c.steps||[]).filter(s=>s.status==='hecho');
+    const openedSteps=sentSteps.filter(s=>s.opens>0);
     return `<div class="card" style="margin-bottom:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="min-width:0">
-        <div style="font-weight:700">${_esc(c.companyName||c.leadEmail||'')}${c.variant?` <span style="font-size:11px;color:var(--purple)">· Variante ${c.variant}</span>`:''}</div>
-        <div style="font-size:12px;color:var(--gray-500)">${_esc(c.leadName||'')} · ${_esc(c.leadEmail||'')}</div>
-        <div style="font-size:12px;color:var(--gray-400);margin-top:4px">${statusBadge[c.status]||c.status}${nextStep?` · Próximo: ${_esc(nextStep.label||'')} (${nextStep.scheduledDate})`:''}${c.stopReason?` · ${_esc(c.stopReason)}`:''}</div>
+        <div style="font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span>${_esc(c.companyName||c.leadEmail||'')}</span>
+          ${c.variant?`<span style="font-size:11px;font-weight:600;color:var(--purple)">· Variante ${c.variant}</span>`:''}
+          ${cadEngagementBadge(c)}
+        </div>
+        <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${_esc(c.leadName||'')} · ${_esc(c.leadEmail||'')}</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:4px">📤 ${sentSteps.length}/${(c.steps||[]).length} enviados · 👀 ${openedSteps.length} abierto${openedSteps.length===1?'':'s'}${nextStep?` · Próximo: ${_esc(nextStep.label||'')} (${nextStep.scheduledDate})`:''}${c.stopReason?` · ${_esc(c.stopReason)}`:''}</div>
       </div>
       ${c.status==='activa'?`<button class="btn btn-ghost-danger btn-sm" onclick="cadStopCadence('${c.id}')">Detener</button>`:''}
     </div>`;
   }).join('');
+  return statsHtml+abHtml+rowsHtml;
 }
 window.cadStopCadence=async function(id){
   if(!confirm('¿Detener esta cadencia? No se puede reactivar — habría que crear una nueva.')) return;
