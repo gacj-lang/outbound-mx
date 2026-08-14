@@ -11395,15 +11395,15 @@ function csvRenderQuotaHint(){
   const cantHint=document.getElementById('csvSearchCantidadHint');
   const banner=document.getElementById('csvQuotaBanner');
   const fuente=document.querySelector('input[name="csvSearchFuente"]:checked')?.value||'apollo';
-  const FUENTE_LABEL={apollo:'Apollo',denue:'DENUE',dirind:'DIRIND'};
-  const tope=fuente==='apollo'?10:25; // tope de AE por defecto — se ajusta abajo si ya llegó el consumo real
+  const FUENTE_LABEL={apollo:'Apollo',denue:'DENUE',dirind:'DIRIND',outscraper:'Outscraper'};
+  const tope=fuente==='apollo'?10:fuente==='outscraper'?15:25; // tope de AE por defecto — se ajusta abajo si ya llegó el consumo real
   if(!_quotaStatusCache){
     if(cantHint) cantHint.textContent=`Tope diario ${FUENTE_LABEL[fuente]}: ${tope} leads. Se aplica también tu tope semanal/mensual como AE.`;
     return;
   }
   const {limits,current}=_quotaStatusCache;
-  const dailyField=fuente==='denue'?'dayDenueCount':fuente==='dirind'?'dayDirindCount':'dayApolloCount';
-  const dailyLimit=fuente==='denue'?limits.dailyDenue:fuente==='dirind'?limits.dailyDirind:limits.dailyApollo;
+  const dailyField=fuente==='denue'?'dayDenueCount':fuente==='dirind'?'dayDirindCount':fuente==='outscraper'?'dayOutscraperCount':'dayApolloCount';
+  const dailyLimit=fuente==='denue'?limits.dailyDenue:fuente==='dirind'?limits.dailyDirind:fuente==='outscraper'?limits.dailyOutscraper:limits.dailyApollo;
   if(cantHint) cantHint.textContent=`Hoy ${FUENTE_LABEL[fuente]}: ${current[dailyField]||0}/${dailyLimit} · Semana: ${current.weekCount||0}/${limits.weekly} · Mes: ${current.monthCount||0}/${limits.monthly}`;
   if(banner){
     const stat=(label,used,max)=>{
@@ -11418,6 +11418,7 @@ function csvRenderQuotaHint(){
       stat(FUENTE_LABEL.apollo+' hoy', current.dayApolloCount||0, limits.dailyApollo)+
       stat(FUENTE_LABEL.denue+' hoy', current.dayDenueCount||0, limits.dailyDenue)+
       stat(FUENTE_LABEL.dirind+' hoy', current.dayDirindCount||0, limits.dailyDirind)+
+      stat(FUENTE_LABEL.outscraper+' hoy', current.dayOutscraperCount||0, limits.dailyOutscraper)+
       stat('Semana', current.weekCount||0, limits.weekly)+
       stat('Mes', current.monthCount||0, limits.monthly);
   }
@@ -11537,6 +11538,9 @@ function csvRenderResultadosTab(content){
               <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
                 <input type="radio" name="csvSearchFuente" id="csvSearchFuenteDirind" value="dirind" onchange="csvOnFuenteChange()"> 🏭 DIRIND
               </label>
+              <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
+                <input type="radio" name="csvSearchFuente" id="csvSearchFuenteOutscraper" value="outscraper" onchange="csvOnFuenteChange()"> 🗺️ Outscraper
+              </label>
             </div>
             <span id="csvSearchFuenteHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE y DIRIND — si hay coincidencia, se agregan las columnas DATOS DENUE / DATOS DIRIND.</span>
           </div>
@@ -11575,10 +11579,22 @@ function csvRenderResultadosTab(content){
                 </div>
               </div>
 
-              <div class="form-group" style="margin-bottom:0">
+              <div class="form-group" style="margin-bottom:0" id="csvSearchEstadosGroup">
                 <label>Estado(s) <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera del país elegido)</span></label>
                 <input type="text" class="input" style="margin:6px 0" placeholder="Buscar estado…" oninput="csvFilterChips(this,'csvSearchEstadosBox')">
                 <div id="csvSearchEstadosBox" style="display:flex;flex-wrap:wrap;gap:8px;max-height:130px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
+              </div>
+
+              <!-- Outscraper (piloto 2026-08-13) no usa Estado(s) — solo cubre 3 colonias fijas de
+              CDMX (ver ZONAS_PILOTO en providers/outscraper.js del backend). Oculto salvo que
+              Outscraper esté seleccionado. -->
+              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchOutscraperZonaBox">
+                <label>Zona(s) — piloto CDMX <span style="font-weight:400;color:var(--gray-400)">(vacío = las 3)</span></label>
+                <div id="csvSearchOutscraperZonaChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando zonas…</span></div>
+              </div>
+              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchOutscraperTextoBox">
+                <label>Giro / categoría del negocio <span style="font-weight:400;color:var(--gray-400)">(opcional, ej. "restaurante", "papelería", "taller mecánico")</span></label>
+                <input type="text" class="input" id="csvSearchOutscraperTexto" placeholder="Ej. restaurante, papelería, estética...">
               </div>
 
               <!-- DENUE trae municipio real por registro — acotar por Estado solo es demasiado ancho
@@ -11624,7 +11640,7 @@ function csvRenderResultadosTab(content){
             </div>
           </div>
 
-          <div style="margin-bottom:16px">
+          <div style="margin-bottom:16px" id="csvSearchAQuienBox">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><div style="width:22px;height:22px;border-radius:6px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:12px">🎯</div><span style="font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em">A quién</span></div>
             <div style="border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -11725,8 +11741,8 @@ function csvRenderResultadosTab(content){
 // csvLoadDirindCategorias) — se ocultan uno u otro según la fuente elegida. Municipio(s) y el
 // buscador de texto de DENUE (2026-08-12) solo aplican a DENUE, mismo criterio.
 window.csvOnFuenteChange=function(){
-  const fuente=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':'apollo';
-  const soloMx=fuente==='denue'||fuente==='dirind'; // DENUE y DIRIND solo cubren México
+  const fuente=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':document.getElementById('csvSearchFuenteOutscraper')?.checked?'outscraper':'apollo';
+  const soloMx=fuente==='denue'||fuente==='dirind'||fuente==='outscraper'; // DENUE, DIRIND y Outscraper (piloto CDMX) solo cubren México
   const paisSel=document.getElementById('csvSearchPais');
   const hint=document.getElementById('csvSearchFuenteHint');
   const contactoHint=document.getElementById('csvContactoFiltroHint');
@@ -11738,6 +11754,10 @@ window.csvOnFuenteChange=function(){
   const municipioBox=document.getElementById('csvSearchMunicipioBox');
   const apolloIndBox=document.getElementById('csvSearchApolloIndBox');
   const apolloSegBox=document.getElementById('csvSearchApolloSegBox');
+  const estadosGroup=document.getElementById('csvSearchEstadosGroup');
+  const outscraperZonaBox=document.getElementById('csvSearchOutscraperZonaBox');
+  const outscraperTextoBox=document.getElementById('csvSearchOutscraperTextoBox');
+  const aQuienBox=document.getElementById('csvSearchAQuienBox');
   if(paisSel){
     paisSel.disabled=soloMx;
     if(soloMx&&paisSel.value!=='MX'){ paisSel.value='MX'; csvRenderEstadoChips(); }
@@ -11746,33 +11766,44 @@ window.csvOnFuenteChange=function(){
     apollo:'Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE y DIRIND — si hay coincidencia, se agregan las columnas DATOS DENUE / DATOS DIRIND.',
     denue:'DENUE: directorio público de México (INEGI), teléfono y correo corporativo garantizados. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
     dirind:'DIRIND: directorio impreso Proveedores Industriales 2023 (5,256 empresas), teléfono y correo del propio anuncio. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
+    outscraper:'Outscraper: piloto de micro negocios en 3 colonias de CDMX (Google Maps). A diferencia del resto, aquí basta con correo O teléfono (no ambos) — la mayoría llega solo con teléfono, la línea general del negocio. Sin contacto con nombre (no se cruza con Apollo).',
   };
   if(hint) hint.textContent=HINTS[fuente];
   // Giro/Industria (catálogo nuestro de 15) ahora solo aplica a DENUE — Apollo tiene su propio
-  // catálogo real (industrias/segmentos abajo) y DIRIND el suyo (categorías).
+  // catálogo real (industrias/segmentos abajo), DIRIND el suyo (categorías) y Outscraper un texto
+  // libre de giro (ver csvSearchOutscraperTextoBox).
   if(giroBox) giroBox.style.display=fuente==='denue'?'':'none';
   if(dirindCatBox) dirindCatBox.style.display=fuente==='dirind'?'block':'none';
   if(dirindTextoBox) dirindTextoBox.style.display=fuente==='dirind'?'block':'none';
   if(denueTextoBox) denueTextoBox.style.display=fuente==='denue'?'block':'none';
   if(apolloIndBox) apolloIndBox.style.display=fuente==='apollo'?'block':'none';
   if(apolloSegBox) apolloSegBox.style.display=fuente==='apollo'?'block':'none';
+  if(estadosGroup) estadosGroup.style.display=fuente==='outscraper'?'none':'block'; // Outscraper usa Zona(s), no Estado(s)
+  if(outscraperZonaBox) outscraperZonaBox.style.display=fuente==='outscraper'?'block':'none';
+  if(outscraperTextoBox) outscraperTextoBox.style.display=fuente==='outscraper'?'block':'none';
+  // "A quién" (empleados/nivel/función) solo tiene sentido cuando el lead se cruza contra Apollo
+  // para elegir un contacto — Outscraper no hace ese cruce (ver HINTS.outscraper), mostrarlo
+  // implicaría que sí filtra o elige algo, y no es cierto.
+  if(aQuienBox) aQuienBox.style.display=fuente==='outscraper'?'none':'block';
   if(fuente==='dirind') csvLoadDirindCategorias();
   if(fuente==='apollo') csvLoadApolloFiltros();
+  if(fuente==='outscraper') csvLoadOutscraperZonas();
   if(empBox) empBox.style.display=fuente==='dirind'?'none':'grid'; // DIRIND no trae dato de tamaño de empresa
   if(municipioBox){
     const hayEstados=document.querySelectorAll('.csv-estado-check:checked').length>0;
     municipioBox.style.display=(fuente==='denue'&&hayEstados)?'block':'none';
     if(fuente==='denue'&&hayEstados) csvLoadDenueMunicipios(); else document.getElementById('csvSearchMunicipiosBox').innerHTML='';
   }
-  if(contactoHint) contactoHint.textContent=soloMx
+  if(contactoHint) contactoHint.textContent=(fuente==='denue'||fuente==='dirind')
     ?`En ${fuente==='denue'?'DENUE':'DIRIND'} no filtra qué empresas aparecen (ahí no hay dato de contacto) — solo se usa para preferir ese tipo de persona al cruzar con Apollo.`
     :'';
   // Tope diario por fuente: DENUE/DIRIND 25/día (gratis, en memoria), Apollo 10/día (gasta créditos
-  // reales) — el backend valida el mismo tope, esto solo evita pedir de más en la UI. Usa el tope
-  // real del rol del AE si ya llegó (_quotaStatusCache), si no cae al tope de AE por defecto.
+  // reales), Outscraper 15/día (gasta créditos reales pero baratos) — el backend valida el mismo
+  // tope, esto solo evita pedir de más en la UI. Usa el tope real del rol del AE si ya llegó
+  // (_quotaStatusCache), si no cae al tope de AE por defecto.
   const cantIn=document.getElementById('csvSearchCantidad');
   const limits=_quotaStatusCache?.limits;
-  const tope=limits?(fuente==='denue'?limits.dailyDenue:fuente==='dirind'?limits.dailyDirind:limits.dailyApollo):(fuente==='apollo'?10:25);
+  const tope=limits?(fuente==='denue'?limits.dailyDenue:fuente==='dirind'?limits.dailyDirind:fuente==='outscraper'?limits.dailyOutscraper:limits.dailyApollo):(fuente==='apollo'?10:fuente==='outscraper'?15:25);
   if(cantIn){ cantIn.max=String(tope); if(Number(cantIn.value)>tope) cantIn.value=String(tope); }
   csvRenderQuotaHint();
 };
@@ -11798,6 +11829,31 @@ function csvRenderDirindCategoriaChips(){
   box.innerHTML=_dirindCategoriasCache.map(c=>`
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
       <input type="checkbox" class="csv-dirind-cat-check" value="${c.replace(/"/g,'&quot;')}" ${prevChecked.has(c)?'checked':''}> ${c}
+    </label>`).join('');
+}
+// Zonas piloto de Outscraper (3 colonias de CDMX, ver ZONAS_PILOTO en providers/outscraper.js del
+// backend) — mismo patrón que csvLoadDirindCategorias: se pide UNA vez y se cachea, aunque sea un
+// catálogo chico, para no desincronizarse si algún día se agregan más zonas.
+let _outscraperZonasCache=null;
+window.csvLoadOutscraperZonas=async function(){
+  const box=document.getElementById('csvSearchOutscraperZonaChips'); if(!box) return;
+  if(_outscraperZonasCache){ csvRenderOutscraperZonaChips(); return; }
+  if(!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch('https://thorough-curiosity-production-098d.up.railway.app/outscraperZonas',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    _outscraperZonasCache=data.zonas||[];
+    csvRenderOutscraperZonaChips();
+  }catch(e){ console.warn('csvLoadOutscraperZonas:',e); box.innerHTML='<span style="font-size:12px;color:var(--danger)">No se pudieron cargar las zonas — reintenta</span>'; }
+};
+function csvRenderOutscraperZonaChips(){
+  const box=document.getElementById('csvSearchOutscraperZonaChips'); if(!box||!_outscraperZonasCache) return;
+  const prevChecked=new Set([...box.querySelectorAll('.csv-outscraper-zona-check:checked')].map(c=>c.value));
+  box.innerHTML=_outscraperZonasCache.map(z=>`
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
+      <input type="checkbox" class="csv-outscraper-zona-check" value="${z.replace(/"/g,'&quot;')}" ${prevChecked.has(z)?'checked':''}> ${z}
     </label>`).join('');
 }
 // Catálogo REAL de Apollo (20 industrias + 11 segmentos de mercado, ver APOLLO_INDUSTRIES/
@@ -11991,7 +12047,7 @@ window.csvInterpretarInstrucciones=async function(){
   if(btn){ btn.disabled=true; btn.textContent='Interpretando…'; }
   try{
     const paisActual=document.getElementById('csvSearchPais')?.value||'MX';
-    const fuenteActual=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':'apollo';
+    const fuenteActual=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':document.getElementById('csvSearchFuenteOutscraper')?.checked?'outscraper':'apollo';
     // Industria/Segmento de Apollo (catálogo real, ver csvLoadApolloFiltros) solo se ofrecen a
     // interpretar si ya se cargaron Y la fuente elegida es Apollo — en DENUE sigue mandando 'giro'
     // (más simple, y es lo que el backend traduce a industria SCIAN).
@@ -12188,6 +12244,7 @@ window.csvRetryLeadJob=function(jobId){
     setVal('csvSearchCantidad', job.solicitados||5);
     setVal('csvSearchDirindTexto', f.dirindTexto||'');
     setVal('csvSearchDenueTexto', f.textoDenue||'');
+    setVal('csvSearchOutscraperTexto', f.textoOutscraper||'');
     setTimeout(()=>{
       const estadosSel=new Set(f.estados||[]);
       document.querySelectorAll('.csv-estado-check').forEach(c=>{ c.checked=estadosSel.has(c.value); });
@@ -12201,6 +12258,13 @@ window.csvRetryLeadJob=function(jobId){
         setTimeout(()=>{
           const catSel=new Set(f.categoriasDirind);
           document.querySelectorAll('.csv-dirind-cat-check').forEach(c=>{ c.checked=catSel.has(c.value); });
+        },400);
+      }
+      if(f.fuentePrimaria==='outscraper'&&f.zonasOutscraper?.length){
+        csvLoadOutscraperZonas();
+        setTimeout(()=>{
+          const zonaSel=new Set(f.zonasOutscraper);
+          document.querySelectorAll('.csv-outscraper-zona-check').forEach(c=>{ c.checked=zonaSel.has(c.value); });
         },400);
       }
       if(f.fuentePrimaria==='denue'&&f.municipiosDenue?.length){
@@ -12456,11 +12520,14 @@ function csvLoadJobIntoRows(job){
     if(fuentes.includes('Apollo')) tagsFila.push('ApolloMX');
     if(fuentes.includes('DENUE')) tagsFila.push('DenueMX');
     if(fuentes.includes('DIRIND')) tagsFila.push('DirindMX');
+    if(fuentes.includes('Outscraper')) tagsFila.push('OutscraperMX');
     if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
     // Prioridad para elegir _fuentePrimaria/_origen cuando 'fuentes' trae más de un valor (ej.
-    // ['DIRIND','Apollo']): el AE eligió DIRIND o DENUE como fuente EXPLÍCITA de la búsqueda —
-    // 'Apollo' ahí es solo el cross-match del contacto con nombre, nunca la fuente primaria real.
-    const fuentePrimaria=fuentes.includes('DIRIND')?'dirind':fuentes.includes('DENUE')?'denue':'apollo';
+    // ['DIRIND','Apollo']): el AE eligió DIRIND, DENUE u Outscraper como fuente EXPLÍCITA de la
+    // búsqueda — 'Apollo' ahí es solo el cross-match del contacto con nombre, nunca la fuente
+    // primaria real. Outscraper nunca se cruza con Apollo (ver runOutscraperSearch en el backend),
+    // así que su único valor posible en 'fuentes' es ['Outscraper'].
+    const fuentePrimaria=fuentes.includes('DIRIND')?'dirind':fuentes.includes('DENUE')?'denue':fuentes.includes('Outscraper')?'outscraper':'apollo';
     return {
       name:`App Outbound - ${row.partner_name||''} - ${row.contact_name||''}`,
       contact_name:row.contact_name||'', function:row.function||'',
@@ -12529,8 +12596,8 @@ Responde en español, SOLO el resumen final, sin markdown.`,
 // teléfono tarda unos minutos y de que se le va a avisar por la campana, no un aviso que
 // desaparece solo a los 3.5s. Mismo overlay que showNavWarning (.disc-popup-overlay).
 window.csvShowSearchStartedPopup=function(fuentePrimaria){
-  const sinRondas=fuentePrimaria==='denue'||fuentePrimaria==='dirind'; // ya traen correo+teléfono propios, sin espera de reposición
-  const FUENTE_LABEL={apollo:'Apollo',denue:'DENUE',dirind:'DIRIND'};
+  const sinRondas=fuentePrimaria==='denue'||fuentePrimaria==='dirind'||fuentePrimaria==='outscraper'; // ya traen correo+teléfono propios, sin espera de reposición
+  const FUENTE_LABEL={apollo:'Apollo',denue:'DENUE',dirind:'DIRIND',outscraper:'Outscraper'};
   const existing=document.getElementById('leadSearchStartedPopup'); if(existing) existing.remove();
   const overlay=document.createElement('div');
   overlay.className='disc-popup-overlay'; overlay.id='leadSearchStartedPopup';
@@ -12573,14 +12640,17 @@ window.csvRunLeadSearch=async function(){
   const seniorities=[...document.querySelectorAll('.csv-seniority-check:checked')].map(c=>c.value);
   const roleGroups=[...document.querySelectorAll('.csv-rolegroup-check:checked')].map(c=>c.value);
   const cantidad=document.getElementById('csvSearchCantidad')?.value||5;
-  const fuentePrimaria=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':'apollo';
+  const fuentePrimaria=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':document.getElementById('csvSearchFuenteOutscraper')?.checked?'outscraper':'apollo';
   const categoriasDirind=fuentePrimaria==='dirind'?[...document.querySelectorAll('.csv-dirind-cat-check:checked')].map(c=>c.value):[];
   const dirindTexto=fuentePrimaria==='dirind'?(document.getElementById('csvSearchDirindTexto')?.value.trim()||''):'';
   const textoDenue=fuentePrimaria==='denue'?(document.getElementById('csvSearchDenueTexto')?.value.trim()||''):'';
   const apolloIndustryIds=fuentePrimaria==='apollo'?[...document.querySelectorAll('.csv-apollo-ind-check:checked')].map(c=>c.value):[];
   const apolloMarketSegments=fuentePrimaria==='apollo'?[...document.querySelectorAll('.csv-apollo-seg-check:checked')].map(c=>c.value):[];
+  const zonasOutscraper=fuentePrimaria==='outscraper'?[...document.querySelectorAll('.csv-outscraper-zona-check:checked')].map(c=>c.value):[];
+  const textoOutscraper=fuentePrimaria==='outscraper'?(document.getElementById('csvSearchOutscraperTexto')?.value.trim()||''):'';
   const hayFiltro=fuentePrimaria==='dirind'?(estados.length||categoriasDirind.length||dirindTexto||instrucciones)
     :fuentePrimaria==='denue'?(estados.length||municipiosDenue.length||giro||textoDenue||instrucciones)
+    :fuentePrimaria==='outscraper'?true // sin filtros obligatorios: vacío = las 3 zonas piloto, cualquier giro
     :(estados.length||apolloIndustryIds.length||apolloMarketSegments.length||instrucciones||roleGroups.length);
   if(!hayFiltro){ showNotif('Define al menos un filtro (estado, categoría/giro/industria, texto, rol o instrucciones) para buscar','error'); return; }
   if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
@@ -12599,7 +12669,7 @@ window.csvRunLeadSearch=async function(){
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
       body:JSON.stringify({
         paisId, estados, municipiosDenue, seniorities, roleGroups, giroKeywords, giro, apolloIndustryIds, apolloMarketSegments, extraTitles:_csvSearchParsed.extraTitles, cantidad:Number(cantidad)||5,
-        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria, categoriasDirind, dirindTexto, textoDenue,
+        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria, categoriasDirind, dirindTexto, textoDenue, zonasOutscraper, textoOutscraper,
       }),
     });
     const data=await res.json().catch(()=>({}));
