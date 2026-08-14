@@ -3813,6 +3813,7 @@ function renderAppHeader(){
   el.innerHTML=`<div class="user-avatar">${(currentUserData.name||'?')[0]}</div><div class="user-details"><span class="user-name">${currentUserData.name}</span><span class="user-role role-${currentUserData.role}">${rl[currentUserData.role]||currentUserData.role}</span></div>`;
   const mn=document.getElementById('nav-manager'); if(mn) mn.style.display=currentUserData.role==='manager'?'flex':'none';
   csvSetupLeadJobsListener();
+  cadSetupRepliesPolling();
 }
 function setLoading(btnId,loading){
   const btn=document.getElementById(btnId); if(!btn) return;
@@ -12300,6 +12301,13 @@ let _leadJobsCache=[];
 let _leadBellOpen=false;
 let _leadJobsKnownStatus=new Map(); // jobId → último status visto, para notificar SOLO transiciones nuevas a 'listo'
 let _leadJobsFirstSnapshot=true; // no notificar de golpe todo lo que ya estaba listo al cargar la página
+// Estado de la sección de respuestas de cadencias dentro de esta misma campana — ver
+// cadSetupRepliesPolling más abajo (después de csvOpenLeadJob).
+let _cadRepliesCache=[];
+let _cadRepliesDismissed=new Set();
+let _cadRepliesKnownIds=new Set();
+let _cadRepliesFirstPoll=true;
+let _cadRepliesPollTimer=null;
 function csvSetupLeadJobsListener(){
   if(!db||!currentUserData?.uid) return;
   if(leadJobsUnsub) leadJobsUnsub();
@@ -12332,13 +12340,33 @@ let _leadJobsDismissed=new Set();
 function renderLeadJobsBell(){
   const wrap=document.getElementById('leadJobsBellWrap'); if(!wrap) return;
   const visibles=_leadJobsCache.filter(j=>!_leadJobsDismissed.has(j.id));
-  const unread=visibles.filter(j=>j.status==='listo'&&!j.read).length;
+  const jobsUnread=visibles.filter(j=>j.status==='listo'&&!j.read).length;
+  // Respuestas de cadencias comparten esta misma campana (ver cadSetupRepliesPolling) — sección
+  // propia arriba de las búsquedas de leads porque una respuesta de un prospecto real es más
+  // urgente que un job de búsqueda terminado.
+  const repliesVisible=_cadRepliesCache.filter(r=>!_cadRepliesDismissed.has(r.id));
+  const repliesUnread=repliesVisible.filter(r=>!r.read).length;
+  const unread=jobsUnread+repliesUnread;
   const statusLabel={buscando:'⏳ Buscando…',esperando_telefonos:'📞 Resolviendo teléfonos…',listo:'✅ Listo para descargar',error:'⚠️ Error en la búsqueda'};
+  const fmtReply=s=>{ try{return new Date(s).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return s||'';} };
+  const repliesHtml=repliesVisible.length?`<div style="padding:8px 14px 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase">✉️ Respuestas de cadencias</div>`+
+    repliesVisible.map(r=>`<div class="lead-bell-item" ${!r.read?'style="background:var(--success-light)"':''}>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <div style="flex:1;cursor:pointer" onclick="cadOpenReplyFromBell('${r.id}')">
+            <div style="font-weight:600">${_esc(r.companyName||r.leadName||r.fromEmail||'Respuesta')}</div>
+            <div style="font-size:11px;margin-top:3px;color:var(--success);font-weight:700">✅ Respondió${r.leadName?' — '+_esc(r.leadName):''}${!r.read?' · NUEVO':''}</div>
+            <div style="font-size:11px;color:var(--gray-400);margin-top:2px">${_esc((r.snippet||'').slice(0,90))}${(r.snippet||'').length>90?'…':''} · ${fmtReply(r.receivedAt)}</div>
+          </div>
+          <button onclick="event.stopPropagation();cadDismissReply('${r.id}')" title="Descartar" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:13px;flex-shrink:0;padding:2px">✕</button>
+        </div>
+      </div>`).join(''):'';
   const dropdown=_leadBellOpen?`<div class="lead-bell-dropdown">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--gray-100);position:sticky;top:0;background:white">
-      <span style="font-size:12px;font-weight:700;color:var(--gray-500)">Búsquedas de leads</span>
-      ${unread>0?`<button onclick="csvMarkAllJobsRead()" style="background:none;border:none;color:var(--purple);font-size:11px;font-weight:700;cursor:pointer;padding:2px">Marcar todo leído</button>`:''}
+      <span style="font-size:12px;font-weight:700;color:var(--gray-500)">Notificaciones</span>
+      ${unread>0?`<button onclick="csvMarkAllJobsRead();cadMarkAllRepliesRead()" style="background:none;border:none;color:var(--purple);font-size:11px;font-weight:700;cursor:pointer;padding:2px">Marcar todo leído</button>`:''}
     </div>
+    ${repliesHtml}
+    <div style="padding:8px 14px 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase">🔍 Búsquedas de leads</div>
     ${visibles.length?visibles.map(j=>{
       const n=j.leads?.length||0;
       const listo=j.status==='listo';
@@ -12358,7 +12386,7 @@ function renderLeadJobsBell(){
       </div>`;
     }).join(''):'<div class="lead-bell-empty">Sin búsquedas recientes</div>'
   }</div>`:'';
-  wrap.innerHTML=`<button class="lead-bell-btn" title="Estado de tus búsquedas de leads" onclick="csvToggleLeadBell()">🔔${unread>0?`<span class="lead-bell-badge">${unread}</span>`:''}</button>${dropdown}`;
+  wrap.innerHTML=`<button class="lead-bell-btn" title="Notificaciones" onclick="csvToggleLeadBell()">🔔${unread>0?`<span class="lead-bell-badge">${unread}</span>`:''}</button>${dropdown}`;
 }
 window.csvToggleLeadBell=function(){ _leadBellOpen=!_leadBellOpen; renderLeadJobsBell(); };
 async function csvMarkJobReadApi(jobId){
@@ -12460,6 +12488,68 @@ window.csvOpenLeadJob=async function(jobId){
   if(!job.leads?.length){ showNotif('No se encontraron leads nuevos con esos filtros','info'); return; }
   csvLoadJobIntoRows(job);
   showNotif(`${job.leads.length} de ${job.solicitados} leads listos ✓`,'success');
+};
+
+// ── Respuestas de cadencias en la misma campana 🔔 — pedido del usuario 2026-08-14. A diferencia
+// de leadSearchJobs, cadenceReplies NO es de lectura pública para el cliente (ver nota en
+// cadences.js del backend) — no hay onSnapshot posible, así que esto hace polling cada 60s en vez
+// de escuchar en vivo. Una respuesta de un prospecto real no es tan urgente como para justificar
+// pollear más seguido, y así se evita otra colección expuesta a lectura directa del cliente.
+function cadSetupRepliesPolling(){
+  if(!currentUserData?.uid) return;
+  if(_cadRepliesPollTimer) clearInterval(_cadRepliesPollTimer);
+  _cadRepliesKnownIds=new Set(); _cadRepliesFirstPoll=true;
+  cadFetchReplies();
+  _cadRepliesPollTimer=setInterval(cadFetchReplies,60000);
+}
+async function cadFetchReplies(){
+  if(!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/replies',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    _cadRepliesCache=data.replies||[];
+    // Mismo criterio que _leadJobsFirstSnapshot: no avisar de golpe de todo lo que ya estaba sin
+    // leer al cargar la página — solo de respuestas que aparecen DESPUÉS del primer poll.
+    if(!_cadRepliesFirstPoll){
+      for(const r of _cadRepliesCache){
+        if(!r.read && !_cadRepliesKnownIds.has(r.id)){
+          showNotif(`✉️ ${r.companyName||r.leadName||'Un prospecto'} respondió tu cadencia`,'success');
+        }
+      }
+    }
+    _cadRepliesKnownIds=new Set(_cadRepliesCache.map(r=>r.id));
+    _cadRepliesFirstPoll=false;
+    renderLeadJobsBell();
+  }catch(e){ console.warn('cadFetchReplies:',e); }
+}
+async function cadMarkReplyReadApi(replyId){
+  if(!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    await fetch(CADENCES_BASE+'/cadences/replies/'+replyId+'/read',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`}});
+  }catch(e){ console.warn('cadMarkReplyReadApi:',e); }
+}
+window.cadMarkAllRepliesRead=async function(){
+  const pendientes=_cadRepliesCache.filter(r=>!r.read&&!_cadRepliesDismissed.has(r.id));
+  await Promise.all(pendientes.map(r=>cadMarkReplyReadApi(r.id)));
+  _cadRepliesCache=_cadRepliesCache.map(r=>({...r,read:true}));
+  renderLeadJobsBell();
+};
+window.cadDismissReply=async function(replyId){
+  const r=_cadRepliesCache.find(x=>x.id===replyId);
+  if(r&&!r.read) await cadMarkReplyReadApi(replyId);
+  _cadRepliesDismissed.add(replyId);
+  renderLeadJobsBell();
+};
+// Click en un ítem de la campana — va directo al historial completo de esa empresa (mismo destino
+// que el KPI "Respondidos" de Activas, ver cadOpenHistoryByKey).
+window.cadOpenReplyFromBell=async function(replyId){
+  const r=_cadRepliesCache.find(x=>x.id===replyId); if(!r) return;
+  _leadBellOpen=false; renderLeadJobsBell();
+  if(!r.read) await cadMarkReplyReadApi(replyId);
+  cadOpenHistoryByKey(r.companyKey, r.companyName||r.leadName||r.companyKey);
 };
 
 // ══════════════════════════════════════════
@@ -13602,9 +13692,41 @@ function cadStatsRowHtml(stats){
     <div class="hist-kpi-card"><div class="hist-kpi-label">📤 Enviados</div><div class="hist-kpi-val">${stats.sent}</div><div class="hist-kpi-sub">correos mandados en total</div></div>
     <div class="hist-kpi-card"><div class="hist-kpi-label">⛔ Rechazados</div><div class="hist-kpi-val">${stats.bounced}</div><div class="hist-kpi-sub">${pct(stats.bounced,stats.total)} de las cadencias</div></div>
     <div class="hist-kpi-card"><div class="hist-kpi-label">👀 Abiertos</div><div class="hist-kpi-val">${stats.opened}</div><div class="hist-kpi-sub">${pct(stats.opened,stats.sent)} de los enviados</div></div>
-    <div class="hist-kpi-card"><div class="hist-kpi-label">✅ Respondidos</div><div class="hist-kpi-val">${stats.replied}</div><div class="hist-kpi-sub">${pct(stats.replied,stats.total)} de las cadencias</div></div>
+    <div class="hist-kpi-card" style="cursor:pointer" onclick="cadOpenRepliedList()" title="Ver empresas que respondieron">
+      <div class="hist-kpi-label">✅ Respondidos</div><div class="hist-kpi-val">${stats.replied}</div>
+      <div class="hist-kpi-sub" style="color:var(--purple);font-weight:600">${pct(stats.replied,stats.total)} de las cadencias · ver todas →</div>
+    </div>
   </div>`;
 }
+// Pedido del usuario 2026-08-14: el KPI de Respondidos no llevaba a ningún lado — un AE tenía que
+// entrar a Historial y buscar empresa por empresa a mano para encontrar cuáles respondieron. Este
+// popup lista las cadencias con status 'respondio' de _cadActiveCache (ya cargado por Activas, no
+// hace falta otro fetch) y cada una lleva directo al historial completo de esa empresa.
+window.cadOpenRepliedList=function(){
+  const _jsStr=s=>String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const replied=(_cadActiveCache||[]).filter(c=>c.status==='respondio');
+  document.getElementById('cadRepliedPopup')?.remove();
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='cadRepliedPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:640px">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title">✅ Cadencias respondidas</div>
+      <div class="disc-popup-actions"><button class="disc-copy-btn" onclick="document.getElementById('cadRepliedPopup').remove()">✕ Cerrar</button></div>
+    </div>
+    <div class="disc-popup-body">
+      ${replied.length?replied.map(c=>`
+        <div class="card" style="padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer"
+          onclick="document.getElementById('cadRepliedPopup').remove();cadOpenHistoryByKey('${_jsStr(c.companyKey)}','${_jsStr(c.companyName||c.leadEmail||'')}')">
+          <div style="min-width:0">
+            <div style="font-weight:700">${_esc(c.companyName||c.leadEmail||'')}</div>
+            <div style="font-size:12px;color:var(--gray-500)">${_esc(c.leadName||'')} · ${_esc(c.leadEmail||'')}</div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:var(--purple);flex-shrink:0">Ver empresa y respuesta →</span>
+        </div>
+      `).join(''):'<div class="cdc-empty">Todavía nadie ha respondido.</div>'}
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+};
 function cadEngagementBadge(c){
   if(c.status==='respondio') return '<span class="badge badge-success">✅ Respondió</span>';
   if(c.status==='activa') return '<span class="badge badge-purple">🟢 Activa</span>';
@@ -13910,6 +14032,15 @@ window.cadOpenHistoryForCompany=function(nombre,website){
   cadShowTab('historial');
   const input=document.getElementById('cadHistSearch'); if(input) input.value=nombre||key;
   cadLoadCompanyHistory(key);
+};
+// Variante para cuando YA se tiene el companyKey exacto que usó el backend (KPI de Respondidos,
+// campana de respuestas) — evita re-derivarlo de nombre/website, que podría no calzar 1:1 con lo
+// que _cadCompanyKey produciría si el nombre visible tiene formato distinto.
+window.cadOpenHistoryByKey=function(companyKey,label){
+  showModule('cadencias');
+  cadShowTab('historial');
+  const input=document.getElementById('cadHistSearch'); if(input) input.value=label||companyKey;
+  cadLoadCompanyHistory(companyKey);
 };
 
 // ── Modal de activación compartido — entrada A (Resultados de CSV Builder) y entrada B (Nueva
