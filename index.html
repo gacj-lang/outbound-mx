@@ -12456,7 +12456,7 @@ async function csvClassifyIndustryTags(rows){
     empresa:r.partner_name||'',
     resumen:r.resumen||'',
     industria_fuente:r._industriaRaw||'',
-    contexto:[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400),
+    contexto:[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo].filter(Boolean).join(' | ').slice(0,600),
   }));
   const aList=QS_INDUSTRY_TYPES.map(a=>`${a.code}=${a.label}`).join(' | ');
   const bList=QS_PRODUCT_TYPES.map(b=>`${b.code}=${b.label}`).join(' | ');
@@ -12581,7 +12581,7 @@ window.csvEnrichRowsWithAI=async function(rows){
 // solo archivo de 125 filas). El resumen ahora sale SOLO de los datos ya conocidos del lead.
 async function csvBatchResumenes(rows){
   await Promise.all(rows.map(async(r)=>{
-    const contexto=[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo].filter(Boolean).join(' | ').slice(0,400);
+    const contexto=[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo].filter(Boolean).join(' | ').slice(0,600);
     try{
       const raw=await gcCallClaude(`Genera un resumen ULTRA BREVE (máximo 140 caracteres) de este lead de ventas B2B para Odoo, pensado para que un vendedor sepa en un vistazo por qué contactarlo. Usa SOLO estos datos, sin inventar nada más:
 Empresa: ${r.partner_name||'nd'} | Contacto: ${r.contact_name||'nd'} | Cargo: ${r.function||'nd'} | Ubicación: ${r.state_id||r.country_id||'nd'}
