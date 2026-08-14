@@ -1569,14 +1569,23 @@ function getUnsavedWarning(targetModule){
   return null;
 }
 
-window.showModule = function(moduleId, skipNavHighlight=false){
+// afterShow (opcional): código que debe correr DESPUÉS de que el módulo esté de verdad visible.
+// Bug real 2026-08-14 (campana de respuestas de cadencias): cuando había trabajo sin guardar
+// (CSV sin descargar, Discovery abierto), showModule mostraba el diálogo de advertencia y
+// retornaba sin navegar — pero el caller (ej. cadOpenHistoryByKey) seguía con su siguiente línea
+// igual (cadShowTab/cadLoadCompanyHistory), operando sobre el módulo viejo que seguía en pantalla:
+// "no pasa nada" al primer clic. Al segundo clic ya no había advertencia pendiente y sí navegaba.
+// Pasar la continuación como afterShow la deja pegada a cuándo el módulo REALMENTE se muestra,
+// sea de inmediato o tras confirmar el diálogo.
+window.showModule = function(moduleId, skipNavHighlight=false, afterShow){
   // Warn before leaving if there's unsaved work
   const warn=getUnsavedWarning(moduleId);
   if(warn && moduleId!==cont.activeSection){
-    showNavWarning(warn, ()=>_doShowModule(moduleId, skipNavHighlight), warn.onSave);
+    showNavWarning(warn, ()=>{ _doShowModule(moduleId, skipNavHighlight); if(afterShow) afterShow(); }, warn.onSave);
     return;
   }
   _doShowModule(moduleId, skipNavHighlight);
+  if(afterShow) afterShow();
 };
 
 window.showNavWarning=function(warn, onConfirm, onSave){
@@ -13993,54 +14002,70 @@ async function cadLoadCompanyHistory(companyKey){
     body.innerHTML=cadHistoryTimelineHtml(data.timeline||[]);
   }catch(e){ body.innerHTML=`<div class="cdc-empty">Error: ${_esc(e.message)}</div>`; }
 }
+// Agrupado por cadenceId — pedido del usuario 2026-08-14: antes cada mensaje (enviado o respuesta)
+// tenía su propio botón de copiar, por separado. Para documentar en Odoo se quiere UN solo bloque
+// copiable con el hilo completo (todo lo enviado + la respuesta, en orden), no mensajes sueltos.
+// El texto copiado reusa item.html/item.subject tal cual (incluye el HTML crudo del correo, mismo
+// criterio "mejor esfuerzo" que ya tenía el copiado individual — no se intenta limpiar a texto).
 function cadHistoryTimelineHtml(timeline){
   if(!timeline.length) return '<div class="cdc-empty">Sin actividad de cadencias para esta empresa todavía.</div>';
   const fmt=s=>{ try{return new Date(s).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return s||'';} };
-  return timeline.map((item,i)=>{
-    if(item.type==='enviado'){
-      const full=(item.subject||'')+'\n\n'+(item.html||'');
-      return `<div class="card" style="padding:14px;margin-bottom:10px;border-left:3px solid var(--purple)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
-          <div style="font-size:12px;font-weight:700;color:var(--purple)">📤 Enviado — ${_esc(item.label||'')}</div>
-          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--gray-400)">${fmt(item.at)}</span>
-            <button class="btn btn-ghost btn-sm" onclick="cadCopyHistItem(${i})">📋 Copiar</button></div>
-        </div>
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px">${_esc(item.subject||'')}</div>
-        <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap" id="cadHistText${i}" data-full="${_esc(full)}">${_esc(item.html||'')}</div>
-      </div>`;
-    }
-    const full=item.bodyText||item.snippet||'';
-    return `<div class="card" style="padding:14px;margin-bottom:10px;border-left:3px solid var(--success)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
-        <div style="font-size:12px;font-weight:700;color:var(--success)">📥 Respuesta${item.fromEmail?(' · '+_esc(item.fromEmail)):''}</div>
-        <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--gray-400)">${fmt(item.at)}</span>
-          <button class="btn btn-ghost btn-sm" onclick="cadCopyHistItem(${i})">📋 Copiar</button></div>
+  const groups=[]; const byId=new Map();
+  timeline.forEach(item=>{
+    const key=item.cadenceId||'sin-cadencia';
+    if(!byId.has(key)){ byId.set(key,[]); groups.push(byId.get(key)); }
+    byId.get(key).push(item);
+  });
+  return groups.map(items=>{
+    const threadText=items.map(item=>item.type==='enviado'
+      ? `ENVIADO (${fmt(item.at)}) — ${item.label||''}\nAsunto: ${item.subject||''}\n${item.html||''}`
+      : `RESPUESTA (${fmt(item.at)})${item.fromEmail?` — ${item.fromEmail}`:''}\n${item.bodyText||item.snippet||''}`
+    ).join('\n\n---\n\n');
+    const hasReply=items.some(x=>x.type==='respuesta');
+    const itemsHtml=items.map((item,i)=>item.type==='enviado'
+      ? `<div style="margin-bottom:10px;${i<items.length-1?'padding-bottom:10px;border-bottom:1px dashed var(--gray-200)':''}">
+          <div style="font-size:12px;font-weight:700;color:var(--purple)">📤 Enviado — ${_esc(item.label||'')} <span style="font-weight:400;color:var(--gray-400)">· ${fmt(item.at)}</span></div>
+          <div style="font-size:13px;font-weight:600;margin:4px 0">${_esc(item.subject||'')}</div>
+          <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap">${_esc(item.html||'')}</div>
+        </div>`
+      : `<div style="margin-bottom:4px">
+          <div style="font-size:12px;font-weight:700;color:var(--success)">📥 Respuesta${item.fromEmail?(' · '+_esc(item.fromEmail)):''} <span style="font-weight:400;color:var(--gray-400)">· ${fmt(item.at)}</span></div>
+          <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap">${_esc(item.bodyText||item.snippet||'')}</div>
+        </div>`
+    ).join('');
+    return `<div class="card" style="padding:14px;margin-bottom:12px;border-left:3px solid ${hasReply?'var(--success)':'var(--purple)'}">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+        <button class="btn btn-ghost btn-sm" onclick="cadCopyHistThread(this)" data-full="${_esc(threadText)}">📋 Copiar hilo completo</button>
       </div>
-      <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap" id="cadHistText${i}" data-full="${_esc(full)}">${_esc(full)}</div>
+      ${itemsHtml}
     </div>`;
   }).join('');
 }
-window.cadCopyHistItem=async function(i){
-  const el=document.getElementById('cadHistText'+i); if(!el) return;
-  await navigator.clipboard.writeText(el.dataset.full||el.textContent||'');
-  showNotif('Copiado ✓','success');
+window.cadCopyHistThread=async function(btn){
+  await navigator.clipboard.writeText(btn.dataset.full||'');
+  showNotif('Hilo copiado ✓','success');
 };
 // Cruce desde la ficha de empresa (empOpenDetail) — abre el módulo directo en Historial, filtrado.
+// La carga real va en afterShow (ver showModule) — si hay trabajo sin guardar en otro módulo,
+// showModule muestra un diálogo y NO navega de inmediato; sin afterShow esto se ejecutaba igual
+// contra el módulo viejo y no pasaba nada visible hasta un segundo clic.
 window.cadOpenHistoryForCompany=function(nombre,website){
   const key=_cadCompanyKey(nombre,website);
-  showModule('cadencias');
-  cadShowTab('historial');
-  const input=document.getElementById('cadHistSearch'); if(input) input.value=nombre||key;
-  cadLoadCompanyHistory(key);
+  showModule('cadencias', false, ()=>{
+    cadShowTab('historial');
+    const input=document.getElementById('cadHistSearch'); if(input) input.value=nombre||key;
+    cadLoadCompanyHistory(key);
+  });
 };
 // Variante para cuando YA se tiene el companyKey exacto que usó el backend (KPI de Respondidos,
 // campana de respuestas) — evita re-derivarlo de nombre/website, que podría no calzar 1:1 con lo
 // que _cadCompanyKey produciría si el nombre visible tiene formato distinto.
 window.cadOpenHistoryByKey=function(companyKey,label){
-  showModule('cadencias');
-  cadShowTab('historial');
-  const input=document.getElementById('cadHistSearch'); if(input) input.value=label||companyKey;
-  cadLoadCompanyHistory(companyKey);
+  showModule('cadencias', false, ()=>{
+    cadShowTab('historial');
+    const input=document.getElementById('cadHistSearch'); if(input) input.value=label||companyKey;
+    cadLoadCompanyHistory(companyKey);
+  });
 };
 
 // ── Modal de activación compartido — entrada A (Resultados de CSV Builder) y entrada B (Nueva
