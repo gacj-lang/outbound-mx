@@ -986,6 +986,7 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" id="nav-discovery" onclick="showModule('discovery')" data-tip="Califica prospectos con preguntas guiadas y detecta sus necesidades."><span class="nav-icon">🔍</span> Intromeet / Qcall</button>
       <button class="nav-item" id="nav-gencontenidos" onclick="showModule('gencontenidos')" data-tip="Crea mensajes e imágenes para WhatsApp, correo y LinkedIn."><span class="nav-icon">✉️</span> Generación de contenidos</button>
       <button class="nav-item" id="nav-csv" onclick="showModule('csv')" data-tip="Construye y exporta listas de prospectos en CSV."><span class="nav-icon">📋</span> Generación de leads</button>
+      <button class="nav-item" id="nav-cadencias" onclick="showModule('cadencias')" data-tip="Activa y da seguimiento a secuencias de correo automatizadas."><span class="nav-icon">📨</span> Cadencias</button>
       <button class="nav-item" id="nav-pricing" onclick="showModule('pricing')" data-tip="Cotiza licencias, implementación e IVA de Odoo. Guarda registros y genera la propuesta comercial."><span class="nav-icon">💰</span> Pricing</button>
       <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')" data-tip="Métricas de uso y actividad del equipo."><span class="nav-icon">📊</span> Analytics</button>
       <div class="nav-section-label" style="margin-top:8px">Conocimiento</div>
@@ -1030,7 +1031,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-08-13 Limpieza: se quita código muerto (cadencias/Odoo API/Gmail OAuth — feature descontinuada, la empresa no permite escribir a Odoo vía API externa) y helpers/funciones huérfanas de Pricing y Generación de contenidos.';
+const APP_BUILD_STAMP='2026-08-14 Cadencias de correo (reconstrucción, solo correo, cero Odoo): módulo propio en el nav + botón en Resultados de CSV Builder, Gmail OAuth por AE, A/B de variantes, historial por empresa con copiar al portapapeles.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1619,7 +1620,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
   mc.classList.remove('topbar-hidden');
   tb.style.display='flex';
   const titles={home:'Inicio',empresas:'Empresas',discovery:'Intromeet / Qcall',gencontenidos:'Generación de contenidos',
-    csv:'Generación de leads',pricing:'Pricing',propuesta:'Propuesta Comercial',analytics:'Analytics',
+    csv:'Generación de leads',cadencias:'Cadencias',pricing:'Pricing',propuesta:'Propuesta Comercial',analytics:'Analytics',
     manager:'Panel de Manager',settings:'Configuración',framework:'Framework Visual',wiki:'Banco de Información',
     historico:'Información Histórica',metricas:'Métricas',appcatalog:'Catálogo de apps'};
   const t=document.getElementById('topbarTitle'); if(t) t.textContent=titles[moduleId]||moduleId;
@@ -1627,6 +1628,7 @@ function _doShowModule(moduleId, skipNavHighlight=false){
   const map={
     home:renderHome, empresas:renderEmpresas, discovery:renderDiscoveryList,
     pricing:renderPricing, csv:renderCsvBuilder,
+    cadencias:renderCadencias,
     gencontenidos:renderGenContenidos,
     propuesta:renderPropuestaComercial,
     analytics:renderAnalytics,
@@ -1957,6 +1959,13 @@ function renderSettings(){
           <button class="btn btn-primary" onclick="saveMyProfile()">Guardar mis datos</button>
         </div>
 
+        <!-- CADENCIAS — CONECTAR GMAIL -->
+        <div class="card settings-card">
+          <div class="card-header"><h3>📨 Cadencias — Gmail</h3></div>
+          <p class="settings-desc">Conecta tu Gmail corporativo para mandar los correos de tus cadencias desde tu propio buzón (nunca uno compartido). Puedes desconectarlo cuando quieras.</p>
+          <div id="cfgGmailCardBody"><div class="settings-desc">Cargando…</div></div>
+        </div>
+
         <!-- SEGURIDAD -->
         <div class="card settings-card">
           <div class="card-header"><h3>🔑 Seguridad</h3></div>
@@ -2014,6 +2023,7 @@ function renderSettings(){
         </div>
       </div>
     </div>`;
+  setTimeout(cfgLoadGmailStatus,0);
 }
 
 window.saveMyProfile=async function(){
@@ -9585,6 +9595,11 @@ window.empOpenDetail=async function(id){
       if(csv.length) sections.push(`<div style="margin-bottom:16px">${secHead(`📋 CSV Sessions (${csv.length})`)}
         ${csv.map(d=>{const r=d.data();return docRow(`${r.fuente||'Sin fuente'} — ${r.rowCount||0} prospectos`,r.aeName||'',fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();showModule('csv');csvReloadSession('${d.id}')`,`deleteRecord('csvSessions','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
 
+      const _jsStr=s=>String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      sections.push(`<div style="margin-bottom:16px">${secHead('📨 Cadencias de correo')}
+        <button class="btn btn-ghost btn-sm" onclick="cadOpenHistoryForCompany('${_jsStr(co.nombre)}','${_jsStr(co.website)}')">Ver historial de correo →</button>
+      </div>`);
+
       docsEl.innerHTML=sections.length?sections.join(''):'<div class="cdc-empty">Sin documentos vinculados aún</div>';
     } catch(e){ console.error('empOpenDetail docs:',e); docsEl.innerHTML='<div class="cdc-empty">Error al cargar documentos: '+e.message+'</div>'; }
   }
@@ -11803,6 +11818,7 @@ function csvRenderResultadosTab(content){
           <div id="csvBulkBar" style="display:none;align-items:center;gap:10px;background:var(--purple-light);border:1px solid var(--purple);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;flex-wrap:wrap">
             <span id="csvBulkBarCount" style="font-size:13px;font-weight:600;color:var(--purple)"></span>
             <div style="flex:1"></div>
+            <button class="btn btn-primary btn-sm" onclick="csvActivateCadenceSelected()">📨 Activar cadencia</button>
             <button class="btn btn-ghost btn-sm" onclick="csvReEnrichSelected()">🔄 Re-enriquecer</button>
             <button class="btn btn-ghost btn-sm" onclick="csvExportSelected()">⬇ Exportar selección</button>
             <button class="btn btn-ghost-danger btn-sm" onclick="csvDeleteSelected()">🗑 Eliminar</button>
@@ -12830,32 +12846,27 @@ window.csvRunLeadSearch=async function(){
   finally{ btn.disabled=false; gcShowLoading('csvSearchLoading',false); }
 };
 
-window.csvProcess=async function(){
-  const fuente=document.getElementById('csvFuente')?.value.trim();
-  const rawData=document.getElementById('csvRawData')?.value.trim();
-  const tags=document.getElementById('csvTags')?.value.trim();
-  const ae=document.getElementById('csvAE')?.value.trim();
-  const contexto=document.getElementById('csvContexto')?.value.trim();
-  if(!fuente){ showNotif('Indica la fuente del lead','error'); return; }
-  if(!rawData&&!_csvFileAttachment){ showNotif('Pega datos o carga un archivo','error'); return; }
-  const btn=document.getElementById('csvProcessBtn'); btn.disabled=true; gcShowLoading('csvLoading',true);
-  const tagsStr='Outbound-MX'+(tags?','+tags.replace(/\s*,\s*/g,','):'');
-  try{
-    let extracted=null, usedLocal=false;
-    // 1) CSV/texto estructurado pegado (sin archivo binario) → parseo LOCAL: instantáneo, completo, sin truncado.
-    // _csvMapLusha primero: reconoce la firma exacta del export nativo de Lusha (columnas que
-    // _csvMapStructured no capta — Work email/LinkedIn profile/Primary industry — y los 6 teléfonos
-    // en vez de solo 3). Si no es un export de Lusha, cae al mapeo genérico de siempre.
-    if(!_csvFileAttachment && rawData){
-      const local=_csvMapLusha(rawData)||_csvMapStructured(rawData);
-      if(local&&local.length){ extracted=local; usedLocal=true; }
-    }
-    // 2) Texto libre / PDF / imagen → IA (respaldo). Tokens altos para no truncar listas largas.
-    if(!extracted){
-      const dataSection=_csvFileAttachment
-        ? `[ARCHIVO: ${_csvFileAttachment.name} — extrae todos los contactos/prospectos que encuentres en el archivo]`
-        : `DATOS:\n${rawData}`;
-      const result=await gcCallClaude(`Eres un extractor de datos de prospectos para Odoo CRM México.
+// Parseo local-primero + respaldo IA de una carga/pega de prospectos — extraído de csvProcess
+// (2026-08-14) para reusarlo también desde el módulo Cadencias ("Nueva cadencia", carga directa de
+// lista sin pasar por el buscador de Apollo/DENUE/Outscraper/DIRIND). Devuelve el array crudo
+// {contact_name,function,partner_name,Website,Email,phone,state_id,notes} — cada llamador decide
+// cómo mapearlo a su propia forma de fila (csvRows vs. leads de cadencia).
+async function parseLeadRowsFromUpload(fuente, rawData, fileAttachment, {ae='', tagsStr='', contexto=''}={}){
+  let extracted=null, usedLocal=false;
+  // 1) CSV/texto estructurado pegado (sin archivo binario) → parseo LOCAL: instantáneo, completo, sin truncado.
+  // _csvMapLusha primero: reconoce la firma exacta del export nativo de Lusha (columnas que
+  // _csvMapStructured no capta — Work email/LinkedIn profile/Primary industry — y los 6 teléfonos
+  // en vez de solo 3). Si no es un export de Lusha, cae al mapeo genérico de siempre.
+  if(!fileAttachment && rawData){
+    const local=_csvMapLusha(rawData)||_csvMapStructured(rawData);
+    if(local&&local.length){ extracted=local; usedLocal=true; }
+  }
+  // 2) Texto libre / PDF / imagen → IA (respaldo). Tokens altos para no truncar listas largas.
+  if(!extracted){
+    const dataSection=fileAttachment
+      ? `[ARCHIVO: ${fileAttachment.name} — extrae todos los contactos/prospectos que encuentres en el archivo]`
+      : `DATOS:\n${rawData}`;
+    const result=await gcCallClaude(`Eres un extractor de datos de prospectos para Odoo CRM México.
 Analiza los siguientes datos y extrae cada prospecto como un objeto JSON.
 FUENTE: "${fuente}" | AE: "${ae}" | TAGS: "${tagsStr}"
 ${contexto?`INSTRUCCIONES ADICIONALES: ${contexto}\n`:''}${dataSection}
@@ -12870,11 +12881,26 @@ Para cada prospecto devuelve estos campos:
 - state_id: estado de México EXACTAMENTE de esta lista: ${MX_STATES.join(', ')}. Si no puedes determinar: dejar ""
 - notes: cualquier dato adicional (teléfonos extra, empleados, industria, LinkedIn, redes, etc.)
 
-Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, sin explicaciones, sin disclaimers. Si un campo no se conoce, usa cadena vacía "". Nunca escribas "No lo sé" ni texto fuera del JSON.`, _csvFileAttachment||null, {maxTokens:16000, system:'Eres un extractor de datos preciso para CRM. Devuelves SIEMPRE y SOLO un array JSON válido (sin markdown, sin texto adicional). Para datos que no encuentres, usa cadena vacía "". No inventes datos, pero tampoco agregues disclaimers ni explicaciones: solo el JSON.'});
-      try{ extracted=_parseJSONArray(result); }
-      catch(err){ console.warn('CSV parse:',err,result?.slice?.(0,200)); throw new Error('No se pudo leer la respuesta de la IA. Revisa los datos pegados o intenta de nuevo.'); }
-    }
-    if(!Array.isArray(extracted)||!extracted.length) throw new Error('No se detectaron prospectos en los datos. Revisa el contenido e intenta de nuevo.');
+Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, sin explicaciones, sin disclaimers. Si un campo no se conoce, usa cadena vacía "". Nunca escribas "No lo sé" ni texto fuera del JSON.`, fileAttachment||null, {maxTokens:16000, system:'Eres un extractor de datos preciso para CRM. Devuelves SIEMPRE y SOLO un array JSON válido (sin markdown, sin texto adicional). Para datos que no encuentres, usa cadena vacía "". No inventes datos, pero tampoco agregues disclaimers ni explicaciones: solo el JSON.'});
+    try{ extracted=_parseJSONArray(result); }
+    catch(err){ console.warn('CSV parse:',err,result?.slice?.(0,200)); throw new Error('No se pudo leer la respuesta de la IA. Revisa los datos pegados o intenta de nuevo.'); }
+  }
+  if(!Array.isArray(extracted)||!extracted.length) throw new Error('No se detectaron prospectos en los datos. Revisa el contenido e intenta de nuevo.');
+  return {extracted, usedLocal};
+}
+
+window.csvProcess=async function(){
+  const fuente=document.getElementById('csvFuente')?.value.trim();
+  const rawData=document.getElementById('csvRawData')?.value.trim();
+  const tags=document.getElementById('csvTags')?.value.trim();
+  const ae=document.getElementById('csvAE')?.value.trim();
+  const contexto=document.getElementById('csvContexto')?.value.trim();
+  if(!fuente){ showNotif('Indica la fuente del lead','error'); return; }
+  if(!rawData&&!_csvFileAttachment){ showNotif('Pega datos o carga un archivo','error'); return; }
+  const btn=document.getElementById('csvProcessBtn'); btn.disabled=true; gcShowLoading('csvLoading',true);
+  const tagsStr='Outbound-MX'+(tags?','+tags.replace(/\s*,\s*/g,','):'');
+  try{
+    const {extracted, usedLocal}=await parseLeadRowsFromUpload(fuente, rawData, _csvFileAttachment, {ae, tagsStr, contexto});
     csvRows=extracted.map(row=>({
       name:`${fuente} - ${row.partner_name||''} - ${row.contact_name||''}`,
       contact_name:row.contact_name||'', function:row.function||'',
@@ -13208,20 +13234,23 @@ function csvSetFileStatus(msg, type='info'){
   el.textContent=msg;
 }
 
-window.csvHandleFileDrop=function(file){ if(file) csvHandleFile(file); };
-window.csvHandleFile=async function(file){
-  if(!file) return;
-  _csvFileAttachment=null;
+// Lectura de un archivo subido de prospectos (CSV/TXT/PDF/imagen) — extraído de csvHandleFile
+// (2026-08-14) para reusarlo también desde "Nueva cadencia" en el módulo Cadencias, que tiene su
+// propio textarea/estado de attachment y no puede escribir directo en los IDs de CSV Builder.
+// statusFn(msg,type) recibe los mismos mensajes que csvSetFileStatus mostraba antes inline.
+// Devuelve {fileAttachment, rawText} (uno de los dos siempre null) o null si el archivo no sirvió
+// (ya reportado vía statusFn en ese caso).
+async function readUploadedLeadFile(file, statusFn){
+  if(!file) return null;
   const name=file.name, size=(file.size/1024).toFixed(0), ext=name.split('.').pop().toLowerCase();
   const SUPPORTED_IMG=['jpg','jpeg','png'];
   const SUPPORTED_DOC=['pdf'];
   const SUPPORTED_TEXT=['csv','txt'];
   const UNSUPPORTED=['xls','xlsx','docx','doc','ppt','pptx'];
 
-  // Unsupported formats
   if(UNSUPPORTED.includes(ext)){
-    csvSetFileStatus(`⚠️ El formato .${ext} no es compatible directamente. Por favor guarda el archivo como CSV o PDF e inténtalo de nuevo.`,'warn');
-    return;
+    statusFn(`⚠️ El formato .${ext} no es compatible directamente. Por favor guarda el archivo como CSV o PDF e inténtalo de nuevo.`,'warn');
+    return null;
   }
 
   // Límites por tipo: imágenes y PDFs van a Claude en base64 (10MB/32MB reales de la API,
@@ -13231,11 +13260,11 @@ window.csvHandleFile=async function(file){
   const max=SUPPORTED_IMG.includes(ext)?MAX_IMG:SUPPORTED_DOC.includes(ext)?MAX_DOC:MAX_TEXT;
   if(file.size>max){
     const maxMB=(max/(1024*1024)).toFixed(0);
-    csvSetFileStatus(`⚠️ El archivo es muy grande (${size}KB). El máximo para .${ext} es ${maxMB}MB.`,'warn');
-    return;
+    statusFn(`⚠️ El archivo es muy grande (${size}KB). El máximo para .${ext} es ${maxMB}MB.`,'warn');
+    return null;
   }
 
-  csvSetFileStatus(`⏳ Cargando ${name} (${size}KB)...`,'info');
+  statusFn(`⏳ Cargando ${name} (${size}KB)...`,'info');
 
   try{
     const base64=await new Promise((resolve,reject)=>{
@@ -13247,25 +13276,32 @@ window.csvHandleFile=async function(file){
 
     if(SUPPORTED_IMG.includes(ext)){
       const mediaType=ext==='jpg'||ext==='jpeg'?'image/jpeg':'image/png';
-      _csvFileAttachment={type:'image',mediaType,data:base64,name};
-      csvSetFileStatus(`✅ Imagen cargada: ${name} — Claude leerá el contenido visualmente.`,'success');
+      statusFn(`✅ Imagen cargada: ${name} — Claude leerá el contenido visualmente.`,'success');
+      return {fileAttachment:{type:'image',mediaType,data:base64,name}, rawText:null};
     } else if(SUPPORTED_DOC.includes(ext)){
-      _csvFileAttachment={type:'document',mediaType:'application/pdf',data:base64,name};
-      csvSetFileStatus(`✅ PDF cargado: ${name} (${size}KB) — Claude extraerá el texto.`,'success');
+      statusFn(`✅ PDF cargado: ${name} (${size}KB) — Claude extraerá el texto.`,'success');
+      return {fileAttachment:{type:'document',mediaType:'application/pdf',data:base64,name}, rawText:null};
     } else if(SUPPORTED_TEXT.includes(ext)){
-      // Read as text
       const text=await new Promise((resolve,reject)=>{
         const r=new FileReader(); r.onload=e=>resolve(e.target.result); r.onerror=reject; r.readAsText(file,'UTF-8');
       });
-      if(!text.trim()){ csvSetFileStatus(`⚠️ El archivo ${name} está vacío o no tiene texto legible.`,'warn'); return; }
-      const ta=document.getElementById('csvRawData'); if(ta) ta.value=text;
-      csvSetFileStatus(`✅ ${name} cargado — datos pegados en el área de texto.`,'success');
-      _csvFileAttachment=null;
+      if(!text.trim()){ statusFn(`⚠️ El archivo ${name} está vacío o no tiene texto legible.`,'warn'); return null; }
+      statusFn(`✅ ${name} cargado — datos pegados en el área de texto.`,'success');
+      return {fileAttachment:null, rawText:text};
     }
   } catch(e){
-    csvSetFileStatus(`❌ No se pudo leer el archivo: ${e.message}. Verifica que no esté dañado.`,'error');
-    _csvFileAttachment=null;
+    statusFn(`❌ No se pudo leer el archivo: ${e.message}. Verifica que no esté dañado.`,'error');
+    return null;
   }
+}
+
+window.csvHandleFileDrop=function(file){ if(file) csvHandleFile(file); };
+window.csvHandleFile=async function(file){
+  if(!file) return;
+  _csvFileAttachment=null;
+  const result=await readUploadedLeadFile(file, csvSetFileStatus);
+  if(result?.fileAttachment) _csvFileAttachment=result.fileAttachment;
+  if(result?.rawText){ const ta=document.getElementById('csvRawData'); if(ta) ta.value=result.rawText; }
 };
 
 // ══════════════════════════════════════════
@@ -13403,6 +13439,574 @@ function setupNavTooltips(){
   });
   document.querySelector('.sidebar')?.addEventListener('scroll',()=>tip.classList.remove('show'));
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// CADENCIAS DE CORREO — reconstrucción 2026-08-14 (solo correo, cero Odoo)
+// ══════════════════════════════════════════════════════════════════════════
+// Reemplaza el módulo dado de baja el 2026-08-13 (commit d0fe2c5) — la razón fue exclusiva de la
+// pieza de Odoo, no de correo/Gmail (ver memoria del proyecto). Reusa a propósito el motor de
+// Generación de contenidos (gcCallClaude/GC_MOMENTOS/gcMomentoInstructions/TONES) en vez de
+// duplicar un pipeline de IA paralelo — ver gcGenerateCadenceStepTemplate más abajo.
+const CADENCES_BASE='https://thorough-curiosity-production-098d.up.railway.app';
+
+// ── Configuración → Mis datos: tarjeta Conectar Gmail ──
+async function cfgLoadGmailStatus(){
+  const body=document.getElementById('cfgGmailCardBody'); if(!body||!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/gmail/status',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    body.innerHTML=data.connected
+      ? `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+           <span class="status-dot dot-green"></span>
+           <span style="font-size:13px">Conectado como <strong>${_esc(data.email||'')}</strong></span>
+           <button class="btn btn-ghost btn-sm" onclick="cfgDisconnectGmail()">Desconectar</button>
+         </div>`
+      : `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+           <span class="status-dot dot-red"></span>
+           <button class="btn btn-primary btn-sm" onclick="cfgConnectGmail()">Conectar Gmail</button>
+         </div>`;
+  }catch(e){
+    body.innerHTML=`<div class="settings-desc" style="margin:0">No se pudo cargar el estado de Gmail — reintenta. (${_esc(e.message)})</div>`;
+  }
+}
+window.cfgConnectGmail=async function(){
+  if(!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/gmail/authurl',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    window.open(data.url,'_blank','noopener,width=520,height=680');
+    // No hay forma de saber el momento exacto en que Google termina el consentimiento (ventana
+    // cross-origin) — se refresca el estado cuando la app recupera el foco, que es cuando el AE
+    // cierra o vuelve de esa pestaña.
+    const onFocus=()=>{ cfgLoadGmailStatus(); window.removeEventListener('focus',onFocus); };
+    window.addEventListener('focus',onFocus);
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+window.cfgDisconnectGmail=async function(){
+  if(!currentUser) return;
+  if(!confirm('¿Desconectar Gmail? Las cadencias activas dejarán de poder mandar correo hasta que reconectes.')) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/gmail/disconnect',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    showNotif('Gmail desconectado','success');
+    cfgLoadGmailStatus();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
+// ── Generación de contenido de cadencia — hermana de gcGenerateTemplate (5402), pero SIN contexto
+// de empresa: un correo de cadencia se genera UNA sola vez por paso y se manda a muchos prospectos
+// distintos vía merge-tags ({{nombre}}/{{empresa}}) resueltos por el backend al momento del envío
+// — evita 1 llamada a Claude por cada lead de una lista grande. ──
+async function gcGenerateCadenceStepTemplate(momento,tone){
+  const momLabel=GC_MOMENTOS.find(m=>m.id===momento)?.label||momento;
+  const toneBlock=tone==='directo'?TONO_DIRECTO_BLOCK
+    :tone==='personalizado'?`TONO PERSONALIZADO (definido por el AE en Configuración): ${(currentUserData?.customTonePrompt||'').trim()||'(no configurado — usa un tono profesional consultivo por defecto)'}`
+    :`TONO: ${tone}`;
+  const text=await gcCallClaude(`Eres un experto en outbound B2B para México y LATAM, especializado en venta consultiva de plataformas SaaS tipo ERP (como Odoo). Genera UN correo para un paso de una cadencia automatizada de Account Executives de Odoo.
+
+Este correo se manda a MUCHOS prospectos distintos sin regenerar contenido por cada uno — por eso NO tienes datos reales de una empresa específica: donde iría el nombre del contacto escribe LITERALMENTE {{nombre}}, y donde iría el nombre de la empresa escribe LITERALMENTE {{empresa}} (con las llaves dobles tal cual, sin traducir ni describir, sin inventar ningún otro dato específico de industria/dolores/cifras — mantén el resto genérico pero natural).
+
+MOMENTO DEL TOQUE: ${momLabel}
+${toneBlock}
+
+CANAL: Correo electrónico
+- ASUNTO (2-5 palabras, con intriga sin clickbait, sin mayúsculas sostenidas ni signos de admiración)
+- Cuerpo BREVE: idealmente bajo 80 palabras
+- Pain-first: menciona el problema antes de la solución
+- CTA único y claro
+- Termina con el CTA, SIN firma de cierre ('Saludos', 'Atentamente', ni el nombre suelto)
+- Formato EXACTO: "ASUNTO: [asunto]\\n---\\n[cuerpo]"
+
+${gcMomentoInstructions(momento)}
+
+Reglas generales:
+- Tono de venta CONSULTIVA, nunca agresivo ni de catálogo
+- NO inventes datos, cifras ni hechos — usa {{nombre}}/{{empresa}} donde corresponda y mantén todo lo demás genérico
+- NO menciones a Claude ni a ninguna IA
+- NO uses markdown (nada de **negritas** ni viñetas)
+- Español de México natural y directo
+- Responde ÚNICAMENTE con el correo en el formato pedido, sin texto adicional antes o después`,null,{maxTokens:1200});
+  return gcParseEmailParts(text);
+}
+
+// ── Módulo Cadencias: nav + tabs (mismo patrón que renderHistorico/histShowTab) ──
+let _cadTab='activas';
+let _cadTemplatesCache=null;
+let _cadActiveCache=null;
+
+function renderCadencias(){
+  document.getElementById('moduleContent').innerHTML=`
+    <div class="page-header"><h2>📨 Cadencias</h2><p>Activa y da seguimiento a secuencias de correo automatizadas — solo correo, todo se queda en la app.</p></div>
+    <div class="hist-tabbar" id="cadTabbar">
+      ${[['activas','Activas'],['nueva','Nueva cadencia'],['mis','Mis cadencias'],['historial','Historial por empresa']]
+        .map(([k,l])=>`<button class="hist-tab ${_cadTab===k?'active':''}" onclick="cadShowTab('${k}')">${l}</button>`).join('')}
+    </div>
+    <div id="cadTabBody"></div>`;
+  cadShowTab(_cadTab);
+}
+window.cadShowTab=function(tab){
+  _cadTab=tab;
+  document.querySelectorAll('#cadTabbar .hist-tab').forEach((b,i)=>{
+    b.classList.toggle('active',['activas','nueva','mis','historial'][i]===tab);
+  });
+  const map={activas:cadRenderActivas, nueva:cadRenderNueva, mis:cadRenderMisCadencias, historial:cadRenderHistorial};
+  const fn=map[tab]; if(fn) fn();
+};
+
+// ── Tab: Activas ──
+async function cadRenderActivas(){
+  const body=document.getElementById('cadTabBody'); if(!body) return;
+  body.innerHTML='<div class="cdc-empty">Cargando…</div>';
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/active',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    _cadActiveCache=data.cadences||[];
+  }catch(e){ body.innerHTML=`<div class="cdc-empty">Error al cargar: ${_esc(e.message)}</div>`; return; }
+  body.innerHTML=cadActivasHtml(_cadActiveCache);
+}
+function cadComputeAB(list){
+  const withVariant=list.filter(c=>c.variant==='A'||c.variant==='B');
+  if(!withVariant.length) return null;
+  const stats={A:{total:0,respondio:0},B:{total:0,respondio:0}};
+  withVariant.forEach(c=>{ stats[c.variant].total++; if(c.status==='respondio') stats[c.variant].respondio++; });
+  const pct=n=>n.total?Math.round(100*n.respondio/n.total):0;
+  return {A:{total:stats.A.total,pct:pct(stats.A)}, B:{total:stats.B.total,pct:pct(stats.B)}, smallSample:(stats.A.total<20||stats.B.total<20)};
+}
+function cadActivasHtml(list){
+  if(!list.length) return '<div class="cdc-empty">Sin cadencias activas todavía. Actívala desde Resultados en Generación de leads, o desde "Nueva cadencia".</div>';
+  const ab=cadComputeAB(list);
+  const abHtml=ab?`<div class="card" style="margin-bottom:16px;padding:14px 18px">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">Comparación A/B</div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        ${['A','B'].map(v=>`<div><div style="font-weight:700">Variante ${v}</div><div style="font-size:13px;color:var(--gray-500)">${ab[v].total} lead${ab[v].total===1?'':'s'} · ${ab[v].pct}% respondió</div></div>`).join('')}
+      </div>
+      ${ab.smallSample?'<div style="font-size:11px;color:var(--warning);margin-top:6px">⚠️ Muestra chica — toma esta comparación con cautela.</div>':''}
+    </div>`:'';
+  const statusBadge={activa:'🟢 Activa',detenida:'⏸ Detenida',respondio:'✅ Respondió'};
+  return abHtml+list.map(c=>{
+    const nextStep=(c.steps||[]).find(s=>s.status==='pendiente');
+    return `<div class="card" style="margin-bottom:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="min-width:0">
+        <div style="font-weight:700">${_esc(c.companyName||c.leadEmail||'')}${c.variant?` <span style="font-size:11px;color:var(--purple)">· Variante ${c.variant}</span>`:''}</div>
+        <div style="font-size:12px;color:var(--gray-500)">${_esc(c.leadName||'')} · ${_esc(c.leadEmail||'')}</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:4px">${statusBadge[c.status]||c.status}${nextStep?` · Próximo: ${_esc(nextStep.label||'')} (${nextStep.scheduledDate})`:''}${c.stopReason?` · ${_esc(c.stopReason)}`:''}</div>
+      </div>
+      ${c.status==='activa'?`<button class="btn btn-ghost-danger btn-sm" onclick="cadStopCadence('${c.id}')">Detener</button>`:''}
+    </div>`;
+  }).join('');
+}
+window.cadStopCadence=async function(id){
+  if(!confirm('¿Detener esta cadencia? No se puede reactivar — habría que crear una nueva.')) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/'+id+'/stop',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    showNotif('Cadencia detenida','success');
+    cadRenderActivas();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
+// ── Tab: Mis cadencias (Sugerida + plantillas propias del equipo) ──
+async function cadRenderMisCadencias(){
+  const body=document.getElementById('cadTabBody'); if(!body) return;
+  body.innerHTML='<div class="cdc-empty">Cargando…</div>';
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/templates',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    _cadTemplatesCache=data.templates||[];
+  }catch(e){ body.innerHTML=`<div class="cdc-empty">Error al cargar: ${_esc(e.message)}</div>`; return; }
+  body.innerHTML=`<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn btn-primary btn-sm" onclick="cadOpenTemplateEditor(null)">+ Nueva plantilla</button></div>`+
+    _cadTemplatesCache.map(t=>`<div class="card" style="margin-bottom:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:700">${_esc(t.name)}${t.isDefault?' <span style="font-size:11px;color:var(--gray-400)">(Sugerida)</span>':''}${t.variantBSteps?' <span style="font-size:11px;color:var(--purple)">· A/B</span>':''}</div>
+        <div style="font-size:12px;color:var(--gray-500)">${(t.steps||[]).length} correo${(t.steps||[]).length===1?'':'s'} — ${(t.steps||[]).map(s=>`día ${s.day}`).join(', ')}</div>
+      </div>
+      ${t.isDefault?`<button class="btn btn-ghost btn-sm" onclick="cadOpenTemplateEditor('${t.id}',true)">Duplicar y editar</button>`
+                    :`<button class="btn btn-ghost btn-sm" onclick="cadOpenTemplateEditor('${t.id}')">Editar</button>`}
+    </div>`).join('');
+}
+let _cadEditorState=null;
+window.cadOpenTemplateEditor=function(templateId,duplicate){
+  const existing=templateId?_cadTemplatesCache.find(t=>t.id===templateId):null;
+  _cadEditorState={
+    id:(existing&&!duplicate)?existing.id:null,
+    name:existing?(duplicate?existing.name+' (copia)':existing.name):'Nueva cadencia',
+    steps:existing?JSON.parse(JSON.stringify(existing.steps||[])):[{day:0,momento:'primer_toque',label:'Primer toque'}],
+    variantBSteps:existing?.variantBSteps?JSON.parse(JSON.stringify(existing.variantBSteps)):null,
+  };
+  cadRenderTemplateEditor();
+};
+function cadRenderTemplateEditor(){
+  document.getElementById('cadEditorPopup')?.remove();
+  const st=_cadEditorState;
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='cadEditorPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:680px">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title">📨 ${st.id?'Editar plantilla':'Nueva plantilla'}</div>
+      <div class="disc-popup-actions"><button class="disc-copy-btn" onclick="document.getElementById('cadEditorPopup').remove()">✕ Cerrar</button></div>
+    </div>
+    <div class="disc-popup-body">
+      <div class="form-group"><label>Nombre</label><input type="text" class="input" id="cadEditorName" value="${_esc(st.name)}"></div>
+      <div style="margin:14px 0"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
+        <input type="checkbox" id="cadEditorAB" ${st.variantBSteps?'checked':''} onchange="cadEditorToggleAB()"> Cadencia A/B (dos secuencias, cada lead entra a una alternando)
+      </label></div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">${st.variantBSteps?'Variante A':'Toques'}</div>
+      <div id="cadEditorStepsA">${cadEditorStepsHtml('steps')}</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="cadEditorAddStep('steps')">+ Toque</button>
+      <div id="cadEditorBWrap" style="display:${st.variantBSteps?'block':'none'};margin-top:18px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">Variante B</div>
+        <div id="cadEditorStepsB">${cadEditorStepsHtml('variantBSteps')}</div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="cadEditorAddStep('variantBSteps')">+ Toque</button>
+      </div>
+      <button class="btn btn-primary" style="margin-top:18px" onclick="cadSaveTemplate()">Guardar plantilla</button>
+    </div>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+}
+function cadEditorStepsHtml(key){
+  const steps=_cadEditorState[key]||[];
+  return steps.map((s,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+    <input type="number" class="input" style="width:64px" value="${s.day}" onchange="cadEditorUpdateStep('${key}',${i},'day',this.value)" title="Día">
+    <select class="input" style="flex:1" onchange="cadEditorUpdateStep('${key}',${i},'momento',this.value)">
+      ${GC_MOMENTOS.map(m=>`<option value="${m.id}" ${s.momento===m.id?'selected':''}>${_esc(m.label)}</option>`).join('')}
+    </select>
+    <input type="text" class="input" style="flex:1" value="${_esc(s.label||'')}" placeholder="Etiqueta" onchange="cadEditorUpdateStep('${key}',${i},'label',this.value)">
+    <button class="btn btn-ghost-danger btn-sm" onclick="cadEditorRemoveStep('${key}',${i})">🗑</button>
+  </div>`).join('');
+}
+window.cadEditorToggleAB=function(){
+  const on=document.getElementById('cadEditorAB').checked;
+  _cadEditorState.variantBSteps=on?(_cadEditorState.variantBSteps||JSON.parse(JSON.stringify(_cadEditorState.steps))):null;
+  document.getElementById('cadEditorBWrap').style.display=on?'block':'none';
+  if(on) document.getElementById('cadEditorStepsB').innerHTML=cadEditorStepsHtml('variantBSteps');
+};
+window.cadEditorAddStep=function(key){
+  _cadEditorState[key]=_cadEditorState[key]||[];
+  _cadEditorState[key].push({day:0,momento:'primer_toque',label:''});
+  document.getElementById(key==='steps'?'cadEditorStepsA':'cadEditorStepsB').innerHTML=cadEditorStepsHtml(key);
+};
+window.cadEditorRemoveStep=function(key,i){
+  _cadEditorState[key].splice(i,1);
+  document.getElementById(key==='steps'?'cadEditorStepsA':'cadEditorStepsB').innerHTML=cadEditorStepsHtml(key);
+};
+window.cadEditorUpdateStep=function(key,i,field,val){
+  _cadEditorState[key][i][field]=field==='day'?(Number(val)||0):val;
+};
+window.cadSaveTemplate=async function(){
+  const name=document.getElementById('cadEditorName')?.value.trim();
+  if(!name){ showNotif('Ponle un nombre a la plantilla','error'); return; }
+  if(!_cadEditorState.steps.length){ showNotif('Agrega al menos un toque','error'); return; }
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/templates',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`,'Content-Type':'application/json'},
+      body:JSON.stringify({id:_cadEditorState.id,name,steps:_cadEditorState.steps,variantBSteps:_cadEditorState.variantBSteps})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    showNotif('Plantilla guardada ✓','success');
+    document.getElementById('cadEditorPopup')?.remove();
+    cadRenderMisCadencias();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
+// ── Tab: Nueva cadencia — carga/pega de lista directa, sin pasar por el buscador ──
+let _cadUploadRows=[];
+let _cadUpFileAttachment=null;
+function cadRenderNueva(){
+  const body=document.getElementById('cadTabBody'); if(!body) return;
+  body.innerHTML=`
+    <div class="card" style="padding:20px;margin-bottom:16px">
+      <p class="settings-desc">Sube o pega una lista de prospectos para activarles una cadencia de correo directo — sin pasar por el buscador de leads.</p>
+      <div class="form-group"><label>Fuente</label><input type="text" class="input" id="cadUpFuente" placeholder="Ej. Lista propia, evento, base de LinkedIn..."></div>
+      <div id="cadUpDropZone" style="border:2px dashed var(--gray-200);border-radius:var(--radius);padding:16px;text-align:center;margin-bottom:12px;transition:border-color .15s;cursor:pointer;background:var(--gray-50)"
+        onclick="document.getElementById('cadUpFileInput').click()"
+        ondragover="event.preventDefault();this.style.borderColor='var(--purple)'"
+        ondragleave="this.style.borderColor='var(--gray-200)'"
+        ondrop="event.preventDefault();this.style.borderColor='var(--gray-200)';cadUpHandleFile(event.dataTransfer.files[0])">
+        <input type="file" id="cadUpFileInput" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.csv,.txt,.xls,.xlsx" onchange="cadUpHandleFile(this.files[0])">
+        <div style="font-size:24px;margin-bottom:4px">📎</div>
+        <div style="font-size:13px;font-weight:600;color:var(--gray-700)">Arrastra un archivo o haz clic para seleccionar</div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:2px">PDF · Imagen (JPG/PNG) · CSV · TXT</div>
+      </div>
+      <div id="cadUpFileStatus" style="display:none;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:10px;background:var(--accent-light);color:var(--accent)"></div>
+      <div style="text-align:center;font-size:12px;color:var(--gray-400);margin-bottom:8px">— o escribe/pega los datos directamente —</div>
+      <textarea class="input" id="cadUpRawData" style="min-height:120px;resize:vertical;font-family:'Inter',monospace;font-size:12px" placeholder="Empresa, contacto, correo, teléfono..."></textarea>
+      <button class="gc-generate-btn" style="margin-top:12px" id="cadUpProcessBtn" onclick="cadUploadProcess()"><span>🤖</span> Procesar lista</button>
+      <div class="gc-loading" id="cadUpLoading"><div class="gc-spinner"></div><span>Procesando prospectos...</span></div>
+    </div>
+    <div id="cadUpPreview"></div>`;
+  cadRenderUploadPreview();
+}
+window.cadUpHandleFile=async function(file){
+  _cadUpFileAttachment=null;
+  const statusFn=(msg,type)=>{
+    const el=document.getElementById('cadUpFileStatus'); if(!el) return;
+    const colors={info:'var(--accent-light)',success:'var(--success-light)',error:'var(--danger-light)',warn:'var(--warning-light)'};
+    const textColors={info:'var(--accent)',success:'var(--success)',error:'var(--danger)',warn:'var(--warning)'};
+    el.style.display='block'; el.style.background=colors[type]||colors.info; el.style.color=textColors[type]||textColors.info; el.textContent=msg;
+  };
+  const result=await readUploadedLeadFile(file,statusFn);
+  if(result?.fileAttachment) _cadUpFileAttachment=result.fileAttachment;
+  if(result?.rawText){ const ta=document.getElementById('cadUpRawData'); if(ta) ta.value=result.rawText; }
+};
+window.cadUploadProcess=async function(){
+  const fuente=document.getElementById('cadUpFuente')?.value.trim()||'Lista propia';
+  const rawData=document.getElementById('cadUpRawData')?.value.trim();
+  if(!rawData&&!_cadUpFileAttachment){ showNotif('Pega datos o carga un archivo','error'); return; }
+  const btn=document.getElementById('cadUpProcessBtn'); btn.disabled=true; gcShowLoading('cadUpLoading',true);
+  try{
+    const {extracted}=await parseLeadRowsFromUpload(fuente,rawData,_cadUpFileAttachment,{});
+    _cadUploadRows=extracted.map(r=>({empresa:r.partner_name||'',contacto:r.contact_name||'',cargo:r.function||'',email:r.Email||'',phone:r.phone||'',website:r.Website||''}));
+    cadRenderUploadPreview();
+    showNotif(`${_cadUploadRows.length} prospecto${_cadUploadRows.length===1?'':'s'} listo${_cadUploadRows.length===1?'':'s'} ✓`,'success');
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+  btn.disabled=false; gcShowLoading('cadUpLoading',false);
+};
+function cadRenderUploadPreview(){
+  const el=document.getElementById('cadUpPreview'); if(!el) return;
+  if(!_cadUploadRows.length){ el.innerHTML=''; return; }
+  const withEmail=_cadUploadRows.filter(r=>r.email).length;
+  el.innerHTML=`<div class="card" style="padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:700">${_cadUploadRows.length} prospecto${_cadUploadRows.length===1?'':'s'} (${withEmail} con correo)</div>
+      <button class="btn btn-primary btn-sm" onclick="openCadenceActivationModal(_cadUploadRows)">📨 Activar cadencia</button>
+    </div>
+    <div style="max-height:340px;overflow:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="text-align:left;color:var(--gray-400);font-size:11px;text-transform:uppercase">
+          <th style="padding:6px">Empresa</th><th style="padding:6px">Contacto</th><th style="padding:6px">Correo</th><th style="padding:6px">Tel</th><th></th>
+        </tr></thead>
+        <tbody>${_cadUploadRows.map((r,i)=>`<tr style="border-top:1px solid var(--gray-100)">
+          <td style="padding:6px">${_esc(r.empresa)}</td><td style="padding:6px">${_esc(r.contacto)}</td>
+          <td style="padding:6px${!r.email?';color:var(--danger)':''}">${_esc(r.email)||'sin correo'}</td><td style="padding:6px">${_esc(r.phone)}</td>
+          <td style="padding:6px"><button class="btn btn-ghost btn-sm" onclick="cadUpRemoveRow(${i})">✕</button></td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+window.cadUpRemoveRow=function(i){ _cadUploadRows.splice(i,1); cadRenderUploadPreview(); };
+
+// ── Tab: Historial por empresa — enviados + respuestas, con copiar al portapapeles ──
+function cadRenderHistorial(){
+  const body=document.getElementById('cadTabBody'); if(!body) return;
+  body.innerHTML=`<div class="form-group" style="max-width:420px">
+    <label>Buscar empresa</label>
+    <input type="text" class="input" id="cadHistSearch" placeholder="Nombre o dominio de la empresa..." onkeydown="if(event.key==='Enter')cadHistSearchGo()">
+    <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="cadHistSearchGo()">Buscar</button>
+  </div>
+  <div id="cadHistBody" style="margin-top:16px"></div>`;
+}
+function _cadCompanyKey(nombre,website){
+  const domain=String(website||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0];
+  return domain||String(nombre||'').toLowerCase().trim();
+}
+window.cadHistSearchGo=function(){
+  const raw=document.getElementById('cadHistSearch')?.value.trim();
+  if(!raw){ showNotif('Escribe el nombre o dominio de la empresa','error'); return; }
+  cadLoadCompanyHistory(_cadCompanyKey(raw,raw));
+};
+async function cadLoadCompanyHistory(companyKey){
+  const body=document.getElementById('cadHistBody'); if(!body) return;
+  body.innerHTML='<div class="cdc-empty">Cargando…</div>';
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/company/'+encodeURIComponent(companyKey)+'/history',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    body.innerHTML=cadHistoryTimelineHtml(data.timeline||[]);
+  }catch(e){ body.innerHTML=`<div class="cdc-empty">Error: ${_esc(e.message)}</div>`; }
+}
+function cadHistoryTimelineHtml(timeline){
+  if(!timeline.length) return '<div class="cdc-empty">Sin actividad de cadencias para esta empresa todavía.</div>';
+  const fmt=s=>{ try{return new Date(s).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return s||'';} };
+  return timeline.map((item,i)=>{
+    if(item.type==='enviado'){
+      const full=(item.subject||'')+'\n\n'+(item.html||'');
+      return `<div class="card" style="padding:14px;margin-bottom:10px;border-left:3px solid var(--purple)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
+          <div style="font-size:12px;font-weight:700;color:var(--purple)">📤 Enviado — ${_esc(item.label||'')}</div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--gray-400)">${fmt(item.at)}</span>
+            <button class="btn btn-ghost btn-sm" onclick="cadCopyHistItem(${i})">📋 Copiar</button></div>
+        </div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">${_esc(item.subject||'')}</div>
+        <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap" id="cadHistText${i}" data-full="${_esc(full)}">${_esc(item.html||'')}</div>
+      </div>`;
+    }
+    const full=item.bodyText||item.snippet||'';
+    return `<div class="card" style="padding:14px;margin-bottom:10px;border-left:3px solid var(--success)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
+        <div style="font-size:12px;font-weight:700;color:var(--success)">📥 Respuesta${item.fromEmail?(' · '+_esc(item.fromEmail)):''}</div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--gray-400)">${fmt(item.at)}</span>
+          <button class="btn btn-ghost btn-sm" onclick="cadCopyHistItem(${i})">📋 Copiar</button></div>
+      </div>
+      <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap" id="cadHistText${i}" data-full="${_esc(full)}">${_esc(full)}</div>
+    </div>`;
+  }).join('');
+}
+window.cadCopyHistItem=async function(i){
+  const el=document.getElementById('cadHistText'+i); if(!el) return;
+  await navigator.clipboard.writeText(el.dataset.full||el.textContent||'');
+  showNotif('Copiado ✓','success');
+};
+// Cruce desde la ficha de empresa (empOpenDetail) — abre el módulo directo en Historial, filtrado.
+window.cadOpenHistoryForCompany=function(nombre,website){
+  const key=_cadCompanyKey(nombre,website);
+  showModule('cadencias');
+  cadShowTab('historial');
+  const input=document.getElementById('cadHistSearch'); if(input) input.value=nombre||key;
+  cadLoadCompanyHistory(key);
+};
+
+// ── Modal de activación compartido — entrada A (Resultados de CSV Builder) y entrada B (Nueva
+// cadencia) convergen aquí, una sola vez, para no duplicar la lógica de activación. ──
+let _cadActivation=null;
+window.openCadenceActivationModal=async function(leads){
+  if(!leads||!leads.length){ showNotif('No hay prospectos seleccionados','error'); return; }
+  const withEmail=leads.filter(l=>l.email);
+  if(!withEmail.length){ showNotif('Ninguno de los seleccionados tiene correo — la cadencia es solo de correo.','error'); return; }
+  if(withEmail.length<leads.length) showNotif(`${leads.length-withEmail.length} sin correo se excluyen de la cadencia.`,'info');
+  if(!_cadTemplatesCache){
+    try{
+      const idToken=await currentUser.getIdToken();
+      const res=await fetch(CADENCES_BASE+'/cadences/templates',{headers:{'Authorization':`Bearer ${idToken}`}});
+      const data=await res.json().catch(()=>({}));
+      if(res.ok) _cadTemplatesCache=data.templates||[];
+    }catch(e){ /* si falla, el picker sale vacío y se avisa en cadActStepsHtml */ }
+  }
+  const defaultTpl=_cadTemplatesCache?.find(t=>t.isDefault)||_cadTemplatesCache?.[0]||null;
+  _cadActivation={leads:withEmail, templateId:defaultTpl?.id||null, tone:'interesante', content:{A:{},B:{}}, gmailConnected:null};
+  cadRenderActivationModal();
+  cadCheckGmailForActivation();
+};
+async function cadCheckGmailForActivation(){
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/gmail/status',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    _cadActivation.gmailConnected=!!data.connected;
+  }catch(e){ _cadActivation.gmailConnected=false; }
+  const warn=document.getElementById('cadActGmailWarn');
+  if(warn) warn.style.display=_cadActivation.gmailConnected?'none':'block';
+}
+function cadCurrentTemplate(){ return _cadTemplatesCache?.find(t=>t.id===_cadActivation.templateId)||null; }
+function cadRenderActivationModal(){
+  document.getElementById('cadActPopup')?.remove();
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='cadActPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:820px">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title">📨 Activar cadencia — ${_cadActivation.leads.length} prospecto${_cadActivation.leads.length===1?'':'s'}</div>
+      <div class="disc-popup-actions"><button class="disc-copy-btn" onclick="document.getElementById('cadActPopup').remove()">✕ Cerrar</button></div>
+    </div>
+    <div class="disc-popup-body">
+      <div id="cadActGmailWarn" style="display:none;padding:10px 14px;background:var(--warning-light);color:var(--warning);border-radius:8px;margin-bottom:14px;font-size:13px">⚠️ No tienes Gmail conectado — ve a Configuración → Mis datos antes de activar.</div>
+      <div class="form-grid-2">
+        <div class="form-group"><label>Plantilla</label>
+          <select class="input" onchange="cadActSetTemplate(this.value)">
+            ${(_cadTemplatesCache||[]).map(t=>`<option value="${t.id}" ${t.id===_cadActivation.templateId?'selected':''}>${_esc(t.name)}${t.isDefault?' (Sugerida)':''}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label>Tono</label>
+          <select class="input" onchange="_cadActivation.tone=this.value">
+            ${TONES.map(t=>`<option value="${t.id}" ${t.id===_cadActivation.tone?'selected':''}>${t.icon} ${t.label}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div id="cadActStepsWrap">${cadActStepsHtml()}</div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-200)">
+        <div style="font-size:12px;color:var(--gray-500);margin-bottom:10px">Cada correo se genera UNA vez y se personaliza con {{nombre}}/{{empresa}} automáticamente al momento de enviar — no hace falta regenerar por cada prospecto.</div>
+        <button class="btn btn-primary" onclick="cadConfirmActivation()">Activar cadencia</button>
+      </div>
+    </div>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+}
+window.cadActSetTemplate=function(id){ _cadActivation.templateId=id; document.getElementById('cadActStepsWrap').innerHTML=cadActStepsHtml(); };
+function cadActStepsHtml(){
+  const tpl=cadCurrentTemplate();
+  if(!tpl) return '<div class="cdc-empty">No hay plantillas — crea una en "Mis cadencias".</div>';
+  const variants=tpl.variantBSteps?['A','B']:['A'];
+  return variants.map(v=>{
+    const steps=v==='B'?tpl.variantBSteps:tpl.steps;
+    return `${tpl.variantBSteps?`<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin:14px 0 8px">Variante ${v}</div>`:''}
+      ${steps.map(s=>{
+        const c=_cadActivation.content[v][s.day]||{subject:'',html:''};
+        return `<div class="card" style="padding:14px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+            <div style="font-weight:600;font-size:13px">Día ${s.day} — ${_esc(s.label||'')}</div>
+            <button class="btn btn-ghost btn-sm" onclick="cadActGenerateStep('${v}',${s.day},'${s.momento}')" id="cadActGenBtn_${v}_${s.day}">✨ Generar con IA</button>
+          </div>
+          <input type="text" class="input" placeholder="Asunto" value="${_esc(c.subject)}" style="margin-bottom:6px" id="cadActSubj_${v}_${s.day}" onchange="cadActUpdateContent('${v}',${s.day},'subject',this.value)">
+          <textarea class="input" placeholder="Cuerpo del correo — usa {{nombre}} y {{empresa}}" style="min-height:100px;resize:vertical" id="cadActBody_${v}_${s.day}" onchange="cadActUpdateContent('${v}',${s.day},'html',this.value)">${_esc(c.html)}</textarea>
+        </div>`;
+      }).join('')}`;
+  }).join('');
+}
+window.cadActUpdateContent=function(variant,day,field,val){
+  _cadActivation.content[variant][day]=_cadActivation.content[variant][day]||{subject:'',html:''};
+  _cadActivation.content[variant][day][field]=val;
+};
+window.cadActGenerateStep=async function(variant,day,momento){
+  const btn=document.getElementById(`cadActGenBtn_${variant}_${day}`);
+  if(btn){ btn.disabled=true; btn.textContent='Generando…'; }
+  try{
+    const {subject,body}=await gcGenerateCadenceStepTemplate(momento,_cadActivation.tone);
+    _cadActivation.content[variant][day]={subject,html:body};
+    const subjEl=document.getElementById(`cadActSubj_${variant}_${day}`); if(subjEl) subjEl.value=subject;
+    const bodyEl=document.getElementById(`cadActBody_${variant}_${day}`); if(bodyEl) bodyEl.value=body;
+  }catch(e){ showNotif('Error al generar: '+e.message,'error'); }
+  if(btn){ btn.disabled=false; btn.textContent='✨ Generar con IA'; }
+};
+window.cadConfirmActivation=async function(){
+  const tpl=cadCurrentTemplate();
+  if(!tpl){ showNotif('Elige una plantilla','error'); return; }
+  const variants=tpl.variantBSteps?['A','B']:['A'];
+  for(const v of variants){
+    const steps=v==='B'?tpl.variantBSteps:tpl.steps;
+    for(const s of steps){
+      const c=_cadActivation.content[v][s.day];
+      if(!c?.html?.trim()){ showNotif(`Falta contenido del día ${s.day}${tpl.variantBSteps?' (variante '+v+')':''} — genera o escribe el correo antes de activar.`,'error'); return; }
+    }
+  }
+  if(!confirm(`¿Activar esta cadencia para ${_cadActivation.leads.length} prospecto${_cadActivation.leads.length===1?'':'s'}? Empezará a mandar correos automáticamente.`)) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const leads=_cadActivation.leads.map(l=>({
+      empresa:l.empresa,contacto:l.contacto,email:l.email,phone:l.phone,website:l.website,companyId:l.companyId||null,
+      content:_cadActivation.content,
+    }));
+    const res=await fetch(CADENCES_BASE+'/cadences/activate',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`,'Content-Type':'application/json'},
+      body:JSON.stringify({templateId:tpl.id,steps:tpl.steps,variantBSteps:tpl.variantBSteps||null,leads})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    const results=data.results||[];
+    const ok=results.filter(r=>r.ok).length, fail=results.length-ok;
+    showNotif(`Cadencia activada: ${ok} lead${ok===1?'':'s'}${fail?`, ${fail} con error`:''}`,fail?'info':'success');
+    document.getElementById('cadActPopup')?.remove();
+    showModule('cadencias');
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
+// ── Entrada A: hookup en CSV Builder (#csvBulkBar, ver csvExportSelected como precedente) ──
+window.csvActivateCadenceSelected=function(){
+  const idxs=csvSelectedIndices();
+  if(!idxs.length){ showNotif('Selecciona al menos un prospecto','error'); return; }
+  const rows=idxs.map(i=>csvRows[i]).filter(Boolean);
+  const leads=rows.map(r=>({empresa:r.partner_name,contacto:r.contact_name,email:r.Email,phone:r.phone,website:r.Website,cargo:r.function}));
+  openCadenceActivationModal(leads);
+};
 </script>
 </body>
 </html>
