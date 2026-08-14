@@ -1371,7 +1371,7 @@ function startAuthListener(){
       const snap = await getDoc(doc(db,'users',user.uid));
       if(snap.exists()){ currentUserData=snap.data(); routeByStatus(); }
       else showScreen('register');
-    } else { currentUser=null; currentUserData=null; showScreen('login'); }
+    } else { currentUser=null; currentUserData=null; if(typeof _userScopeCache!=='undefined') _userScopeCache=null; showScreen('login'); }
   });
 }
 function routeByStatus(){
@@ -3985,6 +3985,10 @@ async function saveCompany(data){
     } else {
       const ref=await addDoc(collection(db,'companies'),{...data,
         createdBy:currentUserData?.name||'', createdByUid:currentUserData?.uid||'', createdByGram:currentUserData?.gram||'',
+        // tlId del creador (mismo patrón que discoveryRecords/csvSessions) — companies viejas no lo
+        // traen, por eso getUserScope() filtra por roster (users.tlId) y no por este campo todavía;
+        // se guarda desde ahora para el día que se pueda migrar la query a where('tlId','==',...).
+        tlId:currentUserData?.tlId||null,
         createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
       return ref.id;
     }
@@ -4092,11 +4096,44 @@ function buildMemoryContext(company){
   return parts.length ? `\n--- MEMORIA ACUMULADA DE LA EMPRESA ---\n${parts.join('\n')}\n---` : '';
 }
 
-async function searchCompanies(term=''){
+// ── Alcance por rol, reutilizable en cualquier búsqueda/listado de la app (no solo empresas) ──
+// manager: todo · tl: lo suyo + su equipo (users con tlId==uid) · ae: solo lo suyo. Mismo patrón
+// de discoveryRecords/analyticsLoad, pero pensado para colecciones que (como companies) no
+// guardan tlId por registro: en vez de una query where('tlId',...), resuelve el roster del equipo
+// (uids+grams) UNA vez contra 'users' y deja que quien llama filtre en cliente con matchesScope().
+// Se cachea en la sesión (se limpia en logout, ver startAuthListener) porque el roster de un TL no
+// cambia a media sesión y evita repetir la query de 'users' en cada búsqueda de empresa.
+let _userScopeCache=null;
+async function getUserScope(){
+  if(_userScopeCache) return _userScopeCache;
+  const me=currentUserData||{};
+  const role=me.role;
+  if(role==='manager'){ _userScopeCache={role,all:true,uids:new Set(),grams:new Set()}; return _userScopeCache; }
+  const uids=new Set([me.uid].filter(Boolean)), grams=new Set([me.gram].filter(Boolean));
+  if(role==='tl'&&db){
+    try{
+      const s=await getDocs(query(collection(db,'users'),where('tlId','==',me.uid)));
+      s.docs.forEach(d=>{ const u=d.data(); if(u.uid) uids.add(u.uid); if(u.gram) grams.add(u.gram); });
+    }catch(e){ console.warn('getUserScope team:',e); }
+  }
+  _userScopeCache={role,all:false,uids,grams};
+  return _userScopeCache;
+}
+function matchesScope(c,scope){
+  return scope.all || (c.createdByUid&&scope.uids.has(c.createdByUid)) || (c.createdByGram&&scope.grams.has(c.createdByGram));
+}
+// opts.all=true se salta el alcance por rol y regresa TODAS las empresas — para el link "Buscar en
+// todas las empresas" del picker (m2oShowAllCompanies) y para el cruce de deduplicación al importar
+// CSVs al CRM (csvSyncRowsToCRM), que debe comparar contra la empresa completa, no solo tu alcance.
+async function searchCompanies(term='', opts={}){
   if(!db) return [];
   try{
     const snap=await getDocs(query(collection(db,'companies'),orderBy('nombre')));
-    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    let all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!opts.all){
+      const scope=await getUserScope();
+      if(!scope.all) all=all.filter(c=>matchesScope(c,scope));
+    }
     if(!term) return all;
     const t=term.toLowerCase();
     return all.filter(c=>(c.nombre||'').toLowerCase().includes(t)||(c.giro||'').toLowerCase().includes(t));
@@ -4110,10 +4147,10 @@ async function getCompany(id){
 }
 
 // ── Many2one (Company + Contact picker) — estilo Odoo ──
-const cpState = { selectedCompany:null, selectedContact:null, companies:[], cb:null, activeId:null };
+const cpState = { selectedCompany:null, selectedContact:null, companies:[], cb:null, activeId:null, showingAll:false };
 
 async function mountCompanyPicker(containerId, callback){
-  cpState.cb=callback; cpState.activeId=containerId;
+  cpState.cb=callback; cpState.activeId=containerId; cpState.showingAll=false;
   cpState.companies=await searchCompanies();
   renderM2o(containerId);
 }
@@ -4258,16 +4295,33 @@ window.m2oEmpBlur=function(cid){
 async function m2oShowEmpDrop(cid,term){
   const drop=document.getElementById('m2oEmpDrop_'+cid); if(!drop) return;
   const filtered=term?cpState.companies.filter(c=>(c.nombre||'').toLowerCase().includes(term.toLowerCase())):cpState.companies;
+  // "Buscar en todas las empresas" — el picker abre acotado a tu alcance (ae=lo tuyo, tl=tu equipo,
+  // manager=todo); este link amplía el pool a TODA la empresa cuando lo que buscas no está en tu
+  // alcance. No se muestra si ya estás viendo todo (manager, o ya se amplió antes en este picker).
+  let moreRow='';
+  if(!cpState.showingAll){
+    const scope=await getUserScope();
+    if(!scope.all) moreRow=`<div class="m2o-create" style="border-top:1px solid var(--gray-100)" onmousedown="m2oShowAllCompanies('${cid}','${(term||'').replace(/'/g,"\\'")}')">
+      <span>🔍</span> Buscar en todas las empresas
+    </div>`;
+  }
   drop.innerHTML=(filtered.length>0?filtered.map(c=>`
     <div class="m2o-option" onmousedown="m2oSelectCo('${c.id}','${cid}')">
       <span class="m2o-option-name">${c.nombre}</span>
       <span class="m2o-option-meta">${[c.giro,c.tamaño].filter(Boolean).join(' · ')}</span>
     </div>`).join(''):'<div class="m2o-empty">Sin resultados</div>')+
+    moreRow+
     `<div class="m2o-create" onmousedown="m2oStartCreateCo('${cid}','${term||''}')">
       <span>＋</span> Crear "${term||'nueva empresa'}"
     </div>`;
   drop.classList.add('open');
 }
+window.m2oShowAllCompanies=async function(cid,term){
+  cpState.showingAll=true;
+  cpState.companies=await searchCompanies('',{all:true});
+  m2oShowEmpDrop(cid,term);
+  const input=document.getElementById('m2oEmp_'+cid); if(input) input.focus();
+};
 window.m2oSelectCo=async function(id,cid){
   const c=await getCompany(id)||cpState.companies.find(x=>x.id===id);
   if(!c) return;
@@ -9296,12 +9350,13 @@ window.discShowPopup=function(sourceId,title){
 // MÓDULO EMPRESAS
 // ══════════════════════════════════════════
 async function renderEmpresas(){
-  _empMineOnly=false;
+  _empMineOnly=false; _empShowAll=false;
   const content=document.getElementById('moduleContent');
+  const role=currentUserData?.role;
   content.innerHTML=`
     <div style="max-width:1100px;margin:0 auto;padding:24px">
       <div class="page-header" style="margin-bottom:20px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div><h2>🏢 Empresas</h2><p>Directorio de empresas con sus documentos y actividad relacionada.</p></div>
+        <div><h2>🏢 Empresas</h2><p>Directorio de empresas con sus documentos y actividad relacionada. <span id="empScopeLabel" style="color:var(--gray-400)"></span></p></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-ghost" onclick="empShowCreateContact()">👤 Nuevo contacto</button>
           <button class="btn btn-primary" onclick="empShowCreate()">+ Nueva empresa</button>
@@ -9313,8 +9368,9 @@ async function renderEmpresas(){
           <option value="">Todas las industrias</option>
           ${Object.keys(INDUSTRY_MAP).map(k=>`<option>${k}</option>`).join('')}
         </select>
-        ${(currentUserData?.role==='tl'||currentUserData?.role==='manager')?`<select id="empAccountFilter" class="input" style="max-width:180px" onchange="empFilter()"><option value="">Todas las cuentas</option></select>`:''}
-        <button id="empMineBtn" class="btn btn-ghost btn-sm" onclick="empToggleMine()">🙋 Mis empresas</button>
+        ${(role==='tl'||role==='manager')?`<select id="empAccountFilter" class="input" style="max-width:180px" onchange="empFilter()"><option value="">Todas las cuentas</option></select>`:''}
+        ${role!=='manager'?`<button id="empMineBtn" class="btn btn-ghost btn-sm" onclick="empToggleMine()">🙋 Mis empresas</button>`:''}
+        ${role!=='manager'?`<button id="empAllBtn" class="btn btn-ghost btn-sm" onclick="empToggleShowAll()">🔍 Buscar en todas las empresas</button>`:''}
       </div>
       <div id="empresasList"><div class="cdc-empty">Cargando empresas...</div></div>
     </div>`;
@@ -9322,9 +9378,19 @@ async function renderEmpresas(){
 }
 
 let _allEmpresas=[];
+let _empShowAll=false;
+// Alcance por default: ae=lo suyo · tl=lo suyo+su equipo · manager=todo (ver getUserScope). El
+// botón "🔍 Buscar en todas las empresas" (_empShowAll) es el escape hatch para cuando lo que
+// buscas quedó fuera de tu alcance — sin él, antes TODOS veían TODAS las empresas siempre, lo que
+// hacía tediosa la búsqueda para quien solo quería ver lo suyo.
 async function empLoad(){
   const list=document.getElementById('empresasList'); if(!list) return;
-  _allEmpresas=await searchCompanies();
+  _allEmpresas=await searchCompanies('',{all:_empShowAll});
+  const scopeLabel=document.getElementById('empScopeLabel');
+  if(scopeLabel){
+    const role=currentUserData?.role;
+    scopeLabel.textContent=_empShowAll?'· mostrando todas':role==='manager'?'· mostrando todas':role==='tl'?'· mostrando tu equipo':'· mostrando las tuyas';
+  }
   // Enrich with document counts from Firestore collections
   for(const co of _allEmpresas){
     co._docs={discovery:0,pricing:0};
@@ -9347,6 +9413,12 @@ async function empLoad(){
   }
   empRender(_allEmpresas);
 }
+window.empToggleShowAll=function(){
+  _empShowAll=!_empShowAll;
+  const btn=document.getElementById('empAllBtn');
+  if(btn){ btn.classList.toggle('btn-primary',_empShowAll); btn.classList.toggle('btn-ghost',!_empShowAll); }
+  empLoad();
+};
 function empRender(companies){
   const list=document.getElementById('empresasList'); if(!list) return;
   if(!companies.length){ list.innerHTML='<div class="cdc-empty">No hay empresas registradas todavía.</div>'; return; }
@@ -11451,7 +11523,7 @@ const CSV_ROLE_GROUP_OPTS=[
 function renderCsvBuilder(){
   const content=document.getElementById('moduleContent');
   content.innerHTML=`
-    <div style="max-width:900px;margin:0 auto;padding:24px 24px 0">
+    <div style="max-width:1080px;margin:0 auto;padding:24px 24px 0">
       <div class="page-header" style="margin-bottom:16px"><h2>📋 Generación de leads</h2><p>Convierte cualquier fuente de prospectos en un CSV listo para importar al CRM de Odoo.</p></div>
       <div id="csvIdiomaBannerWrap"></div>
     </div>
@@ -11464,7 +11536,7 @@ function csvRenderResultadosTab(content){
   const fullName=gram===MANAGER.gram?MANAGER.name:(AE_LIST[gram]||currentUserData?.name||'');
   const userId=fullName?`${fullName} (${gram})`:'';
   content.innerHTML=`
-    <div style="max-width:900px;margin:0 auto;padding:20px 24px 24px">
+    <div style="max-width:1080px;margin:0 auto;padding:20px 24px 24px">
       <div class="card" style="padding:24px;margin-bottom:20px" id="csvConfigCard">
         <h4 style="font-size:15px;font-weight:700;margin-bottom:4px">⚙️ Configuración de la carga</h4>
         <p style="font-size:11.5px;color:var(--gray-400);margin:0 0 16px">Estos campos solo aplican al pegar/subir un archivo — en modo Buscar leads no hacen nada, por eso se ocultan.</p>
@@ -11484,7 +11556,10 @@ function csvRenderResultadosTab(content){
         </div>
       </div>
       <div class="card" style="padding:24px;margin-bottom:20px">
-        <h4 style="font-size:15px;font-weight:700;margin-bottom:16px">📥 Datos de prospectos</h4>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px">
+          <h4 style="font-size:15px;font-weight:700;margin:0">📥 Datos de prospectos</h4>
+          <button type="button" class="btn btn-ghost btn-sm" id="csvHistTrigger" onclick="csvOpenHistPanel()" style="border-radius:99px;white-space:nowrap">📁 Historial <span id="csvHistBadge" style="background:var(--purple);color:white;border-radius:99px;font-size:10.5px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
+        </div>
 
         <!-- Selector de modo: pegar/subir (actual) vs buscar leads (Lusha/Apollo, UI por ahora) -->
         <div style="display:flex;gap:8px;margin-bottom:20px">
@@ -11545,24 +11620,27 @@ function csvRenderResultadosTab(content){
             <span id="csvSearchFuenteHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE y DIRIND — si hay coincidencia, se agregan las columnas DATOS DENUE / DATOS DIRIND.</span>
           </div>
 
-          <div style="border:1.5px solid var(--purple);border-radius:12px;padding:14px 16px;margin-bottom:18px;background:var(--purple-light)">
-            <label style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px">🪄 Búsqueda por instrucciones
-              <span style="position:relative;display:inline-flex" class="csv-info-wrap">
-                <button type="button" onclick="event.stopPropagation();this.nextElementSibling.classList.toggle('open')" style="background:var(--purple);color:white;border:none;border-radius:99px;width:16px;height:16px;font-size:10px;font-weight:700;line-height:1;cursor:pointer">ⓘ</button>
-                <div class="csv-info-pop" style="display:none;position:absolute;top:22px;left:0;z-index:20;width:300px;background:white;border:1px solid var(--gray-200);border-radius:10px;box-shadow:var(--shadow-md);padding:12px 14px;font-size:11.5px;font-weight:400;color:var(--gray-600);line-height:1.5">
+          <details class="csv-ai-details" style="border:1.5px solid var(--purple);border-radius:12px;padding:12px 16px;margin-bottom:18px;background:var(--purple-light)">
+            <summary style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer">🪄 Búsqueda por instrucciones
+              <span style="font-weight:400;color:var(--gray-500);font-size:11.5px">— llena los filtros de abajo por ti</span>
+              <span style="position:relative;display:inline-flex;margin-left:auto" class="csv-info-wrap">
+                <button type="button" onclick="event.preventDefault();event.stopPropagation();this.nextElementSibling.classList.toggle('open')" style="background:var(--purple);color:white;border:none;border-radius:99px;width:16px;height:16px;font-size:10px;font-weight:700;line-height:1;cursor:pointer">ⓘ</button>
+                <div class="csv-info-pop" style="display:none;position:absolute;top:22px;right:0;z-index:20;width:300px;background:white;border:1px solid var(--gray-200);border-radius:10px;box-shadow:var(--shadow-md);padding:12px 14px;font-size:11.5px;font-weight:400;color:var(--gray-600);line-height:1.5">
                   Escribe la búsqueda en tus palabras, TODO en una sola caja — país, giro, tamaño, rol, cantidad, lo que sea. Claude lo traduce y llena los filtros de abajo por ti.<br><br>
                   <strong>Ejemplo:</strong> "Quiero 5 directores de sistemas o dueños de manufactureras medianas en Jalisco o Nuevo León" → llena País, Estado(s), Nivel, Rol y Cantidad automáticamente — revísalos antes de buscar.
                 </div>
               </span>
-            </label>
-            <p style="font-size:12px;color:var(--gray-500);margin:4px 0 8px">Todo lo que necesites en un solo cuadro — Claude llena los filtros de abajo por ti, revísalos y ajústalos antes de buscar.</p>
-            <textarea class="input" id="csvSearchInstrucciones" style="min-height:56px;resize:vertical;font-size:13px;background:white" oninput="csvClearInterpretacion()"
-              placeholder="Ej. Quiero 5 directores de sistemas o dueños de manufactureras medianas (50 a 200 empleados) en Jalisco o Nuevo León, empresas que hayan crecido recientemente"></textarea>
-            <button class="btn btn-primary btn-sm" style="margin-top:8px" id="csvInterpretarBtn" onclick="csvInterpretarInstrucciones()">✨ Interpretar y llenar filtros</button>
-            <div id="csvInterpretResumen" style="font-size:12px;margin-top:8px;color:var(--gray-600)"></div>
-          </div>
+            </summary>
+            <div style="margin-top:10px">
+              <textarea class="input" id="csvSearchInstrucciones" style="min-height:56px;resize:vertical;font-size:13px;background:white" oninput="csvClearInterpretacion()"
+                placeholder="Ej. Quiero 5 directores de sistemas o dueños de manufactureras medianas (50 a 200 empleados) en Jalisco o Nuevo León, empresas que hayan crecido recientemente"></textarea>
+              <button class="btn btn-primary btn-sm" style="margin-top:8px" id="csvInterpretarBtn" onclick="csvInterpretarInstrucciones()">✨ Interpretar y llenar filtros</button>
+              <div id="csvInterpretResumen" style="font-size:12px;margin-top:8px;color:var(--gray-600)"></div>
+            </div>
+          </details>
 
-          <div style="margin-bottom:16px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;align-items:start;margin-bottom:16px">
+          <div style="margin-bottom:0">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><div style="width:22px;height:22px;border-radius:6px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:12px">🌎</div><span style="font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em">Dónde</span></div>
             <div style="border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -11579,11 +11657,13 @@ function csvRenderResultadosTab(content){
                 </div>
               </div>
 
-              <div class="form-group" style="margin-bottom:0" id="csvSearchEstadosGroup">
-                <label>Estado(s) <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera del país elegido)</span></label>
-                <input type="text" class="input" style="margin:6px 0" placeholder="Buscar estado…" oninput="csvFilterChips(this,'csvSearchEstadosBox')">
-                <div id="csvSearchEstadosBox" style="display:flex;flex-wrap:wrap;gap:8px;max-height:130px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
-              </div>
+              <details style="margin-bottom:0" id="csvSearchEstadosGroup">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Estado(s) <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera del país elegido)</span></summary>
+                <div style="margin-top:8px">
+                  <input type="text" class="input" style="margin:0 0 6px" placeholder="Buscar estado…" oninput="csvFilterChips(this,'csvSearchEstadosBox')">
+                  <div id="csvSearchEstadosBox" style="display:flex;flex-wrap:wrap;gap:8px;max-height:130px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
+                </div>
+              </details>
 
               <!-- Outscraper (todo México desde 2026-08-13, catálogo SEPOMEX vía backend) no usa
               Estado(s) multi-select — es Estado→Municipio→Colonia(s) en cascada, un solo estado y
@@ -11603,11 +11683,13 @@ function csvRenderResultadosTab(content){
                   <option value="">Elige un estado primero…</option>
                 </select>
               </div>
-              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchOutscraperColoniaBox">
-                <label>Colonia(s) <span style="font-weight:400;color:var(--gray-400)">(vacío = todo el municipio)</span></label>
-                <input type="text" class="input" style="margin:6px 0" placeholder="Buscar colonia…" oninput="csvFilterChips(this,'csvSearchOutscraperColoniaChips')">
-                <div id="csvSearchOutscraperColoniaChips" style="display:flex;flex-wrap:wrap;gap:8px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Elige un municipio primero…</span></div>
-              </div>
+              <details style="margin:16px 0 0;display:none" id="csvSearchOutscraperColoniaBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Colonia(s) <span style="font-weight:400;color:var(--gray-400)">(vacío = todo el municipio)</span></summary>
+                <div style="margin-top:8px">
+                  <input type="text" class="input" style="margin:0 0 6px" placeholder="Buscar colonia…" oninput="csvFilterChips(this,'csvSearchOutscraperColoniaChips')">
+                  <div id="csvSearchOutscraperColoniaChips" style="display:flex;flex-wrap:wrap;gap:8px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Elige un municipio primero…</span></div>
+                </div>
+              </details>
               <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchOutscraperTextoBox">
                 <label>Giro / categoría del negocio <span style="font-weight:400;color:var(--gray-400)">(opcional, ej. "restaurante", "papelería", "taller mecánico")</span></label>
                 <input type="text" class="input" id="csvSearchOutscraperTexto" placeholder="Ej. restaurante, papelería, estética...">
@@ -11616,18 +11698,20 @@ function csvRenderResultadosTab(content){
               <!-- DENUE trae municipio real por registro — acotar por Estado solo es demasiado ancho
               en zonas metropolitanas (ZMG, Valle de México). Oculto salvo fuente=DENUE con estado(s)
               elegidos (ver csvOnFuenteChange/csvRenderEstadoChips → csvLoadDenueMunicipios). -->
-              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchMunicipioBox">
-                <label>Municipio(s) <span style="font-weight:400;color:var(--gray-400)">(opcional, dentro del/los estado(s) de arriba)</span></label>
-                <input type="text" class="input" style="margin:6px 0" placeholder="Buscar municipio…" oninput="csvFilterChips(this,'csvSearchMunicipiosBox')">
-                <div id="csvSearchMunicipiosBox" style="display:flex;flex-wrap:wrap;gap:8px;max-height:130px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
-              </div>
+              <details style="margin:16px 0 0;display:none" id="csvSearchMunicipioBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Municipio(s) <span style="font-weight:400;color:var(--gray-400)">(opcional, dentro del/los estado(s) de arriba)</span></summary>
+                <div style="margin-top:8px">
+                  <input type="text" class="input" style="margin:0 0 6px" placeholder="Buscar municipio…" oninput="csvFilterChips(this,'csvSearchMunicipiosBox')">
+                  <div id="csvSearchMunicipiosBox" style="display:flex;flex-wrap:wrap;gap:8px;max-height:130px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
+                </div>
+              </details>
 
               <!-- DIRIND tiene su propia taxonomía de categorías (98, del propio directorio) -- no
               aplica el Giro/Industria de Apollo/DENUE. Oculto salvo que DIRIND esté seleccionado. -->
-              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchDirindCategoriaBox">
-                <label>Categoría(s) DIRIND <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera)</span></label>
-                <div id="csvSearchDirindCategoriaChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando categorías…</span></div>
-              </div>
+              <details style="margin:16px 0 0;display:none" id="csvSearchDirindCategoriaBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Categoría(s) DIRIND <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera)</span></summary>
+                <div id="csvSearchDirindCategoriaChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando categorías…</span></div>
+              </details>
               <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchDirindTextoBox">
                 <label>Buscar en nombre/ciudad/descripción del anuncio DIRIND <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
                 <input type="text" class="input" id="csvSearchDirindTexto" placeholder="Ej. sand blast, refrigeración, Zapopan...">
@@ -11645,18 +11729,18 @@ function csvRenderResultadosTab(content){
               como keyword suelta, sin garantía real de filtrar), estos SÍ son los mismos parámetros
               estructurados que usa Apollo internamente — lo que el AE marca aquí es exactamente lo
               que Apollo va a exigir. -->
-              <div class="form-group" style="margin:16px 0 0" id="csvSearchApolloIndBox">
-                <label>Industria (Apollo) <span style="font-weight:400;color:var(--gray-400)">(catálogo real de Apollo, vacío = cualquiera)</span></label>
-                <div id="csvSearchApolloIndChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando industrias…</span></div>
-              </div>
-              <div class="form-group" style="margin:16px 0 0" id="csvSearchApolloSegBox">
-                <label>Segmento de mercado (Apollo) <span style="font-weight:400;color:var(--gray-400)">(opcional, vacío = cualquiera)</span></label>
-                <div id="csvSearchApolloSegChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando segmentos…</span></div>
-              </div>
+              <details style="margin:16px 0 0" id="csvSearchApolloIndBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Industria (Apollo) <span style="font-weight:400;color:var(--gray-400)">(catálogo real de Apollo, vacío = cualquiera)</span></summary>
+                <div id="csvSearchApolloIndChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando industrias…</span></div>
+              </details>
+              <details style="margin:16px 0 0" id="csvSearchApolloSegBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Segmento de mercado (Apollo) <span style="font-weight:400;color:var(--gray-400)">(opcional, vacío = cualquiera)</span></summary>
+                <div id="csvSearchApolloSegChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando segmentos…</span></div>
+              </details>
             </div>
           </div>
 
-          <div style="margin-bottom:16px" id="csvSearchAQuienBox">
+          <div style="margin-bottom:0" id="csvSearchAQuienBox">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><div style="width:22px;height:22px;border-radius:6px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:12px">🎯</div><span style="font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em">A quién</span></div>
             <div style="border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -11688,6 +11772,7 @@ function csvRenderResultadosTab(content){
               </div>
               <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--gray-400);margin-top:10px;padding-top:10px;border-top:1px dashed var(--gray-200)">ⓘ Nivel y Función se combinan con <b>Y</b> entre grupos y <b>O</b> dentro del mismo grupo — ej. (Dueño <b>o</b> Director) <b>y</b> Operaciones. En DENUE/DIRIND no acotan qué empresas aparecen (ahí no hay dato de contacto) — solo eligen a la persona al cruzar con Apollo.</div>
             </div>
+          </div>
           </div>
 
           <div class="form-group" style="margin-bottom:0;max-width:220px">
@@ -11734,8 +11819,19 @@ function csvRenderResultadosTab(content){
           <button class="btn btn-ghost" onclick="csvSaveSession()">💾 Guardar sesión</button>
         </div>
       </div>
-      <div style="margin-top:32px"><h4 style="font-size:15px;font-weight:700;margin-bottom:12px">📁 CSV creados</h4>
-        <div id="csvHistory"><div class="cdc-empty">Cargando...</div></div></div>
+    </div>
+    <!-- Historial ("📁 CSV creados") — antes vivía siempre al fondo de la página, después de TODO
+    el formulario de filtros (había que bajar todo el buscador para redescargar un CSV viejo).
+    Ahora es un panel lateral (ver csvOpenHistPanel/csvRenderHistPanel), con el mismo alcance por
+    rol que el resto de la app: ae=solo lo suyo · tl=lo suyo + su equipo, agrupado por cuenta y
+    colapsado por default · manager=todas las cuentas, mismo agrupado. -->
+    <div class="hist-overlay" id="csvHistOverlay" onclick="csvCloseHistPanel()" style="position:fixed;inset:0;background:rgba(17,24,39,.35);z-index:90;display:none"></div>
+    <div class="hist-panel" id="csvHistPanel" style="position:fixed;top:0;right:0;bottom:0;width:380px;max-width:90vw;background:white;border-left:1px solid var(--gray-200);box-shadow:-8px 0 28px rgba(17,24,39,.16);z-index:91;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .18s ease">
+      <div style="padding:16px 18px 12px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between">
+        <h3 style="font-size:14.5px;font-weight:700;margin:0">📁 CSV creados</h3>
+        <button class="disc-copy-btn" onclick="csvCloseHistPanel()">✕</button>
+      </div>
+      <div id="csvHistory" style="flex:1;overflow-y:auto;padding:10px 12px 20px"><div class="cdc-empty">Cargando...</div></div>
     </div>`;
   csvRows=[]; _csvFileAttachment=null; _csvSessionId=null; _csvDirty=false; csvLoadHistory();
   csvRenderEstadoChips();
@@ -12392,7 +12488,9 @@ async function csvSyncRowsToCRM(rows){
   const withCompany=(rows||[]).filter(r=>(r.partner_name||'').trim());
   if(!withCompany.length||!db) return;
   let existing=[];
-  try{ existing=await searchCompanies(); }catch(e){ console.warn('csvSyncRowsToCRM load:',e); return; }
+  // {all:true}: el dedupe tiene que comparar contra TODA la empresa, no solo tu alcance — si no,
+  // un AE que importa un CSV crearía duplicados de empresas que ya existen en la cuenta de otro AE.
+  try{ existing=await searchCompanies('',{all:true}); }catch(e){ console.warn('csvSyncRowsToCRM load:',e); return; }
   const byDomain=new Map(), byName=new Map();
   existing.forEach(c=>{
     const dk=_csvDomainKey(c.website); if(dk&&!byDomain.has(dk)) byDomain.set(dk,c);
@@ -13001,29 +13099,91 @@ window.csvDownloadSaved=async function(id){
   }catch(e){ showNotif('Error: '+e.message,'error'); }
 };
 window.csvLoadHistory=csvLoadHistory;
+// Alcance por rol — mismo patrón que discoveryRecords/analyticsLoad (línea ~2585/1690):
+// manager=todo (una sola query con orderBy) · tl=lo suyo (aeUid==uid) UNIDO a lo de su equipo
+// (tlId==uid, merge por id) · ae=solo lo suyo. ANTES tl y manager compartían la misma query sin
+// filtro — un TL veía las sesiones de TODAS las cuentas de la empresa, no solo su equipo.
 async function csvLoadHistory(){
   const el=document.getElementById('csvHistory'); if(!el||!db) return;
+  const badge=document.getElementById('csvHistBadge');
   try{
     const role=currentUserData?.role;
-    const q=(role==='manager'||role==='tl')
-      ?query(collection(db,'csvSessions'),orderBy('createdAt','desc'))
-      :query(collection(db,'csvSessions'),where('aeUid','==',currentUserData.uid));
-    const snap=await getDocs(q);
-    if(role==='ae') snap.docs.sort((a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0));
-    if(snap.empty){ el.innerHTML='<div class="cdc-empty">Sin sesiones guardadas aún</div>'; return; }
-    el.innerHTML=`<div style="display:flex;flex-direction:column;gap:8px">${snap.docs.map(d=>{
-      const r=d.data(), date=r.createdAt?.toDate?.()?.toLocaleDateString('es-MX')||'';
-      return `<div class="card" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
-        <div><div style="font-weight:600;font-size:14px">${r.fuente||'Sin nombre'}</div>
-          <div style="font-size:12px;color:var(--gray-400)">${r.rowCount||0} prospectos · ${r.aeName} · ${date}</div></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost btn-sm" style="border-color:var(--success);color:var(--success)" onclick="csvDownloadSaved('${d.id}')">⬇ CSV</button>
-          <button class="btn btn-ghost btn-sm" onclick="csvReloadSession('${d.id}')">↻ Recargar</button>
-          ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('csvSessions','${d.id}',()=>csvLoadHistory())">🗑</button>`:''}
+    let docs;
+    if(role==='manager'){
+      const snap=await getDocs(query(collection(db,'csvSessions'),orderBy('createdAt','desc')));
+      docs=snap.docs;
+    } else if(role==='tl'){
+      const [ownSnap,teamSnap]=await Promise.all([
+        getDocs(query(collection(db,'csvSessions'),where('aeUid','==',currentUserData.uid))),
+        getDocs(query(collection(db,'csvSessions'),where('tlId','==',currentUserData.uid))),
+      ]);
+      const byId=new Map();
+      [...ownSnap.docs,...teamSnap.docs].forEach(d=>byId.set(d.id,d));
+      docs=[...byId.values()];
+    } else {
+      const snap=await getDocs(query(collection(db,'csvSessions'),where('aeUid','==',currentUserData.uid)));
+      docs=snap.docs;
+    }
+    const rows=docs.map(d=>({id:d.id,...d.data()}));
+    rows.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    if(badge) badge.textContent=rows.length||'';
+    if(!rows.length){ el.innerHTML='<div class="cdc-empty">Sin sesiones guardadas aún</div>'; return; }
+    const itemHtml=r=>{
+      const date=r.createdAt?.toDate?.()?.toLocaleDateString('es-MX')||'';
+      return `<div class="card" style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.fuente||'Sin nombre'}</div>
+          <div style="font-size:11.5px;color:var(--gray-400)">${r.rowCount||0} prospectos · ${date}</div></div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-ghost btn-sm" style="border-color:var(--success);color:var(--success)" onclick="csvDownloadSaved('${r.id}')" title="Descargar">⬇</button>
+          <button class="btn btn-ghost btn-sm" onclick="csvReloadSession('${r.id}')" title="Recargar">↻</button>
+          ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteRecord('csvSessions','${r.id}',()=>csvLoadHistory())" title="Eliminar">🗑</button>`:''}
         </div>
-      </div>`;}).join('')}</div>`;
-  } catch(e){ el.innerHTML='<div class="cdc-empty">Error al cargar</div>'; }
+      </div>`;
+    };
+    if(role==='ae'){ el.innerHTML=rows.map(itemHtml).join(''); return; }
+    // TL/manager: agrupado por cuenta y colapsado por default — mismo motivo del rediseño del
+    // buscador (index.html:11570 y alrededores): evita scroll entre sesiones de gente distinta
+    // para encontrar las de una cuenta puntual.
+    const groups=new Map();
+    rows.forEach(r=>{
+      const key=r.aeGram||r.aeUid||'—';
+      if(!groups.has(key)) groups.set(key,{label:r.aeName||key,items:[]});
+      groups.get(key).items.push(r);
+    });
+    const meGram=currentUserData?.gram;
+    const sortedGroups=[...groups.entries()].sort((a,b)=>{
+      if(a[0]===meGram) return -1; if(b[0]===meGram) return 1;
+      return a[1].label.localeCompare(b[1].label,'es');
+    });
+    el.innerHTML=sortedGroups.map(([key,g],i)=>`
+      <div style="margin-bottom:4px">
+        <div onclick="csvToggleHistGroup(${i})" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 8px;border-radius:8px;cursor:pointer">
+          <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px">${g.label}${key===meGram?' <span style="font-size:10.5px;font-weight:600;color:var(--gray-400)">(tú)</span>':''}
+            <span style="font-size:11px;font-weight:600;color:var(--gray-400);background:var(--gray-100);border-radius:99px;padding:1px 8px">${g.items.length}</span></div>
+          <span id="csvHistChev${i}" style="font-size:10px;color:var(--purple);display:inline-block;transition:transform .15s">▶</span>
+        </div>
+        <div id="csvHistGroup${i}" style="display:none;padding-left:4px">${g.items.map(itemHtml).join('')}</div>
+      </div>`).join('');
+  } catch(e){ console.warn('csvLoadHistory:',e); el.innerHTML='<div class="cdc-empty">Error al cargar</div>'; }
 }
+window.csvToggleHistGroup=function(i){
+  const list=document.getElementById('csvHistGroup'+i), chev=document.getElementById('csvHistChev'+i);
+  if(!list) return;
+  const willOpen=list.style.display!=='block';
+  list.style.display=willOpen?'block':'none';
+  if(chev) chev.style.transform=willOpen?'rotate(90deg)':'';
+};
+window.csvOpenHistPanel=function(){
+  const overlay=document.getElementById('csvHistOverlay'), panel=document.getElementById('csvHistPanel');
+  if(!overlay||!panel) return;
+  overlay.style.display='block';
+  panel.style.transform='translateX(0)';
+  csvLoadHistory(); // por si cambió desde la última vez que se abrió (otra búsqueda, otra pestaña)
+};
+window.csvCloseHistPanel=function(){
+  document.getElementById('csvHistOverlay').style.display='none';
+  const panel=document.getElementById('csvHistPanel'); if(panel) panel.style.transform='translateX(100%)';
+};
 window.csvReloadSession=async function(id){
   if(!db) return;
   const snap=await getDoc(doc(db,'csvSessions',id)); if(!snap.exists()) return;
