@@ -11585,12 +11585,28 @@ function csvRenderResultadosTab(content){
                 <div id="csvSearchEstadosBox" style="display:flex;flex-wrap:wrap;gap:8px;max-height:130px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
               </div>
 
-              <!-- Outscraper (piloto 2026-08-13) no usa Estado(s) — solo cubre 3 colonias fijas de
-              CDMX (ver ZONAS_PILOTO en providers/outscraper.js del backend). Oculto salvo que
-              Outscraper esté seleccionado. -->
-              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchOutscraperZonaBox">
-                <label>Zona(s) — piloto CDMX <span style="font-weight:400;color:var(--gray-400)">(vacío = las 3)</span></label>
-                <div id="csvSearchOutscraperZonaChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando zonas…</span></div>
+              <!-- Outscraper (todo México desde 2026-08-13, catálogo SEPOMEX vía backend) no usa
+              Estado(s) multi-select — es Estado→Municipio→Colonia(s) en cascada, un solo estado y
+              un solo municipio por búsqueda (Google no tiene forma de acotar a "cualquiera de N
+              colonias" en un query, así que cada colonia sale de un query aparte; varios municipios
+              a la vez multiplicaría demasiado el costo). Oculto salvo que Outscraper esté seleccionado. -->
+              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchOutscraperEstadoBox">
+                <label>Estado</label>
+                <select class="input" id="csvSearchOutscraperEstado" onchange="csvLoadOutscraperMunicipios()">
+                  <option value="">Elige un estado…</option>
+                  ${(LEAD_SEARCH_STATES.MX||[]).map(e=>`<option value="${e}">${e}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchOutscraperMunicipioBox">
+                <label>Municipio</label>
+                <select class="input" id="csvSearchOutscraperMunicipio" onchange="csvLoadOutscraperColonias()">
+                  <option value="">Elige un estado primero…</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchOutscraperColoniaBox">
+                <label>Colonia(s) <span style="font-weight:400;color:var(--gray-400)">(vacío = todo el municipio)</span></label>
+                <input type="text" class="input" style="margin:6px 0" placeholder="Buscar colonia…" oninput="csvFilterChips(this,'csvSearchOutscraperColoniaChips')">
+                <div id="csvSearchOutscraperColoniaChips" style="display:flex;flex-wrap:wrap;gap:8px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Elige un municipio primero…</span></div>
               </div>
               <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchOutscraperTextoBox">
                 <label>Giro / categoría del negocio <span style="font-weight:400;color:var(--gray-400)">(opcional, ej. "restaurante", "papelería", "taller mecánico")</span></label>
@@ -11755,7 +11771,9 @@ window.csvOnFuenteChange=function(){
   const apolloIndBox=document.getElementById('csvSearchApolloIndBox');
   const apolloSegBox=document.getElementById('csvSearchApolloSegBox');
   const estadosGroup=document.getElementById('csvSearchEstadosGroup');
-  const outscraperZonaBox=document.getElementById('csvSearchOutscraperZonaBox');
+  const outscraperEstadoBox=document.getElementById('csvSearchOutscraperEstadoBox');
+  const outscraperMunicipioBox=document.getElementById('csvSearchOutscraperMunicipioBox');
+  const outscraperColoniaBox=document.getElementById('csvSearchOutscraperColoniaBox');
   const outscraperTextoBox=document.getElementById('csvSearchOutscraperTextoBox');
   const aQuienBox=document.getElementById('csvSearchAQuienBox');
   if(paisSel){
@@ -11766,7 +11784,7 @@ window.csvOnFuenteChange=function(){
     apollo:'Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE y DIRIND — si hay coincidencia, se agregan las columnas DATOS DENUE / DATOS DIRIND.',
     denue:'DENUE: directorio público de México (INEGI), teléfono y correo corporativo garantizados. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
     dirind:'DIRIND: directorio impreso Proveedores Industriales 2023 (5,256 empresas), teléfono y correo del propio anuncio. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
-    outscraper:'Outscraper: piloto de micro negocios en 3 colonias de CDMX (Google Maps). A diferencia del resto, aquí basta con correo O teléfono (no ambos) — la mayoría llega solo con teléfono, la línea general del negocio. Sin contacto con nombre (no se cruza con Apollo).',
+    outscraper:'Outscraper: micro negocios en todo México (Google Maps). A diferencia del resto, aquí basta con correo O teléfono (no ambos) — la mayoría llega solo con teléfono, la línea general del negocio. Sin contacto con nombre (no se cruza con Apollo).',
   };
   if(hint) hint.textContent=HINTS[fuente];
   // Giro/Industria (catálogo nuestro de 15) ahora solo aplica a DENUE — Apollo tiene su propio
@@ -11778,8 +11796,10 @@ window.csvOnFuenteChange=function(){
   if(denueTextoBox) denueTextoBox.style.display=fuente==='denue'?'block':'none';
   if(apolloIndBox) apolloIndBox.style.display=fuente==='apollo'?'block':'none';
   if(apolloSegBox) apolloSegBox.style.display=fuente==='apollo'?'block':'none';
-  if(estadosGroup) estadosGroup.style.display=fuente==='outscraper'?'none':'block'; // Outscraper usa Zona(s), no Estado(s)
-  if(outscraperZonaBox) outscraperZonaBox.style.display=fuente==='outscraper'?'block':'none';
+  if(estadosGroup) estadosGroup.style.display=fuente==='outscraper'?'none':'block'; // Outscraper usa su propio Estado→Municipio→Colonia en cascada
+  if(outscraperEstadoBox) outscraperEstadoBox.style.display=fuente==='outscraper'?'block':'none';
+  if(outscraperMunicipioBox) outscraperMunicipioBox.style.display=fuente==='outscraper'?'block':'none';
+  if(outscraperColoniaBox) outscraperColoniaBox.style.display=fuente==='outscraper'?'block':'none';
   if(outscraperTextoBox) outscraperTextoBox.style.display=fuente==='outscraper'?'block':'none';
   // "A quién" (empleados/nivel/función) solo tiene sentido cuando el lead se cruza contra Apollo
   // para elegir un contacto — Outscraper no hace ese cruce (ver HINTS.outscraper), mostrarlo
@@ -11787,7 +11807,6 @@ window.csvOnFuenteChange=function(){
   if(aQuienBox) aQuienBox.style.display=fuente==='outscraper'?'none':'block';
   if(fuente==='dirind') csvLoadDirindCategorias();
   if(fuente==='apollo') csvLoadApolloFiltros();
-  if(fuente==='outscraper') csvLoadOutscraperZonas();
   if(empBox) empBox.style.display=fuente==='dirind'?'none':'grid'; // DIRIND no trae dato de tamaño de empresa
   if(municipioBox){
     const hayEstados=document.querySelectorAll('.csv-estado-check:checked').length>0;
@@ -11831,31 +11850,55 @@ function csvRenderDirindCategoriaChips(){
       <input type="checkbox" class="csv-dirind-cat-check" value="${c.replace(/"/g,'&quot;')}" ${prevChecked.has(c)?'checked':''}> ${c}
     </label>`).join('');
 }
-// Zonas piloto de Outscraper (3 colonias de CDMX, ver ZONAS_PILOTO en providers/outscraper.js del
-// backend) — mismo patrón que csvLoadDirindCategorias: se pide UNA vez y se cachea, aunque sea un
-// catálogo chico, para no desincronizarse si algún día se agregan más zonas.
-let _outscraperZonasCache=null;
-window.csvLoadOutscraperZonas=async function(){
-  const box=document.getElementById('csvSearchOutscraperZonaChips'); if(!box) return;
-  if(_outscraperZonasCache){ csvRenderOutscraperZonaChips(); return; }
-  if(!currentUser) return;
+// Estado→Municipio→Colonia(s) de Outscraper (catálogo SEPOMEX vía backend, abierto a todo México
+// 2026-08-13 — antes 3 colonias fijas de CDMX). Cascada de un solo estado/municipio a la vez (ver
+// comentario del HTML): elegir estado carga municipios, elegir municipio carga colonias. Cacheado
+// por estado/"estado::municipio" para no volver a pedir lo mismo dos veces en la misma sesión.
+let _sepomexMunicipiosCache={};
+let _sepomexColoniasCache={};
+window.csvLoadOutscraperMunicipios=async function(){
+  const estadoSel=document.getElementById('csvSearchOutscraperEstado');
+  const muniSel=document.getElementById('csvSearchOutscraperMunicipio');
+  const coloniaBox=document.getElementById('csvSearchOutscraperColoniaChips');
+  if(!estadoSel||!muniSel) return;
+  const estado=estadoSel.value;
+  muniSel.innerHTML='<option value="">Cargando…</option>';
+  if(coloniaBox) coloniaBox.innerHTML='<span style="font-size:12px;color:var(--gray-400)">Elige un municipio primero…</span>';
+  if(!estado||!currentUser){ muniSel.innerHTML='<option value="">Elige un estado primero…</option>'; return; }
   try{
-    const idToken=await currentUser.getIdToken();
-    const res=await fetch('https://thorough-curiosity-production-098d.up.railway.app/outscraperZonas',{headers:{'Authorization':`Bearer ${idToken}`}});
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
-    _outscraperZonasCache=data.zonas||[];
-    csvRenderOutscraperZonaChips();
-  }catch(e){ console.warn('csvLoadOutscraperZonas:',e); box.innerHTML='<span style="font-size:12px;color:var(--danger)">No se pudieron cargar las zonas — reintenta</span>'; }
+    if(!_sepomexMunicipiosCache[estado]){
+      const idToken=await currentUser.getIdToken();
+      const res=await fetch('https://thorough-curiosity-production-098d.up.railway.app/sepomexMunicipios?estado='+encodeURIComponent(estado),{headers:{'Authorization':`Bearer ${idToken}`}});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+      _sepomexMunicipiosCache[estado]=data.municipios||[];
+    }
+    const municipios=_sepomexMunicipiosCache[estado];
+    muniSel.innerHTML='<option value="">Elige un municipio…</option>'+municipios.map(m=>`<option value="${m.replace(/"/g,'&quot;')}">${m}</option>`).join('');
+  }catch(e){ console.warn('csvLoadOutscraperMunicipios:',e); muniSel.innerHTML='<option value="">Error al cargar — reintenta</option>'; }
 };
-function csvRenderOutscraperZonaChips(){
-  const box=document.getElementById('csvSearchOutscraperZonaChips'); if(!box||!_outscraperZonasCache) return;
-  const prevChecked=new Set([...box.querySelectorAll('.csv-outscraper-zona-check:checked')].map(c=>c.value));
-  box.innerHTML=_outscraperZonasCache.map(z=>`
-    <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
-      <input type="checkbox" class="csv-outscraper-zona-check" value="${z.replace(/"/g,'&quot;')}" ${prevChecked.has(z)?'checked':''}> ${z}
-    </label>`).join('');
-}
+window.csvLoadOutscraperColonias=async function(){
+  const estado=document.getElementById('csvSearchOutscraperEstado')?.value||'';
+  const municipio=document.getElementById('csvSearchOutscraperMunicipio')?.value||'';
+  const box=document.getElementById('csvSearchOutscraperColoniaChips'); if(!box) return;
+  if(!estado||!municipio||!currentUser){ box.innerHTML='<span style="font-size:12px;color:var(--gray-400)">Elige un municipio primero…</span>'; return; }
+  const key=estado+'::'+municipio;
+  box.innerHTML='<span style="font-size:12px;color:var(--gray-400)">Cargando colonias…</span>';
+  try{
+    if(!_sepomexColoniasCache[key]){
+      const idToken=await currentUser.getIdToken();
+      const res=await fetch('https://thorough-curiosity-production-098d.up.railway.app/sepomexColonias?estado='+encodeURIComponent(estado)+'&municipio='+encodeURIComponent(municipio),{headers:{'Authorization':`Bearer ${idToken}`}});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+      _sepomexColoniasCache[key]=data.colonias||[];
+    }
+    const colonias=_sepomexColoniasCache[key];
+    box.innerHTML=colonias.length?colonias.map(c=>`
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
+        <input type="checkbox" class="csv-outscraper-colonia-check" value="${c.replace(/"/g,'&quot;')}"> ${c}
+      </label>`).join(''):'<span style="font-size:12px;color:var(--gray-400)">Sin colonias registradas para este municipio</span>';
+  }catch(e){ console.warn('csvLoadOutscraperColonias:',e); box.innerHTML='<span style="font-size:12px;color:var(--danger)">No se pudieron cargar las colonias — reintenta</span>'; }
+};
 // Catálogo REAL de Apollo (20 industrias + 11 segmentos de mercado, ver APOLLO_INDUSTRIES/
 // APOLLO_MARKET_SEGMENTS en apollo.js del backend) — mismo patrón que csvLoadDirindCategorias: se
 // pide UNA vez y se cachea, se llama cada vez que se elige/reabre en fuente Apollo por si es la
@@ -12260,12 +12303,17 @@ window.csvRetryLeadJob=function(jobId){
           document.querySelectorAll('.csv-dirind-cat-check').forEach(c=>{ c.checked=catSel.has(c.value); });
         },400);
       }
-      if(f.fuentePrimaria==='outscraper'&&f.zonasOutscraper?.length){
-        csvLoadOutscraperZonas();
-        setTimeout(()=>{
-          const zonaSel=new Set(f.zonasOutscraper);
-          document.querySelectorAll('.csv-outscraper-zona-check').forEach(c=>{ c.checked=zonaSel.has(c.value); });
-        },400);
+      if(f.fuentePrimaria==='outscraper'&&f.estadoOutscraper){
+        const estadoSel=document.getElementById('csvSearchOutscraperEstado');
+        if(estadoSel) estadoSel.value=f.estadoOutscraper;
+        csvLoadOutscraperMunicipios().then(()=>{
+          const muniSel=document.getElementById('csvSearchOutscraperMunicipio');
+          if(muniSel&&f.municipioOutscraper) muniSel.value=f.municipioOutscraper;
+          return csvLoadOutscraperColonias();
+        }).then(()=>{
+          const coloniaSel=new Set(f.coloniasOutscraper||[]);
+          document.querySelectorAll('.csv-outscraper-colonia-check').forEach(c=>{ c.checked=coloniaSel.has(c.value); });
+        });
       }
       if(f.fuentePrimaria==='denue'&&f.municipiosDenue?.length){
         setTimeout(()=>{
@@ -12646,13 +12694,18 @@ window.csvRunLeadSearch=async function(){
   const textoDenue=fuentePrimaria==='denue'?(document.getElementById('csvSearchDenueTexto')?.value.trim()||''):'';
   const apolloIndustryIds=fuentePrimaria==='apollo'?[...document.querySelectorAll('.csv-apollo-ind-check:checked')].map(c=>c.value):[];
   const apolloMarketSegments=fuentePrimaria==='apollo'?[...document.querySelectorAll('.csv-apollo-seg-check:checked')].map(c=>c.value):[];
-  const zonasOutscraper=fuentePrimaria==='outscraper'?[...document.querySelectorAll('.csv-outscraper-zona-check:checked')].map(c=>c.value):[];
+  const estadoOutscraper=fuentePrimaria==='outscraper'?(document.getElementById('csvSearchOutscraperEstado')?.value||''):'';
+  const municipioOutscraper=fuentePrimaria==='outscraper'?(document.getElementById('csvSearchOutscraperMunicipio')?.value||''):'';
+  const coloniasOutscraper=fuentePrimaria==='outscraper'?[...document.querySelectorAll('.csv-outscraper-colonia-check:checked')].map(c=>c.value):[];
   const textoOutscraper=fuentePrimaria==='outscraper'?(document.getElementById('csvSearchOutscraperTexto')?.value.trim()||''):'';
   const hayFiltro=fuentePrimaria==='dirind'?(estados.length||categoriasDirind.length||dirindTexto||instrucciones)
     :fuentePrimaria==='denue'?(estados.length||municipiosDenue.length||giro||textoDenue||instrucciones)
-    :fuentePrimaria==='outscraper'?true // sin filtros obligatorios: vacío = las 3 zonas piloto, cualquier giro
+    :fuentePrimaria==='outscraper'?!!(estadoOutscraper&&municipioOutscraper) // estado+municipio obligatorios; colonia(s) y giro son opcionales
     :(estados.length||apolloIndustryIds.length||apolloMarketSegments.length||instrucciones||roleGroups.length);
-  if(!hayFiltro){ showNotif('Define al menos un filtro (estado, categoría/giro/industria, texto, rol o instrucciones) para buscar','error'); return; }
+  if(!hayFiltro){
+    showNotif(fuentePrimaria==='outscraper'?'Elige estado y municipio para buscar con Outscraper':'Define al menos un filtro (estado, categoría/giro/industria, texto, rol o instrucciones) para buscar','error');
+    return;
+  }
   if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
   const btn=document.getElementById('csvSearchBtn'); btn.disabled=true; gcShowLoading('csvSearchLoading',true);
   try{
@@ -12669,7 +12722,7 @@ window.csvRunLeadSearch=async function(){
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
       body:JSON.stringify({
         paisId, estados, municipiosDenue, seniorities, roleGroups, giroKeywords, giro, apolloIndustryIds, apolloMarketSegments, extraTitles:_csvSearchParsed.extraTitles, cantidad:Number(cantidad)||5,
-        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria, categoriasDirind, dirindTexto, textoDenue, zonasOutscraper, textoOutscraper,
+        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria, categoriasDirind, dirindTexto, textoDenue, estadoOutscraper, municipioOutscraper, coloniasOutscraper, textoOutscraper,
       }),
     });
     const data=await res.json().catch(()=>({}));
