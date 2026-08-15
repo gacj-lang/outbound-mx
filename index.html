@@ -2563,17 +2563,13 @@ const disc = {
   selections: {},
   companyId: null,
   callEnded: false,
+  appsAI: null,          // apps sugeridas por "Analizar discovery" (array {name,reason}), del catálogo ODOO_APPS_FLAT
+  resumenIntromeet: '',  // síntesis de IA de toda la sesión — se reutiliza como contexto en otras apps
+  feedbackFinal: '',     // coaching de IA sobre la sesión (acciones en la app + transcripción)
   ui: { section:0, sub:{flujo:1}, wow:null },
-  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; this.ui={section:0,sub:{flujo:1},wow:null}; }
+  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; this.appsAI=null; this.resumenIntromeet=''; this.feedbackFinal=''; this.ui={section:0,sub:{flujo:1},wow:null}; }
 };
-// Expose disc setters for inline HTML handlers
-window.discSetStatus = (v) => {
-  disc.status = v;
-  // Sincronizar ambos selectores (header + post-call)
-  const a=document.getElementById('discStatusSel'); if(a&&a.value!==v) a.value=v;
-  const b=document.getElementById('discStatusSelHeader'); if(b&&b.value!==v) b.value=v;
-  discAutosave();
-};
+// Nota: el estatus (borrador→en_proceso→completado) ya no se elige a mano — ver discAutosave/discEndCall.
 // ── Sessions list view ──
 async function renderDiscoveryList(){
   const content=document.getElementById('moduleContent');
@@ -2790,9 +2786,18 @@ const DG_CSS=`
 .dg-autosave{font-size:12px;font-weight:600;color:#9ca3af;white-space:nowrap}
 .dg-status{font-size:12px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-weight:600;color:#374151}
 .dg-end-btn{background:#fff;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer}
-.dg-call,.dg-postcall{max-width:920px;margin:0 auto;padding:22px 18px}
+.dg-call{max-width:1180px;margin:0 auto;padding:22px 18px}
+.dg-postcall{max-width:1320px;margin:0 auto;padding:22px 18px}
+.dg-call-grid{display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
+@media(max-width:900px){.dg-call-grid{grid-template-columns:1fr}}
+.dg-notes-panel{position:sticky;top:78px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.dg-notes-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9a7b00;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.dg-notes-ta{width:100%;min-height:380px;border:1.5px solid #f0e6c8;background:#fffdf6;border-radius:10px;padding:11px 14px;font-size:14px;line-height:1.55;color:#374151;resize:vertical;font-family:inherit;transition:border-color .15s}
+.dg-notes-ta:focus{outline:none;border-color:#FBB130;background:#fff}
+.dg-notes-ta::placeholder{color:#bfae7e}
+.dg-notes-hint{margin-top:8px;font-size:11.5px;color:#9ca3af;line-height:1.5}
 .dg-scope{display:flex;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-size:13px;padding:10px 16px;border-radius:10px;margin-bottom:14px;font-weight:500}
-.dg-rail{display:flex;gap:8px;margin-bottom:22px}
+.dg-rail{display:flex;gap:8px;margin-bottom:22px;position:sticky;top:66px;z-index:15;background:#F8F9FA;padding:8px 0}
 .dg-seg{flex:1;cursor:pointer;text-align:center}
 .dg-bar{height:5px;border-radius:3px;background:#e5e7eb;transition:.2s}
 .dg-seg.done .dg-bar{background:#16a34a}.dg-seg.on .dg-bar{background:#714B67}
@@ -2894,6 +2899,26 @@ const DG_CSS=`
 .dg-next{flex:1;padding:14px;background:#714B67;border:none;color:#fff}
 .dg-next:hover{background:#4a2f44}
 /* postcall */
+.dg-pc-cols{display:grid;grid-template-columns:minmax(260px,1fr) minmax(260px,1fr) minmax(300px,1.05fr);gap:18px;align-items:start}
+@media(max-width:1080px){.dg-pc-cols{grid-template-columns:1fr}}
+.dg-pc-colhead{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:12px;padding:0 2px}
+.dg-steptrack{margin-top:14px;display:flex;flex-direction:column}
+.dg-step{display:flex;gap:11px;position:relative;padding-bottom:16px}
+.dg-step:last-child{padding-bottom:0}
+.dg-step::before{content:'';position:absolute;left:11px;top:24px;bottom:0;width:1.5px;background:#e5e7eb}
+.dg-step:last-child::before{display:none}
+.dg-stepdot{width:23px;height:23px;border-radius:50%;background:#f9fafb;border:1.5px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;color:#9ca3af;transition:all .2s;z-index:1}
+.dg-step.done .dg-stepdot{background:#16a34a;border-color:#16a34a;color:#fff}
+.dg-step.active .dg-stepdot{background:#714B67;border-color:#714B67;color:#fff}
+.dg-stepbody{flex:1;padding-top:2px}
+.dg-stept{font-size:12.5px;font-weight:700;color:#9ca3af}
+.dg-step.done .dg-stept,.dg-step.active .dg-stept{color:#21272B}
+.dg-stepd{font-size:11.5px;color:#9ca3af;margin-top:2px}
+.dg-stepout{margin-top:7px}
+.dg-clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dg-viewmore-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:9px;background:#f3eef2;color:#714B67;border:1.5px solid #714B67;font-weight:800;font-size:12px;padding:9px;border-radius:9px;cursor:pointer}
+.dg-viewmore-btn:hover{background:#e9dfe6}
+.dg-fb-empty{padding:20px 14px;text-align:center;color:#9ca3af;font-size:12.5px;line-height:1.5}
 .dg-pc-grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start;margin-bottom:16px}
 @media(max-width:820px){.dg-pc-grid2{grid-template-columns:1fr}}
 .dg-pc-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.03);margin-bottom:16px;overflow:hidden}
@@ -2965,85 +2990,115 @@ function buildDiscoveryFormHTML(data){
         <button class="dg-mode-btn" id="dmbPostcall" onclick="discSetMode('postcall')">📋 Post-call</button>
       </div>
       <span id="discAutosaveInd" class="dg-autosave">Autoguardado activo</span>
-      <select class="dg-status" id="discStatusSelHeader" onchange="discSetStatus(this.value)">
-        <option value="borrador">Borrador</option><option value="en_proceso">En proceso</option><option value="completado">Completada</option><option value="archivado">Archivada</option>
-      </select>
       <button class="dg-end-btn" id="discEndBtn" onclick="discEndCall()">⏹ Finalizar</button>
     </div>
   </div>
 
   <div id="discEscuchaArea" class="dg-call">
-    <div id="dgScope"></div>
-    <div class="dg-rail" id="dgRail"></div>
-    <div id="dgSectionHost"></div>
+    <div class="dg-call-grid">
+      <div class="dg-call-main">
+        <div id="dgScope"></div>
+        <div class="dg-rail" id="dgRail"></div>
+        <div id="dgSectionHost"></div>
+      </div>
+      <aside class="dg-notes-panel">
+        <div class="dg-notes-lbl">📝 Notas de la llamada · libres</div>
+        <textarea id="dgNotesTa" class="dg-notes-ta" data-fld="notas-llamada" oninput="dgFld(this)" placeholder="Anota aquí lo que observes durante la conversación, sin cambiar de pantalla."></textarea>
+        <div class="dg-notes-hint">Te acompaña en cada sección — no truena el flujo de arriba a abajo. Se guarda sola y la IA la usa en el post-call.</div>
+      </aside>
+    </div>
   </div>
 
   <div id="discPostcallArea" class="dg-postcall" style="display:none">
-    <div id="dgPostHost"></div>
+    <div class="dg-pc-cols">
 
-    <div class="dg-pc-card">
-      <div class="dg-pc-h"><span class="dot">📝</span><span class="t">Nota de discovery (IA)</span><span class="sub">desde la transcripción</span></div>
-      <div class="dg-pc-b">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Transcripción de Google Meet</div>
-        <textarea class="disc-transcript-ta" id="discTranscriptInput" oninput="discAutosave()" placeholder="Pega aquí la transcripción completa de la llamada..." style="width:100%;min-height:80px;max-height:140px;resize:vertical;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:13px;font-family:inherit"></textarea>
-        <button class="disc-gemini-btn" id="discAnalyzeBtn" onclick="discAnalyzeClaude()" style="margin-top:10px">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
-          Generar nota con IA
-        </button>
-        <div class="disc-gemini-loading" id="discGeminiLoading"><div class="disc-spinner"></div></div>
-        <div id="discGeminiOutputWrap" style="display:none;margin-top:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div><div style="font-size:13px;font-weight:600">Nota para CRM</div><div id="discEngineLabel" style="font-size:11px;color:#9ca3af;margin-top:2px"></div></div>
-            <div style="display:flex;gap:8px">
-              <button class="disc-copy-btn" onclick="discCopyOutput()">📋 Copiar</button>
-              <button class="disc-copy-btn" style="border-color:var(--accent);color:var(--accent)" onclick="discShowPopup('discGeminiOutput','Nota para CRM')">↗ Ver todo</button>
-              <button class="disc-copy-btn" style="border-color:#714B67;color:#714B67" onclick="discAnalyzeClaude()">↺ Regenerar</button>
+      <div>
+        <div class="dg-pc-colhead">🎯 Feedback de la Qcall</div>
+        <div id="dgPostFeedbackHost"></div>
+        <div class="dg-pc-card">
+          <div class="dg-pc-h"><span class="dot">🎓</span><span class="t">Feedback final de IA</span><span class="sub">coach de la sesión</span></div>
+          <div class="dg-pc-b" id="discFeedbackBody">
+            <div class="dg-fb-empty">Se genera junto con "Analizar discovery" (columna derecha) →<br>combina lo capturado en la app + la transcripción.</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="dg-pc-colhead">🏢 Datos del negocio</div>
+        <div id="dgPostDatosHost"></div>
+      </div>
+
+      <div>
+        <div class="dg-pc-colhead">✨ Botones de IA</div>
+        <div class="dg-pc-card">
+          <div class="dg-pc-h"><span class="dot">🤖</span><span class="t">Analizar discovery</span><span class="sub">un solo paso</span></div>
+          <div class="dg-pc-b">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Transcripción de Google Meet · opcional</div>
+            <textarea class="disc-transcript-ta" id="discTranscriptInput" oninput="discAutosave()" placeholder="Pega aquí la transcripción completa de la llamada... (opcional)" style="width:100%;min-height:70px;max-height:140px;resize:vertical;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:13px;font-family:inherit"></textarea>
+            <div style="font-size:11px;color:#9ca3af;margin-top:6px;line-height:1.5">Funciona igual sin transcripción — usa lo que ya capturaste en la llamada (notas, chips, MEDDIC).</div>
+            <button class="disc-gemini-btn" id="discAnalyzeAllBtn" onclick="discAnalyzeDiscovery()" style="margin-top:12px;width:100%">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+              <span id="discAnalyzeAllLbl">Analizar discovery</span>
+            </button>
+            <div class="disc-gemini-loading" id="discAnalyzeAllLoading"><div class="disc-spinner"></div></div>
+
+            <div class="dg-steptrack" id="discChainSteps">
+              <div class="dg-step" data-step="1">
+                <div class="dg-stepdot">1</div>
+                <div class="dg-stepbody">
+                  <div class="dg-stept">Nota para CRM</div>
+                  <div class="dg-stepd">Resume la llamada en formato listo para pegar en el CRM.</div>
+                  <div class="dg-stepout" id="discNotaStepOut" style="display:none">
+                    <div class="dg-clamp2" id="discGeminiOutput" style="font-size:12px;color:#6b7280;line-height:1.55"></div>
+                    <div id="discEngineLabel" style="font-size:10.5px;color:#9ca3af;margin-top:4px"></div>
+                    <button class="dg-viewmore-btn" onclick="discShowPopup('discGeminiOutput','📝 Nota para CRM')">↗ Ver nota completa</button>
+                  </div>
+                </div>
+              </div>
+              <div class="dg-step" data-step="2">
+                <div class="dg-stepdot">2</div>
+                <div class="dg-stepbody">
+                  <div class="dg-stept">Recomendaciones para cerrar</div>
+                  <div class="dg-stepd">Próximos pasos sugeridos según lo detectado.</div>
+                  <div class="dg-stepout" id="discRecoStepOut" style="display:none">
+                    <div class="dg-clamp2" id="discRecoOutput" style="font-size:12px;color:#6b7280;line-height:1.55"></div>
+                    <div id="discRecoLabel" style="font-size:10.5px;color:#9ca3af;margin-top:4px"></div>
+                    <button class="dg-viewmore-btn" onclick="discShowPopup('discRecoOutput','🎯 Recomendaciones para cerrar')">↗ Ver recomendaciones completas</button>
+                  </div>
+                </div>
+              </div>
+              <div class="dg-step" data-step="3">
+                <div class="dg-stepdot">3</div>
+                <div class="dg-stepbody">
+                  <div class="dg-stept">Apps de Odoo recomendadas</div>
+                  <div class="dg-stepd">Del catálogo oficial de Odoo — por industria + lo que la IA leyó en tus notas.</div>
+                  <div class="dg-stepout" id="discAppsContainer"><div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div></div>
+                </div>
+              </div>
+              <div class="dg-step" data-step="4">
+                <div class="dg-stepdot">4</div>
+                <div class="dg-stepbody">
+                  <div class="dg-stept">Resumen Intromeet</div>
+                  <div class="dg-stepd">Se guarda y queda disponible como contexto en otras apps.</div>
+                </div>
+              </div>
+              <div class="dg-step" data-step="5">
+                <div class="dg-stepdot">5</div>
+                <div class="dg-stepbody">
+                  <div class="dg-stept">Feedback final de IA</div>
+                  <div class="dg-stepd">Coach de la sesión — aparece en la columna de la izquierda.</div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="disc-gemini-output show disc-output-compact" id="discGeminiOutput"></div>
-          <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar nota en historial</button>
+        </div>
+
+        <div class="dg-pc-card" id="discResumenCard" style="display:none;margin-top:16px">
+          <div class="dg-pc-h"><span class="dot">📎</span><span class="t">Resumen Intromeet</span><span class="sub">guardado</span></div>
+          <div class="dg-pc-b" id="discResumenBody"></div>
         </div>
       </div>
-    </div>
 
-    <div class="dg-pc-card">
-      <div class="dg-pc-h"><span class="dot">🎯</span><span class="t">Recomendaciones para cerrar</span><span class="sub">no requiere transcripción</span></div>
-      <div class="dg-pc-b">
-        <button class="disc-gemini-btn" id="discRecoBtn" onclick="discGenerateReco()" style="background:linear-gradient(135deg,#714B67,#9b6b8a)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Generar recomendaciones con IA
-        </button>
-        <div class="disc-gemini-loading" id="discRecoLoading"><div class="disc-spinner"></div></div>
-        <div id="discRecoOutputWrap" style="display:none;margin-top:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div id="discRecoLabel" style="font-size:11px;color:#9ca3af"></div>
-            <div style="display:flex;gap:8px">
-              <button class="disc-copy-btn" onclick="discCopyReco()">📋 Copiar</button>
-              <button class="disc-copy-btn" style="border-color:var(--accent);color:var(--accent)" onclick="discShowPopup('discRecoOutput','Recomendaciones IA')">↗ Ver todo</button>
-              <button class="disc-copy-btn" style="border-color:#714B67;color:#714B67" onclick="discGenerateReco()">↺ Actualizar</button>
-            </div>
-          </div>
-          <div class="disc-gemini-output show disc-output-compact" id="discRecoOutput"></div>
-          <button class="disc-save-btn" style="margin-top:12px;width:100%" onclick="discSaveRecord()">💾 Guardar recomendaciones</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="dg-pc-card">
-      <div class="dg-pc-h"><span class="dot">📱</span><span class="t">Apps de Odoo recomendadas</span><span class="sub">por industria + tipo de venta</span></div>
-      <div class="dg-pc-b"><div id="discAppsContainer"><div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div></div></div>
-    </div>
-
-    <div class="dg-pc-card" style="background:linear-gradient(135deg,#fff7ed,#fffbeb);border-color:#fed7aa">
-      <div class="dg-pc-b" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div><div style="font-size:14.5px;font-weight:700;color:#c2410c">💾 Guardar sesión</div><div style="font-size:12px;color:#9a7b00">Se guarda solo automáticamente mientras trabajas.</div></div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <select class="disc-status-select" id="discStatusSel" onchange="discSetStatus(this.value)">
-            <option value="borrador">Borrador</option><option value="en_proceso">En proceso</option><option value="completado">Completada</option><option value="archivado">Archivada</option>
-          </select>
-          <button class="disc-save-btn" id="discSaveBtn" onclick="discSaveRecord()">💾 Guardar ahora</button>
-        </div>
-      </div>
     </div>
   </div>
   </div>`;
@@ -3219,11 +3274,7 @@ function dgRenderSection(){
   let openerLbl = sec.subs?'Apertura general del bloque':'Cómo abrir la conversación';
   body += sec.config?dgCfgCardHTML():'';
   body += `<div class="dg-opener"><div class="dg-opener-lbl">🎙 ${openerLbl}</div><em>"${sec.opener}"</em><div class="tip">💡 ${sec.tip}</div></div>`;
-  // Notas libres de la llamada — MISMA caja en cada sección (contenido compartido), se guarda y la IA lo usa
-  {
-    const _nv=_dgEsc(disc.selections.fld?.['notas-llamada']||'');
-    body += `<div class="dg-blocknotes"><div class="dg-blocknotes-lbl">📝 Notas de la llamada · libres (te acompañan en cada paso)</div><textarea class="dg-blocknotes-ta" data-fld="notas-llamada" rows="3" oninput="dgFld(this)" placeholder="Anota aquí lo que observes durante la conversación, sin cambiar de pantalla. La misma nota está disponible en cada sección — se guarda sola y la IA la incluye en la nota del post-call.">${_nv}</textarea></div>`;
-  }
+  // Notas libres de la llamada: viven en el panel lateral fijo (#dgNotesTa, fuera de este render) — no se reconstruyen aquí.
 
   let guide,data,wow='',subOpener='';
   if(sec.subs){
@@ -3325,7 +3376,8 @@ function dgQualRows(){
   ];
 }
 function dgRenderPostcall(){
-  const host=document.getElementById('dgPostHost'); if(!host) return;
+  const feedbackHost=document.getElementById('dgPostFeedbackHost'), datosHost=document.getElementById('dgPostDatosHost');
+  if(!feedbackHost||!datosHost) return;
   const s=disc.selections;
   // resumen
   const kv=[
@@ -3361,25 +3413,23 @@ function dgRenderPostcall(){
   const areaLbl={comercial:'Comercial',operativo:'Operativo',administrativo:'Administrativo'};
   const wowHTML=wowSet.slice(0,6).map(w=>`<div class="dg-wi"><span class="dg-wtag dg-wt-ind">${areaLbl[w.area]}</span><div class="dg-wi-title">${w.title}</div><div class="dg-wi-wow">${w.wow}</div></div>`).join('')||'<div style="color:#7c3aed;font-size:13px;padding:8px">Selecciona industria y tipo de venta para recomendaciones.</div>';
 
-  host.innerHTML=`
-  <div class="dg-pc-grid2">
-    <div>
-      <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">🏢</span><span class="t">Resumen de la empresa</span><span class="sub">autollenado</span></div>
-        <div class="dg-pc-b"><div class="dg-kv">${kvHTML}</div>${tagHTML}</div></div>
-    </div>
-    <div>
-      <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">📊</span><span class="t">Completitud</span></div>
-        <div class="dg-pc-b">
-          <div class="dg-ringwrap">
-            <svg width="72" height="72" viewBox="0 0 78 78"><circle cx="39" cy="39" r="33" fill="none" stroke="#e5e7eb" stroke-width="9"/><circle cx="39" cy="39" r="33" fill="none" stroke="#714B67" stroke-width="9" stroke-linecap="round" stroke-dasharray="207" stroke-dashoffset="${off.toFixed(0)}" transform="rotate(-90 39 39)"/><text x="39" y="45" text-anchor="middle" font-size="19" font-weight="800" fill="#21272B">${pct}%</text></svg>
-            <div style="font-size:12.5px;color:#6b7280;line-height:1.5">${pct>=70?'Cubriste lo esencial.':'Discovery en progreso.'}${faltan.length?`<br><b style="color:#d97706">Faltan: ${faltan.slice(0,3).join(', ')}.</b>`:''}</div>
-          </div>${covRows}
-        </div></div>
-    </div>
-  </div>
+  // Col 1 — Feedback de la Qcall: completitud + MEDDIC/BANT
+  feedbackHost.innerHTML=`
+  <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">📊</span><span class="t">Completitud</span></div>
+    <div class="dg-pc-b">
+      <div class="dg-ringwrap">
+        <svg width="64" height="64" viewBox="0 0 78 78"><circle cx="39" cy="39" r="33" fill="none" stroke="#e5e7eb" stroke-width="9"/><circle cx="39" cy="39" r="33" fill="none" stroke="#714B67" stroke-width="9" stroke-linecap="round" stroke-dasharray="207" stroke-dashoffset="${off.toFixed(0)}" transform="rotate(-90 39 39)"/><text x="39" y="45" text-anchor="middle" font-size="18" font-weight="800" fill="#21272B">${pct}%</text></svg>
+        <div style="font-size:12.5px;color:#6b7280;line-height:1.5">${pct>=70?'Cubriste lo esencial.':'Discovery en progreso.'}${faltan.length?`<br><b style="color:#d97706">Faltan: ${faltan.slice(0,3).join(', ')}.</b>`:''}</div>
+      </div>${covRows}
+    </div></div>
 
   <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">🎯</span><span class="t">Conocimiento del cliente</span><span class="sub">MEDDIC + BANT</span></div>
-    <div class="dg-pc-b">${qHTML}<div class="dg-verdict ${verdict.c}"><div><span class="dg-vt">Oportunidad</span>${gaps.length?`<div style="font-size:11.5px;margin-top:3px;font-weight:600;opacity:.85">Falta documentar: ${gaps.slice(0,3).join(', ')}</div>`:''}</div><span class="dg-vv">${verdict.t}</span></div></div></div>
+    <div class="dg-pc-b">${qHTML}<div class="dg-verdict ${verdict.c}"><div><span class="dg-vt">Oportunidad</span>${gaps.length?`<div style="font-size:11.5px;margin-top:3px;font-weight:600;opacity:.85">Falta documentar: ${gaps.slice(0,3).join(', ')}</div>`:''}</div><span class="dg-vv">${verdict.t}</span></div></div></div>`;
+
+  // Col 2 — Datos del negocio: resumen de empresa + dolor/señales + efectos WOW
+  datosHost.innerHTML=`
+  <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">🏢</span><span class="t">Resumen de la empresa</span><span class="sub">autollenado</span></div>
+    <div class="dg-pc-b"><div class="dg-kv">${kvHTML}</div>${tagHTML}</div></div>
 
   <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">🔎</span><span class="t">Dolor y señales detectadas</span></div>
     <div class="dg-pc-b">${dolorTxt?`<div class="dg-dolorbox"><div class="dl">⚠ Dolor principal (en sus palabras)</div><div class="dv">"${_dgEsc(dolorTxt)}"</div></div>`:''}${sigHTML}</div></div>
@@ -3419,15 +3469,17 @@ function discInitForm(data){
       const t=disc.selections['tipo-empresa']||'';
       disc.selections.producto = t.startsWith('Servicios')?'servicios':(t.startsWith('Mixtos')?'mixto':'fisico');
     }
-    const ssh=document.getElementById('discStatusSelHeader'); if(ssh) ssh.value=disc.status;
-    const ss=document.getElementById('discStatusSel'); if(ss) ss.value=disc.status;
     if(disc.currentInd){ const l=document.getElementById('discIndLabel'); if(l) l.textContent=(IND_NAMES[disc.currentInd]||'')+' · En llamada'; }
     const nb=document.getElementById('discEmpresaBadge'), nom=disc.selections['emp-nombre']||'';
     if(nb&&nom){ nb.textContent='📄 '+nom; nb.style.display='inline-block'; }
-    if(data.geminiNote){ const o=document.getElementById('discGeminiOutput'),w=document.getElementById('discGeminiOutputWrap'); if(o&&w){ o.textContent=data.geminiNote; o.classList.add('show'); w.style.display='block'; } }
-    if(data.recoNote){ const o=document.getElementById('discRecoOutput'),w=document.getElementById('discRecoOutputWrap'); if(o&&w){ o.textContent=data.recoNote; o.classList.add('show'); w.style.display='block'; const l=document.getElementById('discRecoLabel'); if(l) l.textContent='Recomendaciones guardadas'; } }
+    if(data.geminiNote){ const o=document.getElementById('discGeminiOutput'),w=document.getElementById('discNotaStepOut'); if(o&&w){ o.textContent=data.geminiNote; w.style.display='block'; discStepMark(1,'done'); } }
+    if(data.recoNote){ const o=document.getElementById('discRecoOutput'),w=document.getElementById('discRecoStepOut'); if(o&&w){ o.textContent=data.recoNote; w.style.display='block'; const l=document.getElementById('discRecoLabel'); if(l) l.textContent='Recomendaciones guardadas'; discStepMark(2,'done'); } }
     if(data.transcript){ const ta=document.getElementById('discTranscriptInput'); if(ta) ta.value=data.transcript; }
+    if(Array.isArray(data.appsAI)&&data.appsAI.length){ discRenderAppsList(data.appsAI,'Guardado · basado en industria + notas'); discStepMark(3,'done'); }
+    if(data.resumenIntromeet){ discRenderResumen(data.resumenIntromeet); discStepMark(4,'done'); }
+    if(data.feedbackFinal){ discRenderFeedback(data.feedbackFinal); discStepMark(5,'done'); }
   }
+  { const nta=document.getElementById('dgNotesTa'); if(nta) nta.value=disc.selections.fld?.['notas-llamada']||''; }
   disc.ui={section:0,sub:{flujo:1},wow:null};
   dgRender(); dgRenderPostcall();
   if(data?.callEnded){
@@ -3465,6 +3517,7 @@ window.discSetMode=function(mode){
 };
 window.discEndCall=function(){
   disc.callEnded=true;
+  disc.status='completado'; // autoguardado — ya no hay selector manual de estatus
   const btn=document.getElementById('discEndBtn');
   if(btn){ btn.textContent='✓ Finalizada'; btn.style.background='#16a34a'; btn.style.color='#fff'; btn.style.borderColor='#16a34a'; btn.style.cursor='default'; btn.onclick=null; setTimeout(()=>discSetMode('postcall'),600); }
   discAutosave();
@@ -3481,12 +3534,32 @@ window.discSaveEmpresa=function(){
   if(nb){ nb.textContent='📄 '+nom; nb.style.display=nom?'inline-block':'none'; }
   discAutosave();
 };
+// Línea base por reglas (industria + tipo de venta) — se muestra apenas se entra a Post-call.
+// "Analizar discovery" la reemplaza por una versión leída del catálogo oficial ODOO_APPS_FLAT + notas.
 function discUpdateApps(){
-  const c=document.getElementById('discAppsContainer'); if(!c) return;
   const apps=[]; const seen=new Set();
   if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>{ if(!seen.has(a.name)){ apps.push(a); seen.add(a.name); }});
   disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!seen.has(TV_APPS[tv].name)){ apps.push(TV_APPS[tv]); seen.add(TV_APPS[tv].name); }});
-  c.innerHTML=apps.length===0?'<div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div>':`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">${apps.map(a=>`<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;background:#f9fafb"><div style="font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px">Odoo ${a.name}</div><div style="font-size:11.5px;color:#6b7280;line-height:1.5">${a.reason}</div></div>`).join('')}</div>`;
+  discRenderAppsList(apps, apps.length?'Sugerencia por industria + tipo de venta · da clic en "Analizar discovery" para afinarla':'');
+}
+function discRenderAppsList(apps,note){
+  const c=document.getElementById('discAppsContainer'); if(!c) return;
+  if(!apps||apps.length===0){ c.innerHTML='<div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div>'; return; }
+  c.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">${apps.map(a=>`<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;background:#f9fafb"><div style="font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px">Odoo ${_dgEsc(a.name)}</div><div style="font-size:11.5px;color:#6b7280;line-height:1.5">${_dgEsc(a.reason)}</div></div>`).join('')}</div>${note?`<div style="font-size:10.5px;color:#9ca3af;margin-top:8px">${_dgEsc(note)}</div>`:''}`;
+}
+// Marca visualmente un paso de la cadena "Analizar discovery" (1-5) como activo/hecho.
+function discStepMark(n,state){
+  const el=document.querySelector('.dg-step[data-step="'+n+'"]'); if(!el) return;
+  el.classList.remove('active','done'); if(state) el.classList.add(state);
+}
+function discRenderResumen(text){
+  const card=document.getElementById('discResumenCard'), body=document.getElementById('discResumenBody'); if(!card||!body) return;
+  body.innerHTML=`<div class="dg-clamp2" id="discResumenOutput" style="font-size:12.5px;line-height:1.6;color:#21272B">${_dgEsc(text)}</div><button class="dg-viewmore-btn" onclick="discShowPopup('discResumenOutput','📎 Resumen Intromeet')">↗ Ver resumen completo</button><div style="display:flex;align-items:center;gap:6px;margin-top:11px;font-size:11px;color:#017E84;font-weight:700;background:#e6f4f5;padding:7px 10px;border-radius:8px">🔗 Disponible como contexto en Generación de contenidos y Cadencias de correo</div>`;
+  card.style.display='block';
+}
+function discRenderFeedback(text){
+  const body=document.getElementById('discFeedbackBody'); if(!body) return;
+  body.innerHTML=`<span style="display:inline-block;font-size:10.5px;font-weight:700;background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:6px;margin-bottom:9px">Generado con IA</span><div class="dg-clamp2" id="discFeedbackOutput" style="font-size:13px;line-height:1.65;color:#21272B">${_dgEsc(text)}</div><button class="dg-viewmore-btn" onclick="discShowPopup('discFeedbackOutput','🎓 Feedback final de IA')">↗ Ver feedback completo</button>`;
 }
 
 
@@ -3539,7 +3612,7 @@ DATOS CAPTURADOS DURANTE LA LLAMADA:
 - Notas libres del AE (durante la llamada): ${s.fld?.['notas-llamada']||'nd'}
 
 TRANSCRIPCIÓN COMPLETA:
-${transcript}
+${transcript||'(No hay transcripción disponible para esta sesión. Básate SOLO en los datos capturados arriba — si una sección de abajo depende de la transcripción y no la tienes, dilo explícitamente en vez de inventar contenido.)'}
 
 El objetivo es DOCUMENTAR al cliente con información de calidad para que cualquiera del equipo lo entienda sin haber estado en la llamada. Genera la nota con exactamente estas secciones:
 
@@ -3574,21 +3647,28 @@ Escribe en español de México, tono profesional pero directo. NO inventes datos
 
 
 // ── Recomendaciones (coaching sin transcripción) ──
-window.discGenerateReco = async function(){
+// ── Paso 1: Nota para CRM (usa transcripción si hay; si no, se basa en lo capturado en la app) ──
+async function discStepNota(transcript, recentSessions){
   const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
-  if(!claudeKey||claudeKey==='CLAUDE_KEY_DEFAULT'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:3000,system:ANTI_HALLUCINATION,messages:[{role:'user',content:discBuildClaudePrompt(transcript,recentSessions)}]})
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  const text=data.content?.[0]?.text||'Sin respuesta';
+  const output=document.getElementById('discGeminiOutput'), wrap=document.getElementById('discNotaStepOut'), engineLabel=document.getElementById('discEngineLabel');
+  if(output) output.textContent=text;
+  if(wrap) wrap.style.display='block';
+  if(engineLabel) engineLabel.textContent='⚡ Claude'+(recentSessions.length>0?` · ${recentSessions.length} sesiones de contexto`:'');
+  return text;
+}
+
+// ── Paso 2: Recomendaciones para cerrar (no requiere transcripción) ──
+async function discStepReco(recentSessions){
+  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   const s=disc.selections;
-  const btn=document.getElementById('discRecoBtn');
-  const loading=document.getElementById('discRecoLoading');
-  const wrap=document.getElementById('discRecoOutputWrap');
-  const output=document.getElementById('discRecoOutput');
-  const label=document.getElementById('discRecoLabel');
-  btn.disabled=true; loading.classList.add('show'); if(wrap) wrap.style.display='none';
-  // Load recent sessions for context
-  loading.insertAdjacentHTML('beforeend','<span id="discRecoMsg"> Cargando historial...</span>');
-  let recentSessions=[];
-  if(disc.currentInd) recentSessions=await discLoadRecentSessions(disc.currentInd,5);
-  const msgEl=document.getElementById('discRecoMsg'); if(msgEl) msgEl.textContent=' Analizando perfil del cliente...';
   const apps=[]; if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>apps.push('Odoo '+a.name));
   disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!apps.includes('Odoo '+TV_APPS[tv].name)) apps.push('Odoo '+TV_APPS[tv].name); });
 
@@ -3637,73 +3717,172 @@ ${recentSessions.length>0?`📊 VS. HISTORIAL DEL EQUIPO
 
 Sé directo, específico y accionable. Habla de tú al AE. No repitas los datos del perfil.`;
 
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
-    });
-    const data=await res.json();
-    if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-    const text=data.content?.[0]?.text||'Sin respuesta';
-    output.textContent=text; output.classList.add('show');
-    wrap.style.display='block';
-    if(label) label.textContent=recentSessions.length>0?`Basado en ${recentSessions.length} sesiones del equipo`:'Basado en el perfil capturado';
-    wrap.scrollIntoView({behavior:'smooth',block:'start'});
-  } catch(e){
-    output.textContent='Error: '+e.message; output.classList.add('show'); wrap.style.display='block';
-  } finally {
-    btn.disabled=false; loading.classList.remove('show');
-    const m=document.getElementById('discRecoMsg'); if(m) m.remove();
-  }
-};
-window.discCopyReco=function(){
-  const text=document.getElementById('discRecoOutput').textContent;
-  navigator.clipboard.writeText(text).then(()=>showNotif('Recomendaciones copiadas ✓','success'));
-};
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  const text=data.content?.[0]?.text||'Sin respuesta';
+  const output=document.getElementById('discRecoOutput'), wrap=document.getElementById('discRecoStepOut'), label=document.getElementById('discRecoLabel');
+  if(output) output.textContent=text;
+  if(wrap) wrap.style.display='block';
+  if(label) label.textContent=recentSessions.length>0?`Basado en ${recentSessions.length} sesiones del equipo`:'Basado en el perfil capturado';
+  return text;
+}
 
-// ── Nota CRM (con transcripción) ──
-window.discAnalyzeClaude = async function(){
-  const transcript=document.getElementById('discTranscriptInput').value.trim();
-  if(!transcript){ showNotif('Pega la transcripción de la llamada','error'); return; }
+// ── Paso 3: Apps recomendadas — SOLO del catálogo oficial ODOO_APPS_FLAT (misma fuente que Pricing/Propuesta), nunca inventadas ──
+async function discStepApps(transcript, notaText){
   const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
-  if(!claudeKey){ showNotif('Configura tu Claude API key en ⚙️ Configuración','error'); return; }
-  const btn=document.getElementById('discAnalyzeBtn');
-  const loading=document.getElementById('discGeminiLoading');
-  const wrap=document.getElementById('discGeminiOutputWrap');
-  const output=document.getElementById('discGeminiOutput');
-  const engineLabel=document.getElementById('discEngineLabel');
-  btn.disabled=true; loading.classList.add('show'); if(wrap) wrap.style.display='none';
-  // Step 1: load recent sessions (memory context)
-  loading.insertAdjacentHTML('beforeend','<span id="discLoadMsg"> Cargando historial del equipo...</span>');
+  const s=disc.selections;
+  const catalogBlock=ODOO_APPS_FLAT.map(a=>`- ${a.name}: ${a.desc}`).join('\n');
+  const indCtx=ODOO_INDUSTRIES[IND_NAMES[disc.currentInd]]||'';
+  const prompt=`Eres un consultor preventa de Odoo México eligiendo qué apps mostrarle a este prospecto en la demo.
+
+CATÁLOGO OFICIAL DE ODOO — única fuente permitida. NUNCA menciones una app que no esté en esta lista exacta, NUNCA inventes nombres ni funciones que no estén descritas aquí:
+${catalogBlock}
+
+CONTEXTO DEL PROSPECTO:
+- Industria: ${IND_NAMES[disc.currentInd]||'nd'}${indCtx?(' · '+indCtx):''}
+- Tipo de venta: ${s['tipo_venta']||'nd'} | Tipo de producto: ${s['tipo-empresa']||'nd'}
+- Dolores detectados: ${(s.dolores||[]).join(', ')||'nd'}
+- Dolor principal: ${s.fld?.['dol-principal']||'nd'}
+- Sistemas actuales: ${s['emp-sistemas']||'nd'}
+- Notas del AE durante la llamada: ${s.fld?.['notas-llamada']||'nd'}
+${notaText?`- Nota de discovery ya generada:\n${notaText}`:''}
+${transcript?`- Fragmento de transcripción (úsalo solo si aporta): ${transcript.slice(0,3000)}`:''}
+
+Elige entre 4 y 8 apps del catálogo — las MÁS relevantes para ESTE prospecto, no una lista genérica de industria. Responde SOLO con este JSON (sin markdown, sin texto fuera del JSON):
+[{"name":"Nombre EXACTO tal cual aparece en el catálogo de arriba","reason":"por qué esta app específica, en 1 frase, conectada a algo que dijo o hace el prospecto"}]`;
+
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1200,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  const raw=data.content?.[0]?.text||'[]';
+  const jsonMatch=raw.match(/\[[\s\S]*\]/);
+  let list=[];
+  try{ list=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ list=[]; }
+  // Defensa extra: aunque el prompt lo prohíbe, se filtra cualquier nombre que no exista en el catálogo real.
+  const validNames=new Set(ODOO_APPS_FLAT.map(a=>a.name.toLowerCase()));
+  list=(Array.isArray(list)?list:[]).filter(x=>x?.name&&validNames.has(String(x.name).toLowerCase())).slice(0,8);
+  if(!list.length){
+    // Fallback a la línea base por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
+    const apps=[]; const seen=new Set();
+    if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>{ if(!seen.has(a.name)){ apps.push(a); seen.add(a.name); }});
+    disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!seen.has(TV_APPS[tv].name)){ apps.push(TV_APPS[tv]); seen.add(TV_APPS[tv].name); }});
+    list=apps;
+  }
+  disc.appsAI=list;
+  discRenderAppsList(list,'Generado con IA · catálogo oficial de Odoo + tus notas');
+  return list;
+}
+
+// ── Paso 4: Resumen Intromeet — síntesis reutilizable como contexto en otras apps (vía memoria de empresa) ──
+async function discStepResumen(notaText, recoText, appsList){
+  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
+  const s=disc.selections;
+  const appsTxt=(appsList||[]).map(a=>a.name).join(', ')||'nd';
+  const prompt=`Escribe el "Resumen Intromeet" de esta sesión de discovery: un párrafo denso (6-10 líneas) que otro AE, o la IA de otras herramientas de Odoo México, pueda usar como contexto de la cuenta sin leer toda la sesión.
+
+DATOS CAPTURADOS:
+- Empresa: ${s['emp-nombre']||'nd'} | Industria: ${IND_NAMES[disc.currentInd]||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
+- Empleados: ${s['emp-empleados']||'nd'} | Facturación: ${s['emp-facturacion']||'nd'} | Sistemas actuales: ${s['emp-sistemas']||'nd'}
+- Dolor principal: ${s.fld?.['dol-principal']||'nd'} | Otras señales: ${(s.dolores||[]).join(', ')||'nd'}
+- Budget: ${s['budget']||'nd'} | Decisor: ${s['decisor']||'nd'} | Timeline: ${s['timeline']||'nd'}
+- Apps recomendadas: ${appsTxt}
+${notaText?`NOTA DE DISCOVERY:\n${notaText}`:''}
+${recoText?`RECOMENDACIONES PARA CERRAR:\n${recoText}`:''}
+
+Escribe en tercera persona, tono de bitácora de cuenta (no un mensaje al cliente). Sintetiza, no repitas las secciones tal cual. Si algo no se sabe, dilo brevemente en vez de omitirlo en silencio.`;
+
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:900,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  const text=data.content?.[0]?.text||'Sin respuesta';
+  disc.resumenIntromeet=text;
+  discRenderResumen(text);
+  return text;
+}
+
+// ── Paso 5: Feedback final de IA — coach de la SESIÓN (no del prospecto): acciones en la app + transcripción ──
+async function discStepFeedback(transcript){
+  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
+  const s=disc.selections;
+  const cov=dgCoverage();
+  const totals=cov.reduce((a,c)=>({d:a.d+c.done,t:a.t+c.total}),{d:0,t:0});
+  const pct=totals.t?Math.round(100*totals.d/totals.t):0;
+  const faltan=cov.filter(c=>c.st!=='full').map(c=>c.label);
+  const gaps=dgQualRows().filter(x=>x.chip==='no').map(x=>x.t);
+  const prompt=`Eres el coach de ventas del equipo. Da feedback honesto y accionable al AE sobre CÓMO LLEVÓ esta sesión de discovery — no sobre el prospecto, sobre la sesión misma.
+
+QUÉ CUBRIÓ EN LA APP (checklist real de la llamada):
+- Completitud del discovery: ${pct}%. Faltó cubrir: ${faltan.join(', ')||'nada, cubrió todo'}.
+- Calificación MEDDIC/BANT sin documentar: ${gaps.join(', ')||'ninguna, quedó completa'}.
+- Dolor principal capturado: ${s.fld?.['dol-principal']||'no se capturó dolor principal en sus propias palabras'}.
+${transcript?`\nTRANSCRIPCIÓN DE LA LLAMADA (úsala para evaluar CÓMO preguntó, cuánto habló, si escuchó):\n${transcript.slice(0,6000)}`:'\n(No hay transcripción disponible — da el feedback solo con base en lo documentado en la app.)'}
+
+Dale 2-4 puntos de mejora CONCRETOS (qué pregunta faltó, qué tema no se cerró, si habló de más) y qué debe resolver en la siguiente interacción con este cliente para terminar de conocerlo. Sé directo y breve — esto lo lee el AE, no el cliente. Si la sesión estuvo sólida, dilo también; no inventes problemas que no existen.`;
+
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:900,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  const text=data.content?.[0]?.text||'Sin respuesta';
+  disc.feedbackFinal=text;
+  discRenderFeedback(text);
+  return text;
+}
+
+// ── Orquestador: "Analizar discovery" — un solo botón, corre los 5 pasos en cadena ──
+window.discAnalyzeDiscovery = async function(){
+  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
+  if(!claudeKey||claudeKey==='CLAUDE_KEY_DEFAULT'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
+  const btn=document.getElementById('discAnalyzeAllBtn');
+  const lbl=document.getElementById('discAnalyzeAllLbl');
+  const loading=document.getElementById('discAnalyzeAllLoading');
+  const transcript=document.getElementById('discTranscriptInput')?.value.trim()||'';
+  btn.disabled=true; if(loading) loading.classList.add('show');
+  [1,2,3,4,5].forEach(n=>discStepMark(n,null));
+
   let recentSessions=[];
   if(disc.currentInd) recentSessions=await discLoadRecentSessions(disc.currentInd,5);
-  const msg=document.getElementById('discLoadMsg');
-  if(msg) msg.textContent=recentSessions.length>0?` ${recentSessions.length} sesiones de contexto cargadas. Analizando...`:' Analizando...';
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:3000,system:ANTI_HALLUCINATION,messages:[{role:'user',content:discBuildClaudePrompt(transcript,recentSessions)}]})
-    });
-    const data=await res.json();
-    if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-    const text=data.content?.[0]?.text||'Sin respuesta';
-    output.textContent=text; output.classList.add('show');
-    wrap.style.display='block';
-    if(engineLabel) engineLabel.textContent='⚡ Claude'+(recentSessions.length>0?` · ${recentSessions.length} sesiones de contexto`:'');
-    wrap.scrollIntoView({behavior:'smooth',block:'start'});
-  } catch(e){
-    output.textContent='Error: '+e.message+'\n\nVerifica tu Claude API key en ⚙️ Configuración.';
-    output.classList.add('show'); wrap.style.display='block';
-  } finally {
-    btn.disabled=false; loading.classList.remove('show');
-    const m=document.getElementById('discLoadMsg'); if(m) m.remove();
-  }
-};
-window.discCopyOutput=function(){
-  const text=document.getElementById('discGeminiOutput').textContent;
-  navigator.clipboard.writeText(text).then(()=>showNotif('Copiado al portapapeles ✓','success'));
+
+  let notaText='', recoText='', appsList=[];
+
+  discStepMark(1,'active'); lbl.textContent='Generando nota…';
+  try{ notaText=await discStepNota(transcript,recentSessions); discStepMark(1,'done'); }
+  catch(e){ discStepMark(1,null); const o=document.getElementById('discGeminiOutput'),w=document.getElementById('discNotaStepOut'); if(o) o.textContent='Error: '+e.message; if(w) w.style.display='block'; }
+
+  discStepMark(2,'active'); lbl.textContent='Generando recomendaciones…';
+  try{ recoText=await discStepReco(recentSessions); discStepMark(2,'done'); }
+  catch(e){ discStepMark(2,null); const o=document.getElementById('discRecoOutput'),w=document.getElementById('discRecoStepOut'); if(o) o.textContent='Error: '+e.message; if(w) w.style.display='block'; }
+
+  discStepMark(3,'active'); lbl.textContent='Sugiriendo apps…';
+  try{ appsList=await discStepApps(transcript,notaText); discStepMark(3,'done'); }
+  catch(e){ discStepMark(3,null); showNotif('No se pudieron sugerir apps con IA: '+e.message,'error'); }
+
+  discStepMark(4,'active'); lbl.textContent='Guardando resumen…';
+  try{ await discStepResumen(notaText,recoText,appsList); discStepMark(4,'done'); }
+  catch(e){ discStepMark(4,null); showNotif('No se pudo generar el Resumen Intromeet: '+e.message,'error'); }
+
+  discStepMark(5,'active'); lbl.textContent='Generando feedback…';
+  try{ await discStepFeedback(transcript); discStepMark(5,'done'); }
+  catch(e){ discStepMark(5,null); showNotif('No se pudo generar el feedback final: '+e.message,'error'); }
+
+  btn.disabled=false; if(loading) loading.classList.remove('show'); lbl.textContent='↺ Regenerar';
+  discSaveRecord({silent:true});
 };
 
 // ── Save to Firestore ──
@@ -3714,6 +3893,7 @@ window.discAutosave=function(){
   if(!disc.formActive) return;
   // Autoguardar si ya existe el registro (reabierto) o hay algo significativo
   if(!disc.recordId && !disc.companyId && !(disc.selections['emp-nombre'])) return;
+  if(disc.status==='borrador') disc.status='en_proceso'; // ya hay algo significativo capturado — autoguardado, sin selector manual
   const ind=document.getElementById('discAutosaveInd');
   if(ind){ ind.innerHTML='✎ Cambios sin guardar…'; ind.style.color='var(--gray-400)'; }
   clearTimeout(_discAutosaveT);
@@ -3724,7 +3904,7 @@ window.discSaveRecord=async function(opts={}){
   const silent=opts.silent===true;
   discReadEmpFields(); // leer campos SIN re-disparar autosave
   const empresa=disc.selections['emp-nombre']||'Sin nombre';
-  const status=disc.status||document.getElementById('discStatusSelHeader')?.value||document.getElementById('discStatusSel')?.value||'borrador';
+  const status=disc.status||'borrador';
   const geminiNote=document.getElementById('discGeminiOutput')?.textContent||'';
   const recoNote=document.getElementById('discRecoOutput')?.textContent||'';
   const transcript=document.getElementById('discTranscriptInput')?.value||'';
@@ -3736,7 +3916,9 @@ window.discSaveRecord=async function(opts={}){
     budget:disc.selections['budget']||'', decisor:disc.selections['decisor']||'',
     timeline:disc.selections['timeline']||'', fit:disc.selections['fit']||'',
     dolores:disc.selections['dolores']||[],
-    geminiNote, recoNote, transcript, status, callEnded:disc.callEnded||false, updatedAt:serverTimestamp(),
+    geminiNote, recoNote, transcript, status, callEnded:disc.callEnded||false,
+    appsAI:disc.appsAI||null, resumenIntromeet:disc.resumenIntromeet||'', feedbackFinal:disc.feedbackFinal||'',
+    updatedAt:serverTimestamp(),
   };
   const btn=document.getElementById('discSaveBtn');
   const ind=document.getElementById('discAutosaveInd');
@@ -3794,6 +3976,7 @@ window.discSaveRecord=async function(opts={}){
           caracProducto:[...document.querySelectorAll('input[name="discProdOpt"]:checked')].map(i=>i.value),
           vision:Array.isArray(s.vision)?s.vision:[s.vision].filter(Boolean),
           nota:geminiNote||'',
+          resumenIntromeet:disc.resumenIntromeet||'',
         },
         touchpoint:{type:'discovery',summary:`Discovery ${status} · ${empresa}`, dolores:(s.dolores||[]).slice(0,3).join(', ')||'—'}
       });
@@ -4088,6 +4271,7 @@ function buildMemoryContext(company){
   if(disc.facturacion)     parts.push(`FACTURACIÓN MENSUAL: ${disc.facturacion}`);
   if(disc.vision?.length)  parts.push(`VISIÓN DEL CLIENTE: ${Array.isArray(disc.vision)?disc.vision.join(', '):disc.vision}`);
   if(disc.nota)            parts.push(`NOTA CRM MÁS RECIENTE:\n${disc.nota}`);
+  if(disc.resumenIntromeet)parts.push(`RESUMEN INTROMEET (síntesis IA de la sesión de discovery):\n${disc.resumenIntromeet}`);
 
   // Pricing acumulado
   const pr=m.pricing||{};
