@@ -2959,6 +2959,7 @@ const DG_CSS=`
 .dg-bchip{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px}
 .dg-bchip.ok{background:#dcfce7;color:#15803d}.dg-bchip.part{background:#fef3c7;color:#92400e}.dg-bchip.no{background:#fee2e2;color:#b91c1c}
 .dg-verdict{margin-top:14px;display:flex;align-items:center;justify-content:space-between;background:#dcfce7;border-radius:10px;padding:12px 16px}
+.dg-pc-b>.dg-verdict:first-child{margin-top:0}
 .dg-verdict.media{background:#fef3c7}.dg-verdict.baja{background:#fee2e2}
 .dg-vt{font-size:12px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.04em}
 .dg-verdict.media .dg-vt{color:#92400e}.dg-verdict.baja .dg-vt{color:#b91c1c}
@@ -3407,37 +3408,50 @@ function dgRenderPostcall(){
   // señales
   const groups=dgChipsByArea();
   const dolorTxt=s.fld?.['dol-principal'];
-  const sigHTML=Object.entries(groups).filter(([g,a])=>a.length).map(([g,a])=>`<div class="dg-siggroup"><div class="dg-siglbl">${g}</div>${a.map(t=>`<span class="dg-sig">${_dgEsc(t)}</span>`).join('')}</div>`).join('')||'<div style="color:#9ca3af;font-size:13px">Sin señales capturadas aún.</div>';
+  const signalsCount=Object.values(groups).reduce((n,a)=>n+a.length,0);
+  const sigHTML=Object.entries(groups).filter(([g,a])=>a.length).map(([g,a])=>`<div class="dg-siggroup"><div class="dg-siglbl">${g}</div>${a.map(t=>`<span class="dg-sig">${_dgEsc(t)}</span>`).join('')}</div>`).join('');
   // WOW demo
   const wowSet=[]; const seen=new Set();
   ['comercial','operativo','administrativo'].forEach(area=>{ dgWowItems(area).forEach(w=>{ if((w.type==='ind'||w.type==='tv')&&!seen.has(w.title)){ seen.add(w.title); wowSet.push({...w,area}); } }); });
   if(wowSet.length<4){ ['operativo','comercial','administrativo'].forEach(area=>{ dgWowItems(area).forEach(w=>{ if(w.type==='gen'&&!seen.has(w.title)&&wowSet.length<6){ seen.add(w.title); wowSet.push({...w,area}); } }); }); }
   const areaLbl={comercial:'Comercial',operativo:'Operativo',administrativo:'Administrativo'};
-  const wowHTML=wowSet.slice(0,6).map(w=>`<div class="dg-wi"><span class="dg-wtag dg-wt-ind">${areaLbl[w.area]}</span><div class="dg-wi-title">${w.title}</div><div class="dg-wi-wow">${w.wow}</div></div>`).join('')||'<div style="color:#7c3aed;font-size:13px;padding:8px">Selecciona industria y tipo de venta para recomendaciones.</div>';
+  const wowShown=wowSet.slice(0,6);
+  const wowHTML=wowShown.map(w=>`<div class="dg-wi"><span class="dg-wtag dg-wt-ind">${areaLbl[w.area]}</span><div class="dg-wi-title">${w.title}</div><div class="dg-wi-wow">${w.wow}</div></div>`).join('');
 
-  // Col 1 — Feedback de la Qcall: completitud + MEDDIC/BANT
+  // Col 1 — Feedback de la Qcall: completitud + MEDDIC/BANT — resumen siempre visible, detalle en popup
   feedbackHost.innerHTML=`
   <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">📊</span><span class="t">Completitud</span></div>
     <div class="dg-pc-b">
       <div class="dg-ringwrap">
         <svg width="64" height="64" viewBox="0 0 78 78"><circle cx="39" cy="39" r="33" fill="none" stroke="#e5e7eb" stroke-width="9"/><circle cx="39" cy="39" r="33" fill="none" stroke="#714B67" stroke-width="9" stroke-linecap="round" stroke-dasharray="207" stroke-dashoffset="${off.toFixed(0)}" transform="rotate(-90 39 39)"/><text x="39" y="45" text-anchor="middle" font-size="18" font-weight="800" fill="#21272B">${pct}%</text></svg>
         <div style="font-size:12.5px;color:#6b7280;line-height:1.5">${pct>=70?'Cubriste lo esencial.':'Discovery en progreso.'}${faltan.length?`<br><b style="color:#d97706">Faltan: ${faltan.slice(0,3).join(', ')}.</b>`:''}</div>
-      </div>${covRows}
+      </div>
+      <div id="dgPcCovDetail" style="display:none">${covRows}</div>
+      <button class="dg-viewmore-btn" onclick="discShowCardPopup('dgPcCovDetail','📊 Completitud por sección')">↗ Ver detalle por sección (${cov.filter(c=>c.st==='full').length}/${cov.length})</button>
     </div></div>
 
   <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">🎯</span><span class="t">Conocimiento del cliente</span><span class="sub">MEDDIC + BANT</span></div>
-    <div class="dg-pc-b">${qHTML}<div class="dg-verdict ${verdict.c}"><div><span class="dg-vt">Oportunidad</span>${gaps.length?`<div style="font-size:11.5px;margin-top:3px;font-weight:600;opacity:.85">Falta documentar: ${gaps.slice(0,3).join(', ')}</div>`:''}</div><span class="dg-vv">${verdict.t}</span></div></div></div>`;
+    <div class="dg-pc-b">
+      <div class="dg-verdict ${verdict.c}"><div><span class="dg-vt">Oportunidad</span>${gaps.length?`<div style="font-size:11.5px;margin-top:3px;font-weight:600;opacity:.85">Falta documentar: ${gaps.slice(0,3).join(', ')}</div>`:''}</div><span class="dg-vv">${verdict.t}</span></div>
+      <div id="dgPcMeddicDetail" style="display:none">${qHTML}</div>
+      <button class="dg-viewmore-btn" onclick="discShowCardPopup('dgPcMeddicDetail','🎯 Conocimiento del cliente · MEDDIC + BANT')">↗ Ver los ${ql.length} criterios (${oks}/${ql.length} completos)</button>
+    </div></div>`;
 
-  // Col 2 — Datos del negocio: resumen de empresa + dolor/señales + efectos WOW
+  // Col 2 — Datos del negocio: resumen de empresa + dolor/señales + efectos WOW — señales y WOW en popup
   datosHost.innerHTML=`
   <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">🏢</span><span class="t">Resumen de la empresa</span><span class="sub">autollenado</span></div>
     <div class="dg-pc-b"><div class="dg-kv">${kvHTML}</div>${tagHTML}</div></div>
 
   <div class="dg-pc-card"><div class="dg-pc-h"><span class="dot">🔎</span><span class="t">Dolor y señales detectadas</span></div>
-    <div class="dg-pc-b">${dolorTxt?`<div class="dg-dolorbox"><div class="dl">⚠ Dolor principal (en sus palabras)</div><div class="dv">"${_dgEsc(dolorTxt)}"</div></div>`:''}${sigHTML}</div></div>
+    <div class="dg-pc-b">
+      ${dolorTxt?`<div class="dg-dolorbox"><div class="dl">⚠ Dolor principal (en sus palabras)</div><div class="dv">"${_dgEsc(dolorTxt)}"</div></div>`:''}
+      ${signalsCount?`<div id="dgPcSenalesDetail" style="display:none">${sigHTML}</div><button class="dg-viewmore-btn" onclick="discShowCardPopup('dgPcSenalesDetail','🔎 Dolor y señales detectadas')">↗ Ver señales detectadas (${signalsCount})</button>`:'<div style="color:#9ca3af;font-size:13px">Sin señales capturadas aún.</div>'}
+    </div></div>
 
   <div class="dg-pc-card dg-wowcard"><div class="dg-pc-h"><span class="dot">✨</span><span class="t">Efectos WOW para la demo</span><span class="sub">según industria + lo detectado</span></div>
-    <div class="dg-pc-b"><div class="dg-wowgrid">${wowHTML}</div></div></div>`;
+    <div class="dg-pc-b">
+      ${wowShown.length?`<div style="font-size:12.5px;color:#6b21a8;font-weight:600;margin-bottom:2px">✨ ${wowShown.length} efecto${wowShown.length===1?'':'s'} WOW listo${wowShown.length===1?'':'s'}${wowShown.length>1?` — desde "${wowShown[0].title}"`:''}</div><div id="dgPcWowDetail" style="display:none"><div class="dg-wowgrid">${wowHTML}</div></div><button class="dg-viewmore-btn" onclick="discShowCardPopup('dgPcWowDetail','✨ Efectos WOW para la demo')">↗ Ver los ${wowShown.length} efectos WOW</button>`:'<div style="color:#7c3aed;font-size:13px;padding:8px">Selecciona industria y tipo de venta para recomendaciones.</div>'}
+    </div></div>`;
 }
 
 // ── Navigation & capture handlers ──
@@ -9544,6 +9558,27 @@ window.discShowPopup=function(sourceId,title){
         </div>
       </div>
       <div class="disc-popup-body" id="discPopupText" style="white-space:pre-wrap">${text}</div>
+    </div>`;
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+};
+
+// Igual que discShowPopup pero para bloques con HTML propio (tarjetas de Post-call: completitud,
+// MEDDIC/BANT, señales, WOW) — el contenedor fuente vive oculto (display:none) en el DOM y aquí
+// solo se clona su innerHTML, sin escapar, para conservar clases/estilos (dg-crow, dg-brow, dg-wi…).
+window.discShowCardPopup=function(sourceId,title){
+  const src=document.getElementById(sourceId); if(!src) return;
+  const html=src.innerHTML;
+  const overlay=document.createElement('div');
+  overlay.className='disc-popup-overlay';
+  overlay.id='discCardPopup';
+  overlay.innerHTML=`
+    <div class="disc-popup-box" style="max-width:640px">
+      <div class="disc-popup-header">
+        <div class="disc-popup-title">${title}</div>
+        <button class="disc-copy-btn" onclick="document.getElementById('discCardPopup').remove()">✕ Cerrar</button>
+      </div>
+      <div class="disc-popup-body" style="font-family:'Inter',sans-serif;white-space:normal">${html}</div>
     </div>`;
   overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.remove(); });
   document.body.appendChild(overlay);
