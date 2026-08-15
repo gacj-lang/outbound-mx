@@ -2564,10 +2564,11 @@ const disc = {
   companyId: null,
   callEnded: false,
   appsAI: null,          // apps sugeridas por "Analizar discovery" (array {name,reason}), del catálogo ODOO_APPS_FLAT
+  wowAI: null,           // efectos WOW elegidos por "Analizar discovery" (array {title,area,desc,wow,why}), del catálogo WOW_DB
   resumenIntromeet: '',  // síntesis de IA de toda la sesión — se reutiliza como contexto en otras apps
   feedbackFinal: '',     // coaching de IA sobre la sesión (acciones en la app + transcripción)
   ui: { section:0, sub:{flujo:1}, wow:null },
-  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; this.appsAI=null; this.resumenIntromeet=''; this.feedbackFinal=''; this.ui={section:0,sub:{flujo:1},wow:null}; }
+  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; this.appsAI=null; this.wowAI=null; this.resumenIntromeet=''; this.feedbackFinal=''; this.ui={section:0,sub:{flujo:1},wow:null}; }
 };
 // Nota: el estatus (borrador→en_proceso→completado) ya no se elige a mano — ver discAutosave/discEndCall.
 // ── Sessions list view ──
@@ -3084,12 +3085,19 @@ function buildDiscoveryFormHTML(data){
               <div class="dg-step" data-step="4">
                 <div class="dg-stepdot">4</div>
                 <div class="dg-stepbody">
-                  <div class="dg-stept">Resumen Intromeet</div>
-                  <div class="dg-stepd">Se guarda y queda disponible como contexto en otras apps.</div>
+                  <div class="dg-stept">Efectos WOW para la demo</div>
+                  <div class="dg-stepd">Del catálogo de efectos WOW — los que más conectan con el dolor de este prospecto.</div>
                 </div>
               </div>
               <div class="dg-step" data-step="5">
                 <div class="dg-stepdot">5</div>
+                <div class="dg-stepbody">
+                  <div class="dg-stept">Resumen Intromeet</div>
+                  <div class="dg-stepd">Se guarda y queda disponible como contexto en otras apps.</div>
+                </div>
+              </div>
+              <div class="dg-step" data-step="6">
+                <div class="dg-stepdot">6</div>
                 <div class="dg-stepbody">
                   <div class="dg-stept">Feedback final de IA</div>
                   <div class="dg-stepd">Coach de la sesión — aparece en la columna de la izquierda.</div>
@@ -3410,13 +3418,21 @@ function dgRenderPostcall(){
   const dolorTxt=s.fld?.['dol-principal'];
   const signalsCount=Object.values(groups).reduce((n,a)=>n+a.length,0);
   const sigHTML=Object.entries(groups).filter(([g,a])=>a.length).map(([g,a])=>`<div class="dg-siggroup"><div class="dg-siglbl">${g}</div>${a.map(t=>`<span class="dg-sig">${_dgEsc(t)}</span>`).join('')}</div>`).join('');
-  // WOW demo
-  const wowSet=[]; const seen=new Set();
-  ['comercial','operativo','administrativo'].forEach(area=>{ dgWowItems(area).forEach(w=>{ if((w.type==='ind'||w.type==='tv')&&!seen.has(w.title)){ seen.add(w.title); wowSet.push({...w,area}); } }); });
-  if(wowSet.length<4){ ['operativo','comercial','administrativo'].forEach(area=>{ dgWowItems(area).forEach(w=>{ if(w.type==='gen'&&!seen.has(w.title)&&wowSet.length<6){ seen.add(w.title); wowSet.push({...w,area}); } }); }); }
+  // WOW demo — si ya se corrió "Analizar discovery", usa la selección de la IA (acotada al catálogo WOW_DB
+  // por discStepWow, ordenada por relevancia al dolor real); si no, línea base por reglas de industria/tipo de venta.
   const areaLbl={comercial:'Comercial',operativo:'Operativo',administrativo:'Administrativo'};
-  const wowShown=wowSet.slice(0,6);
-  const wowHTML=wowShown.map(w=>`<div class="dg-wi"><span class="dg-wtag dg-wt-ind">${areaLbl[w.area]}</span><div class="dg-wi-title">${w.title}</div><div class="dg-wi-wow">${w.wow}</div></div>`).join('');
+  let wowShown, wowSourceNote;
+  if(Array.isArray(disc.wowAI)&&disc.wowAI.length){
+    wowShown=disc.wowAI;
+    wowSourceNote='Generado con IA';
+  } else {
+    const wowSet=[]; const seen=new Set();
+    ['comercial','operativo','administrativo'].forEach(area=>{ dgWowItems(area).forEach(w=>{ if((w.type==='ind'||w.type==='tv')&&!seen.has(w.title)){ seen.add(w.title); wowSet.push({...w,area}); } }); });
+    if(wowSet.length<4){ ['operativo','comercial','administrativo'].forEach(area=>{ dgWowItems(area).forEach(w=>{ if(w.type==='gen'&&!seen.has(w.title)&&wowSet.length<6){ seen.add(w.title); wowSet.push({...w,area}); } }); }); }
+    wowShown=wowSet.slice(0,6);
+    wowSourceNote='Por industria + tipo de venta';
+  }
+  const wowHTML=wowShown.map(w=>`<div class="dg-wi"><span class="dg-wtag dg-wt-ind">${areaLbl[w.area]}</span><div class="dg-wi-title">${w.title}</div>${w.why?`<div class="dg-wi-desc">${_dgEsc(w.why)}</div>`:''}<div class="dg-wi-wow">${w.wow}</div></div>`).join('');
 
   // Col 1 — Feedback de la Qcall: completitud + MEDDIC/BANT — resumen siempre visible, detalle en popup
   feedbackHost.innerHTML=`
@@ -3448,7 +3464,7 @@ function dgRenderPostcall(){
       ${signalsCount?`<div id="dgPcSenalesDetail" style="display:none">${sigHTML}</div><button class="dg-viewmore-btn" onclick="discShowCardPopup('dgPcSenalesDetail','🔎 Dolor y señales detectadas')">↗ Ver señales detectadas (${signalsCount})</button>`:'<div style="color:#9ca3af;font-size:13px">Sin señales capturadas aún.</div>'}
     </div></div>
 
-  <div class="dg-pc-card dg-wowcard"><div class="dg-pc-h"><span class="dot">✨</span><span class="t">Efectos WOW para la demo</span><span class="sub">según industria + lo detectado</span></div>
+  <div class="dg-pc-card dg-wowcard"><div class="dg-pc-h"><span class="dot">✨</span><span class="t">Efectos WOW para la demo</span><span class="sub">${wowSourceNote}</span></div>
     <div class="dg-pc-b">
       ${wowShown.length?`<div style="font-size:12.5px;color:#6b21a8;font-weight:600;margin-bottom:2px">✨ ${wowShown.length} efecto${wowShown.length===1?'':'s'} WOW listo${wowShown.length===1?'':'s'}${wowShown.length>1?` — desde "${wowShown[0].title}"`:''}</div><div id="dgPcWowDetail" style="display:none"><div class="dg-wowgrid">${wowHTML}</div></div><button class="dg-viewmore-btn" onclick="discShowCardPopup('dgPcWowDetail','✨ Efectos WOW para la demo')">↗ Ver los ${wowShown.length} efectos WOW</button>`:'<div style="color:#7c3aed;font-size:13px;padding:8px">Selecciona industria y tipo de venta para recomendaciones.</div>'}
     </div></div>`;
@@ -3490,8 +3506,9 @@ function discInitForm(data){
     if(data.recoNote){ const o=document.getElementById('discRecoOutput'),w=document.getElementById('discRecoStepOut'); if(o&&w){ o.textContent=data.recoNote; w.style.display='block'; const l=document.getElementById('discRecoLabel'); if(l) l.textContent='Recomendaciones guardadas'; discStepMark(2,'done'); } }
     if(data.transcript){ const ta=document.getElementById('discTranscriptInput'); if(ta) ta.value=data.transcript; }
     if(Array.isArray(data.appsAI)&&data.appsAI.length){ discRenderAppsList(data.appsAI,'Guardado · basado en industria + notas'); discStepMark(3,'done'); }
-    if(data.resumenIntromeet){ discRenderResumen(data.resumenIntromeet); discStepMark(4,'done'); }
-    if(data.feedbackFinal){ discRenderFeedback(data.feedbackFinal); discStepMark(5,'done'); }
+    if(Array.isArray(data.wowAI)&&data.wowAI.length){ disc.wowAI=data.wowAI; discStepMark(4,'done'); }
+    if(data.resumenIntromeet){ discRenderResumen(data.resumenIntromeet); discStepMark(5,'done'); }
+    if(data.feedbackFinal){ discRenderFeedback(data.feedbackFinal); discStepMark(6,'done'); }
   }
   { const nta=document.getElementById('dgNotesTa'); if(nta) nta.value=disc.selections.fld?.['notas-llamada']||''; }
   disc.ui={section:0,sub:{flujo:1},wow:null};
@@ -3556,7 +3573,7 @@ function discRenderAppsList(apps,note){
   if(!apps||apps.length===0){ c.innerHTML='<div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div>'; return; }
   c.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">${apps.map(a=>`<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;background:#f9fafb"><div style="font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px">Odoo ${_dgEsc(a.name)}</div><div style="font-size:11.5px;color:#6b7280;line-height:1.5">${_dgEsc(a.reason)}</div></div>`).join('')}</div>${note?`<div style="font-size:10.5px;color:#9ca3af;margin-top:8px">${_dgEsc(note)}</div>`:''}`;
 }
-// Marca visualmente un paso de la cadena "Analizar discovery" (1-5) como activo/hecho.
+// Marca visualmente un paso de la cadena "Analizar discovery" (1-6) como activo/hecho.
 function discStepMark(n,state){
   const el=document.querySelector('.dg-step[data-step="'+n+'"]'); if(!el) return;
   el.classList.remove('active','done'); if(state) el.classList.add(state);
@@ -3791,7 +3808,65 @@ Elige entre 4 y 8 apps del catálogo — las MÁS relevantes para ESTE prospecto
   return list;
 }
 
-// ── Paso 4: Resumen Intromeet — síntesis reutilizable como contexto en otras apps (vía memoria de empresa) ──
+// ── Paso 4: Efectos WOW para la demo — SOLO del catálogo WOW_DB (misma lógica anti-alucinación que discStepApps), elegidos por relevancia real al dolor detectado, no por regla fija de industria ──
+async function discStepWow(transcript, notaText){
+  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
+  const s=disc.selections;
+  const areaLbl={comercial:'Comercial',operativo:'Operativo',administrativo:'Administrativo'};
+  // Catálogo acotado a lo relevante para esta sesión (generales + industria + tipo de venta actuales) — mismo criterio que dgWowItems, sin recortar a 6: aquí elige la IA.
+  const catalogItems=[];
+  Object.entries(WOW_DB).forEach(([area,items])=>{
+    items.forEach(w=>{
+      const relevant=w.type==='gen'||(w.type==='ind'&&w.ind===disc.currentInd)||(w.type==='tv'&&disc.activeTV.has(w.tv));
+      if(relevant) catalogItems.push({...w,area});
+    });
+  });
+  if(!catalogItems.length){ disc.wowAI=[]; dgRenderPostcall(); return []; }
+  const catalogBlock=catalogItems.map((w,i)=>`${i+1}. [${areaLbl[w.area]}] "${w.title}" — ${w.desc}`).join('\n');
+  const prompt=`Eres un consultor preventa de Odoo México eligiendo qué "efectos WOW" mostrarle a este prospecto en la demo — los momentos que más lo van a impresionar porque conectan directo con SU dolor.
+
+CATÁLOGO DE EFECTOS WOW — única fuente permitida. NUNCA inventes un efecto que no esté en esta lista exacta, usa el título EXACTO tal cual aparece:
+${catalogBlock}
+
+CONTEXTO DEL PROSPECTO:
+- Industria: ${IND_NAMES[disc.currentInd]||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
+- Dolor principal (en sus palabras): ${s.fld?.['dol-principal']||'nd'}
+- Otras señales/dolores detectados: ${(s.dolores||[]).join(', ')||'nd'}
+- Notas del AE durante la llamada: ${s.fld?.['notas-llamada']||'nd'}
+${notaText?`- Nota de discovery ya generada:\n${notaText}`:''}
+${transcript?`- Fragmento de transcripción (úsalo solo si aporta): ${transcript.slice(0,3000)}`:''}
+
+Elige entre 3 y 6 efectos del catálogo — los MÁS conectados al dolor real de ESTE prospecto, no una lista genérica de industria. Ordénalos del más al menos impactante para ESTE cliente. Responde SOLO con este JSON (sin markdown, sin texto fuera del JSON):
+[{"title":"Título EXACTO tal cual aparece en el catálogo","why":"por qué este efecto en particular le va a pegar a ESTE prospecto, en 1 frase, conectada a algo que dijo o hace"}]`;
+
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1200,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  const raw=data.content?.[0]?.text||'[]';
+  const jsonMatch=raw.match(/\[[\s\S]*\]/);
+  let picks=[];
+  try{ picks=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ picks=[]; }
+  // Defensa extra: solo dejamos pasar títulos que existen tal cual en el catálogo acotado — el texto de desc/wow siempre sale del catálogo, nunca de lo que devolvió la IA.
+  const byTitle=new Map(catalogItems.map(w=>[w.title.toLowerCase(),w]));
+  let list=(Array.isArray(picks)?picks:[]).map(x=>{
+    const src=x?.title&&byTitle.get(String(x.title).toLowerCase());
+    return src?{title:src.title,area:src.area,desc:src.desc,wow:src.wow,why:x.why||''}:null;
+  }).filter(Boolean).slice(0,6);
+  if(!list.length){
+    // Fallback a la línea base por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
+    list=catalogItems.filter(w=>w.type!=='gen').slice(0,6);
+    if(list.length<4) list=[...list,...catalogItems.filter(w=>w.type==='gen')].slice(0,6);
+  }
+  disc.wowAI=list;
+  dgRenderPostcall();
+  return list;
+}
+
+// ── Paso 5: Resumen Intromeet — síntesis reutilizable como contexto en otras apps (vía memoria de empresa) ──
 async function discStepResumen(notaText, recoText, appsList){
   const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   const s=disc.selections;
@@ -3822,7 +3897,7 @@ Escribe en tercera persona, tono de bitácora de cuenta (no un mensaje al client
   return text;
 }
 
-// ── Paso 5: Feedback final de IA — coach de la SESIÓN (no del prospecto): acciones en la app + transcripción ──
+// ── Paso 6: Feedback final de IA — coach de la SESIÓN (no del prospecto): acciones en la app + transcripción ──
 async function discStepFeedback(transcript){
   const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   const s=disc.selections;
@@ -3854,7 +3929,7 @@ Dale 2-4 puntos de mejora CONCRETOS (qué pregunta faltó, qué tema no se cerr�
   return text;
 }
 
-// ── Orquestador: "Analizar discovery" — un solo botón, corre los 5 pasos en cadena ──
+// ── Orquestador: "Analizar discovery" — un solo botón, corre los 6 pasos en cadena ──
 window.discAnalyzeDiscovery = async function(){
   const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   if(!claudeKey||claudeKey==='CLAUDE_KEY_DEFAULT'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
@@ -3863,7 +3938,7 @@ window.discAnalyzeDiscovery = async function(){
   const loading=document.getElementById('discAnalyzeAllLoading');
   const transcript=document.getElementById('discTranscriptInput')?.value.trim()||'';
   btn.disabled=true; if(loading) loading.classList.add('show');
-  [1,2,3,4,5].forEach(n=>discStepMark(n,null));
+  [1,2,3,4,5,6].forEach(n=>discStepMark(n,null));
 
   let recentSessions=[];
   if(disc.currentInd) recentSessions=await discLoadRecentSessions(disc.currentInd,5);
@@ -3882,13 +3957,17 @@ window.discAnalyzeDiscovery = async function(){
   try{ appsList=await discStepApps(transcript,notaText); discStepMark(3,'done'); }
   catch(e){ discStepMark(3,null); showNotif('No se pudieron sugerir apps con IA: '+e.message,'error'); }
 
-  discStepMark(4,'active'); lbl.textContent='Guardando resumen…';
-  try{ await discStepResumen(notaText,recoText,appsList); discStepMark(4,'done'); }
-  catch(e){ discStepMark(4,null); showNotif('No se pudo generar el Resumen Intromeet: '+e.message,'error'); }
+  discStepMark(4,'active'); lbl.textContent='Eligiendo efectos WOW…';
+  try{ await discStepWow(transcript,notaText); discStepMark(4,'done'); }
+  catch(e){ discStepMark(4,null); showNotif('No se pudieron elegir efectos WOW con IA: '+e.message,'error'); }
 
-  discStepMark(5,'active'); lbl.textContent='Generando feedback…';
-  try{ await discStepFeedback(transcript); discStepMark(5,'done'); }
-  catch(e){ discStepMark(5,null); showNotif('No se pudo generar el feedback final: '+e.message,'error'); }
+  discStepMark(5,'active'); lbl.textContent='Guardando resumen…';
+  try{ await discStepResumen(notaText,recoText,appsList); discStepMark(5,'done'); }
+  catch(e){ discStepMark(5,null); showNotif('No se pudo generar el Resumen Intromeet: '+e.message,'error'); }
+
+  discStepMark(6,'active'); lbl.textContent='Generando feedback…';
+  try{ await discStepFeedback(transcript); discStepMark(6,'done'); }
+  catch(e){ discStepMark(6,null); showNotif('No se pudo generar el feedback final: '+e.message,'error'); }
 
   btn.disabled=false; if(loading) loading.classList.remove('show'); lbl.textContent='↺ Regenerar';
   discSaveRecord({silent:true});
@@ -3926,7 +4005,7 @@ window.discSaveRecord=async function(opts={}){
     timeline:disc.selections['timeline']||'', fit:disc.selections['fit']||'',
     dolores:disc.selections['dolores']||[],
     geminiNote, recoNote, transcript, status, callEnded:disc.callEnded||false,
-    appsAI:disc.appsAI||null, resumenIntromeet:disc.resumenIntromeet||'', feedbackFinal:disc.feedbackFinal||'',
+    appsAI:disc.appsAI||null, wowAI:disc.wowAI||null, resumenIntromeet:disc.resumenIntromeet||'', feedbackFinal:disc.feedbackFinal||'',
     updatedAt:serverTimestamp(),
   };
   const btn=document.getElementById('discSaveBtn');
