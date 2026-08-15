@@ -2573,12 +2573,13 @@ const disc = {
   selections: {},
   companyId: null,
   callEnded: false,
-  appsAI: null,          // apps sugeridas por "Analizar discovery" (array {name,reason}), del catálogo ODOO_APPS_FLAT
+  appsAI: null,          // apps sugeridas por "Analizar discovery" (array {name,reason,fase}), del catálogo ODOO_APPS_FLAT
+  appsFlow: '',          // recomendación de IA sobre el orden de demo (Comercial → Operativo → Administrativo), solo si appsAI trae fase
   wowAI: null,           // efectos WOW elegidos por "Analizar discovery" (array {title,area,desc,wow,why}), del catálogo WOW_DB
   resumenIntromeet: '',  // síntesis de IA de toda la sesión — se reutiliza como contexto en otras apps
   feedbackFinal: '',     // coaching de IA sobre la sesión (acciones en la app + transcripción)
   ui: { section:0, sub:{flujo:1}, wow:null },
-  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; this.appsAI=null; this.wowAI=null; this.resumenIntromeet=''; this.feedbackFinal=''; this.ui={section:0,sub:{flujo:1},wow:null}; }
+  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; this.appsAI=null; this.appsFlow=''; this.wowAI=null; this.resumenIntromeet=''; this.feedbackFinal=''; this.ui={section:0,sub:{flujo:1},wow:null}; }
 };
 // Nota: el estatus (borrador→en_proceso→completado) nunca se elige a mano — ver discAutosave/discMarkCompleted.
 // ── Sessions list view ──
@@ -3535,7 +3536,7 @@ function discInitForm(data){
     if(data.geminiNote){ const o=document.getElementById('discGeminiOutput'),w=document.getElementById('discNotaStepOut'); if(o&&w){ o.textContent=stripMd(data.geminiNote); w.style.display='block'; discStepMark(1,'done'); } }
     if(data.recoNote){ const o=document.getElementById('discRecoOutput'),w=document.getElementById('discRecoStepOut'); if(o&&w){ o.textContent=stripMd(data.recoNote); w.style.display='block'; const l=document.getElementById('discRecoLabel'); if(l) l.textContent='Recomendaciones guardadas'; discStepMark(2,'done'); } }
     if(data.transcript){ const ta=document.getElementById('discTranscriptInput'); if(ta) ta.value=data.transcript; }
-    if(Array.isArray(data.appsAI)&&data.appsAI.length){ discRenderAppsList(data.appsAI.map(a=>({...a,reason:stripMd(a.reason)})),'Guardado · basado en industria + notas'); discStepMark(3,'done'); }
+    if(Array.isArray(data.appsAI)&&data.appsAI.length){ disc.appsFlow=stripMd(data.appsFlow||''); discRenderAppsList(data.appsAI.map(a=>({...a,reason:stripMd(a.reason)})),'Guardado · basado en industria + notas'); discStepMark(3,'done'); }
     if(Array.isArray(data.wowAI)&&data.wowAI.length){ disc.wowAI=data.wowAI.map(w=>({...w,why:stripMd(w.why)})); discStepMark(4,'done'); }
     if(data.resumenIntromeet){ discRenderResumen(stripMd(data.resumenIntromeet)); discStepMark(5,'done'); }
     if(data.feedbackFinal){ discRenderFeedback(stripMd(data.feedbackFinal)); discStepMark(6,'done'); }
@@ -3603,7 +3604,29 @@ function discUpdateApps(){
 function discRenderAppsList(apps,note){
   const c=document.getElementById('discAppsContainer'); if(!c) return;
   if(!apps||apps.length===0){ c.innerHTML='<div style="color:#9ca3af;font-size:13px">Selecciona industria en la pantalla de llamada</div>'; return; }
-  c.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">${apps.map(a=>`<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;background:#f9fafb"><div style="font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px">Odoo ${_dgEsc(a.name)}</div><div style="font-size:11.5px;color:#6b7280;line-height:1.5">${_dgEsc(a.reason)}</div></div>`).join('')}</div>${note?`<div style="font-size:10.5px;color:#9ca3af;margin-top:8px">${_dgEsc(note)}</div>`:''}`;
+  // Grid completo queda oculto en el DOM (lo lee discShowCardPopup) — solo se ven los nombres como
+  // pills + un botón, en vez del "chorizo" de tarjetas completo siempre expandido.
+  const gridHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">${apps.map(a=>`<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;background:#f9fafb"><div style="font-size:13px;font-weight:700;color:#1f2937;margin-bottom:4px">Odoo ${_dgEsc(a.name)}</div><div style="font-size:11.5px;color:#6b7280;line-height:1.5">${_dgEsc(a.reason)}</div></div>`).join('')}</div>`;
+  const pillsHTML=apps.map(a=>`<span style="display:inline-block;font-size:11.5px;font-weight:600;color:#374151;background:#f3f4f6;padding:4px 10px;border-radius:999px;margin:0 5px 5px 0">${_dgEsc(a.name)}</span>`).join('');
+  let html=`<div style="font-size:12.5px;color:#4b5563;margin-bottom:9px;line-height:2.1">${apps.length} app${apps.length===1?'':'s'} recomendadas: ${pillsHTML}</div>
+    <div id="discAppsDetail" style="display:none">${gridHTML}</div>
+    <button class="dg-viewmore-btn" onclick="discShowCardPopup('discAppsDetail','🧩 Apps de Odoo recomendadas')">↗ Ver detalle de las ${apps.length} apps</button>
+    ${note?`<div style="font-size:10.5px;color:#9ca3af;margin-top:8px">${_dgEsc(note)}</div>`:''}`;
+  // Segundo box: orden sugerido de demo (Comercial → Operativo → Administrativo/Contable) — solo
+  // aparece cuando las apps ya vienen clasificadas por fase (discStepApps corrió con IA); la línea
+  // base por reglas (discUpdateApps) no clasifica, así que aquí no se muestra.
+  if(disc.appsFlow&&apps.some(a=>a.fase)){
+    const faseLbl={comercial:'1️⃣ Comercial',operativo:'2️⃣ Operativo',administrativo:'3️⃣ Administrativo / Contable'};
+    const byFase={comercial:[],operativo:[],administrativo:[]};
+    apps.forEach(a=>{ if(byFase[a.fase]) byFase[a.fase].push(a); });
+    const flowRows=['comercial','operativo','administrativo'].filter(f=>byFase[f].length).map(f=>`<div style="margin-bottom:8px"><div style="font-size:10.5px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${faseLbl[f]}</div><div style="font-size:12.5px;color:#374151">${byFase[f].map(a=>_dgEsc(a.name)).join(' · ')}</div></div>`).join('');
+    html+=`<div style="margin-top:14px;padding:14px 16px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px">
+      <div style="font-size:11.5px;font-weight:700;color:#6b21a8;margin-bottom:10px">🎬 Orden sugerido para presentar la demo</div>
+      ${flowRows}
+      <div style="font-size:12.5px;color:#4b5563;line-height:1.55;margin-top:7px;padding-top:9px;border-top:1px solid #e9d5ff">${_dgEsc(disc.appsFlow)}</div>
+    </div>`;
+  }
+  c.innerHTML=html;
 }
 // Marca visualmente un paso de la cadena "Analizar discovery" (1-6) como activo/hecho.
 function discStepMark(n,state){
@@ -3811,29 +3834,41 @@ CONTEXTO DEL PROSPECTO:
 ${notaText?`- Nota de discovery ya generada:\n${notaText}`:''}
 ${transcript?`- Fragmento de transcripción (úsalo solo si aporta): ${transcript.slice(0,3000)}`:''}
 
-Elige entre 4 y 8 apps del catálogo — las MÁS relevantes para ESTE prospecto, no una lista genérica de industria. Responde SOLO con este JSON (sin markdown, sin texto fuera del JSON):
-[{"name":"Nombre EXACTO tal cual aparece en el catálogo de arriba","reason":"por qué esta app específica, en 1 frase, conectada a algo que dijo o hace el prospecto"}]`;
+Elige entre 4 y 8 apps del catálogo — las MÁS relevantes para ESTE prospecto, no una lista genérica de industria. Para cada una, clasifícala en la FASE de la demo donde mejor encaja:
+- "comercial": lleva toda la parte comercial — CRM, cotizaciones, ventas, portal del cliente
+- "operativo": lleva la operación real de ESTE negocio en particular — inventario, proyectos, manufactura, servicio en campo, o lo que sea que su operación necesite según lo que detectaste
+- "administrativo": RH/nómina, contabilidad, facturación, gastos
+
+Y sugiere el ORDEN de presentación en la demo: primero Comercial, luego Operativo, y se cierra con Administrativo/Contable — esa secuencia sigue el flujo real del negocio (se vende → se opera → se factura/paga) y es más fácil de seguir para el prospecto que saltar entre áreas. Responde SOLO con este JSON (sin markdown, sin texto fuera del JSON):
+{
+  "apps":[{"name":"Nombre EXACTO tal cual aparece en el catálogo de arriba","reason":"por qué esta app específica, en 1 frase, conectada a algo que dijo o hace el prospecto","fase":"comercial, operativo o administrativo — exactamente una de estas tres palabras"}],
+  "flujo":"1-2 frases sugiriendo cómo presentar la demo en ese orden (Comercial → Operativo → Administrativo/Contable) para ESTE prospecto, mencionando las apps elegidas por nombre"
+}`;
 
   const res=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1200,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1400,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const raw=data.content?.[0]?.text||'[]';
-  const jsonMatch=raw.match(/\[[\s\S]*\]/);
-  let list=[];
-  try{ list=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ list=[]; }
+  const raw=data.content?.[0]?.text||'{}';
+  const jsonMatch=raw.match(/\{[\s\S]*\}/);
+  let parsed={};
+  try{ parsed=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ parsed={}; }
+  const FASES=new Set(['comercial','operativo','administrativo']);
   // Defensa extra: aunque el prompt lo prohíbe, se filtra cualquier nombre que no exista en el catálogo real.
   const validNames=new Set(ODOO_APPS_FLAT.map(a=>a.name.toLowerCase()));
-  list=(Array.isArray(list)?list:[]).filter(x=>x?.name&&validNames.has(String(x.name).toLowerCase())).map(x=>({...x,reason:stripMd(x.reason)})).slice(0,8);
+  let list=(Array.isArray(parsed.apps)?parsed.apps:[]).filter(x=>x?.name&&validNames.has(String(x.name).toLowerCase()))
+    .map(x=>{ const f=String(x.fase||'').trim().toLowerCase(); return {name:x.name,reason:stripMd(x.reason),fase:FASES.has(f)?f:null}; }).slice(0,8);
+  disc.appsFlow=list.some(a=>a.fase)?stripMd(parsed.flujo||''):'';
   if(!list.length){
     // Fallback a la línea base por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
     const apps=[]; const seen=new Set();
     if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>{ if(!seen.has(a.name)){ apps.push(a); seen.add(a.name); }});
     disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!seen.has(TV_APPS[tv].name)){ apps.push(TV_APPS[tv]); seen.add(TV_APPS[tv].name); }});
     list=apps;
+    disc.appsFlow='';
   }
   disc.appsAI=list;
   discRenderAppsList(list,'Generado con IA · catálogo oficial de Odoo + tus notas');
@@ -4038,7 +4073,7 @@ window.discSaveRecord=async function(opts={}){
     timeline:disc.selections['timeline']||'', fit:disc.selections['fit']||'',
     dolores:disc.selections['dolores']||[],
     geminiNote, recoNote, transcript, status, callEnded:disc.callEnded||false,
-    appsAI:disc.appsAI||null, wowAI:disc.wowAI||null, resumenIntromeet:disc.resumenIntromeet||'', feedbackFinal:disc.feedbackFinal||'',
+    appsAI:disc.appsAI||null, appsFlow:disc.appsFlow||'', wowAI:disc.wowAI||null, resumenIntromeet:disc.resumenIntromeet||'', feedbackFinal:disc.feedbackFinal||'',
     updatedAt:serverTimestamp(),
   };
   const btn=document.getElementById('discSaveBtn');
@@ -6540,6 +6575,13 @@ Reglas:
 - "nota" son indicaciones para el AE (no se dicen en voz alta): breves y opcionales
 - JSON válido, comillas dobles, sin comas finales, sin markdown`,null,{tools:evento.tools,toolChoice:evento.toolChoice});
     let data; try{ data=_parseJSON(raw); }catch(e){ data=null; }
+    // Aunque el prompt pide "sin markdown", el guion es el único lugar de Contenidos donde se ha visto
+    // que Claude aun así mete **negritas** dentro de un campo — se limpia campo por campo (JSON ya parseado).
+    if(data){
+      (data.secciones||[]).forEach(s=>{ s.guion=stripMd(s.guion); s.nota=stripMd(s.nota); });
+      (data.objeciones||[]).forEach(o=>{ o.respuesta=stripMd(o.respuesta); });
+      data.cierre=stripMd(data.cierre);
+    }
     const plain = data ? gcColdScriptToText(data, cont.company?.nombre) : raw;
     window._gcColdText = plain;
     const out=document.getElementById('gcCcOutput'); out.classList.add('show');
