@@ -13811,7 +13811,7 @@ window.cadOpenTemplateEditor=function(templateId,duplicate){
   _cadEditorState={
     id:(existing&&!duplicate)?existing.id:null,
     name:existing?(duplicate?existing.name+' (copia)':existing.name):'Nueva cadencia',
-    steps:existing?JSON.parse(JSON.stringify(existing.steps||[])):[{day:0,momento:'primer_toque',label:'Primer toque'}],
+    steps:existing?JSON.parse(JSON.stringify(existing.steps||[])):[{day:0,hour:'09:00',momento:'primer_toque',label:'Primer toque'}],
     variantBSteps:existing?.variantBSteps?JSON.parse(JSON.stringify(existing.variantBSteps)):null,
   };
   cadRenderTemplateEditor();
@@ -13830,13 +13830,19 @@ function cadRenderTemplateEditor(){
       <div style="margin:14px 0"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
         <input type="checkbox" id="cadEditorAB" ${st.variantBSteps?'checked':''} onchange="cadEditorToggleAB()"> Cadencia A/B (dos secuencias, cada lead entra a una alternando)
       </label></div>
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">${st.variantBSteps?'Variante A':'Toques'}</div>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">${st.variantBSteps?'Variante A':'Días'}</div>
+      <div style="display:flex;gap:8px;font-size:11px;font-weight:700;color:var(--gray-400);margin-bottom:4px;padding-left:2px">
+        <span style="width:64px">Día</span><span style="width:100px">Hora</span><span style="flex:1">Momento</span><span style="flex:1">Etiqueta</span>
+      </div>
       <div id="cadEditorStepsA">${cadEditorStepsHtml('steps')}</div>
-      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="cadEditorAddStep('steps')">+ Toque</button>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="cadEditorAddStep('steps')">+ Día</button>
       <div id="cadEditorBWrap" style="display:${st.variantBSteps?'block':'none'};margin-top:18px">
         <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px">Variante B</div>
+        <div style="display:flex;gap:8px;font-size:11px;font-weight:700;color:var(--gray-400);margin-bottom:4px;padding-left:2px">
+          <span style="width:64px">Día</span><span style="width:100px">Hora</span><span style="flex:1">Momento</span><span style="flex:1">Etiqueta</span>
+        </div>
         <div id="cadEditorStepsB">${cadEditorStepsHtml('variantBSteps')}</div>
-        <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="cadEditorAddStep('variantBSteps')">+ Toque</button>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="cadEditorAddStep('variantBSteps')">+ Día</button>
       </div>
       <button class="btn btn-primary" style="margin-top:18px" onclick="cadSaveTemplate()">Guardar plantilla</button>
     </div>
@@ -13844,10 +13850,16 @@ function cadRenderTemplateEditor(){
   overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
   document.body.appendChild(overlay);
 }
+// Hora por día — pedido del usuario 2026-08-14 tras el widget de fecha/hora de activación: cada
+// día de la plantilla lleva su propia hora de envío (ej. primer toque 9am, break-up 4pm), en vez
+// de una sola hora para toda la cadencia. activateCadence la usa si está (ver businessDeadlineISOWithTime
+// en el backend); si un día no trae hora (plantillas viejas), cae a la hora elegida en el widget de
+// activación. Default '09:00' para días nuevos — horario laboral razonable, no vacío.
 function cadEditorStepsHtml(key){
   const steps=_cadEditorState[key]||[];
   return steps.map((s,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-    <input type="number" class="input" style="width:64px" value="${s.day}" onchange="cadEditorUpdateStep('${key}',${i},'day',this.value)" title="Día">
+    <input type="number" class="input" style="width:64px" value="${s.day}" onchange="cadEditorUpdateStep('${key}',${i},'day',this.value)" title="Día (número de días hábiles desde el inicio de la cadencia)">
+    <input type="time" class="input" style="width:100px" value="${s.hour||'09:00'}" onchange="cadEditorUpdateStep('${key}',${i},'hour',this.value)" title="Hora de envío de este día">
     <select class="input" style="flex:1" onchange="cadEditorUpdateStep('${key}',${i},'momento',this.value)">
       ${GC_MOMENTOS.map(m=>`<option value="${m.id}" ${s.momento===m.id?'selected':''}>${_esc(m.label)}</option>`).join('')}
     </select>
@@ -13863,7 +13875,7 @@ window.cadEditorToggleAB=function(){
 };
 window.cadEditorAddStep=function(key){
   _cadEditorState[key]=_cadEditorState[key]||[];
-  _cadEditorState[key].push({day:0,momento:'primer_toque',label:''});
+  _cadEditorState[key].push({day:0,hour:'09:00',momento:'primer_toque',label:''});
   document.getElementById(key==='steps'?'cadEditorStepsA':'cadEditorStepsB').innerHTML=cadEditorStepsHtml(key);
 };
 window.cadEditorRemoveStep=function(key,i){
@@ -13876,7 +13888,7 @@ window.cadEditorUpdateStep=function(key,i,field,val){
 window.cadSaveTemplate=async function(){
   const name=document.getElementById('cadEditorName')?.value.trim();
   if(!name){ showNotif('Ponle un nombre a la plantilla','error'); return; }
-  if(!_cadEditorState.steps.length){ showNotif('Agrega al menos un toque','error'); return; }
+  if(!_cadEditorState.steps.length){ showNotif('Agrega al menos un día','error'); return; }
   try{
     const idToken=await currentUser.getIdToken();
     const res=await fetch(CADENCES_BASE+'/cadences/templates',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`,'Content-Type':'application/json'},
@@ -14168,7 +14180,7 @@ function cadActStepsHtml(){
         const c=_cadActivation.content[v][s.day]||{subject:'',html:''};
         return `<div class="card" style="padding:14px;margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
-            <div style="font-weight:600;font-size:13px">Día ${s.day} — ${_esc(s.label||'')}</div>
+            <div style="font-weight:600;font-size:13px">Día ${s.day}${s.hour?` · 🕐 ${_esc(s.hour)}`:''} — ${_esc(s.label||'')}</div>
             <button class="btn btn-ghost btn-sm" onclick="cadActGenerateStep('${v}',${s.day},'${s.momento}')" id="cadActGenBtn_${v}_${s.day}">✨ Generar con IA</button>
           </div>
           <input type="text" class="input" placeholder="Asunto" value="${_esc(c.subject)}" style="margin-bottom:6px" id="cadActSubj_${v}_${s.day}" onchange="cadActUpdateContent('${v}',${s.day},'subject',this.value)">
