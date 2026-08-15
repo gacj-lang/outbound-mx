@@ -14075,6 +14075,18 @@ window.cadOpenHistoryByKey=function(companyKey,label){
 
 // ── Modal de activación compartido — entrada A (Resultados de CSV Builder) y entrada B (Nueva
 // cadencia) convergen aquí, una sola vez, para no duplicar la lógica de activación. ──
+// "Ahora" en hora de pared de Ciudad de México, formato "YYYY-MM-DDTHH:mm" — lo que un
+// <input type="datetime-local"> espera. Precarga el widget de fecha/hora (ver openCadenceActivationModal
+// abajo) con el momento actual, así si el AE no lo toca el comportamiento es "manda apenas corra
+// el barrido" (igual que siempre) — el control manual es solo para cuando SÍ quiere elegir otra
+// fecha/hora. Bug real 2026-08-14 que motivó este widget: businessDay0() en el backend rodaba mal
+// por huso horario (UTC vs CDMX) y una cadencia activada de noche se agendó para 3 días después sin
+// que el AE se enterara ni pudiera corregirlo — ver [[project_cadencias_solo_correo]].
+function _mxNowLocalInputValue(){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date());
+  const g=t=>parts.find(p=>p.type===t)?.value;
+  return `${g('year')}-${g('month')}-${g('day')}T${g('hour')}:${g('minute')}`;
+}
 let _cadActivation=null;
 window.openCadenceActivationModal=async function(leads){
   if(!leads||!leads.length){ showNotif('No hay prospectos seleccionados','error'); return; }
@@ -14090,7 +14102,7 @@ window.openCadenceActivationModal=async function(leads){
     }catch(e){ /* si falla, el picker sale vacío y se avisa en cadActStepsHtml */ }
   }
   const defaultTpl=_cadTemplatesCache?.find(t=>t.isDefault)||_cadTemplatesCache?.[0]||null;
-  _cadActivation={leads:withEmail, templateId:defaultTpl?.id||null, tone:'interesante', content:{A:{},B:{}}, gmailConnected:null};
+  _cadActivation={leads:withEmail, templateId:defaultTpl?.id||null, tone:'interesante', content:{A:{},B:{}}, gmailConnected:null, startAt:_mxNowLocalInputValue()};
   cadRenderActivationModal();
   cadCheckGmailForActivation();
 };
@@ -14127,6 +14139,11 @@ function cadRenderActivationModal(){
           </select>
         </div>
       </div>
+      <div class="form-group">
+        <label>📅 Fecha y hora del primer envío</label>
+        <input type="datetime-local" class="input" value="${_cadActivation.startAt}" onchange="cadActSetStartAt(this.value)" style="max-width:280px">
+        <div style="font-size:11px;color:var(--gray-400);margin-top:4px">Si cae en fin de semana, se manda el siguiente día hábil a la misma hora. Los demás toques de la cadencia respetan esta misma hora, solo cambia el día.</div>
+      </div>
       <div id="cadActStepsWrap">${cadActStepsHtml()}</div>
       <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-200)">
         <div style="font-size:12px;color:var(--gray-500);margin-bottom:10px">Cada correo se genera UNA vez y se personaliza con {{nombre}}/{{empresa}} automáticamente al momento de enviar — no hace falta regenerar por cada prospecto.</div>
@@ -14139,6 +14156,7 @@ function cadRenderActivationModal(){
 }
 window.cadActSetTemplate=function(id){ _cadActivation.templateId=id; document.getElementById('cadActStepsWrap').innerHTML=cadActStepsHtml(); };
 window.cadActSetTone=function(tone){ _cadActivation.tone=tone; };
+window.cadActSetStartAt=function(v){ _cadActivation.startAt=v; };
 function cadActStepsHtml(){
   const tpl=cadCurrentTemplate();
   if(!tpl) return '<div class="cdc-empty">No hay plantillas — crea una en "Mis cadencias".</div>';
@@ -14193,7 +14211,7 @@ window.cadConfirmActivation=async function(){
       content:_cadActivation.content,
     }));
     const res=await fetch(CADENCES_BASE+'/cadences/activate',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`,'Content-Type':'application/json'},
-      body:JSON.stringify({templateId:tpl.id,steps:tpl.steps,variantBSteps:tpl.variantBSteps||null,leads})});
+      body:JSON.stringify({templateId:tpl.id,steps:tpl.steps,variantBSteps:tpl.variantBSteps||null,leads,startAt:_cadActivation.startAt||null})});
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
     const results=data.results||[];
