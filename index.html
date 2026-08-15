@@ -1163,6 +1163,7 @@ const ANTI_HALLUCINATION = `Eres un asistente de ventas de Odoo México. Reglas 
 - Si no sabes algo o no tienes información suficiente, dilo ("No tengo información suficiente para…") en vez de adivinar o inferir.
 - Escribe SIEMPRE en español de México, natural y profesional. Evita palabras altisonantes o grandilocuentes, por ejemplo: ${ODOO_BUZZWORDS_BANNED.map(w=>`"${w}"`).join(', ')}. Lenguaje claro y humano.
 - ${SPANISH_ORTHOGRAPHY_RULE}
+- CERO markdown, siempre — este texto se pega tal cual en Odoo, WhatsApp, correo o CRM, que no lo renderizan: los símbolos quedan literales y se ve roto. Nunca uses **negritas**, ##encabezados, \`código\`, líneas de --- ni [links](así). Si necesitas separar secciones usa un título corto seguido de dos puntos y salto de línea; si necesitas una lista usa guiones simples "- " (sin asteriscos); para énfasis usa MAYÚSCULAS puntuales o la palabra misma, nunca símbolos.
 - No dejes rastros de que el texto fue generado por IA.
 
 ${ODOO_VERIFIED_FACTS}`;
@@ -3204,6 +3205,26 @@ function dgRenderRail(){
 
 function _dgEsc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// Red de seguridad: quita símbolos de markdown que Claude a veces agrega pese a la regla de
+// ANTI_HALLUCINATION ("CERO markdown") — para que nunca se vea "**texto**" o "## Título" literal
+// en un box ni al copiarlo/pegarlo en Odoo, WhatsApp o correo (que no renderizan markdown). No es
+// un parser completo: solo limpia los patrones más comunes y conserva el texto y los saltos de línea.
+function stripMd(text){
+  if(!text) return text;
+  let t=String(text);
+  t=t.replace(/^\s*#{1,6}\s+/gm,'');                    // ## Encabezado → Encabezado
+  t=t.replace(/^\s*[-*]\s+/gm,'• ');                    // bullets → • (antes de tocar * sueltos)
+  t=t.replace(/^\s*-{3,}\s*$/gm,'');                    // --- (línea divisoria) → nada
+  t=t.replace(/\*\*\*(.+?)\*\*\*/g,'$1');               // ***texto***
+  t=t.replace(/\*\*(.+?)\*\*/g,'$1');                   // **negrita**
+  t=t.replace(/__(.+?)__/g,'$1');                       // __negrita__
+  t=t.replace(/\*(.+?)\*/g,'$1');                       // *cursiva* (ya sin bullets ni negritas)
+  t=t.replace(/`{1,3}([^`]+)`{1,3}/g,'$1');             // `código`
+  t=t.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'$1 ($2)');    // [texto](url)
+  t=t.replace(/\n{3,}/g,'\n\n');                        // colapsa saltos de línea que deja la limpieza
+  return t.trim();
+}
+
 function dgGuideHTML(items,crit,ns){
   let h='';
   (items||[]).forEach((g,i)=>{ h+=dgItem(g,`${ns}-g${i}`,false); });
@@ -3511,13 +3532,13 @@ function discInitForm(data){
       disc.selections.producto = t.startsWith('Servicios')?'servicios':(t.startsWith('Mixtos')?'mixto':'fisico');
     }
     if(disc.currentInd){ const l=document.getElementById('discIndLabel'); if(l) l.textContent=(IND_NAMES[disc.currentInd]||'')+' · En llamada'; }
-    if(data.geminiNote){ const o=document.getElementById('discGeminiOutput'),w=document.getElementById('discNotaStepOut'); if(o&&w){ o.textContent=data.geminiNote; w.style.display='block'; discStepMark(1,'done'); } }
-    if(data.recoNote){ const o=document.getElementById('discRecoOutput'),w=document.getElementById('discRecoStepOut'); if(o&&w){ o.textContent=data.recoNote; w.style.display='block'; const l=document.getElementById('discRecoLabel'); if(l) l.textContent='Recomendaciones guardadas'; discStepMark(2,'done'); } }
+    if(data.geminiNote){ const o=document.getElementById('discGeminiOutput'),w=document.getElementById('discNotaStepOut'); if(o&&w){ o.textContent=stripMd(data.geminiNote); w.style.display='block'; discStepMark(1,'done'); } }
+    if(data.recoNote){ const o=document.getElementById('discRecoOutput'),w=document.getElementById('discRecoStepOut'); if(o&&w){ o.textContent=stripMd(data.recoNote); w.style.display='block'; const l=document.getElementById('discRecoLabel'); if(l) l.textContent='Recomendaciones guardadas'; discStepMark(2,'done'); } }
     if(data.transcript){ const ta=document.getElementById('discTranscriptInput'); if(ta) ta.value=data.transcript; }
-    if(Array.isArray(data.appsAI)&&data.appsAI.length){ discRenderAppsList(data.appsAI,'Guardado · basado en industria + notas'); discStepMark(3,'done'); }
-    if(Array.isArray(data.wowAI)&&data.wowAI.length){ disc.wowAI=data.wowAI; discStepMark(4,'done'); }
-    if(data.resumenIntromeet){ discRenderResumen(data.resumenIntromeet); discStepMark(5,'done'); }
-    if(data.feedbackFinal){ discRenderFeedback(data.feedbackFinal); discStepMark(6,'done'); }
+    if(Array.isArray(data.appsAI)&&data.appsAI.length){ discRenderAppsList(data.appsAI.map(a=>({...a,reason:stripMd(a.reason)})),'Guardado · basado en industria + notas'); discStepMark(3,'done'); }
+    if(Array.isArray(data.wowAI)&&data.wowAI.length){ disc.wowAI=data.wowAI.map(w=>({...w,why:stripMd(w.why)})); discStepMark(4,'done'); }
+    if(data.resumenIntromeet){ discRenderResumen(stripMd(data.resumenIntromeet)); discStepMark(5,'done'); }
+    if(data.feedbackFinal){ discRenderFeedback(stripMd(data.feedbackFinal)); discStepMark(6,'done'); }
   }
   { const nta=document.getElementById('dgNotesTa'); if(nta) nta.value=disc.selections.fld?.['notas-llamada']||''; }
   disc.ui={section:0,sub:{flujo:1},wow:null};
@@ -3694,7 +3715,7 @@ async function discStepNota(transcript, recentSessions){
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const text=data.content?.[0]?.text||'Sin respuesta';
+  const text=stripMd(data.content?.[0]?.text||'Sin respuesta');
   const output=document.getElementById('discGeminiOutput'), wrap=document.getElementById('discNotaStepOut'), engineLabel=document.getElementById('discEngineLabel');
   if(output) output.textContent=text;
   if(wrap) wrap.style.display='block';
@@ -3761,7 +3782,7 @@ Sé directo, específico y accionable. Habla de tú al AE. No repitas los datos 
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const text=data.content?.[0]?.text||'Sin respuesta';
+  const text=stripMd(data.content?.[0]?.text||'Sin respuesta');
   const output=document.getElementById('discRecoOutput'), wrap=document.getElementById('discRecoStepOut'), label=document.getElementById('discRecoLabel');
   if(output) output.textContent=text;
   if(wrap) wrap.style.display='block';
@@ -3806,7 +3827,7 @@ Elige entre 4 y 8 apps del catálogo — las MÁS relevantes para ESTE prospecto
   try{ list=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ list=[]; }
   // Defensa extra: aunque el prompt lo prohíbe, se filtra cualquier nombre que no exista en el catálogo real.
   const validNames=new Set(ODOO_APPS_FLAT.map(a=>a.name.toLowerCase()));
-  list=(Array.isArray(list)?list:[]).filter(x=>x?.name&&validNames.has(String(x.name).toLowerCase())).slice(0,8);
+  list=(Array.isArray(list)?list:[]).filter(x=>x?.name&&validNames.has(String(x.name).toLowerCase())).map(x=>({...x,reason:stripMd(x.reason)})).slice(0,8);
   if(!list.length){
     // Fallback a la línea base por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
     const apps=[]; const seen=new Set();
@@ -3865,7 +3886,7 @@ Elige entre 3 y 6 efectos del catálogo — los MÁS conectados al dolor real de
   const byTitle=new Map(catalogItems.map(w=>[w.title.toLowerCase(),w]));
   let list=(Array.isArray(picks)?picks:[]).map(x=>{
     const src=x?.title&&byTitle.get(String(x.title).toLowerCase());
-    return src?{title:src.title,area:src.area,desc:src.desc,wow:src.wow,why:x.why||''}:null;
+    return src?{title:src.title,area:src.area,desc:src.desc,wow:src.wow,why:stripMd(x.why||'')}:null;
   }).filter(Boolean).slice(0,6);
   if(!list.length){
     // Fallback a la línea base por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
@@ -3902,7 +3923,7 @@ Escribe en tercera persona, tono de bitácora de cuenta (no un mensaje al client
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const text=data.content?.[0]?.text||'Sin respuesta';
+  const text=stripMd(data.content?.[0]?.text||'Sin respuesta');
   disc.resumenIntromeet=text;
   discRenderResumen(text);
   return text;
@@ -3934,7 +3955,7 @@ Dale 2-4 puntos de mejora CONCRETOS (qué pregunta faltó, qué tema no se cerr�
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const text=data.content?.[0]?.text||'Sin respuesta';
+  const text=stripMd(data.content?.[0]?.text||'Sin respuesta');
   disc.feedbackFinal=text;
   discRenderFeedback(text);
   return text;
