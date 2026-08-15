@@ -14651,6 +14651,7 @@ const NINJA_TOOL_LABELS={
   buscar_apps_odoo:'Buscando en el catálogo de apps',
   obtener_mis_kpis:'Consultando tus KPIs',
   obtener_areas_oportunidad_ae:'Juntando el coaching de sus Qcalls',
+  obtener_historial_empresa:'Juntando el historial de la empresa',
 };
 
 function ninjaToolDefs(){
@@ -14664,6 +14665,9 @@ function ninjaToolDefs(){
     {name:'obtener_mis_kpis',
      description:'Regresa los números propios del usuario actual (Discoveries, Pricings, Propuestas, solicitudes CSV y oportunidades) en un rango de meses.',
      input_schema:{type:'object',properties:{meses:{type:'integer',description:'Cuántos meses hacia atrás contar, por defecto 6'}},required:[]}},
+    {name:'obtener_historial_empresa',
+     description:'Contexto completo (360) de una empresa: datos básicos, sesiones de Discovery/Qcall, pricing generado, propuestas, solicitudes CSV, contenido guardado (correo/WhatsApp/LinkedIn/etc.) y actividad de cadencias de correo (enviados + respuestas). Úsala para cualquier pregunta sobre una empresa/cliente específico o su historial. Respeta tu alcance por rol — solo regresa empresas que ya puedes ver en la app.',
+     input_schema:{type:'object',properties:{empresa:{type:'string',description:'Nombre (o parte del nombre) de la empresa'}},required:['empresa']}},
   ];
   if(currentUserData?.role==='tl'||currentUserData?.role==='manager'){
     tools.push({name:'obtener_areas_oportunidad_ae',
@@ -14765,11 +14769,79 @@ async function ninjaObtenerAreasOportunidadAE(ae, cantidadSesiones){
   };
 }
 
+// Historial 360 de una empresa — resuelve por nombre (searchCompanies() ya scopea por rol vía
+// getUserScope()/matchesScope(), mismo criterio que el resto de la app), luego agrega todo lo que
+// ya se junta en el popup de detalle de empresa (empOpenDetail): discovery, pricing, propuestas,
+// csv, contenido guardado, y cadencias de correo (vía backend, mismo endpoint que cadOpenHistoryForCompany).
+async function ninjaObtenerHistorialEmpresa(empresa){
+  const nombre=(empresa||'').trim();
+  if(!nombre) return {error:'Falta el nombre de la empresa.'};
+  if(!db) return {error:'Sin conexión a la base de datos.'};
+
+  let candidatos;
+  try{ candidatos=await searchCompanies(nombre); }
+  catch(e){ return {error:'No se pudo buscar la empresa: '+e.message}; }
+
+  if(!candidatos.length) return {error:`No encontré ninguna empresa que coincida con "${empresa}" dentro de tu alcance. Pide que confirme el nombre exacto.`};
+  if(candidatos.length>1){
+    if(candidatos.length>8) return {error:`"${empresa}" coincide con ${candidatos.length} empresas — pide un nombre más específico.`};
+    return {error:`Encontré ${candidatos.length} empresas que coinciden con "${empresa}": ${candidatos.map(c=>c.nombre).join(', ')}. Pide que aclare cuál.`};
+  }
+  const co=candidatos[0];
+
+  let discSnap={docs:[]},priceSnap={docs:[]},propSnap={docs:[]},csvSnap={docs:[]};
+  try{
+    [discSnap,priceSnap,propSnap,csvSnap]=await Promise.all([
+      getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',co.id))),
+      getDocs(query(collection(db,'pricingRecords'),where('companyId','==',co.id))),
+      getDocs(query(collection(db,'propuestaRecords'),where('companyId','==',co.id))),
+      getDocs(query(collection(db,'csvSessions'),where('companyId','==',co.id))),
+    ]);
+  }catch(e){ /* si un índice falla, seguimos con lo que sí cargó */ }
+
+  const byDate=(a,b)=>_aTsMs(b.createdAt)-_aTsMs(a.createdAt);
+  const disc=discSnap.docs.map(d=>d.data()).sort(byDate);
+  const price=priceSnap.docs.map(d=>d.data()).sort(byDate);
+  const prop=propSnap.docs.map(d=>d.data()).sort(byDate);
+  const csv=csvSnap.docs.map(d=>d.data()).sort(byDate);
+  const contenido=co.memory?.contenidos?.saved||[];
+
+  let cadencias=null;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const key=_cadCompanyKey(co.nombre,co.website);
+    const res=await fetch(CADENCES_BASE+'/cadences/company/'+encodeURIComponent(key)+'/history',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(res.ok){
+      const timeline=data.timeline||[];
+      const strip=h=>String(h||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,300);
+      cadencias={
+        totalEventos:timeline.length,
+        enviados:timeline.filter(t=>t.type==='enviado').length,
+        respuestas:timeline.filter(t=>t.type==='respuesta').length,
+        recientes:timeline.slice(-8).map(t=>({tipo:t.type,fecha:t.at,resumen:strip(t.type==='enviado'?(t.subject||t.label):(t.bodyText||t.snippet))})),
+      };
+    }
+  }catch(e){ /* la actividad de cadencias es opcional, no truena el resto del historial */ }
+
+  return {
+    empresa:co.nombre, giro:co.giro||'', tamaño:co.tamaño||'', origen:co.origen||'',
+    contactos:(co.contacts||[]).map(c=>({nombre:c.nombre,cargo:c.cargo,correo:c.correo||c.email})),
+    discovery:{total:disc.length, recientes:disc.slice(0,3).map(d=>({fecha:d.createdAt?.toDate?.()?.toISOString()?.slice(0,10)||'', resumen:d.resumenIntromeet||'', feedback:d.feedbackFinal||''}))},
+    pricing:{total:price.length, ultimo:price[0]?{edicion:price[0].edition,total:price[0].total,usuarios:price[0].users}:null},
+    propuestas:{total:prop.length},
+    csv:{total:csv.length, prospectosTotales:csv.reduce((s,d)=>s+(d.rowCount||0),0)},
+    contenidoGuardado:{total:contenido.length},
+    cadencias,
+  };
+}
+
 const NINJA_TOOL_EXECUTORS={
   buscar_banco_informacion:i=>ninjaBuscarWiki(i.query),
   buscar_apps_odoo:i=>ninjaBuscarApps(i.query),
   obtener_mis_kpis:i=>ninjaObtenerMisKPIs(i.meses),
   obtener_areas_oportunidad_ae:i=>ninjaObtenerAreasOportunidadAE(i.ae,i.cantidadSesiones),
+  obtener_historial_empresa:i=>ninjaObtenerHistorialEmpresa(i.empresa),
 };
 
 async function ninjaCallClaudeRaw(messages,tools){
@@ -14864,7 +14936,7 @@ function ninjaRenderMessages(){
   const el=document.getElementById('ninjaMsgs'); if(!el) return;
   const canCoaching=currentUserData?.role==='tl'||currentUserData?.role==='manager';
   if(!_ninjaMessages.length){
-    el.innerHTML=`<div class="ninja-empty">Pregúntame sobre el Banco de Información, el catálogo de apps de Odoo, o tus KPIs.${canCoaching?' Como '+(currentUserData.role==='manager'?'manager':'TL')+', también puedo juntarte las áreas de oportunidad de un AE en sus últimas Qcalls.':''}</div>`;
+    el.innerHTML=`<div class="ninja-empty">Pregúntame sobre el Banco de Información, el catálogo de apps de Odoo, tus KPIs, o el historial completo de una empresa (Discovery, pricing, propuestas, cadencias, contenido guardado).${canCoaching?' Como '+(currentUserData.role==='manager'?'manager':'TL')+', también puedo juntarte las áreas de oportunidad de un AE en sus últimas Qcalls.':''}</div>`;
   } else {
     el.innerHTML=_ninjaMessages.map(m=>{
       if(m.role==='status') return `<div class="hist-muted" style="font-size:12px;margin-bottom:8px">${_histEsc(m.text)}</div>`;
