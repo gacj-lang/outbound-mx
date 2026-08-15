@@ -889,6 +889,16 @@ input,select,textarea{font-family:inherit;}
 .hist-dl-name{font-weight:700;font-size:13.5px;color:var(--gray-900);}
 .hist-dl-desc{font-size:12px;color:var(--gray-500);margin-top:2px;}
 .hist-dl-size{font-size:11px;color:var(--gray-400);font-variant-numeric:tabular-nums;}
+/* Ninja IA — chat flotante de consulta (solo lectura: wiki, catálogo de apps, KPIs, coaching de Qcalls) */
+.ninja-fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--purple);color:white;border:none;font-size:26px;cursor:pointer;box-shadow:var(--shadow-lg);z-index:9500;display:flex;align-items:center;justify-content:center;transition:transform .15s;}
+.ninja-fab:hover{transform:scale(1.06);}
+.ninja-overlay{position:fixed;inset:0;background:rgba(17,24,39,.35);z-index:9490;}
+.ninja-panel{position:fixed;top:0;right:0;bottom:0;width:400px;max-width:92vw;background:white;border-left:1px solid var(--gray-200);box-shadow:-8px 0 28px rgba(17,24,39,.16);z-index:9491;display:flex;flex-direction:column;transition:transform .18s ease;}
+.ninja-panel-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--gray-200);}
+.ninja-panel-title{font-family:'Caveat',cursive;font-size:24px;font-weight:700;color:var(--purple);}
+.ninja-panel-body{flex:1;overflow-y:auto;padding:16px 18px;}
+.ninja-panel-footer{padding:14px 18px;border-top:1px solid var(--gray-200);display:flex;gap:8px;}
+.ninja-empty{color:var(--gray-500);font-size:13px;line-height:1.6;}
 </style>
 </head>
 <body>
@@ -1019,6 +1029,7 @@ input,select,textarea{font-family:inherit;}
       <span class="topbar-spacer"></span>
       <div id="leadJobsBellWrap" style="position:relative"></div>
     </div>
+    <div id="ninjaMount"></div>
     <div id="moduleContent" style="padding:28px"></div>
   </main>
 </div>
@@ -4162,6 +4173,7 @@ function renderAppHeader(){
   const mn=document.getElementById('nav-manager'); if(mn) mn.style.display=currentUserData.role==='manager'?'flex':'none';
   csvSetupLeadJobsListener();
   cadSetupRepliesPolling();
+  ninjaInit();
 }
 function setLoading(btnId,loading){
   const btn=document.getElementById(btnId); if(!btn) return;
@@ -14610,6 +14622,258 @@ window.csvActivateCadenceSelected=function(){
   const leads=rows.map(r=>({empresa:r.partner_name,contacto:r.contact_name,email:r.Email,phone:r.phone,website:r.Website,cargo:r.function}));
   openCadenceActivationModal(leads);
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NINJA IA — chat flotante de consulta (solo lectura, 2026-08-15)
+// Alcance v1: responde preguntas sobre el Banco de Información, el catálogo de
+// apps de Odoo, los KPIs propios del usuario, y — solo tl/manager — sintetiza
+// el coaching de IA (feedbackFinal) de las últimas Qcalls de un AE en su
+// alcance. NO crea ni modifica registros — eso queda para una fase futura.
+// Llama a Claude directo desde el navegador (mismo patrón que gcCallClaude,
+// misma key de ⚙️ Configuración), pero con un loop real de tool-use client-side
+// — gcCallClaude solo soporta herramientas server-side (web_fetch), no sirve
+// aquí porque las herramientas de Ninja IA se ejecutan localmente (Firestore).
+// ═══════════════════════════════════════════════════════════════════════════
+let _ninjaOpen=false;
+let _ninjaBusy=false;
+let _ninjaMessages=[];   // para pintar: [{role:'user'|'ai'|'status', text}]
+let _ninjaApiHistory=[]; // formato Anthropic real: [{role,content}], incluye tool_use/tool_result
+
+const NINJA_SYSTEM_PROMPT=`Eres "Ninja IA", el asistente interno del equipo Outbound de Odoo México, dentro de outbound-app.
+Contestas SOLO con datos que te devuelvan tus herramientas — nunca inventes cifras, nombres de apps, artículos del Banco de Información, ni contenido de sesiones de Qcall. Si una herramienta no encuentra nada relevante, dilo directamente ("No encontré nada sobre eso en el Banco de Información") — no rellenes con generalidades.
+${SPANISH_ORTHOGRAPHY_RULE}
+Español de México, tuteo (nunca voseo). Frases cortas y directas, sin relleno corporativo ni metáforas. Texto plano, sin markdown (nada de **, ##, guiones de lista con asterisco) — esto se muestra en un panel de chat simple.
+Cuando te pidan "áreas de oportunidad" o coaching de un AE en sus Qcalls, sintetiza los patrones que se repiten entre sesiones — no listes cada sesión aparte salvo que te lo pidan explícitamente.
+Solo tienes acceso de LECTURA — no puedes crear, activar ni modificar nada. Si te piden crear un lead, activar una cadencia o algo similar, explica que hoy solo puedes consultar información, y qué pantalla de la app usar para eso.`;
+
+const NINJA_TOOL_LABELS={
+  buscar_banco_informacion:'Buscando en el Banco de Información',
+  buscar_apps_odoo:'Buscando en el catálogo de apps',
+  obtener_mis_kpis:'Consultando tus KPIs',
+  obtener_areas_oportunidad_ae:'Juntando el coaching de sus Qcalls',
+};
+
+function ninjaToolDefs(){
+  const tools=[
+    {name:'buscar_banco_informacion',
+     description:'Busca artículos en el Banco de Información (wiki interna del equipo Outbound): argumentos de venta por industria, pain points, objeciones, proceso comercial. Úsala para cualquier pregunta sobre cómo vender, qué decir, o información de industrias/verticales.',
+     input_schema:{type:'object',properties:{query:{type:'string',description:'Palabras clave de la búsqueda, en español'}},required:['query']}},
+    {name:'buscar_apps_odoo',
+     description:'Busca en el catálogo de apps de Odoo (nombre, para qué sirve, descripción larga). Úsala cuando pregunten qué app de Odoo resuelve algo, o pidan detalle de una app específica.',
+     input_schema:{type:'object',properties:{query:{type:'string',description:'Nombre de la app o palabras clave de lo que necesita resolver'}},required:['query']}},
+    {name:'obtener_mis_kpis',
+     description:'Regresa los números propios del usuario actual (Discoveries, Pricings, Propuestas, solicitudes CSV y oportunidades) en un rango de meses.',
+     input_schema:{type:'object',properties:{meses:{type:'integer',description:'Cuántos meses hacia atrás contar, por defecto 6'}},required:[]}},
+  ];
+  if(currentUserData?.role==='tl'||currentUserData?.role==='manager'){
+    tools.push({name:'obtener_areas_oportunidad_ae',
+      description:'Dado el nombre de un AE dentro de tu alcance (tu equipo, o cualquiera si eres manager), junta el feedback de coaching de IA ("Analizar discovery") de sus últimas sesiones de Qcall y deja ver qué patrones se repiten. No inventes el nombre del AE — pide que lo confirmen si no estás seguro.',
+      input_schema:{type:'object',properties:{
+        ae:{type:'string',description:'Nombre o "gram" (usuario antes de @odoo.com) del AE'},
+        cantidadSesiones:{type:'integer',description:'Cuántas sesiones recientes considerar, por defecto 8, máximo 20'}},
+        required:['ae']}});
+  }
+  return tools;
+}
+
+// ── Herramientas: cada una regresa un objeto plano (se manda como tool_result vía JSON.stringify) ──
+
+async function ninjaBuscarWiki(queryText){
+  const q=(queryText||'').toLowerCase().trim();
+  if(!q) return {error:'Falta el término de búsqueda.'};
+  const terms=q.split(/\s+/).filter(Boolean);
+  const all=WIKI_SEED_BATCHES.flatMap(b=>b.articles);
+  const score=a=>{ const hay=(a.title+' '+a.summary+' '+(a.tags||[]).join(' ')).toLowerCase(); return terms.reduce((s,t)=>s+(hay.includes(t)?1:0),0); };
+  const matches=all.map(a=>({a,s:score(a)})).filter(x=>x.s>0).sort((x,y)=>y.s-x.s).slice(0,3);
+  if(!matches.length) return {resultados:[], mensaje:'No se encontró nada en el Banco de Información para esa búsqueda.'};
+  return {resultados:matches.map(({a})=>({titulo:a.title, resumen:a.summary, contenido:(a.bodyRaw||'').slice(0,1500), fuente:a.source||''}))};
+}
+
+async function ninjaBuscarApps(queryText){
+  const q=(queryText||'').toLowerCase().trim();
+  if(!q) return {error:'Falta el término de búsqueda.'};
+  const terms=q.split(/\s+/).filter(Boolean);
+  const score=a=>{ const hay=(a.name+' '+a.desc+' '+a.longDesc).toLowerCase(); return terms.reduce((s,t)=>s+(hay.includes(t)?1:0),0); };
+  const matches=ODOO_APPS_FLAT.map(a=>({a,s:score(a)})).filter(x=>x.s>0).sort((x,y)=>y.s-x.s).slice(0,5);
+  if(!matches.length) return {resultados:[], mensaje:'No se encontró ninguna app de Odoo que coincida con esa búsqueda.'};
+  return {resultados:matches.map(({a})=>({app:a.name, resumen:a.desc, detalle:a.longDesc}))};
+}
+
+async function ninjaObtenerMisKPIs(meses){
+  if(!db||!currentUserData?.uid) return {error:'Sin conexión a la base de datos.'};
+  const n=Number(meses)||6, cutoff=Date.now()-n*30*86400000, uid=currentUserData.uid;
+  const within=ts=>_aTsMs(ts)>=cutoff;
+  try{
+    const [discSnap,pricSnap,propSnap,csvSnap]=await Promise.all([
+      getDocs(query(collection(db,'discoveryRecords'),where('aeUid','==',uid))),
+      getDocs(query(collection(db,'pricingRecords'),where('aeUid','==',uid))),
+      getDocs(query(collection(db,'propuestaRecords'),where('aeUid','==',uid))),
+      getDocs(query(collection(db,'csvSessions'),where('aeUid','==',uid))),
+    ]);
+    const disc=discSnap.docs.map(d=>d.data()).filter(d=>within(d.createdAt)).length;
+    const pric=pricSnap.docs.map(d=>d.data()).filter(d=>within(d.createdAt)).length;
+    const prop=propSnap.docs.map(d=>d.data()).filter(d=>within(d.createdAt)).length;
+    const csvDocs=csvSnap.docs.map(d=>d.data()).filter(d=>within(d.createdAt));
+    return {periodoMeses:n, discoveries:disc, pricings:pric, propuestas:prop, solicitudesCSV:csvDocs.length, oportunidadesCSV:csvDocs.reduce((s,d)=>s+(d.rowCount||0),0)};
+  }catch(e){ return {error:'No se pudieron leer tus KPIs: '+e.message}; }
+}
+
+// Coaching agregado de un AE — reusa el mismo criterio de alcance por rol que ya usa
+// loadDiscoverySessions() (index.html): tl ve su equipo (tlId==su uid) + lo suyo, manager ve todo.
+async function ninjaObtenerAreasOportunidadAE(ae, cantidadSesiones){
+  const role=currentUserData?.role;
+  if(role!=='tl'&&role!=='manager') return {error:'Esta herramienta es solo para TL/manager.'};
+  if(!db) return {error:'Sin conexión a la base de datos.'};
+  const nombre=(ae||'').trim().toLowerCase();
+  if(!nombre) return {error:'Falta el nombre del AE.'};
+  const n=Math.min(Math.max(Number(cantidadSesiones)||8,1),20);
+
+  let candidatos=[];
+  try{
+    if(role==='manager'){
+      const snap=await getDocs(collection(db,'users'));
+      candidatos=snap.docs.map(d=>({uid:d.id,...d.data()}));
+    } else {
+      const [meSnap,teamSnap]=await Promise.all([
+        getDoc(doc(db,'users',currentUserData.uid)),
+        getDocs(query(collection(db,'users'),where('tlId','==',currentUserData.uid))),
+      ]);
+      candidatos=teamSnap.docs.map(d=>({uid:d.id,...d.data()}));
+      if(meSnap.exists()) candidatos.push({uid:meSnap.id,...meSnap.data()});
+    }
+  }catch(e){ return {error:'No se pudo consultar el equipo: '+e.message}; }
+
+  const matches=candidatos.filter(u=>(u.name||'').toLowerCase().includes(nombre)||(u.gram||'').toLowerCase().includes(nombre));
+  if(!matches.length) return {error:`No encontré a ningún AE llamado "${ae}" dentro de tu alcance (tu equipo${role==='manager'?' / toda la organización':''}). Pide que confirme el nombre exacto.`};
+  if(matches.length>1) return {error:`Encontré ${matches.length} personas que coinciden con "${ae}": ${matches.map(u=>u.name).join(', ')}. Pide que aclare cuál.`};
+  const target=matches[0];
+
+  let sessSnap;
+  try{ sessSnap=await getDocs(query(collection(db,'discoveryRecords'),where('aeUid','==',target.uid))); }
+  catch(e){ return {error:'No se pudieron leer las sesiones: '+e.message}; }
+
+  let sesiones=sessSnap.docs.map(d=>d.data());
+  sesiones.sort((a,b)=>_aTsMs(b.createdAt)-_aTsMs(a.createdAt));
+  sesiones=sesiones.slice(0,n).filter(s=>s.feedbackFinal);
+
+  if(!sesiones.length) return {ae:target.name, mensaje:'No hay coaching de IA registrado todavía para este AE — se genera al usar "Analizar discovery" en una sesión de Qcall.'};
+
+  return {
+    ae:target.name,
+    sesionesConsideradas:sesiones.length,
+    sesiones:sesiones.map(s=>({empresa:s.empresa||'(sin empresa)', fecha:s.createdAt?.toDate?.()?.toISOString()?.slice(0,10)||'', feedback:s.feedbackFinal})),
+  };
+}
+
+const NINJA_TOOL_EXECUTORS={
+  buscar_banco_informacion:i=>ninjaBuscarWiki(i.query),
+  buscar_apps_odoo:i=>ninjaBuscarApps(i.query),
+  obtener_mis_kpis:i=>ninjaObtenerMisKPIs(i.meses),
+  obtener_areas_oportunidad_ae:i=>ninjaObtenerAreasOportunidadAE(i.ae,i.cantidadSesiones),
+};
+
+async function ninjaCallClaudeRaw(messages,tools){
+  const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
+  if(!key||key==='CLAUDE_KEY_DEFAULT') throw new Error('Configura tu Claude API key en ⚙️ Configuración.');
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-5',max_tokens:1500,system:NINJA_SYSTEM_PROMPT,tools,messages}),
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  return data;
+}
+
+// Tope duro de round-trips por turno — protección contra un loop descontrolado (mismo espíritu que
+// el pico de gasto de Claude API del 2026-08-10), sin necesidad de una cuota dura tipo quota.js para v1.
+const NINJA_MAX_TOOL_ITERATIONS=4;
+
+async function ninjaRunTurn(userText){
+  const tools=ninjaToolDefs();
+  let messages=[..._ninjaApiHistory,{role:'user',content:userText}];
+  for(let i=0;i<NINJA_MAX_TOOL_ITERATIONS;i++){
+    const data=await ninjaCallClaudeRaw(messages,tools);
+    messages.push({role:'assistant',content:data.content});
+    if(data.stop_reason!=='tool_use'){
+      _ninjaApiHistory=messages;
+      const textBlock=(data.content||[]).find(b=>b.type==='text');
+      return textBlock?textBlock.text:'(sin respuesta)';
+    }
+    const toolUses=(data.content||[]).filter(b=>b.type==='tool_use');
+    const toolResults=[];
+    for(const tu of toolUses){
+      _ninjaMessages.push({role:'status',text:(NINJA_TOOL_LABELS[tu.name]||tu.name)+'…'});
+      ninjaRenderMessages();
+      let result;
+      try{ const exec=NINJA_TOOL_EXECUTORS[tu.name]; result=exec?await exec(tu.input||{}):{error:'Herramienta desconocida.'}; }
+      catch(e){ result={error:e.message}; }
+      toolResults.push({type:'tool_result',tool_use_id:tu.id,content:JSON.stringify(result)});
+    }
+    messages.push({role:'user',content:toolResults});
+  }
+  _ninjaApiHistory=messages;
+  return 'No pude terminar en el número de pasos permitidos — intenta reformular la pregunta de forma más simple.';
+}
+
+window.ninjaSend=async function(){
+  if(_ninjaBusy) return;
+  const input=document.getElementById('ninjaInput');
+  const text=(input?.value||'').trim();
+  if(!text) return;
+  if(input) input.value='';
+  _ninjaMessages.push({role:'user',text});
+  _ninjaBusy=true;
+  ninjaRenderMessages();
+  try{
+    const answer=await ninjaRunTurn(text);
+    _ninjaMessages.push({role:'ai',text:answer});
+  }catch(e){
+    _ninjaMessages.push({role:'ai',text:'Error: '+e.message});
+  }
+  _ninjaBusy=false;
+  ninjaRenderMessages();
+};
+
+window.ninjaToggle=function(){ _ninjaOpen=!_ninjaOpen; ninjaRenderMount(); };
+window.ninjaClose=function(){ _ninjaOpen=false; ninjaRenderMount(); };
+
+function ninjaInit(){ ninjaRenderMount(); }
+
+function ninjaRenderMount(){
+  const wrap=document.getElementById('ninjaMount'); if(!wrap) return;
+  if(!currentUserData){ wrap.innerHTML=''; return; }
+  wrap.innerHTML=`
+    <button class="ninja-fab" onclick="ninjaToggle()" title="Ninja IA">🥷</button>
+    <div class="ninja-overlay" style="display:${_ninjaOpen?'block':'none'}" onclick="ninjaClose()"></div>
+    <div class="ninja-panel" style="transform:translateX(${_ninjaOpen?'0':'100%'})">
+      <div class="ninja-panel-header">
+        <span class="ninja-panel-title">🥷 Ninja IA</span>
+        <button class="disc-copy-btn" onclick="ninjaClose()">✕</button>
+      </div>
+      <div class="ninja-panel-body" id="ninjaMsgs"></div>
+      <div class="ninja-panel-footer">
+        <input class="input" id="ninjaInput" placeholder="Pregunta algo…" onkeydown="if(event.key==='Enter'){ninjaSend()}">
+        <button class="btn btn-primary" onclick="ninjaSend()">➤</button>
+      </div>
+    </div>`;
+  ninjaRenderMessages();
+}
+
+function ninjaRenderMessages(){
+  const el=document.getElementById('ninjaMsgs'); if(!el) return;
+  const canCoaching=currentUserData?.role==='tl'||currentUserData?.role==='manager';
+  if(!_ninjaMessages.length){
+    el.innerHTML=`<div class="ninja-empty">Pregúntame sobre el Banco de Información, el catálogo de apps de Odoo, o tus KPIs.${canCoaching?' Como '+(currentUserData.role==='manager'?'manager':'TL')+', también puedo juntarte las áreas de oportunidad de un AE en sus últimas Qcalls.':''}</div>`;
+  } else {
+    el.innerHTML=_ninjaMessages.map(m=>{
+      if(m.role==='status') return `<div class="hist-muted" style="font-size:12px;margin-bottom:8px">${_histEsc(m.text)}</div>`;
+      return `<div class="hist-ai-msg ${m.role==='user'?'user':'ai'}">${_histEsc(m.text).replace(/\n/g,'<br>')}</div>`;
+    }).join('');
+  }
+  if(_ninjaBusy) el.innerHTML+=`<div style="color:var(--gray-500);font-size:13px">Pensando…</div>`;
+  el.scrollTop=el.scrollHeight;
+}
 </script>
 </body>
 </html>
