@@ -1556,8 +1556,10 @@ function loadSavedConfig(){
 // MODULE ROUTING
 // ══════════════════════════════════════════
 // ── Unsaved work tracking ──
+// Discovery YA NO entra aquí: autoguarda solo (debounce de discAutosave) desde hace varias sesiones,
+// así que el popup de "vas a perder tus datos" se había quedado obsoleto — nunca había nada que perder.
+// Al salir se hace un flush inmediato del guardado pendiente (ver _doShowModule) en vez de preguntar.
 function getUnsavedWarning(targetModule){
-  if(disc.formActive) return {msg:'Tienes una sesión de Discovery abierta con información sin guardar.',detail:'Si sales ahora perderás los datos capturados en esta llamada.'};
   // _csvDirty (no solo csvRows.length): si el AE ya descargó o guardó y no ha editado nada
   // después, no hay nada que perder — el popup era persistente incluso tras guardar (bug real
   // reportado 2026-07-23).
@@ -1628,7 +1630,14 @@ function _doShowModule(moduleId, skipNavHighlight=false){
   }
   const mc=document.getElementById('mainContent');
   const tb=document.getElementById('appTopbar');
-  if(disc.formActive){ disc.discardForm(); }
+  if(disc.formActive){
+    // Ya no hay popup de "salir sin guardar" (autoguarda solo) — pero al salir sí adelantamos
+    // el guardado pendiente en vez de esperar los 2.5s del debounce, para no perder las últimas
+    // pulsaciones si justo navegas en ese hueco.
+    clearTimeout(_discAutosaveT);
+    if(disc.recordId||disc.companyId||disc.selections['emp-nombre']) window.discSaveRecord({silent:true});
+    disc.discardForm();
+  }
   if(cont.formActive){ cont.discard(); }
   mc.classList.remove('topbar-hidden');
   tb.style.display='flex';
@@ -2570,7 +2579,7 @@ const disc = {
   ui: { section:0, sub:{flujo:1}, wow:null },
   discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; this.appsAI=null; this.wowAI=null; this.resumenIntromeet=''; this.feedbackFinal=''; this.ui={section:0,sub:{flujo:1},wow:null}; }
 };
-// Nota: el estatus (borrador→en_proceso→completado) ya no se elige a mano — ver discAutosave/discEndCall.
+// Nota: el estatus (borrador→en_proceso→completado) nunca se elige a mano — ver discAutosave/discMarkCompleted.
 // ── Sessions list view ──
 async function renderDiscoveryList(){
   const content=document.getElementById('moduleContent');
@@ -2792,7 +2801,7 @@ const DG_CSS=`
 .dg-mode-btn.active{background:#714B67;color:#fff}
 .dg-autosave{font-size:12px;font-weight:600;color:#9ca3af;white-space:nowrap}
 .dg-status{font-size:12px;padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-weight:600;color:#374151}
-.dg-end-btn{background:#fff;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer}
+.dg-status-pill{font-size:12px;font-weight:700;color:#16a34a;background:#dcfce7;padding:5px 12px;border-radius:999px;white-space:nowrap}
 .dg-call{max-width:1180px;margin:0 auto;padding:22px 18px}
 .dg-postcall{max-width:1320px;margin:0 auto;padding:22px 18px}
 .dg-call-grid{display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
@@ -2997,7 +3006,7 @@ function buildDiscoveryFormHTML(data){
         <button class="dg-mode-btn" id="dmbPostcall" onclick="discSetMode('postcall')">📋 Post-call</button>
       </div>
       <span id="discAutosaveInd" class="dg-autosave">Autoguardado activo</span>
-      <button class="dg-end-btn" id="discEndBtn" onclick="discEndCall()">⏹ Finalizar</button>
+      <span id="discStatusBadge" class="dg-status-pill" style="display:none">✓ Completada</span>
     </div>
   </div>
 
@@ -3513,9 +3522,10 @@ function discInitForm(data){
   { const nta=document.getElementById('dgNotesTa'); if(nta) nta.value=disc.selections.fld?.['notas-llamada']||''; }
   disc.ui={section:0,sub:{flujo:1},wow:null};
   dgRender(); dgRenderPostcall(); dgMountPicker();
+  const statusBadge=document.getElementById('discStatusBadge');
   if(data?.callEnded){
     disc.callEnded=true; discSetMode('postcall');
-    const btn=document.getElementById('discEndBtn'); if(btn){ btn.textContent='✓ Finalizada'; btn.style.background='#16a34a'; btn.style.color='#fff'; btn.style.borderColor='#16a34a'; btn.style.cursor='default'; btn.onclick=null; }
+    if(statusBadge) statusBadge.style.display='inline-block';
   } else { disc.callEnded=false; discSetMode('escucha'); }
 }
 
@@ -3544,13 +3554,14 @@ window.discSetMode=function(mode){
   if(mp) mp.className='dg-mode-btn'+(mode==='postcall'?' active':'');
   if(mode==='postcall'){ dgRenderPostcall(); discUpdateApps(); }
 };
-window.discEndCall=function(){
+// Marca la sesión como completada automáticamente — se llama al terminar "Analizar discovery"
+// (discAnalyzeDiscovery), ya no hay botón manual de "Finalizar". El disparador real es tener
+// notas/dolor capturados Y las respuestas de IA generadas, que es justo lo que ese flujo produce.
+function discMarkCompleted(){
   disc.callEnded=true;
-  disc.status='completado'; // autoguardado — ya no hay selector manual de estatus
-  const btn=document.getElementById('discEndBtn');
-  if(btn){ btn.textContent='✓ Finalizada'; btn.style.background='#16a34a'; btn.style.color='#fff'; btn.style.borderColor='#16a34a'; btn.style.cursor='default'; btn.onclick=null; setTimeout(()=>discSetMode('postcall'),600); }
-  discAutosave();
-};
+  disc.status='completado';
+  const badge=document.getElementById('discStatusBadge'); if(badge) badge.style.display='inline-block';
+}
 // Lee los campos de empresa a disc.selections (SIN disparar autosave — evita bucles)
 function discReadEmpFields(){
   const fields=['nombre','razones','empleados','sistemas','usuarios','presupuesto','facturacion'];
@@ -3970,6 +3981,7 @@ window.discAnalyzeDiscovery = async function(){
   catch(e){ discStepMark(6,null); showNotif('No se pudo generar el feedback final: '+e.message,'error'); }
 
   btn.disabled=false; if(loading) loading.classList.remove('show'); lbl.textContent='↺ Regenerar';
+  discMarkCompleted();
   discSaveRecord({silent:true});
 };
 
