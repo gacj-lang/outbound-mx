@@ -14046,13 +14046,18 @@ window.cadCopyHistThread=async function(btn){
   showNotif('Hilo copiado ✓','success');
 };
 // Cruce desde la ficha de empresa (empOpenDetail) — abre el módulo directo en Historial, filtrado.
-// La carga real va en afterShow (ver showModule) — si hay trabajo sin guardar en otro módulo,
-// showModule muestra un diálogo y NO navega de inmediato; sin afterShow esto se ejecutaba igual
-// contra el módulo viejo y no pasaba nada visible hasta un segundo clic.
+// BUG REAL 2026-08-14 (reportado 2 veces): _doShowModule('cadencias') SIEMPRE re-renderiza primero
+// la pestaña activa (_cadTab, normalmente 'activas') — eso dispara el fetch async de
+// cadRenderActivas(). Llamar cadShowTab('historial') en el afterShow cambiaba la vista de inmediato,
+// pero cuando ese fetch de Activas (ya en vuelo) resolvía UN MOMENTO DESPUÉS, su .then seguía
+// escribiendo en el MISMO #cadTabBody (el nodo no se recrea entre tabs) y borraba el Historial que
+// acabábamos de mostrar — "primer clic no hace nada" (vuelve a Activas solo), "segundo clic sí"
+// solo por timing/suerte de red, no por una razón real. Fix real: precargar _cadTab='historial'
+// ANTES de showModule, así renderCadencias() nunca llega a pedir Activas — no hay carrera posible.
 window.cadOpenHistoryForCompany=function(nombre,website){
   const key=_cadCompanyKey(nombre,website);
+  _cadTab='historial';
   showModule('cadencias', false, ()=>{
-    cadShowTab('historial');
     const input=document.getElementById('cadHistSearch'); if(input) input.value=nombre||key;
     cadLoadCompanyHistory(key);
   });
@@ -14061,8 +14066,8 @@ window.cadOpenHistoryForCompany=function(nombre,website){
 // campana de respuestas) — evita re-derivarlo de nombre/website, que podría no calzar 1:1 con lo
 // que _cadCompanyKey produciría si el nombre visible tiene formato distinto.
 window.cadOpenHistoryByKey=function(companyKey,label){
+  _cadTab='historial';
   showModule('cadencias', false, ()=>{
-    cadShowTab('historial');
     const input=document.getElementById('cadHistSearch'); if(input) input.value=label||companyKey;
     cadLoadCompanyHistory(companyKey);
   });
