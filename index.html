@@ -2708,7 +2708,7 @@ window.openDiscoveryForm = async function(recordId){
     wrapEl.addEventListener('input',()=>discAutosave());
     wrapEl.addEventListener('change',()=>discAutosave());
   }
-  // El company picker se monta dentro de la sección Situación (dgMountPicker) en cada render.
+  // El company picker vive en la barra fija superior (dgMountPicker, llamado una vez desde discInitForm).
   // Show start popup only for NEW sessions
   if(!recordId) discShowStartPopup();
 };
@@ -2777,8 +2777,14 @@ const DG_CSS=`
 .dg-mb-left{display:flex;align-items:center;gap:14px}
 .dg-back{background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:7px 14px;font-size:13px;color:#374151;cursor:pointer;font-weight:600}
 .dg-mb-title{font-size:15px;font-weight:700;color:#21272B}
-.dg-emp-badge{font-size:12px;font-weight:600;background:#f3eef2;color:#4a2f44;padding:3px 9px;border-radius:999px}
 .dg-ind-label{font-size:12px;color:#9ca3af}
+.dg-mb-m2o{flex:1 1 340px;min-width:280px;max-width:520px}
+.dg-mb-m2o .m2o-row{margin-bottom:0;gap:8px}
+.dg-mb-m2o .m2o-field{gap:2px}
+.dg-mb-m2o .m2o-field label{font-size:9.5px;letter-spacing:.3px}
+.dg-mb-m2o .m2o-input{padding:6px 30px 6px 9px;font-size:12.5px;border-radius:8px}
+.dg-mb-m2o .m2o-edit{right:28px;font-size:11px}
+.dg-mb-m2o .m2o-clear{right:6px;font-size:14px}
 .dg-mb-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .dg-modetoggle{display:inline-flex;background:#f3f4f6;border-radius:10px;padding:3px}
 .dg-mode-btn{border:none;background:none;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:700;color:#6b7280;cursor:pointer}
@@ -2970,7 +2976,6 @@ const DG_CSS=`
 `;
 
 function buildDiscoveryFormHTML(data){
-  const empresa=data?.empresa||data?.selections?.['emp-nombre']||'';
   return `<div class="disc-wrap" id="discWrap">
   <style>${DG_CSS}</style>
   <div class="dg-modebar">
@@ -2979,11 +2984,11 @@ function buildDiscoveryFormHTML(data){
       <div>
         <div class="dg-mb-title">🔍 Intromeet / Qcall</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-          <span class="dg-emp-badge" id="discEmpresaBadge" style="${empresa?'':'display:none'}">${empresa?'📄 '+empresa:''}</span>
           <span class="dg-ind-label" id="discIndLabel">Configura la sesión para comenzar</span>
         </div>
       </div>
     </div>
+    <div class="dg-mb-m2o" id="discM2oWrap"></div>
     <div class="dg-mb-right">
       <div class="dg-modetoggle">
         <button class="dg-mode-btn active" id="dmbEscucha" onclick="discSetMode('escucha')">🎧 En llamada</button>
@@ -3244,8 +3249,7 @@ function dgCfgCardHTML(){
 function dgEmpFieldsHTML(){
   const s=disc.selections;
   const val=k=>_dgEsc(s[k]||'');
-  return `<div id="discM2oWrap"></div>
-    <div class="dg-field" style="display:none"><label>Nombre</label><input id="d-emp-nombre" type="text" value="${val('emp-nombre')}" oninput="discSaveEmpresa()"></div>
+  return `<div class="dg-field" style="display:none"><label>Nombre</label><input id="d-emp-nombre" type="text" value="${val('emp-nombre')}" oninput="discSaveEmpresa()"></div>
     <div class="dg-drow">
       <div class="dg-field"><label>Razones sociales</label><input id="d-emp-razones" type="number" min="1" value="${val('emp-razones')}" placeholder="#" oninput="discSaveEmpresa()"></div>
       <div class="dg-field"><label>Empleados</label><input id="d-emp-empleados" type="number" min="1" value="${val('emp-empleados')}" placeholder="#" oninput="discSaveEmpresa()"></div>
@@ -3308,8 +3312,6 @@ function dgRenderSection(){
   body += `<div class="dg-nav"><button class="dg-prev" ${idx===0?'disabled':''} onclick="dgGo(${idx-1})">← Anterior</button><button class="dg-next" onclick="dgGo(${idx+1})">${idx===secs.length-1?'Ir a Post-call →':'Siguiente sección →'}</button></div>`;
 
   host.innerHTML=`<div class="dg-card"><div class="dg-card-head"><div class="dg-sec-title"><span>${sec.icon}</span><span>${sec.title}</span></div><div class="dg-sec-goal">${sec.goal}</div>${sec.config?'':`<div class="dg-cfgstrip">${dgCfgStripHTML()}</div>`}</div><div class="dg-card-body">${body}</div></div>`;
-
-  if(sec.config) dgMountPicker();
 }
 
 function dgWowItems(area){
@@ -3470,8 +3472,6 @@ function discInitForm(data){
       disc.selections.producto = t.startsWith('Servicios')?'servicios':(t.startsWith('Mixtos')?'mixto':'fisico');
     }
     if(disc.currentInd){ const l=document.getElementById('discIndLabel'); if(l) l.textContent=(IND_NAMES[disc.currentInd]||'')+' · En llamada'; }
-    const nb=document.getElementById('discEmpresaBadge'), nom=disc.selections['emp-nombre']||'';
-    if(nb&&nom){ nb.textContent='📄 '+nom; nb.style.display='inline-block'; }
     if(data.geminiNote){ const o=document.getElementById('discGeminiOutput'),w=document.getElementById('discNotaStepOut'); if(o&&w){ o.textContent=data.geminiNote; w.style.display='block'; discStepMark(1,'done'); } }
     if(data.recoNote){ const o=document.getElementById('discRecoOutput'),w=document.getElementById('discRecoStepOut'); if(o&&w){ o.textContent=data.recoNote; w.style.display='block'; const l=document.getElementById('discRecoLabel'); if(l) l.textContent='Recomendaciones guardadas'; discStepMark(2,'done'); } }
     if(data.transcript){ const ta=document.getElementById('discTranscriptInput'); if(ta) ta.value=data.transcript; }
@@ -3481,7 +3481,7 @@ function discInitForm(data){
   }
   { const nta=document.getElementById('dgNotesTa'); if(nta) nta.value=disc.selections.fld?.['notas-llamada']||''; }
   disc.ui={section:0,sub:{flujo:1},wow:null};
-  dgRender(); dgRenderPostcall();
+  dgRender(); dgRenderPostcall(); dgMountPicker();
   if(data?.callEnded){
     disc.callEnded=true; discSetMode('postcall');
     const btn=document.getElementById('discEndBtn'); if(btn){ btn.textContent='✓ Finalizada'; btn.style.background='#16a34a'; btn.style.color='#fff'; btn.style.borderColor='#16a34a'; btn.style.cursor='default'; btn.onclick=null; }
@@ -3493,9 +3493,7 @@ function dgMountPicker(){
   mountCompanyPicker('discM2oWrap',(co,ct)=>{
     disc.selections['emp-nombre']=co?.nombre||'';
     disc.companyId=co?.id||null;
-    const nb=document.getElementById('discEmpresaBadge');
     const ni=document.getElementById('d-emp-nombre');
-    if(nb){ nb.textContent=co?'📄 '+co.nombre:''; nb.style.display=co?'inline-block':'none'; }
     if(ni) ni.value=co?.nombre||'';
     discAutosave();
   }).then(()=>{
@@ -3529,9 +3527,6 @@ function discReadEmpFields(){
 }
 window.discSaveEmpresa=function(){
   discReadEmpFields();
-  const nb=document.getElementById('discEmpresaBadge');
-  const nom=disc.selections['emp-nombre']||'';
-  if(nb){ nb.textContent='📄 '+nom; nb.style.display=nom?'inline-block':'none'; }
   discAutosave();
 };
 // Línea base por reglas (industria + tipo de venta) — se muestra apenas se entra a Post-call.
