@@ -1046,7 +1046,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-08-14 Cadencias de correo (reconstrucción, solo correo, cero Odoo): módulo propio en el nav + botón en Resultados de CSV Builder, Gmail OAuth por AE, A/B de variantes, historial por empresa con copiar al portapapeles.';
+const APP_BUILD_STAMP='2026-08-17 Cadencias: botón "Activar cadencia" junto a Descargar CSV/Guardar sesión (toma toda la lista, sin seleccionar filas) + selector "Cargar desde un CSV ya generado" en Nueva cadencia.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -12236,6 +12236,7 @@ function csvRenderResultadosTab(content){
         <div style="display:flex;gap:12px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="csvDownload()">⬇ Descargar CSV</button>
           <button class="btn btn-ghost" onclick="csvSaveSession()">💾 Guardar sesión</button>
+          <button class="btn btn-ghost" onclick="csvActivateCadenceAll()">📨 Activar cadencia</button>
         </div>
       </div>
     </div>
@@ -14299,6 +14300,11 @@ function cadRenderNueva(){
     <div class="card" style="padding:20px;margin-bottom:16px">
       <p class="settings-desc">Sube o pega una lista de prospectos para activarles una cadencia de correo directo — sin pasar por el buscador de leads.</p>
       <div class="form-group"><label>Fuente</label><input type="text" class="input" id="cadUpFuente" placeholder="Ej. Lista propia, evento, base de LinkedIn..."></div>
+      <div class="form-group">
+        <label>Cargar desde un CSV ya generado <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
+        <select class="input" id="cadUpFromCsvSelect" onchange="cadUpLoadFromCsvSession(this.value)"><option value="">Cargando…</option></select>
+      </div>
+      <div style="text-align:center;font-size:12px;color:var(--gray-400);margin:4px 0 12px">— o sube/pega tus propios datos —</div>
       <div id="cadUpDropZone" style="border:2px dashed var(--gray-200);border-radius:var(--radius);padding:16px;text-align:center;margin-bottom:12px;transition:border-color .15s;cursor:pointer;background:var(--gray-50)"
         onclick="document.getElementById('cadUpFileInput').click()"
         ondragover="event.preventDefault();this.style.borderColor='var(--purple)'"
@@ -14317,7 +14323,53 @@ function cadRenderNueva(){
     </div>
     <div id="cadUpPreview"></div>`;
   cadRenderUploadPreview();
+  cadUpLoadCsvOptions();
 }
+// Selector "Cargar desde un CSV ya generado" — mismo alcance por rol que csvLoadHistory
+// (ae=solo lo suyo · tl=lo suyo + su equipo · manager=todo), pero en lista plana para un <select>.
+async function cadUpLoadCsvOptions(){
+  const sel=document.getElementById('cadUpFromCsvSelect'); if(!sel||!db) return;
+  try{
+    const role=currentUserData?.role;
+    let docs;
+    if(role==='manager'){
+      const snap=await getDocs(query(collection(db,'csvSessions'),orderBy('createdAt','desc')));
+      docs=snap.docs;
+    } else if(role==='tl'){
+      const [ownSnap,teamSnap]=await Promise.all([
+        getDocs(query(collection(db,'csvSessions'),where('aeUid','==',currentUserData.uid))),
+        getDocs(query(collection(db,'csvSessions'),where('tlId','==',currentUserData.uid))),
+      ]);
+      const byId=new Map();
+      [...ownSnap.docs,...teamSnap.docs].forEach(d=>byId.set(d.id,d));
+      docs=[...byId.values()];
+    } else {
+      const snap=await getDocs(query(collection(db,'csvSessions'),where('aeUid','==',currentUserData.uid)));
+      docs=snap.docs;
+    }
+    const rows=docs.map(d=>({id:d.id,...d.data()})).filter(r=>(r.rowCount||0)>0);
+    rows.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    if(!rows.length){ sel.innerHTML='<option value="">Sin CSV guardados aún</option>'; return; }
+    sel.innerHTML='<option value="">— Selecciona un CSV —</option>'+rows.map(r=>{
+      const date=r.createdAt?.toDate?.()?.toLocaleDateString('es-MX')||'';
+      const who=(role!=='ae'&&r.aeName)?` · ${r.aeName}`:'';
+      return `<option value="${r.id}">${_esc(r.fuente||'Sin nombre')} — ${r.rowCount||0} prospectos · ${date}${who}</option>`;
+    }).join('');
+  }catch(e){ console.warn('cadUpLoadCsvOptions:',e); sel.innerHTML='<option value="">Error al cargar</option>'; }
+}
+// Carga directa — los csvSessions ya vienen con filas estructuradas (partner_name/contact_name/...),
+// así que a diferencia de cadUploadProcess() no hace falta pasar por el parseo con IA.
+window.cadUpLoadFromCsvSession=async function(id){
+  if(!id||!db) return;
+  try{
+    const snap=await getDoc(doc(db,'csvSessions',id)); if(!snap.exists()){ showNotif('CSV no encontrado','error'); return; }
+    const data=snap.data();
+    _cadUploadRows=(data.rows||[]).map(r=>({empresa:r.partner_name||'',contacto:r.contact_name||'',cargo:r.function||'',email:r.Email||'',phone:r.phone||'',website:r.Website||''}));
+    const fuenteEl=document.getElementById('cadUpFuente'); if(fuenteEl) fuenteEl.value=data.fuente||'CSV cargado';
+    cadRenderUploadPreview();
+    showNotif(`${_cadUploadRows.length} prospecto${_cadUploadRows.length===1?'':'s'} cargado${_cadUploadRows.length===1?'':'s'} desde el CSV ✓`,'success');
+  }catch(e){ showNotif('Error al cargar CSV: '+e.message,'error'); }
+};
 window.cadUpHandleFile=async function(file){
   _cadUpFileAttachment=null;
   const statusFn=(msg,type)=>{
@@ -14624,12 +14676,20 @@ window.cadConfirmActivation=async function(){
 };
 
 // ── Entrada A: hookup en CSV Builder (#csvBulkBar, ver csvExportSelected como precedente) ──
+function csvRowsToLeads(rows){
+  return rows.map(r=>({empresa:r.partner_name,contacto:r.contact_name,email:r.Email,phone:r.phone,website:r.Website,cargo:r.function}));
+}
 window.csvActivateCadenceSelected=function(){
   const idxs=csvSelectedIndices();
   if(!idxs.length){ showNotif('Selecciona al menos un prospecto','error'); return; }
   const rows=idxs.map(i=>csvRows[i]).filter(Boolean);
-  const leads=rows.map(r=>({empresa:r.partner_name,contacto:r.contact_name,email:r.Email,phone:r.phone,website:r.Website,cargo:r.function}));
-  openCadenceActivationModal(leads);
+  openCadenceActivationModal(csvRowsToLeads(rows));
+};
+// Botón junto a "Descargar CSV"/"Guardar sesión" — toma TODA la lista generada (sin necesidad de
+// seleccionar filas primero), a diferencia de csvActivateCadenceSelected.
+window.csvActivateCadenceAll=function(){
+  if(!csvRows.length){ showNotif('Sin prospectos en la lista — genera o carga un CSV primero','error'); return; }
+  openCadenceActivationModal(csvRowsToLeads(csvRows));
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
