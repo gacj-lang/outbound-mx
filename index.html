@@ -4342,6 +4342,7 @@ const ODOO_INDUSTRIES = {
 // que manda el resultado por postMessage — aquí solo se usan planLabels/editions para mostrar
 // tarjetas de referencia (renderPricingHome) y etiquetas de planes/edición guardados.
 const PRICING_DATA = {
+  planMonths:[1,12,24,36,48,60],   // usado por pricingGeneratePDF() para la tabla comparativa y el resumen — no es código muerto
   planLabels:['Mensual','1 año','2 años','3 años','4 años','5 años'],
   editions:[
     {id:'standard',       name:'Estándar',      rates:[225,180,180,180,180,180], ratesY2:[285,228,228,228,228,228]},
@@ -11164,12 +11165,16 @@ window.propGenerarPDF=async function(){
   if(_propState.company){ pricingState.company=_propState.company; pricingState.contact=_propState.contact||null; }
   if(!pricingState.company){ showNotif('Selecciona una empresa primero','error'); return; }
   if(!pricingState.result){ showNotif('Carga un pricing primero','error'); return; }
-  // Registrar la propuesta (para Analytics) — segundo plano, NUNCA debe bloquear la generación del PDF
-  if(db) addDoc(collection(db,'propuestaRecords'),{
-    aeUid:currentUserData?.uid, aeName:currentUserData?.name||'', aeGram:currentUserData?.gram||'', tlId:currentUserData?.tlId||null,
-    companyId:pricingState.company?.id||null, companyName:pricingState.company?.nombre||'',
-    edition:pricingState.result?.editionName||'', total:pricingState.result?.total||null,
-    createdAt:serverTimestamp() }).catch(()=>{});
+  // Registrar la propuesta (para Analytics) — segundo plano, NUNCA debe bloquear la generación del PDF.
+  // addDoc() puede lanzar SÍNCRONO (no solo rechazar la promesa) si algún campo sale undefined —
+  // por eso el try/catch envolvente, además del .catch() de la promesa.
+  try{
+    if(db) addDoc(collection(db,'propuestaRecords'),{
+      aeUid:currentUserData?.uid||null, aeName:currentUserData?.name||'', aeGram:currentUserData?.gram||'', tlId:currentUserData?.tlId||null,
+      companyId:pricingState.company?.id||null, companyName:pricingState.company?.nombre||'',
+      edition:pricingState.result?.editionName||'', total:pricingState.result?.total||null,
+      createdAt:serverTimestamp() }).catch(()=>{});
+  }catch(e){}
   pricingGeneratePDF();
 };
 
