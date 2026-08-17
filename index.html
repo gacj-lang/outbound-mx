@@ -10142,12 +10142,13 @@ function renderPricing(){
   content.style.padding='0';
   // Setup postMessage listener for pricing result
   if(window._pricingMsgHandler) window.removeEventListener('message',window._pricingMsgHandler);
-  window._pricingMsgHandler=async function(e){
+  window._pricingMsgHandler=function(e){
     const type=e.data?.type;
     if(type!=='outbound_pricing' && type!=='pricing_autosave') return;
     const d=e.data;
     applyPricingMsg(d);
-    await pricingUpsertRecord(d,{silent:type==='pricing_autosave'});
+    // Guardado en Firestore corre en segundo plano — NUNCA debe bloquear la generación de la propuesta
+    pricingUpsertRecord(d,{silent:type==='pricing_autosave'});
     if(type==='outbound_pricing') pricingShowModuleSelector();
   };
   window.addEventListener('message',window._pricingMsgHandler);
@@ -10202,21 +10203,24 @@ async function pricingUpsertRecord(d,opts={}){
     rowVisible:Array.isArray(d.rowVisible)?d.rowVisible:null,
     updatedAt:serverTimestamp()
   };
+  // Salvavidas: si Firestore se cuelga (red lenta, etc.) el indicador no debe quedarse pegado en "Guardando…"
+  const withTimeout=(p,ms=15000)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout-guardado')),ms))]);
   try{
     if(pricingState.recordId){
-      await updateDoc(doc(db,'pricingRecords',pricingState.recordId),rec);
+      await withTimeout(updateDoc(doc(db,'pricingRecords',pricingState.recordId),rec));
     } else {
       rec.createdAt=serverTimestamp();
-      const ref=await addDoc(collection(db,'pricingRecords'),rec);
+      const ref=await withTimeout(addDoc(collection(db,'pricingRecords'),rec));
       pricingState.recordId=ref.id;
     }
     const hhmm=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
     if(statusEl){ statusEl.textContent='✓ Guardado '+hhmm; statusEl.style.color='var(--success)'; }
     if(d.manual) showNotif('Pricing guardado ✓','success');
   }catch(err){
-    if(statusEl){ statusEl.textContent='⚠ Error al guardar'; statusEl.style.color='var(--danger)'; }
+    const isTimeout=err.message==='timeout-guardado';
+    if(statusEl){ statusEl.textContent=isTimeout?'⚠ Guardado tardó demasiado':'⚠ Error al guardar'; statusEl.style.color='var(--danger)'; }
     if(err.code==='permission-denied'||err.message?.includes('permission')) showNotif('Error de permisos — revisa las reglas de Firestore','error');
-    else if(d.manual) showNotif('Error al guardar: '+(err.message||''),'error');
+    else if(d.manual) showNotif('Error al guardar: '+(isTimeout?'tardó demasiado, intenta de nuevo':err.message||''),'error');
   }
 }
 window.pricingManualSave=function(){
@@ -10293,11 +10297,11 @@ window.pricingSaveModsAndPDF=async function(){
   pricingState.odooPropUrl=document.getElementById('pOdooPropUrl')?.value.trim()||'';
   document.getElementById('pricingModSel')?.remove();
   showNotif('Pricing guardado ✓','success');
-  // ── Guardar en memoria de empresa ──
+  // ── Guardar en memoria de empresa (segundo plano — NUNCA debe bloquear la generación del PDF) ──
   const ps=pricingState, r=ps.result||{};
   if(ps.company?.id){
     const modNames=pricingState.selectedModules;
-    await updateCompanyMemory(ps.company.id,'pricing',{
+    updateCompanyMemory(ps.company.id,'pricing',{
       pricing:{
         edition:r.editionName||'',
         users:r.users||ps.users||0,
@@ -11160,12 +11164,12 @@ window.propGenerarPDF=async function(){
   if(_propState.company){ pricingState.company=_propState.company; pricingState.contact=_propState.contact||null; }
   if(!pricingState.company){ showNotif('Selecciona una empresa primero','error'); return; }
   if(!pricingState.result){ showNotif('Carga un pricing primero','error'); return; }
-  // Registrar la propuesta (para Analytics) — el conteo arranca desde aquí
-  if(db) try{ await addDoc(collection(db,'propuestaRecords'),{
+  // Registrar la propuesta (para Analytics) — segundo plano, NUNCA debe bloquear la generación del PDF
+  if(db) addDoc(collection(db,'propuestaRecords'),{
     aeUid:currentUserData?.uid, aeName:currentUserData?.name||'', aeGram:currentUserData?.gram||'', tlId:currentUserData?.tlId||null,
     companyId:pricingState.company?.id||null, companyName:pricingState.company?.nombre||'',
     edition:pricingState.result?.editionName||'', total:pricingState.result?.total||null,
-    createdAt:serverTimestamp() }); }catch(e){}
+    createdAt:serverTimestamp() }).catch(()=>{});
   pricingGeneratePDF();
 };
 
