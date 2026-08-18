@@ -1887,7 +1887,7 @@ function renderManagerPanel(){
       <div class="card" style="margin-top:16px">
         <div class="card-header"><h3>🛠 Mantenimiento — asignado de Qcall/Intromeet</h3></div>
         <div style="padding:2px 0">
-          <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:10px;line-height:1.5">Reasigna sesiones de Intromeet/Qcall que quedaron mal "asignadas" por un bug ya corregido (el autoguardado sobrescribía aeUid/aeName con quien tocara la sesión, no con quien la creó). Solo toca un registro cuando dos señales coinciden — el touchpoint más cercano a su creación y quien creó la empresa —; todo lo demás se deja intacto, sin adivinar.</p>
+          <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:10px;line-height:1.5">Reasigna sesiones de Intromeet/Qcall que quedaron mal "asignadas" por un bug ya corregido (el autoguardado sobrescribía aeUid/aeName con quien tocara la sesión, no con quien la creó). Regla: cada registro se reasigna a quien creó la empresa correspondiente. Se salta solo si la empresa no tiene registrado su creador (empresas muy viejas) o no se puede resolver su usuario.</p>
           <button id="maintBackfillBtn" class="btn btn-primary btn-full" onclick="maintRunDiscoveryBackfill(false)">🔍 Analizar (vista previa, no escribe nada)</button>
         </div>
       </div>
@@ -1899,13 +1899,12 @@ function renderManagerPanel(){
 // MANTENIMIENTO — backfill del "asignado" en discoveryRecords viejos (antes del fix del
 // 2026-08-18, aeUid/aeName/aeGram/tlId se sobrescribían en CADA guardado con quien tocara la
 // sesión, no solo al crearla — ver discSaveRecord). No hay campo separado e inmutable del creador
-// real, así que se reconstruye cruzando dos señales que deben COINCIDIR:
-//   1) el touchpoint tipo 'discovery' más cercano en el tiempo al createdAt del registro, dentro de
-//      companies/{id}.memory.touchpoints — es quien hizo el PRIMER guardado de esa sesión (el
-//      touchpoint se escribe en la misma llamada que crea el registro).
-//   2) quien creó la empresa (companies.createdBy/createdByGram) — en el flujo normal el mismo AE
-//      que prospecta crea la empresa y hace la primera Qcall, así que si ambas señales coinciden es
-//      alta confianza; si no coinciden (o falta alguna), se deja el registro tal cual.
+// real de CADA sesión, así que la regla (a pedido explícito del usuario) es: todo discoveryRecord
+// se reasigna a quien creó la EMPRESA correspondiente (companies.createdBy/createdByUid/
+// createdByGram — ese campo nunca se corrompió, saveCompany solo lo escribe al crear).
+// Caveat conocido y aceptado: si una empresa tuvo varias sesiones de Qcall de AEs distintos a lo
+// largo del tiempo (cuenta reasignada, etc.), TODAS quedan atribuidas a quien creó la empresa, no
+// necesariamente a quien corrió cada sesión en particular.
 // Manager-only. Dry-run primero, aplica solo con confirmación explícita del botón.
 // ══════════════════════════════════════════
 async function _maintAnalyzeDiscoveryAssignee(){
@@ -1915,30 +1914,31 @@ async function _maintAnalyzeDiscoveryAssignee(){
     getDocs(collection(db,'users')),
   ]);
   const companies=new Map(coSnap.docs.map(d=>[d.id,{id:d.id,...d.data()}]));
-  const usersByGram=new Map(), usersByName=new Map();
-  usSnap.docs.forEach(d=>{ const u={id:d.id,...d.data()}; if(u.gram) usersByGram.set(u.gram,u); if(u.name) usersByName.set(u.name,u); });
+  const usersByUid=new Map(), usersByGram=new Map(), usersByName=new Map();
+  usSnap.docs.forEach(d=>{
+    const u={id:d.id,...d.data()};
+    usersByUid.set(u.uid||u.id,u);
+    if(u.gram) usersByGram.set(u.gram,u);
+    if(u.name) usersByName.set(u.name,u);
+  });
 
-  const WINDOW_MS=5*60*1000; // margen entre el createdAt del registro y el touchpoint que lo originó
   const results={fix:[],skip:[]};
   drSnap.docs.forEach(d=>{
     const r={id:d.id,...d.data()};
     const co=r.companyId?companies.get(r.companyId):null;
     if(!co){ results.skip.push({id:r.id,empresa:r.empresa,motivo:'Sin empresa vinculada (companyId)'}); return; }
-    const createdMs=r.createdAt?.toMillis?.()??(r.createdAt?.seconds?r.createdAt.seconds*1000:null);
-    if(!createdMs){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:'Registro sin createdAt'}); return; }
-    const touches=(co.memory?.touchpoints||[]).filter(t=>t.type==='discovery');
-    let best=null,bestDiff=Infinity;
-    touches.forEach(t=>{
-      const tMs=new Date(t.date).getTime(); if(isNaN(tMs)) return;
-      const diff=Math.abs(tMs-createdMs);
-      if(diff<bestDiff){ bestDiff=diff; best=t; }
-    });
-    if(!best||bestDiff>WINDOW_MS){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:'Sin touchpoint cercano a su creación (se evadió por el tope de 30, o nunca lo hubo)'}); return; }
-    const matchesCreator=(co.createdByGram&&best.aeGram&&co.createdByGram===best.aeGram)||(co.createdBy&&best.aeName&&co.createdBy===best.aeName);
-    if(!matchesCreator){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:`Touchpoint (${best.aeName||best.aeGram||'?'}) no coincide con quien creó la empresa (${co.createdBy||co.createdByGram||'—'})`}); return; }
-    const user=usersByGram.get(best.aeGram)||usersByName.get(best.aeName);
-    if(!user){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:`No se encontró usuario para ${best.aeName||best.aeGram} en la colección users`}); return; }
-    const newVals={aeUid:user.uid||user.id,aeName:user.name||best.aeName,aeGram:user.gram||best.aeGram,tlId:user.tlId||null};
+    if(!co.createdByUid&&!co.createdByGram&&!co.createdBy){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:'La empresa no tiene registrado quién la creó (empresa muy vieja)'}); return; }
+    // Resolvemos el usuario por uid directo si la empresa lo trae; si no (empresas viejas), por
+    // gram o nombre contra la colección users.
+    const user=(co.createdByUid&&usersByUid.get(co.createdByUid))||(co.createdByGram&&usersByGram.get(co.createdByGram))||(co.createdBy&&usersByName.get(co.createdBy));
+    const aeUid=co.createdByUid||user?.uid||user?.id||null;
+    if(!aeUid){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:`No se pudo resolver el usuario de "${co.createdBy||co.createdByGram}" (ni en la empresa ni en la colección users)`}); return; }
+    const newVals={
+      aeUid,
+      aeName:co.createdBy||user?.name||'',
+      aeGram:co.createdByGram||user?.gram||'',
+      tlId:(co.tlId!=null)?co.tlId:(user?.tlId||null),
+    };
     const same=r.aeUid===newVals.aeUid&&r.aeName===newVals.aeName&&r.aeGram===newVals.aeGram&&(r.tlId||null)===(newVals.tlId||null);
     if(same){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:'Ya estaba correcto'}); return; }
     results.fix.push({id:r.id,empresa:co.nombre||r.empresa,before:{aeName:r.aeName,aeGram:r.aeGram},after:newVals});
@@ -5017,10 +5017,11 @@ async function loadCentroControl(){
       const allDocs=snap.docs.map(d=>d.data());
       if(currentUserData?.role==='ae') allDocs.sort((a,b)=>(b.updatedAt?.seconds||0)-(a.updatedAt?.seconds||0));
       const recent=allDocs.slice(0,4);
+      await _discHydrateCompanyNames(recent); // misma caché de nombre-en-vivo que usa la lista de Qcall/Intromeet
       actContainer.innerHTML=recent.length===0?'<div class="cdc-empty">Sin actividad reciente</div>':
         recent.map(r=>`<div class="cdc-task-item" style="cursor:default">
           <div class="cdc-task-dot cdc-dot-blue"></div>
-          <span class="cdc-task-text">Discovery: ${r.empresa||'Sin nombre'} <span style="color:var(--gray-400)">(${r.aeGram||''})</span></span>
+          <span class="cdc-task-text">Discovery: ${_discEmpresaNombre(r)} <span style="color:var(--gray-400)">(${r.aeGram||''})</span></span>
           <span class="cdc-task-time">${r.status||'borrador'}</span>
         </div>`).join('');
     } catch(e){ actContainer.innerHTML='<div class="cdc-empty">Sin actividad</div>'; }
