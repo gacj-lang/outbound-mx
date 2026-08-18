@@ -11671,6 +11671,10 @@ const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Em
 // - datos_denue: se llena cuando la fuente primaria NO fue DENUE y hubo match contra DENUE.
 // - datos_dirind: se llena cuando la fuente primaria NO fue DIRIND y hubo match contra DIRIND.
 // - datos_apollo: se llena cuando la fuente primaria fue DENUE/DIRIND y hubo match/enrich de Apollo.
+// - datos_outscraper (2026-08-18): se llena cuando la fuente primaria NO fue Outscraper y el
+//   cross-match contra Maps (finalizeSearchJob, backend) encontró redes sociales/teléfonos
+//   extra/dominio/correo nuevos — a diferencia de datos_denue/datos_dirind, este cross SÍ gasta
+//   crédito real de Outscraper por lead (ver comentario en el backend).
 // - resumen: resumen ≤140 caracteres generado por IA con investigación real (LinkedIn + sitio web
 //   de la empresa vía el tool de búsqueda nativo de Claude), para TODAS las fuentes — antes esa
 //   investigación vivía separada en una columna "Web" (solo DENUE-primario); se fusionó aquí para
@@ -11679,6 +11683,7 @@ const CSV_EXTRA_COLUMNS=[
   {key:'datos_denue', label:'DATOS DENUE'},
   {key:'datos_dirind', label:'DATOS DIRIND'},
   {key:'datos_apollo', label:'DATOS APOLLO'},
+  {key:'datos_outscraper', label:'DATOS OUTSCRAPER'},
   {key:'resumen', label:'Resumen'},
 ];
 const MX_STATES=['Aguascalientes (MX)','Baja California (MX)','Baja California Sur (MX)','Campeche (MX)','Chihuahua (MX)','Chiapas (MX)','Ciudad de México (MX)','Coahuila (MX)','Colima (MX)','Durango (MX)','Estado de Mexico (MX)','Guerrero (MX)','Guanajuato (MX)','Hidalgo (MX)','Jalisco (MX)','Michoacán (MX)','Morelos (MX)','Nayarit (MX)','Nuevo León (MX)','Oaxaca (MX)','Puebla (MX)','Querétaro (MX)','Quintana Roo (MX)','Sinaloa (MX)','San Luis Potosí (MX)','Sonora (MX)','Tabasco (MX)','Tamaulipas (MX)','Tlaxcala (MX)','Veracruz (MX)','Yucatán (MX)','Zacatecas (MX)'];
@@ -11953,6 +11958,11 @@ let csvRows=[];
 // sin guardar" (getUnsavedWarning). Se limpia en csvPersist (descarga y guardado pasan por ahí)
 // y al recargar una sesión ya guardada; se enciende al cargar/extraer/editar filas.
 let _csvDirty=false;
+// Promesa en vuelo de csvEnrichRowsWithAI→csvApplyIndustryTags (2026-08-18) — antes esa cadena era
+// fire-and-forget: si el AE descargaba/guardaba/exportaba ANTES de que la clasificación de industria
+// (llamada real a Claude) terminara, el CSV salía sin tags A/B, sin ningún aviso. csvDownload/
+// csvSaveSession/csvExportSelected ahora esperan esta promesa antes de serializar csvRows.
+let _csvIndustryTagsPromise=null;
 let csvInputMode='paste';
 // Consumo de cuota del AE (semana/mes/diario por fuente) — se pide una vez al abrir el buscador de
 // leads y se cachea; csvRenderQuotaHint la combina con la fuente seleccionada para pintar el texto
@@ -13204,7 +13214,7 @@ async function csvClassifyIndustryTags(rows){
     empresa:r.partner_name||'',
     resumen:r.resumen||'',
     industria_fuente:r._industriaRaw||'',
-    contexto:[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo].filter(Boolean).join(' | ').slice(0,600),
+    contexto:[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo,r.datos_outscraper].filter(Boolean).join(' | ').slice(0,600),
   }));
   const aList=QS_INDUSTRY_TYPES.map(a=>`${a.code}=${a.label}`).join(' | ');
   const bList=QS_PRODUCT_TYPES.map(b=>`${b.code}=${b.label}`).join(' | ');
@@ -13249,6 +13259,16 @@ async function csvApplyIndustryTags(rows){
   csvRenderTable();
 }
 
+// Fallback cuando la fuente no trae nombre de empresa (pedido 2026-08-18 — no debería pasar con
+// datos reales de Apollo/DENUE/DIRIND/Outscraper, pero companyKey() en el backend califica al lead
+// con SOLO el dominio si el nombre viene vacío, así que el código no lo prohíbe). Sin esto, una fila
+// así se cae en silencio del filtro de csvApplyIndustryTags ((r.partner_name||'').trim()) y nunca
+// recibe ni el fallback A99/B99 — usa el dominio limpio como nombre antes que dejarlo vacío.
+function _csvCompanyNameFallback(nombre, website){
+  const limpio=(nombre||'').trim();
+  if(limpio) return limpio;
+  return String(website||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0];
+}
 // Convierte los leads de un job (ya con email+teléfono resueltos) al shape de csvRows — misma
 // transformación que antes hacía csvRunLeadSearch al recibir la respuesta directa.
 function csvLoadJobIntoRows(job){
@@ -13270,16 +13290,18 @@ function csvLoadJobIntoRows(job){
     if(fuentes.includes('DIRIND')) tagsFila.push('DirindMX');
     if(fuentes.includes('Outscraper')) tagsFila.push('OutscraperMX');
     if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
-    // Prioridad para elegir _fuentePrimaria/_origen cuando 'fuentes' trae más de un valor (ej.
-    // ['DIRIND','Apollo']): el AE eligió DIRIND, DENUE u Outscraper como fuente EXPLÍCITA de la
-    // búsqueda — 'Apollo' ahí es solo el cross-match del contacto con nombre, nunca la fuente
-    // primaria real. Outscraper nunca se cruza con Apollo (ver runOutscraperSearch en el backend),
-    // así que su único valor posible en 'fuentes' es ['Outscraper'].
-    const fuentePrimaria=fuentes.includes('DIRIND')?'dirind':fuentes.includes('DENUE')?'denue':fuentes.includes('Outscraper')?'outscraper':'apollo';
+    // fuentePrimaria: viene DIRECTO de job.filtros (lo que el AE eligió al lanzar la búsqueda), no
+    // se infiere del array 'fuentes' del lead. Antes (hasta 2026-08-18) sí se inferría de 'fuentes'
+    // asumiendo que solo 'Apollo' podía colarse junto a la primaria real — dejó de ser cierto desde
+    // que el backend cruza TODAS las fuentes entre sí (DENUE/DIRIND/Outscraper pueden aparecer en
+    // 'fuentes' de un lead Apollo-primario, y viceversa): inferir por prioridad de array ya
+    // clasificaba mal la fuente primaria en cuanto CUALQUIER cross-match tenía éxito.
+    const fuentePrimaria=job.filtros?.fuentePrimaria||'apollo';
+    const nombreEmpresa=_csvCompanyNameFallback(row.partner_name, row.Website);
     return {
-      name:`App Outbound - ${row.partner_name||''} - ${row.contact_name||''}`,
+      name:`App Outbound - ${nombreEmpresa} - ${row.contact_name||''}`,
       contact_name:row.contact_name||'', function:row.function||'',
-      partner_name:row.partner_name||'', Website:row.Website||'',
+      partner_name:nombreEmpresa, Website:row.Website||'',
       Email:row.Email||'', phone:row.phone||'', Tags_id:tagsFila.join(','), user_id:ae,
       // Para México el CRM espera el formato de MX_STATES ("Nuevo León (MX)") — _mxState también
       // absorbe las variantes sin acento/en inglés que manda Apollo ("Nuevo Leon", "Mexico City").
@@ -13292,7 +13314,8 @@ function csvLoadJobIntoRows(job){
       // no encontró nada, se dice explícito (el backend nuevo ya manda el texto; esto cubre jobs
       // creados antes de ese cambio).
       datos_denue:row.datos_denue||'', datos_dirind:row.datos_dirind||'',
-      datos_apollo:row.datos_apollo||(fuentePrimaria!=='apollo'?'No hay datos en Apollo':''), resumen:'',
+      datos_apollo:row.datos_apollo||(fuentePrimaria!=='apollo'?'No hay datos en Apollo':''),
+      datos_outscraper:row.datos_outscraper||'', resumen:'',
       _fuentePrimaria:fuentePrimaria,
       _origen:fuentePrimaria!=='apollo'?'Bases de datos':'Apollo',
       _industriaRaw:row.industria||'',
@@ -13303,7 +13326,7 @@ function csvLoadJobIntoRows(job){
   document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
   // Resumen ANTES de tags — csvClassifyIndustryTags usa r.resumen como contexto principal, así
   // que tiene que existir antes de clasificar (ver ajuste 2026-07-30 arriba de csvClassifyIndustryTags).
-  csvEnrichRowsWithAI(csvRows).then(()=>csvApplyIndustryTags(csvRows)).catch(e=>console.warn('csvApplyIndustryTags:',e));
+  _csvIndustryTagsPromise=csvEnrichRowsWithAI(csvRows).then(()=>csvApplyIndustryTags(csvRows)).catch(e=>console.warn('csvApplyIndustryTags:',e));
   csvSyncRowsToCRM(csvRows).catch(e=>console.warn('csvSyncRowsToCRM:',e));
 }
 
@@ -13329,7 +13352,7 @@ window.csvEnrichRowsWithAI=async function(rows){
 // solo archivo de 125 filas). El resumen ahora sale SOLO de los datos ya conocidos del lead.
 async function csvBatchResumenes(rows){
   await Promise.all(rows.map(async(r)=>{
-    const contexto=[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo].filter(Boolean).join(' | ').slice(0,600);
+    const contexto=[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo,r.datos_outscraper].filter(Boolean).join(' | ').slice(0,600);
     try{
       const raw=await gcCallClaude(`Genera un resumen ULTRA BREVE (máximo 140 caracteres) de este lead de ventas B2B para Odoo, pensado para que un vendedor sepa en un vistazo por qué contactarlo. Usa SOLO estos datos, sin inventar nada más:
 Empresa: ${r.partner_name||'nd'} | Contacto: ${r.contact_name||'nd'} | Cargo: ${r.function||'nd'} | Ubicación: ${r.state_id||r.country_id||'nd'}
@@ -13487,15 +13510,18 @@ window.csvProcess=async function(){
   const tagsStr='Outbound-MX'+(tags?','+tags.replace(/\s*,\s*/g,','):'');
   try{
     const {extracted, usedLocal}=await parseLeadRowsFromUpload(fuente, rawData, _csvFileAttachment, {ae, tagsStr, contexto});
-    csvRows=extracted.map(row=>({
-      name:`${fuente} - ${row.partner_name||''} - ${row.contact_name||''}`,
-      contact_name:row.contact_name||'', function:row.function||'',
-      partner_name:row.partner_name||'', Website:row.Website||'',
-      Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
-      state_id:row.state_id||'', country_id:csvCountryIdFor('Mexico'), notes:row.notes||'',
-      _origen:_csvGuessOrigen(fuente), _industriaRaw:row._industriaRaw||'',
-      datos_denue:'', datos_dirind:'', datos_apollo:'', resumen:'',
-    }));
+    csvRows=extracted.map(row=>{
+      const nombreEmpresa=_csvCompanyNameFallback(row.partner_name, row.Website);
+      return {
+        name:`${fuente} - ${nombreEmpresa} - ${row.contact_name||''}`,
+        contact_name:row.contact_name||'', function:row.function||'',
+        partner_name:nombreEmpresa, Website:row.Website||'',
+        Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
+        state_id:row.state_id||'', country_id:csvCountryIdFor('Mexico'), notes:row.notes||'',
+        _origen:_csvGuessOrigen(fuente), _industriaRaw:row._industriaRaw||'',
+        datos_denue:'', datos_dirind:'', datos_apollo:'', datos_outscraper:'', resumen:'',
+      };
+    });
     _csvDirty=true; // prospectos recién extraídos: aún no descargados ni guardados
     csvRenderTable();
     document.getElementById('csvPreviewSection').style.display='block';
@@ -13510,7 +13536,7 @@ window.csvProcess=async function(){
     // que tiene que existir antes de clasificar (ver ajuste 2026-07-30 en csvClassifyIndustryTags).
     csvCrossMatchDenue(csvRows).catch(e=>console.warn('csvCrossMatchDenue:',e));
     csvCrossMatchDirind(csvRows).catch(e=>console.warn('csvCrossMatchDirind:',e));
-    csvEnrichRowsWithAI(csvRows).then(()=>csvApplyIndustryTags(csvRows)).catch(e=>console.warn('csvApplyIndustryTags:',e));
+    _csvIndustryTagsPromise=csvEnrichRowsWithAI(csvRows).then(()=>csvApplyIndustryTags(csvRows)).catch(e=>console.warn('csvApplyIndustryTags:',e));
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('csvLoading',false);
 };
@@ -13559,7 +13585,7 @@ function csvRenderTable(){
     <td style="padding:4px 6px"><input type="checkbox" class="csvRowChk" value="${i}" onchange="csvUpdateBulkBar()"></td>
     ${CSV_COLUMNS.map(col=>`<td style="padding:4px 6px;max-width:130px"><input type="text" value="${(row[col]||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvUpdateCell(${i},'${col}',this.value)" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>`).join('')}
     <td style="padding:4px;white-space:nowrap;text-align:center">
-      <button onclick="csvToggleDrawer(${i})" title="Ver Notes/DATOS DENUE/DIRIND/APOLLO/Resumen" style="background:none;border:1px solid ${drawerHasData?'var(--purple)':'var(--gray-200)'};border-radius:6px;color:${drawerHasData?'var(--purple)':'var(--gray-400)'};cursor:pointer;font-size:11px;width:26px;height:26px">${open?'︿':'﹀'}</button>
+      <button onclick="csvToggleDrawer(${i})" title="Ver Notes/DATOS DENUE/DIRIND/APOLLO/OUTSCRAPER/Resumen" style="background:none;border:1px solid ${drawerHasData?'var(--purple)':'var(--gray-200)'};border-radius:6px;color:${drawerHasData?'var(--purple)':'var(--gray-400)'};cursor:pointer;font-size:11px;width:26px;height:26px">${open?'︿':'﹀'}</button>
     </td>
     <td style="padding:4px;white-space:nowrap">
       <button onclick="csvDeleteRow(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px">✕</button>
@@ -13629,9 +13655,10 @@ window.csvReEnrichSelected=async function(){
     showNotif('Re-enriquecimiento listo ✓','success');
   }catch(e){ showNotif('Error al re-enriquecer: '+e.message,'error'); }
 };
-window.csvExportSelected=function(){
+window.csvExportSelected=async function(){
   const idxs=csvSelectedIndices();
   if(!idxs.length){ showNotif('Selecciona al menos un prospecto','error'); return; }
+  await _csvAwaitIndustryTags();
   const rows=idxs.map(i=>csvRows[i]).filter(Boolean);
   csvTriggerDownload(csvBuildText(rows), csvFileName(document.getElementById('csvFuente')?.value, rows));
   showNotif(`${rows.length} prospecto${rows.length===1?'':'s'} exportado${rows.length===1?'':'s'} ✓`,'success');
@@ -13687,8 +13714,17 @@ async function csvPersist(opts={}){
     return _csvSessionId;
   }catch(e){ if(!opts.silent) showNotif('Error al guardar: '+e.message,'error'); return null; }
 }
+// Espera la clasificación de industria si todavía está en vuelo (ver _csvIndustryTagsPromise) —
+// sin esto, descargar/guardar/exportar justo después de cargar un job podía salir SIN tags A/B
+// (la llamada a Claude tarda unos segundos, el botón nunca esperaba a que terminara).
+async function _csvAwaitIndustryTags(){
+  if(!_csvIndustryTagsPromise) return;
+  showNotif('Terminando de clasificar industrias…','info');
+  await _csvIndustryTagsPromise;
+}
 window.csvDownload=async function(){
   if(!csvRows.length){ showNotif('Sin filas para descargar','error'); return; }
+  await _csvAwaitIndustryTags();
   csvTriggerDownload(csvBuildText(csvRows), csvFileName(document.getElementById('csvFuente')?.value, csvRows));
   const id=await csvPersist({silent:true});   // queda guardado en el sistema, vinculado al usuario
   csvLoadHistory();
@@ -13697,6 +13733,7 @@ window.csvDownload=async function(){
 window.csvSaveSession=async function(){
   if(!db){ showNotif('Requiere Firebase','error'); return; }
   if(!csvRows.length){ showNotif('Sin datos para guardar','error'); return; }
+  await _csvAwaitIndustryTags();
   const id=await csvPersist();
   if(id) showNotif('Documento CSV guardado ✓','success');
 };
