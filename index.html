@@ -11962,7 +11962,11 @@ let _csvDirty=false;
 // fire-and-forget: si el AE descargaba/guardaba/exportaba ANTES de que la clasificación de industria
 // (llamada real a Claude) terminara, el CSV salía sin tags A/B, sin ningún aviso. csvDownload/
 // csvSaveSession/csvExportSelected ahora esperan esta promesa antes de serializar csvRows.
+// _csvIndustryTagsSettled (pedido 2026-08-18): distingue "todavía en vuelo" de "ya resuelta" — sin
+// esto, _csvAwaitIndustryTags no tenía forma de saber si de verdad hay algo que esperar, y mostraba
+// un aviso de "esperando" hasta al descargar minutos después, cuando ya no había nada que esperar.
 let _csvIndustryTagsPromise=null;
+let _csvIndustryTagsSettled=true;
 let csvInputMode='paste';
 // Consumo de cuota del AE (semana/mes/diario por fuente) — se pide una vez al abrir el buscador de
 // leads y se cachea; csvRenderQuotaHint la combina con la fuente seleccionada para pintar el texto
@@ -13259,6 +13263,14 @@ async function csvApplyIndustryTags(rows){
   csvRenderTable();
 }
 
+// Arranca csvEnrichRowsWithAI→csvApplyIndustryTags y trackea si sigue en vuelo (ver
+// _csvIndustryTagsSettled) — único punto que crea la cadena, para no repetir el manejo del flag en
+// cada llamador (csvLoadJobIntoRows y csvProcess).
+function _csvStartIndustryTagging(rows){
+  _csvIndustryTagsSettled=false;
+  _csvIndustryTagsPromise=csvEnrichRowsWithAI(rows).then(()=>csvApplyIndustryTags(rows)).catch(e=>console.warn('csvApplyIndustryTags:',e)).finally(()=>{_csvIndustryTagsSettled=true;});
+}
+
 // Fallback cuando la fuente no trae nombre de empresa (pedido 2026-08-18 — no debería pasar con
 // datos reales de Apollo/DENUE/DIRIND/Outscraper, pero companyKey() en el backend califica al lead
 // con SOLO el dominio si el nombre viene vacío, así que el código no lo prohíbe). Sin esto, una fila
@@ -13326,7 +13338,7 @@ function csvLoadJobIntoRows(job){
   document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
   // Resumen ANTES de tags — csvClassifyIndustryTags usa r.resumen como contexto principal, así
   // que tiene que existir antes de clasificar (ver ajuste 2026-07-30 arriba de csvClassifyIndustryTags).
-  _csvIndustryTagsPromise=csvEnrichRowsWithAI(csvRows).then(()=>csvApplyIndustryTags(csvRows)).catch(e=>console.warn('csvApplyIndustryTags:',e));
+  _csvStartIndustryTagging(csvRows);
   csvSyncRowsToCRM(csvRows).catch(e=>console.warn('csvSyncRowsToCRM:',e));
 }
 
@@ -13536,7 +13548,7 @@ window.csvProcess=async function(){
     // que tiene que existir antes de clasificar (ver ajuste 2026-07-30 en csvClassifyIndustryTags).
     csvCrossMatchDenue(csvRows).catch(e=>console.warn('csvCrossMatchDenue:',e));
     csvCrossMatchDirind(csvRows).catch(e=>console.warn('csvCrossMatchDirind:',e));
-    _csvIndustryTagsPromise=csvEnrichRowsWithAI(csvRows).then(()=>csvApplyIndustryTags(csvRows)).catch(e=>console.warn('csvApplyIndustryTags:',e));
+    _csvStartIndustryTagging(csvRows);
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('csvLoading',false);
 };
@@ -13716,10 +13728,14 @@ async function csvPersist(opts={}){
 }
 // Espera la clasificación de industria si todavía está en vuelo (ver _csvIndustryTagsPromise) —
 // sin esto, descargar/guardar/exportar justo después de cargar un job podía salir SIN tags A/B
-// (la llamada a Claude tarda unos segundos, el botón nunca esperaba a que terminara).
+// (la llamada a Claude tarda unos segundos, el botón nunca esperaba a que terminara). Sin aviso de
+// "esperando": si ya resolvió (_csvIndustryTagsSettled), el await es instantáneo y no hay nada que
+// anunciar; si sigue en vuelo, se espera en silencio — el aviso de éxito que ya dispara cada
+// llamador al terminar (csvDownload/csvSaveSession/csvExportSelected) es la única notificación real
+// (pedido 2026-08-18: "notificar hasta tener un resultado", no un aviso intermedio que podía
+// aparecer aunque ya no hubiera nada que esperar).
 async function _csvAwaitIndustryTags(){
-  if(!_csvIndustryTagsPromise) return;
-  showNotif('Terminando de clasificar industrias…','info');
+  if(!_csvIndustryTagsPromise||_csvIndustryTagsSettled) return;
   await _csvIndustryTagsPromise;
 }
 window.csvDownload=async function(){
