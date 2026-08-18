@@ -1742,7 +1742,10 @@ async function analyticsLoad(){
     loadColl('discoveryRecords'), loadColl('pricingRecords'), loadColl('csvSessions'), loadColl('propuestaRecords')
   ]);
   let companies=[];
-  try{ companies=await searchCompanies(); }catch(e){ console.warn('analytics cos:',e); }
+  // {all:true}: esta métrica cuenta empresas CREADAS por persona (actividad de prospección, ver
+  // inScope/createdBy más abajo) — se filtra sola con su propio `scope` por createdBy, así que no
+  // debe pasar también por matchesScope (que ahora es por asignado/dueño actual, otro concepto).
+  try{ companies=await searchCompanies('',{all:true}); }catch(e){ console.warn('analytics cos:',e); }
   _analyticsRaw={scope,discoveries,pricings,csvs,propuestas,companies};
   analyticsCompute();
 }
@@ -1885,10 +1888,17 @@ function renderManagerPanel(){
         <div class="card"><div class="card-header"><h3>👥 Equipo activo</h3></div><div id="teamList"><div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div></div>
       </div>
       <div class="card" style="margin-top:16px">
-        <div class="card-header"><h3>🛠 Mantenimiento — asignado de Qcall/Intromeet</h3></div>
+        <div class="card-header"><h3>🛠 Mantenimiento — creador de Qcall/Intromeet</h3></div>
         <div style="padding:2px 0">
-          <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:10px;line-height:1.5">Reasigna sesiones de Intromeet/Qcall que quedaron mal "asignadas" por un bug ya corregido (el autoguardado sobrescribía aeUid/aeName con quien tocara la sesión, no con quien la creó). Regla: cada registro se reasigna a quien creó la empresa correspondiente. Se salta solo si la empresa no tiene registrado su creador (empresas muy viejas) o no se puede resolver su usuario.</p>
+          <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:10px;line-height:1.5">Corrige sesiones de Intromeet/Qcall que quedaron con el creador mal escrito por un bug ya corregido (el autoguardado sobrescribía aeUid/aeName con quien tocara la sesión, no con quien la creó). Regla: cada registro se corrige a quien creó la empresa correspondiente. Se salta solo si la empresa no tiene registrado su creador (empresas muy viejas) o no se puede resolver su usuario.</p>
           <button id="maintBackfillBtn" class="btn btn-primary btn-full" onclick="maintRunDiscoveryBackfill(false)">🔍 Analizar (vista previa, no escribe nada)</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><h3>🛠 Mantenimiento — asignado de Empresas</h3></div>
+        <div style="padding:2px 0">
+          <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:10px;line-height:1.5">Empresas creadas antes de hoy no tienen todavía el campo "asignado" (dueño actual, separado del creador — ver botón 🔁 Reasignar en cada empresa). Este backfill es directo y sin ambigüedad: pone asignado = creador como punto de partida, en todas las empresas que aún no lo tengan. De ahí en adelante, reasignar es lo único que lo cambia.</p>
+          <button id="maintCoAsignadoBtn" class="btn btn-primary btn-full" onclick="maintBackfillEmpresaAsignado()">🏢 Aplicar asignado = creador (empresas sin asignado)</button>
         </div>
       </div>
     </div>`;
@@ -1981,6 +1991,32 @@ function _maintRenderDiscoveryReport(results,applied){
   </div>`;
   document.body.appendChild(overlay);
 }
+
+// Backfill de companies.asignado* — a diferencia del de discoveryRecords, este es determinista (no
+// hay heurística ni señal que cruzar): asignado = creador, punto, para toda empresa que todavía no
+// tenga asignadoUid. Por eso no necesita vista previa — solo un confirm() antes de escribir.
+window.maintBackfillEmpresaAsignado=async function(){
+  if(currentUserData?.role!=='manager'){ showNotif('Solo manager','error'); return; }
+  const btn=document.getElementById('maintCoAsignadoBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Buscando empresas…'; }
+  try{
+    const snap=await getDocs(collection(db,'companies'));
+    const pending=snap.docs.filter(d=>{ const c=d.data(); return !c.asignadoUid&&(c.createdByUid||c.createdBy||c.createdByGram); });
+    if(!pending.length){ showNotif('Todas las empresas ya tienen asignado','success'); return; }
+    if(!confirm(`${pending.length} empresa(s) sin "asignado" — se les va a poner asignado = creador. ¿Aplicar?`)) return;
+    btn.textContent=`Aplicando a ${pending.length}…`;
+    let ok=0;
+    for(const d of pending){
+      const c=d.data();
+      try{
+        await updateDoc(doc(db,'companies',d.id),{asignadoUid:c.createdByUid||'',asignadoNombre:c.createdBy||'',asignadoGram:c.createdByGram||''});
+        ok++;
+      }catch(e){ console.warn('backfill asignado',d.id,e); }
+    }
+    showNotif(`Asignado corregido en ${ok}/${pending.length} empresa(s) ✓`,'success');
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='🏢 Aplicar asignado = creador (empresas sin asignado)'; } }
+};
 
 window.openEditUserPopup=async function(uid){
   const snap=await getDoc(doc(db,'users',uid));
@@ -4205,9 +4241,9 @@ window.discSaveRecord=async function(opts={}){
   const geminiNote=document.getElementById('discGeminiOutput')?.textContent||'';
   const recoNote=document.getElementById('discRecoOutput')?.textContent||'';
   const transcript=document.getElementById('discTranscriptInput')?.value||'';
-  // aeUid/aeName/aeGram/tlId (el "asignado") NO van en este objeto compartido — se fijan una sola
-  // vez al CREAR el registro (más abajo) y nunca se vuelven a tocar en updateDoc, para que el
-  // asignado sea siempre quien creó la sesión sin importar quién la edite o autoguarde después.
+  // aeUid/aeName/aeGram/tlId (el creador de la sesión) NO van en este objeto compartido — se fijan
+  // una sola vez al CREAR el registro (más abajo) y nunca se vuelven a tocar en updateDoc, para que
+  // el creador sea siempre quien creó la sesión sin importar quién la edite o autoguarde después.
   // Bug real que esto corrige: un TL/manager que abría la sesión de un AE la reasignaba a sí mismo
   // con el siguiente autoguardado, porque antes este mismo objeto se reenviaba completo en cada save.
   const record={
@@ -4220,6 +4256,9 @@ window.discSaveRecord=async function(opts={}){
     dolores:disc.selections['dolores']||[],
     geminiNote, recoNote, transcript, status, callEnded:disc.callEnded||false,
     appsAI:disc.appsAI||null, appsFlow:disc.appsFlow||'', wowAI:disc.wowAI||null, resumenIntromeet:disc.resumenIntromeet||'', feedbackFinal:disc.feedbackFinal||'',
+    // Quién tocó el registro por última vez — a diferencia de aeUid/aeName/aeGram (arriba), esto SÍ
+    // se reescribe en cada guardado, a propósito.
+    updatedByUid:currentUserData.uid, updatedByName:currentUserData.name, updatedByGram:currentUserData.gram,
     updatedAt:serverTimestamp(),
   };
   const btn=document.getElementById('discSaveBtn');
@@ -4502,16 +4541,28 @@ const pricingState = {company:null,contact:null,planIdx:1,users:5,shWorkers:1,sh
 async function saveCompany(data){
   if(!db) return null;
   try{
+    // updatedByUid/updatedByNombre/updatedByGram: quién tocó el registro por última vez — se
+    // reescribe en CADA guardado (a diferencia de createdBy*/asignado*, que son estables a
+    // propósito). No sale de `data` — así ningún caller lo puede pisar sin querer.
+    const updatedBy={updatedByUid:currentUserData?.uid||'', updatedByNombre:currentUserData?.name||'', updatedByGram:currentUserData?.gram||''};
     if(data.id){
-      await updateDoc(doc(db,'companies',data.id),{...data,updatedAt:serverTimestamp()});
+      // NUNCA se tocan aquí: createdBy* (fijo para siempre) ni asignado* (solo cambia vía
+      // empSaveReassign, con su propio updateDoc directo) — si `data` no trae esas claves, Firestore
+      // las deja intactas.
+      await updateDoc(doc(db,'companies',data.id),{...data,...updatedBy,updatedAt:serverTimestamp()});
       return data.id;
     } else {
       const ref=await addDoc(collection(db,'companies'),{...data,
         createdBy:currentUserData?.name||'', createdByUid:currentUserData?.uid||'', createdByGram:currentUserData?.gram||'',
+        // Asignado = dueño actual de la cuenta. Empieza igual al creador, pero a diferencia de
+        // createdBy* SÍ se puede reasignar después (ver empOpenReassign/empSaveReassign) — es lo
+        // que determina de quién es la cuenta hoy, no quién la dio de alta originalmente.
+        asignadoUid:currentUserData?.uid||'', asignadoNombre:currentUserData?.name||'', asignadoGram:currentUserData?.gram||'',
         // tlId del creador (mismo patrón que discoveryRecords/csvSessions) — companies viejas no lo
         // traen, por eso getUserScope() filtra por roster (users.tlId) y no por este campo todavía;
         // se guarda desde ahora para el día que se pueda migrar la query a where('tlId','==',...).
         tlId:currentUserData?.tlId||null,
+        ...updatedBy,
         createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
       return ref.id;
     }
@@ -4644,7 +4695,11 @@ async function getUserScope(){
   return _userScopeCache;
 }
 function matchesScope(c,scope){
-  return scope.all || (c.createdByUid&&scope.uids.has(c.createdByUid)) || (c.createdByGram&&scope.grams.has(c.createdByGram));
+  // Alcance = quién tiene asignada la cuenta HOY, no quién la creó — así una empresa reasignada
+  // deja de aparecer en el alcance de quien ya no es su dueño. Fallback a createdBy* para empresas
+  // que aún no tienen asignado* (antes de correr el backfill, o si algo falló al escribirlo).
+  const uid=c.asignadoUid||c.createdByUid, gram=c.asignadoGram||c.createdByGram;
+  return scope.all || (uid&&scope.uids.has(uid)) || (gram&&scope.grams.has(gram));
 }
 // opts.all=true se salta el alcance por rol y regresa TODAS las empresas — para el link "Buscar en
 // todas las empresas" del picker (m2oShowAllCompanies) y para el cruce de deduplicación al importar
@@ -9995,6 +10050,10 @@ window.discShowCardPopup=function(sourceId,title){
 // ══════════════════════════════════════════
 // MÓDULO EMPRESAS
 // ══════════════════════════════════════════
+// Asignado (dueño actual) con fallback a creador — para empresas que aún no tienen asignado*
+// (antes de correr el backfill de Manager→Mantenimiento).
+function _empAsignadoNombre(c){ return c.asignadoNombre||c.createdBy||''; }
+function _empAsignadoUid(c){ return c.asignadoUid||c.createdByUid||null; }
 async function renderEmpresas(){
   _empMineOnly=false; _empShowAll=false;
   const content=document.getElementById('moduleContent');
@@ -10053,7 +10112,7 @@ async function empLoad(){
   // Populate account filter for TL/manager
   const accountSel=document.getElementById('empAccountFilter');
   if(accountSel){
-    const accounts=[...new Set(_allEmpresas.map(c=>c.createdBy).filter(Boolean))].sort();
+    const accounts=[...new Set(_allEmpresas.map(_empAsignadoNombre).filter(Boolean))].sort();
     accountSel.innerHTML='<option value="">Todas las cuentas</option>'+
       accounts.map(a=>{const g=a.includes('@')?a.split('@')[0]:a;return`<option value="${a}">${g}</option>`;}).join('');
   }
@@ -10078,7 +10137,8 @@ function empRender(companies){
       const cCo=saved.filter(s=>s.tipo==='correo').length;
       const cCC=saved.filter(s=>s.tipo==='cold_calling').length;
       const cBr=saved.filter(s=>s.tipo==='brochure').length;
-      const gram=co.createdBy?(co.createdBy.includes('@')?co.createdBy.split('@')[0]:co.createdBy):null;
+      const asignadoDisp=_empAsignadoNombre(co);
+      const gram=asignadoDisp?(asignadoDisp.includes('@')?asignadoDisp.split('@')[0]:asignadoDisp):null;
       const docTags=[
         docs.discovery>0?`<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:99px;font-size:11px;white-space:nowrap">🔍 ${docs.discovery} Discovery</span>`:'',
         docs.pricing>0?`<span style="background:#f3e8ff;color:#7e22ce;padding:2px 8px;border-radius:99px;font-size:11px;white-space:nowrap">💰 ${docs.pricing} Pricing</span>`:'',
@@ -10144,8 +10204,8 @@ window.empFilter=function(){
   let filtered=_allEmpresas;
   if(search) filtered=filtered.filter(c=>(c.nombre||'').toLowerCase().includes(search)||(c.giro||'').toLowerCase().includes(search));
   if(ind) filtered=filtered.filter(c=>(c.giro||'').toLowerCase()===ind.toLowerCase());
-  if(acct) filtered=filtered.filter(c=>c.createdBy===acct);
-  if(_empMineOnly) filtered=filtered.filter(c=>c.createdByUid?c.createdByUid===currentUserData?.uid:c.createdBy===currentUserData?.name);
+  if(acct) filtered=filtered.filter(c=>_empAsignadoNombre(c)===acct);
+  if(_empMineOnly) filtered=filtered.filter(c=>_empAsignadoUid(c)?_empAsignadoUid(c)===currentUserData?.uid:_empAsignadoNombre(c)===currentUserData?.name);
   empRender(filtered);
 };
 window.empOpenDetail=async function(id){
@@ -10157,13 +10217,14 @@ window.empOpenDetail=async function(id){
       <div class="disc-popup-title">🏢 ${co.nombre}</div>
       <div class="disc-popup-actions">
         <button class="btn btn-ghost btn-sm" onclick="empEdit('${id}');document.getElementById('empDetailPopup').remove()">✏️ Editar</button>
+        ${(currentUserData?.role==='manager'||currentUserData?.role==='tl')?`<button class="btn btn-ghost btn-sm" onclick="empOpenReassign('${id}')">🔁 Reasignar</button>`:''}
         ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteCompany('${id}');document.getElementById('empDetailPopup').remove()">🗑 Eliminar</button>`:''}
         <button class="disc-copy-btn" onclick="document.getElementById('empDetailPopup').remove()">✕ Cerrar</button>
       </div>
     </div>
     <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--gray-200)">
-        ${[['Industria',co.giro],['Tamaño',co.tamaño],['Origen',co.origen],['Sitio web',co.website?`<a href="${co.website}" target="_blank">${co.website}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank">${co.linkedin}</a>`:'—'],['Creada por',co.createdBy||'—']].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
+        ${[['Asignado a',_empAsignadoNombre(co)||'—'],['Industria',co.giro],['Tamaño',co.tamaño],['Origen',co.origen],['Sitio web',co.website?`<a href="${co.website}" target="_blank">${co.website}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank">${co.linkedin}</a>`:'—'],['Creada por',co.createdBy||'—']].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
       </div>
       <div id="empDetailDocs"><div class="cdc-empty">Cargando documentos...</div></div>
     </div>
@@ -10239,6 +10300,57 @@ window.empOpenDetail=async function(id){
       docsEl.innerHTML=sections.length?sections.join(''):'<div class="cdc-empty">Sin documentos vinculados aún</div>';
     } catch(e){ console.error('empOpenDetail docs:',e); docsEl.innerHTML='<div class="cdc-empty">Error al cargar documentos: '+e.message+'</div>'; }
   }
+};
+
+// ── Reasignar dueño de una empresa (asignado*, nunca createdBy*) — Manager/TL ──
+let _empReassignCandidates=[];
+window.empOpenReassign=async function(id){
+  const role=currentUserData?.role;
+  if(role!=='manager'&&role!=='tl'){ showNotif('Solo Manager/TL puede reasignar','error'); return; }
+  const co=_allEmpresas.find(c=>c.id===id)||await getCompany(id);
+  if(!co){ showNotif('Empresa no encontrada','error'); return; }
+  let candidates=[];
+  try{
+    if(role==='manager'){
+      const snap=await getDocs(query(collection(db,'users'),where('status','==','active')));
+      candidates=snap.docs.map(d=>d.data()).filter(u=>u.role==='ae'||u.role==='tl');
+    } else {
+      const snap=await getDocs(query(collection(db,'users'),where('tlId','==',currentUserData.uid)));
+      candidates=snap.docs.map(d=>d.data()).filter(u=>u.status==='active');
+      candidates.push({uid:currentUserData.uid,name:currentUserData.name,gram:currentUserData.gram}); // el propio TL también puede ser dueño
+    }
+  } catch(e){ showNotif('Error cargando equipo: '+e.message,'error'); return; }
+  candidates.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  _empReassignCandidates=candidates;
+  document.getElementById('empReassignPopup')?.remove();
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='empReassignPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:420px">
+    <div class="disc-popup-header"><div class="disc-popup-title">🔁 Reasignar "${co.nombre}"</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('empReassignPopup').remove()">✕</button></div>
+    <div class="disc-popup-body">
+      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Asignado actual: <strong>${_empAsignadoNombre(co)||'—'}</strong>. Reasignar cambia quién ve y trabaja esta cuenta de aquí en adelante — las sesiones de Qcall/Pricing/CSV ya hechas se quedan con quien las creó, no se mueven.</p>
+      <div class="form-group"><label>Nuevo dueño</label>
+        <select class="input" id="empReassignSelect">
+          ${candidates.length?candidates.map(u=>`<option value="${u.uid}" ${u.uid===_empAsignadoUid(co)?'selected':''}>${u.name}${u.gram?' ('+u.gram+')':''}</option>`).join(''):'<option value="">Sin candidatos disponibles</option>'}
+        </select>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="empSaveReassign('${id}')" ${candidates.length?'':'disabled'}>Reasignar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+};
+window.empSaveReassign=async function(id){
+  const sel=document.getElementById('empReassignSelect');
+  const uid=sel?.value; if(!uid){ showNotif('Elige a quién reasignar','error'); return; }
+  const u=_empReassignCandidates.find(c=>c.uid===uid);
+  if(!u){ showNotif('Usuario no válido','error'); return; }
+  try{
+    await updateDoc(doc(db,'companies',id),{asignadoUid:u.uid,asignadoNombre:u.name||'',asignadoGram:u.gram||'',asignadoAt:serverTimestamp()});
+    document.getElementById('empReassignPopup')?.remove();
+    document.getElementById('empDetailPopup')?.remove();
+    showNotif(`Reasignado a ${u.name} ✓`,'success');
+    await empLoad(); // re-fetch: el alcance por rol (matchesScope) ahora depende de asignado*
+  } catch(e){ showNotif('Error al reasignar: '+e.message,'error'); }
 };
 
 window.empEdit=async function(id){
@@ -10433,8 +10545,10 @@ async function pricingUpsertRecord(d,opts={}){
     return;
   }
   if(statusEl){ statusEl.textContent='Guardando…'; statusEl.style.color='var(--gray-400)'; }
+  // aeUid/aeName/aeGram/tlId (el creador) NO van en este objeto compartido — mismo bug y mismo fix
+  // que discSaveRecord (ver index.html, Qcall/Intromeet): se fijan solo al CREAR, más abajo, y el
+  // updateDoc nunca los toca, para que no se reasignen solos si otra persona abre y guarda el pricing.
   const rec={
-    aeUid:currentUserData?.uid, aeName:currentUserData?.name||'', aeGram:currentUserData?.gram||'', tlId:currentUserData?.tlId||null,
     companyId:pricingState.company?.id||null, companyName:pricingState.company?.nombre||d.clientName||'',
     edition:d.editionName, users:d.users, planIdx:d.planIdx,
     mensualRef:d.mensualRef, implHrs:d.implHrs, implPrice:d.implPrice, total:d.total,
@@ -10443,6 +10557,8 @@ async function pricingUpsertRecord(d,opts={}){
     codeLines:d.codeLines||0,
     payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', qeDate:d.qeDate||'', implNotes:d.implNotes||'', odooPropUrl:pricingState.odooPropUrl||'',
     rowVisible:Array.isArray(d.rowVisible)?d.rowVisible:null,
+    // Quién tocó el registro por última vez — esto SÍ se reescribe en cada guardado, a propósito.
+    updatedByUid:currentUserData?.uid||'', updatedByName:currentUserData?.name||'', updatedByGram:currentUserData?.gram||'',
     updatedAt:serverTimestamp()
   };
   // Salvavidas: si Firestore se cuelga (red lenta, etc.) el indicador no debe quedarse pegado en "Guardando…"
@@ -10452,6 +10568,7 @@ async function pricingUpsertRecord(d,opts={}){
       await withTimeout(updateDoc(doc(db,'pricingRecords',pricingState.recordId),rec));
     } else {
       rec.createdAt=serverTimestamp();
+      rec.aeUid=currentUserData?.uid; rec.aeName=currentUserData?.name||''; rec.aeGram=currentUserData?.gram||''; rec.tlId=currentUserData?.tlId||null;
       const ref=await withTimeout(addDoc(collection(db,'pricingRecords'),rec));
       pricingState.recordId=ref.id;
     }
@@ -13864,11 +13981,20 @@ function csvTriggerDownload(text,name){
 async function csvPersist(opts={}){
   if(!db) return null;
   const fuente=document.getElementById('csvFuente')?.value||'';
-  const rec={ aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram, tlId:currentUserData?.tlId||null,
-    fuente, rowCount:csvRows.length, rows:csvRows, csvText:csvBuildText(csvRows), updatedAt:serverTimestamp() };
+  // aeUid/aeName/aeGram/tlId (el creador) solo se fijan al CREAR, más abajo — mismo bug y mismo fix
+  // que discSaveRecord/pricingUpsertRecord: antes se reenviaban en cada updateDoc y se reasignaban
+  // solos si otra persona abría y guardaba esta sesión de CSV.
+  const rec={
+    fuente, rowCount:csvRows.length, rows:csvRows, csvText:csvBuildText(csvRows),
+    updatedByUid:currentUserData.uid, updatedByName:currentUserData.name, updatedByGram:currentUserData.gram,
+    updatedAt:serverTimestamp() };
   try{
     if(_csvSessionId){ await updateDoc(doc(db,'csvSessions',_csvSessionId),rec); }
-    else { rec.createdAt=serverTimestamp(); const ref=await addDoc(collection(db,'csvSessions'),rec); _csvSessionId=ref.id; }
+    else {
+      rec.createdAt=serverTimestamp();
+      rec.aeUid=currentUserData.uid; rec.aeName=currentUserData.name; rec.aeGram=currentUserData.gram; rec.tlId=currentUserData?.tlId||null;
+      const ref=await addDoc(collection(db,'csvSessions'),rec); _csvSessionId=ref.id;
+    }
     _csvDirty=false; // ya quedó persistido — salir del módulo deja de advertir
     if(!opts.silent) csvLoadHistory();
     return _csvSessionId;
