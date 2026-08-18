@@ -1580,6 +1580,9 @@ function getUnsavedWarning(targetModule){
     detail:'Si sales ahora perderás los datos.',
     onSave:async()=>{ const id=await csvPersist(); if(id) showNotif('Documento CSV guardado ✓','success'); },
   };
+  // Qcall/Intromeet NO usa este popup a propósito — ver el comentario en _doShowModule: al salir
+  // se adelanta el guardado pendiente sola, sin preguntar (el bug real estaba en el orden de esa
+  // limpieza, no en la falta de aviso — ya corregido).
   return null;
 }
 
@@ -1646,9 +1649,19 @@ function _doShowModule(moduleId, skipNavHighlight=false){
     // Ya no hay popup de "salir sin guardar" (autoguarda solo) — pero al salir sí adelantamos
     // el guardado pendiente en vez de esperar los 2.5s del debounce, para no perder las últimas
     // pulsaciones si justo navegas en ese hueco.
+    // BUG REAL corregido aquí: discardForm() (que pone disc.recordId=null) se llamaba INMEDIATAMENTE
+    // después de disparar discSaveRecord SIN esperarlo — pero discSaveRecord lee disc.recordId
+    // recién dentro de un .then() diferido (a propósito, para serializar autosaves concurrentes).
+    // Ese .then() corre como microtask DESPUÉS de que este bloque terminara, o sea que para cuando
+    // leía disc.recordId ya estaba en null: CADA salida de una sesión ya guardada terminaba
+    // creando un registro nuevo (duplicado) en vez de actualizar el existente. Ahora discardForm()
+    // espera a que el guardado en vuelo termine antes de limpiar el estado.
     clearTimeout(_discAutosaveT);
-    if(disc.recordId||disc.companyId||disc.selections['emp-nombre']) window.discSaveRecord({silent:true});
-    disc.discardForm();
+    if(disc.recordId||disc.companyId||disc.selections['emp-nombre']){
+      window.discSaveRecord({silent:true}).finally(()=>disc.discardForm());
+    } else {
+      disc.discardForm();
+    }
   }
   if(cont.formActive){ cont.discard(); }
   mc.classList.remove('topbar-hidden');
@@ -2713,6 +2726,14 @@ const disc = {
   activeTV: new Set(),
   selections: {},
   companyId: null,
+  _session: 0,            // se incrementa en cada discardForm() — invalida cualquier autoguardado
+                           // pendiente de la sesión anterior (ver discAutosave). BUG REAL que esto
+                           // corrige: el timeout de 2.5s del autoguardado nunca se cancelaba al
+                           // navegar a otro registro/sesión antes de que disparara, así que un
+                           // guardado viejo podía disparar YA con el estado de la sesión nueva
+                           // encima (o a medio limpiar) y crear un registro fantasma/duplicado
+                           // atribuido a quien estuviera logueado en ese momento — no era un fallo
+                           // de la regla de "creador fijo", el duplicado sí era una creación real.
   contactoSel: null,      // contacto elegido/editado en el m2o (snapshot {nombre,cargo,correo,linkedin}) — antes se descartaba sin guardarse
   callEnded: false,
   appsAI: null,          // apps sugeridas por "Analizar discovery" (array {name,reason,fase}), del catálogo ODOO_APPS_FLAT
@@ -2721,7 +2742,7 @@ const disc = {
   resumenIntromeet: '',  // síntesis de IA de toda la sesión — se reutiliza como contexto en otras apps
   feedbackFinal: '',     // coaching de IA sobre la sesión (acciones en la app + transcripción)
   ui: { section:0, sub:{flujo:1}, wow:null },
-  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.contactoSel=null; this.callEnded=false; this.appsAI=null; this.appsFlow=''; this.wowAI=null; this.resumenIntromeet=''; this.feedbackFinal=''; this.ui={section:0,sub:{flujo:1},wow:null}; }
+  discardForm(){ this._session++; if(typeof _discAutosaveT!=='undefined') clearTimeout(_discAutosaveT); this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.contactoSel=null; this.callEnded=false; this.appsAI=null; this.appsFlow=''; this.wowAI=null; this.resumenIntromeet=''; this.feedbackFinal=''; this.ui={section:0,sub:{flujo:1},wow:null}; }
 };
 // Nota: el estatus (borrador→en_proceso→completado) nunca se elige a mano — ver discAutosave/discMarkCompleted.
 // ── Sessions list view ──
@@ -2839,6 +2860,7 @@ function renderDiscSessions(sessions){
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           <div style="width:22px;height:22px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${(s.aeName||s.aeGram||'?')[0].toUpperCase()}</div>
           <span style="font-size:12px;font-weight:600;color:var(--purple)">${s.aeName?.split(' ')[0]||s.aeGram||''}</span>
+          ${currentUserData?.role==='manager'?`<button style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:11px;padding:0;line-height:1" onclick="event.stopPropagation();discOpenChangeCreator('${s.id}')" title="Cambiar creador (manager)">✏️</button>`:''}
         </div>
       </div>
       <div class="disc-session-meta">
@@ -2858,6 +2880,52 @@ function renderDiscSessions(sessions){
     </div>`;
   }).join('');
 }
+
+// ── Cambiar creador de una sesión de Qcall (manager) ──
+// Escape hatch deliberado: la regla dura (creador fijo, ver discSaveRecord) protege contra
+// reasignos ACCIDENTALES en el uso normal — esto es para corregir A MANO un registro puntual mal
+// atribuido (p.ej. duplicados que dejó el bug de la sesión de arriba), nunca se dispara solo.
+let _discCreatorCandidates=[];
+window.discOpenChangeCreator=async function(id){
+  if(currentUserData?.role!=='manager'){ showNotif('Solo manager','error'); return; }
+  const s=discSessionsAll.find(r=>r.id===id);
+  if(!s){ showNotif('Sesión no encontrada','error'); return; }
+  let candidates=[];
+  try{
+    const snap=await getDocs(query(collection(db,'users'),where('status','==','active')));
+    candidates=snap.docs.map(d=>d.data()).filter(u=>u.role==='ae'||u.role==='tl');
+  } catch(e){ showNotif('Error cargando equipo: '+e.message,'error'); return; }
+  candidates.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  _discCreatorCandidates=candidates;
+  document.getElementById('discChangeCreatorPopup')?.remove();
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='discChangeCreatorPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:420px">
+    <div class="disc-popup-header"><div class="disc-popup-title">✏️ Cambiar creador — ${_discEmpresaNombre(s)}</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('discChangeCreatorPopup').remove()">✕</button></div>
+    <div class="disc-popup-body">
+      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Creador actual: <strong>${s.aeName||s.aeGram||'—'}</strong>. Esto reescribe directamente quién aparece como dueño de esta sesión — úsalo solo para corregir un registro mal atribuido (p.ej. un duplicado).</p>
+      <div class="form-group"><label>Nuevo creador</label>
+        <select class="input" id="discChangeCreatorSelect">
+          ${candidates.map(u=>`<option value="${u.uid}" ${u.uid===s.aeUid?'selected':''}>${u.name}${u.gram?' ('+u.gram+')':''}</option>`).join('')}
+        </select>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="discSaveChangeCreator('${id}')">Guardar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+};
+window.discSaveChangeCreator=async function(id){
+  const sel=document.getElementById('discChangeCreatorSelect');
+  const uid=sel?.value; if(!uid){ showNotif('Elige un creador','error'); return; }
+  const u=_discCreatorCandidates.find(c=>c.uid===uid);
+  if(!u){ showNotif('Usuario no válido','error'); return; }
+  try{
+    await updateDoc(doc(db,'discoveryRecords',id),{aeUid:u.uid,aeName:u.name||'',aeGram:u.gram||'',tlId:u.tlId||null});
+    document.getElementById('discChangeCreatorPopup')?.remove();
+    showNotif(`Creador cambiado a ${u.name} ✓`,'success');
+    await loadDiscoverySessions();
+  } catch(e){ showNotif('Error al guardar: '+e.message,'error'); }
+};
 
 // ── Open form ──
 window.openDiscoveryForm = async function(recordId){
@@ -4230,7 +4298,11 @@ window.discAutosave=function(){
   const ind=document.getElementById('discAutosaveInd');
   if(ind){ ind.innerHTML='✎ Cambios sin guardar…'; ind.style.color='var(--gray-400)'; }
   clearTimeout(_discAutosaveT);
-  _discAutosaveT=setTimeout(()=>{ window.discSaveRecord({silent:true}); }, 2500);
+  const mySession=disc._session; // snapshot — si se abre otra sesión antes de disparar, se aborta
+  _discAutosaveT=setTimeout(()=>{
+    if(disc._session!==mySession) return; // sesión distinta ya activa: este guardado quedó obsoleto
+    window.discSaveRecord({silent:true});
+  }, 2500);
 };
 
 window.discSaveRecord=async function(opts={}){
