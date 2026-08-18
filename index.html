@@ -1884,8 +1884,102 @@ function renderManagerPanel(){
         <div class="card"><div class="card-header"><h3>⏳ Usuarios pendientes</h3></div><div id="pendingList"><div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div></div></div></div>
         <div class="card"><div class="card-header"><h3>👥 Equipo activo</h3></div><div id="teamList"><div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div></div>
       </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><h3>🛠 Mantenimiento — asignado de Qcall/Intromeet</h3></div>
+        <div style="padding:2px 0">
+          <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:10px;line-height:1.5">Reasigna sesiones de Intromeet/Qcall que quedaron mal "asignadas" por un bug ya corregido (el autoguardado sobrescribía aeUid/aeName con quien tocara la sesión, no con quien la creó). Solo toca un registro cuando dos señales coinciden — el touchpoint más cercano a su creación y quien creó la empresa —; todo lo demás se deja intacto, sin adivinar.</p>
+          <button id="maintBackfillBtn" class="btn btn-primary btn-full" onclick="maintRunDiscoveryBackfill(false)">🔍 Analizar (vista previa, no escribe nada)</button>
+        </div>
+      </div>
     </div>`;
   loadManagerPanel();
+}
+
+// ══════════════════════════════════════════
+// MANTENIMIENTO — backfill del "asignado" en discoveryRecords viejos (antes del fix del
+// 2026-08-18, aeUid/aeName/aeGram/tlId se sobrescribían en CADA guardado con quien tocara la
+// sesión, no solo al crearla — ver discSaveRecord). No hay campo separado e inmutable del creador
+// real, así que se reconstruye cruzando dos señales que deben COINCIDIR:
+//   1) el touchpoint tipo 'discovery' más cercano en el tiempo al createdAt del registro, dentro de
+//      companies/{id}.memory.touchpoints — es quien hizo el PRIMER guardado de esa sesión (el
+//      touchpoint se escribe en la misma llamada que crea el registro).
+//   2) quien creó la empresa (companies.createdBy/createdByGram) — en el flujo normal el mismo AE
+//      que prospecta crea la empresa y hace la primera Qcall, así que si ambas señales coinciden es
+//      alta confianza; si no coinciden (o falta alguna), se deja el registro tal cual.
+// Manager-only. Dry-run primero, aplica solo con confirmación explícita del botón.
+// ══════════════════════════════════════════
+async function _maintAnalyzeDiscoveryAssignee(){
+  const [coSnap,drSnap,usSnap]=await Promise.all([
+    getDocs(collection(db,'companies')),
+    getDocs(collection(db,'discoveryRecords')),
+    getDocs(collection(db,'users')),
+  ]);
+  const companies=new Map(coSnap.docs.map(d=>[d.id,{id:d.id,...d.data()}]));
+  const usersByGram=new Map(), usersByName=new Map();
+  usSnap.docs.forEach(d=>{ const u={id:d.id,...d.data()}; if(u.gram) usersByGram.set(u.gram,u); if(u.name) usersByName.set(u.name,u); });
+
+  const WINDOW_MS=5*60*1000; // margen entre el createdAt del registro y el touchpoint que lo originó
+  const results={fix:[],skip:[]};
+  drSnap.docs.forEach(d=>{
+    const r={id:d.id,...d.data()};
+    const co=r.companyId?companies.get(r.companyId):null;
+    if(!co){ results.skip.push({id:r.id,empresa:r.empresa,motivo:'Sin empresa vinculada (companyId)'}); return; }
+    const createdMs=r.createdAt?.toMillis?.()??(r.createdAt?.seconds?r.createdAt.seconds*1000:null);
+    if(!createdMs){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:'Registro sin createdAt'}); return; }
+    const touches=(co.memory?.touchpoints||[]).filter(t=>t.type==='discovery');
+    let best=null,bestDiff=Infinity;
+    touches.forEach(t=>{
+      const tMs=new Date(t.date).getTime(); if(isNaN(tMs)) return;
+      const diff=Math.abs(tMs-createdMs);
+      if(diff<bestDiff){ bestDiff=diff; best=t; }
+    });
+    if(!best||bestDiff>WINDOW_MS){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:'Sin touchpoint cercano a su creación (se evadió por el tope de 30, o nunca lo hubo)'}); return; }
+    const matchesCreator=(co.createdByGram&&best.aeGram&&co.createdByGram===best.aeGram)||(co.createdBy&&best.aeName&&co.createdBy===best.aeName);
+    if(!matchesCreator){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:`Touchpoint (${best.aeName||best.aeGram||'?'}) no coincide con quien creó la empresa (${co.createdBy||co.createdByGram||'—'})`}); return; }
+    const user=usersByGram.get(best.aeGram)||usersByName.get(best.aeName);
+    if(!user){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:`No se encontró usuario para ${best.aeName||best.aeGram} en la colección users`}); return; }
+    const newVals={aeUid:user.uid||user.id,aeName:user.name||best.aeName,aeGram:user.gram||best.aeGram,tlId:user.tlId||null};
+    const same=r.aeUid===newVals.aeUid&&r.aeName===newVals.aeName&&r.aeGram===newVals.aeGram&&(r.tlId||null)===(newVals.tlId||null);
+    if(same){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:'Ya estaba correcto'}); return; }
+    results.fix.push({id:r.id,empresa:co.nombre||r.empresa,before:{aeName:r.aeName,aeGram:r.aeGram},after:newVals});
+  });
+  return results;
+}
+
+window.maintRunDiscoveryBackfill=async function(apply){
+  if(currentUserData?.role!=='manager'){ showNotif('Solo manager','error'); return; }
+  const btn=document.getElementById('maintBackfillBtn');
+  if(btn){ btn.disabled=true; btn.textContent=apply?'Aplicando…':'Analizando…'; }
+  try{
+    const results=await _maintAnalyzeDiscoveryAssignee();
+    if(apply){
+      for(const f of results.fix){
+        await updateDoc(doc(db,'discoveryRecords',f.id),{aeUid:f.after.aeUid,aeName:f.after.aeName,aeGram:f.after.aeGram,tlId:f.after.tlId});
+      }
+    }
+    _maintRenderDiscoveryReport(results,apply);
+  } catch(e){ showNotif('Error: '+e.message,'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='🔍 Analizar (vista previa, no escribe nada)'; } }
+};
+
+function _maintRenderDiscoveryReport(results,applied){
+  document.getElementById('maintReportPopup')?.remove();
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='maintReportPopup';
+  const fixRows=results.fix.map(f=>`<div style="padding:8px 10px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;font-size:12.5px">
+      <strong>${f.empresa||'—'}</strong> — ${f.before.aeName||f.before.aeGram||'?'} → <strong style="color:var(--success)">${f.after.aeName}</strong>
+    </div>`).join('')||'<div style="font-size:13px;color:var(--gray-400)">Ninguno con señal clara.</div>';
+  const skipRows=results.skip.map(s=>`<div style="padding:6px 10px;font-size:11.5px;color:var(--gray-500);border-bottom:1px solid var(--gray-100)">${s.empresa||'—'} — ${s.motivo}</div>`).join('');
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:640px;max-height:80vh;overflow:auto">
+    <div class="disc-popup-header"><div class="disc-popup-title">${applied?'✅ Backfill aplicado':'🔍 Backfill — vista previa'}</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('maintReportPopup').remove()">✕</button></div>
+    <div class="disc-popup-body">
+      <div style="font-size:13px;margin-bottom:10px">${results.fix.length} registro(s) con señal clara ${applied?'reasignados':'se reasignarían'}. ${results.skip.length} sin tocar.</div>
+      ${fixRows}
+      ${!applied&&results.fix.length?`<button class="btn btn-primary btn-full" style="margin-top:12px" onclick="document.getElementById('maintReportPopup').remove();maintRunDiscoveryBackfill(true)">Aplicar estos ${results.fix.length} cambios</button>`:''}
+      <details style="margin-top:14px"><summary style="cursor:pointer;font-size:12px;color:var(--gray-500)">Ver ${results.skip.length} sin tocar y por qué</summary>${skipRows}</details>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
 }
 
 window.openEditUserPopup=async function(uid){
@@ -2583,6 +2677,7 @@ const disc = {
   activeTV: new Set(),
   selections: {},
   companyId: null,
+  contactoSel: null,      // contacto elegido/editado en el m2o (snapshot {nombre,cargo,correo,linkedin}) — antes se descartaba sin guardarse
   callEnded: false,
   appsAI: null,          // apps sugeridas por "Analizar discovery" (array {name,reason,fase}), del catálogo ODOO_APPS_FLAT
   appsFlow: '',          // recomendación de IA sobre el orden de demo (Comercial → Operativo → Administrativo), solo si appsAI trae fase
@@ -2590,7 +2685,7 @@ const disc = {
   resumenIntromeet: '',  // síntesis de IA de toda la sesión — se reutiliza como contexto en otras apps
   feedbackFinal: '',     // coaching de IA sobre la sesión (acciones en la app + transcripción)
   ui: { section:0, sub:{flujo:1}, wow:null },
-  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.callEnded=false; this.appsAI=null; this.appsFlow=''; this.wowAI=null; this.resumenIntromeet=''; this.feedbackFinal=''; this.ui={section:0,sub:{flujo:1},wow:null}; }
+  discardForm(){ this.formActive=false; this.recordId=null; this.status='borrador'; this.currentInd=null; this.activeTV=new Set(); this.selections={}; this.companyId=null; this.contactoSel=null; this.callEnded=false; this.appsAI=null; this.appsFlow=''; this.wowAI=null; this.resumenIntromeet=''; this.feedbackFinal=''; this.ui={section:0,sub:{flujo:1},wow:null}; }
 };
 // Nota: el estatus (borrador→en_proceso→completado) nunca se elige a mano — ver discAutosave/discMarkCompleted.
 // ── Sessions list view ──
@@ -2614,6 +2709,22 @@ async function renderDiscoveryList(){
 }
 
 let discSessionsAll=[];
+// Nombre de empresa en vivo por companyId — fuente de verdad = m2o/companies, no el string que
+// quedó congelado en el registro al momento de esa sesión en particular (que puede quedar viejo si
+// la empresa se renombra después sin volver a abrir/guardar esa sesión de Qcall).
+let _discCoNameCache={};
+async function _discHydrateCompanyNames(sessions){
+  if(!db) return;
+  const ids=[...new Set(sessions.map(s=>s.companyId).filter(Boolean))].filter(id=>!(id in _discCoNameCache));
+  if(!ids.length) return;
+  await Promise.all(ids.map(async id=>{
+    try{ const co=await getCompany(id); _discCoNameCache[id]=co?.nombre||null; }
+    catch(e){ _discCoNameCache[id]=null; }
+  }));
+}
+function _discEmpresaNombre(s){
+  return (s.companyId&&_discCoNameCache[s.companyId])||s.empresa||'Sin nombre';
+}
 async function loadDiscoverySessions(){
   if(!db){ renderDiscSessionsOffline(); return; }
   const role=currentUserData?.role;
@@ -2647,6 +2758,7 @@ async function loadDiscoverySessions(){
       const tb=b.createdAt?.toMillis?.()??b.createdAt?.seconds??0;
       return tb-ta;
     });
+    await _discHydrateCompanyNames(discSessionsAll);
     renderDiscSessions(discSessionsAll);
   } catch(e){
     console.error('Discovery load error:',e);
@@ -2664,7 +2776,7 @@ window.discSearchSessions=function(term){
   const q=_csvNorm(term||'');
   if(!q){ renderDiscSessions(discSessionsAll); return; }
   const filtered=discSessionsAll.filter(s=>{
-    const haystack=_csvNorm([s.empresa,s.aeName,s.aeGram,s.industriaNombre,...(s.tipoVenta||[]),...(s.dolores||[])].join(' | '));
+    const haystack=_csvNorm([_discEmpresaNombre(s),s.aeName,s.aeGram,s.industriaNombre,...(s.tipoVenta||[]),...(s.dolores||[])].join(' | '));
     return haystack.includes(q);
   });
   renderDiscSessions(filtered);
@@ -2687,7 +2799,7 @@ function renderDiscSessions(sessions){
     const fecha=ts.toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'});
     return `<div class="disc-session-card" onclick="openDiscoveryForm('${s.id}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px">
-        <div class="disc-session-empresa">${s.empresa||'Sin nombre'}</div>
+        <div class="disc-session-empresa">${_discEmpresaNombre(s)}</div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           <div style="width:22px;height:22px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${(s.aeName||s.aeGram||'?')[0].toUpperCase()}</div>
           <span style="font-size:12px;font-weight:600;color:var(--purple)">${s.aeName?.split(' ')[0]||s.aeGram||''}</span>
@@ -3538,6 +3650,7 @@ function discInitForm(data){
     disc.status=data.status||'borrador';
     disc.currentInd=data.industria||null;
     disc.companyId=data.companyId||null;
+    disc.contactoSel=data.contacto||null;
     disc.activeTV=new Set(Array.isArray(data.tipoVenta)?data.tipoVenta:[]);
     if(!disc.selections.producto){
       const t=disc.selections['tipo-empresa']||'';
@@ -3567,11 +3680,28 @@ function dgMountPicker(){
   mountCompanyPicker('discM2oWrap',(co,ct)=>{
     disc.selections['emp-nombre']=co?.nombre||'';
     disc.companyId=co?.id||null;
+    // El m2o también trae el contacto (ct) — antes se ignoraba y esa selección (nombre, cargo,
+    // correo, LinkedIn) se perdía siempre al guardar. Se guarda como snapshot porque los contactos
+    // no tienen id propio en este modelo (se matchean por nombre, igual que el resto de la app).
+    disc.contactoSel=ct?{nombre:ct.nombre||'',cargo:ct.cargo||'',correo:ct.correo||ct.email||'',linkedin:ct.linkedin||''}:null;
     const ni=document.getElementById('d-emp-nombre');
     if(ni) ni.value=co?.nombre||'';
     discAutosave();
   }).then(()=>{
-    if(disc.companyId&&typeof getCompany==='function'){ getCompany(disc.companyId).then(co=>{ if(co&&typeof cpState!=='undefined'){ cpState.selectedCompany=co; renderM2o('discM2oWrap'); } }); }
+    if(disc.companyId&&typeof getCompany==='function'){
+      getCompany(disc.companyId).then(co=>{
+        if(!co||typeof cpState==='undefined') return;
+        cpState.selectedCompany=co;
+        // Re-resolver el contacto guardado contra la empresa viva (por nombre) para que el m2o
+        // muestre sus datos actuales (p.ej. si le editaron el LinkedIn después de esta sesión);
+        // si ya no existe en la empresa, se cae al snapshot guardado en vez de perderlo.
+        if(disc.contactoSel?.nombre){
+          const live=(co.contacts||[]).find(c=>c.nombre===disc.contactoSel.nombre);
+          cpState.selectedContact=live||disc.contactoSel;
+        }
+        renderM2o('discM2oWrap');
+      });
+    }
   });
 }
 
@@ -4075,10 +4205,15 @@ window.discSaveRecord=async function(opts={}){
   const geminiNote=document.getElementById('discGeminiOutput')?.textContent||'';
   const recoNote=document.getElementById('discRecoOutput')?.textContent||'';
   const transcript=document.getElementById('discTranscriptInput')?.value||'';
+  // aeUid/aeName/aeGram/tlId (el "asignado") NO van en este objeto compartido — se fijan una sola
+  // vez al CREAR el registro (más abajo) y nunca se vuelven a tocar en updateDoc, para que el
+  // asignado sea siempre quien creó la sesión sin importar quién la edite o autoguarde después.
+  // Bug real que esto corrige: un TL/manager que abría la sesión de un AE la reasignaba a sí mismo
+  // con el siguiente autoguardado, porque antes este mismo objeto se reenviaba completo en cada save.
   const record={
-    aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram,
-    tlId:currentUserData.tlId||null,
-    empresa, companyId:disc.companyId||null, industria:disc.currentInd||'', industriaNombre:IND_NAMES[disc.currentInd]||'',
+    empresa, companyId:disc.companyId||null,
+    contacto:disc.contactoSel||null,
+    industria:disc.currentInd||'', industriaNombre:IND_NAMES[disc.currentInd]||'',
     tipoVenta:[...disc.activeTV], selections:disc.selections,
     budget:disc.selections['budget']||'', decisor:disc.selections['decisor']||'',
     timeline:disc.selections['timeline']||'', fit:disc.selections['fit']||'',
@@ -4101,16 +4236,28 @@ window.discSaveRecord=async function(opts={}){
     // el error hacia el try/catch de este llamado en particular.
     const thisWrite=_discSaveWriteLock.catch(()=>{}).then(async()=>{
       if(disc.recordId&&db){
+        // Update: aeUid/aeName/aeGram/tlId NUNCA se incluyen aquí — quedan intactos como se
+        // guardaron al crear el registro.
         await updateDoc(doc(db,'discoveryRecords',disc.recordId),record);
       } else if(db){
         record.createdAt=serverTimestamp();
+        record.aeUid=currentUserData.uid; record.aeName=currentUserData.name; record.aeGram=currentUserData.gram;
+        record.tlId=currentUserData.tlId||null;
         const ref=await addDoc(collection(db,'discoveryRecords'),record);
         disc.recordId=ref.id;
       } else {
-        // Local fallback
+        // Local fallback — igual patrón: el asignado solo se fija en el registro nuevo, y en un
+        // update se preserva el que ya tenía el registro local (se spreadea primero y `record`,
+        // que ya no trae esos campos, no lo pisa).
         const locals=JSON.parse(localStorage.getItem('disc_local')||'[]');
         const idx=locals.findIndex(r=>r.id===disc.recordId);
-        const localRec={...record,id:disc.recordId||Date.now().toString(),createdAt:new Date().toISOString()};
+        let localRec;
+        if(idx>=0){
+          localRec={...locals[idx],...record,id:locals[idx].id};
+        } else {
+          localRec={...record,id:disc.recordId||Date.now().toString(),createdAt:new Date().toISOString(),
+            aeUid:currentUserData.uid,aeName:currentUserData.name,aeGram:currentUserData.gram,tlId:currentUserData.tlId||null};
+        }
         if(idx>=0) locals[idx]=localRec; else locals.unshift(localRec);
         localStorage.setItem('disc_local',JSON.stringify(locals));
         disc.recordId=localRec.id;
@@ -10048,7 +10195,7 @@ window.empOpenDetail=async function(id){
       const secHead=(t)=>`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:8px">${t}</div>`;
 
       if(disc.length) sections.push(`<div style="margin-bottom:16px">${secHead(`🔍 Discovery (${disc.length})`)}
-        ${disc.map(d=>{const r=d.data();return docRow(r.empresa||co.nombre,`${r.aeName||''} · ${r.industriaNombre||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();openDiscoveryForm('${d.id}')`,`deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+        ${disc.map(d=>{const r=d.data();return docRow(co.nombre||r.empresa||'Sin nombre',`${r.aeName||''} · ${r.industriaNombre||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();openDiscoveryForm('${d.id}')`,`deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
 
       if(price.length) sections.push(`<div style="margin-bottom:16px">${secHead(`💰 Pricing (${price.length})`)}
         ${price.map(d=>{const r=d.data();window._pricingRecordsCache[d.id]=r;return docRow(`${r.edition||'Pricing'} · ${r.users||0} usuarios`,`${fmtMXN(r.total)} · ${r.implHrs||0} hrs impl${r.isSH?' · Odoo.SH':''}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();pricingOpenRecord('${d.id}')`,`deleteRecord('pricingRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
