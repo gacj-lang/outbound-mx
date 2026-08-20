@@ -2611,7 +2611,7 @@ const DG_PROD_LABEL={ fisico:'Productos físicos', servicios:'Servicios', mixto:
 // Preguntas críticas ⭐ por industria (alto valor para demo/cierre — tuneadas a Odoo). Viven en Operativo.
 const DG_IND_CRIT={
   comercializadora:['¿Cómo concilian inventario entre sucursales o almacenes?','¿Manejan consignación o inventario en poder de terceros?'],
-  retail:['¿Qué pasa con la caja si se cae el internet?','¿Cómo unifican stock entre tienda física y venta en línea?'],
+  retail:['¿Cómo unifican stock entre tienda física y venta en línea?'],
   restaurante:['¿Descuentan inventario por receta/escandallo al vender?','¿Controlan cocina (KDS) y mermas de preparación?'],
   manufactura:['¿Cómo planean la producción y las órdenes de trabajo?','¿Lista de materiales (BOM) multinivel o subensambles?','¿Trazabilidad de insumo a producto terminado?'],
   construccion:['¿Cómo controlan el avance físico por obra?','¿Cómo asignan compras y materiales a cada obra?'],
@@ -2659,7 +2659,7 @@ const DG_COM_CRIT={
   retail:['¿Venden también en línea?','¿Programa de lealtad o promociones?'],
   restaurante:['¿Delivery propio o por plataformas?','¿Manejan reservaciones?'],
   manufactura:['¿Venden producto configurable o a medida?','¿Cotizan por proyecto?'],
-  construccion:['¿Licitaciones o cartera fija?','¿Presupuestos por obra con versiones?'],
+  construccion:['¿Licitaciones o cartera fija?'],
   servicios:['¿Venden por proyecto, hora o iguala?','¿Manejan contratos recurrentes?'],
   distribucion:['¿Venta por ruta o preventa?','¿Pedido mínimo por zona o cliente?'],
   logistica:['¿Tarifas por ruta, zona o peso?','¿Contratos de servicio recurrentes?'],
@@ -2698,7 +2698,7 @@ const DG_NONPROFIT_ADM=['¿Emiten recibos deducibles (donataria autorizada)?','�
 const DG_OPERATIVO={
   fisico:{ opener:'Cuéntenme cómo se mueve un producto en su operación — desde que lo compran o reciben hasta que lo entregan al cliente.',
     guide:[{t:'¿Fabrican, compran para revender, o ambos?'},{t:'Compra / abasto y recepción'},{t:'Cómo gestionan el inventario',s:'suele ser el dolor más tangible'},{t:'Almacenes y ubicaciones'},{t:'Preparación y entrega al cliente'}],
-    fields:[{one:{id:'op-inv-sys',l:'Sistema de inventario actual',ph:'Ej. Excel, WMS, ninguno…'}},{two:[{id:'op-almacenes',l:'Almacenes',ph:'#'},{id:'op-skus',l:'SKUs aprox.',ph:'#'}]}],
+    fields:[{one:{id:'op-inv-sys',l:'Sistema de inventario actual',ph:'Ej. Excel, WMS, ninguno…'}},{two:[{id:'op-almacenes',l:'Almacenes',ph:'#'},{id:'op-skus',l:'SKUs aprox.',ph:'#'}]},{one:{id:'op-personas',l:'Personas operativas',ph:'#'}}],
     chips:['Inventario a mano','Quiebres de stock','Mermas / caducidad','Doble captura','Sin trazabilidad'] },
   servicios:{ opener:'Como su entrega es un servicio, cuéntenme cómo planean el trabajo, lo asignan a su gente y lo entregan al cliente.',
     guide:[{t:'Cómo planean y asignan el trabajo',s:'agenda, proyectos, personal'},{t:'Registro de horas / esfuerzo',s:'timesheets'},{t:'Entregables y avance del proyecto'},{t:'Cómo facturan el servicio',s:'hito, recurrente, por hora'}],
@@ -3385,7 +3385,7 @@ function dgBuildSections(){
         {id:'comercial',icon:'💼',label:'Comercial',area:'comercial',
           opener:'¿Cómo consiguen y atienden a sus clientes hoy, desde el primer contacto hasta la postventa?',
           guide:[{t:'Cómo consiguen clientes',s:'canales, prospección'},{t:'Proceso de venta',s:'de cotización a cierre'},{t:'Seguimiento y postventa'}],crit:comCrit,
-          fields:[{one:{id:'com-crm',l:'CRM / sistema comercial',ph:'Ej. ninguno, Excel, HubSpot…'}},{two:[{id:'com-vend',l:'Vendedores',ph:'#'},{id:'com-ciclo',l:'Ciclo de venta',ph:'Ej. 2 semanas'}]}],
+          fields:[{one:{id:'com-crm',l:'CRM / sistema comercial',ph:'Ej. ninguno, Excel, HubSpot…'}},{two:[{id:'com-vend',l:'Personas en comercial',ph:'#'},{id:'com-ciclo',l:'Ciclo de venta',ph:'Ej. 2 semanas'}]}],
           chips:['Sin CRM','Cotiza a mano','Seguimiento informal','Sin métricas de venta']},
         {id:'operativo',icon:'⚙️',label:'Operativo',area:'operativo',prodChars:true,opNote:true,
           opener:op.opener,guide:op.guide,crit:opCrit,fields:op.fields,chips:op.chips},
@@ -3393,28 +3393,29 @@ function dgBuildSections(){
           opener:'¿Cómo llevan la parte administrativa — facturación, contabilidad y nómina?',
           guide:[{t:'Facturación',s:'manual o sistema'},{t:'Contabilidad y conciliación'},{t:'Finanzas, RRHH y nómina'}],
           crit:admCrit,
-          fields:[{one:{id:'adm-sys',l:'Sistema contable',ph:'Ej. CONTPAQi, Aspel, despacho…'}},{two:[{id:'adm-fact',l:'Facturas / mes',ph:'#'},{id:'adm-nom',l:'Nómina',ph:'# empleados'}]}],
+          fields:[{one:{id:'adm-sys',l:'Sistema contable',ph:'Ej. CONTPAQi, Aspel, despacho…'}},{two:[{id:'adm-fact',l:'Facturas / mes',ph:'#'},{id:'adm-nom',l:'Empleados en nómina (total)',ph:'#'}]},{one:{id:'adm-personas',l:'Personas en administrativo',ph:'#'}}],
           chips:['Facturación manual','Cierre lento','Sin reportes al día','Info desconectada']}]},
 
     {id:'dolor',icon:'🎯',title:'Dolor',goal:'Que ELLOS prioricen lo que más les duele. Aquí nace el ángulo de la propuesta.',
       opener:'De todo lo que hemos platicado, ¿qué es lo que más les quita tiempo o les cuesta dinero hoy?',
       tip:'No sugieras el dolor — deja que lo nombren con sus palabras.',
       guide:[{t:'El dolor #1 en sus propias palabras'},{t:'Impacto',s:'dinero, tiempo o clientes'},{t:'Quién lo sufre y con qué frecuencia'},{t:'Qué han intentado para resolverlo'}],crit:[],
-      dolorText:true, chips:['Dolor alto','Impacto en ventas','Afecta varias áreas','Ya intentaron resolverlo','Urgente']},
+      dolorText:true, fields:[{one:{id:'dol-impacto',l:'Impacto cuantificado',ph:'Ej. $40,000/mes en reprocesos, o 20 hrs/semana'}}],
+      chips:['Dolor alto','Impacto en ventas','Afecta varias áreas','Ya intentaron resolverlo','Urgente']},
 
     {id:'budget',icon:'💰',title:'Budget',goal:(s.sinFines?'Cómo asignan presupuesto por fondo/proyecto y quién aprueba en el consejo.':'Cuánto invierten hoy y cómo deciden una compra de software.'),
       opener:(s.sinFines?'¿Cómo asignan su presupuesto — por proyecto, fondo o donante — y quién lo aprueba en el consejo?':'¿Cuánto destinan hoy a sus sistemas, y cómo evalúan una nueva inversión de este tipo?'),
       tip:'Conecta el costo del dolor con la inversión: no es gasto, es ahorro.',
       guide:[{t:(s.sinFines?'Presupuesto disponible por fondo/proyecto':'Cuánto invierten hoy en sistemas / mes')},{t:'Quién decide y quién aprueba'},{t:'Cómo es su proceso de compra/aprobación'}],crit:[],
       picks:[{group:'budget',label:'Estado del presupuesto',opts:['Tienen presupuesto','En evaluación','No definido','Pendiente aprobación']},{group:'decisor',label:'¿Con quién hablas?',opts:['El que decide','Influenciador','No sé quién decide']}],
-      fields:[{one:{id:'bud-monto',l:(s.sinFines?'Presupuesto / fondo':'Presupuesto sistemas / mes'),ph:'Ej. $15,000'}}],
-      quals:[{k:'champion',l:'Champion identificado'},{k:'criterios',l:'Criterios de decisión claros'},{k:'metrics',l:'Métricas de impacto cuantificadas'},{k:'proceso',l:'Proceso de decisión claro'}]},
+      fields:[{one:{id:'bud-monto',l:(s.sinFines?'Presupuesto / fondo':'Presupuesto sistemas / mes'),sel:['—','Menos de $5,000 MXN','$5,000 – $15,000 MXN','$15,000 – $30,000 MXN','$30,000 – $60,000 MXN','$60,000 – $120,000 MXN','Más de $120,000 MXN','Aún no tienen monto definido']}},{one:{id:'eb-nombre',l:'Comprador económico — nombre y puesto',ph:'Ej. María López, Directora de Finanzas'}},{one:{id:'proceso-desc',l:'Proceso de aprobación/compra',ph:'Ej. cotización → visto bueno de Finanzas → firma del dueño'}}],
+      quals:[{k:'champion',l:'Champion identificado'},{k:'criterios',l:'Criterios de decisión claros'}]},
 
     {id:'timeline',icon:'📅',title:'Timeline',goal:'Define urgencia y siguientes pasos. Cierra con un compromiso concreto.',
       opener:'¿Para cuándo les gustaría tener esto resuelto, y hay algo en el calendario que los presione a moverse?',
       tip:'Sin fecha no hay urgencia. Acuerda un próximo paso antes de colgar.',
       guide:[{t:'Para cuándo quieren resolverlo'},{t:'Qué evento los presiona',s:'temporada, auditoría, crecimiento'},{t:'Próximo paso acordado',s:'demo, propuesta, 2ª reunión'}],crit:[],
-      picks:[{group:'timeline',label:'¿Cuándo arrancan?',opts:['Menos de 1 mes','1 – 3 meses','3 – 6 meses','Más de 6 meses']},{group:'fit',label:'¿Odoo resuelve su caso?',opts:['Obvio — es perfecto para ellos','Probable — con algunos ajustes','Incierto — hay gaps importantes']}],
+      picks:[{group:'timeline',label:'¿Cuándo arrancan?',opts:['Menos de 1 mes','1 – 3 meses','3 – 6 meses','Más de 6 meses']},{group:'fit',label:'¿Odoo resuelve su caso?',opts:['Obvio — es perfecto para ellos','Probable — con algunos ajustes','Incierto — hay gaps importantes']},{group:'competencia',label:'¿Qué más está evaluando?',opts:['Solo Odoo','Otro ERP (SAP, NetSuite, etc.)','Sistema local (CONTPAQi, Aspel, etc.)','Seguir en Excel/manual','No sabemos aún']}],
       fields:[{one:{id:'tl-next',l:'Próximo paso',ph:'Ej. Demo el martes'}}]}
   ];
 }
@@ -3626,22 +3627,26 @@ function dgQualRows(){
   const s=disc.selections, q=s.qual||{};
   const dolores=Object.values(s.chip||{});
   const r=(t,fw,d,chip,txt)=>({t,fw,d,chip,txt});
+  const budMonto=(s.fld?.['bud-monto']&&s.fld['bud-monto']!=='—')?s.fld['bud-monto']:'';
+  const impacto=s.fld?.['dol-impacto']||'';
+  const ebNombre=s.fld?.['eb-nombre']||'';
+  const procDesc=s.fld?.['proceso-desc']||'';
   const need=dolores.length>0?'ok':'no';
-  const metrics=q.metrics?'ok':(s.fld?.['dol-principal']?'part':'no');
-  const bud=s.budget==='Tienen presupuesto'?'ok':((s.budget==='En evaluación'||s.budget==='Pendiente aprobación'||s.fld?.['bud-monto'])?'part':'no');
-  const econ=(q.econ||s.decisor==='El que decide')?'ok':(s.decisor==='Influenciador'?'part':'no');
+  const metrics=impacto?'ok':(s.fld?.['dol-principal']?'part':'no');
+  const bud=(s.budget==='Tienen presupuesto'&&budMonto)?'ok':((s.budget==='Tienen presupuesto'||s.budget==='En evaluación'||s.budget==='Pendiente aprobación'||budMonto)?'part':'no');
+  const econ=(ebNombre||s.decisor==='El que decide')?'ok':(s.decisor==='Influenciador'?'part':'no');
   const champ=q.champion?'ok':'no';
   const crit=q.criterios?'ok':'no';
-  const proc=(s.timeline&&q.proceso)?'ok':(s.timeline?'part':'no');
+  const proc=(s.timeline&&procDesc)?'ok':((s.timeline||procDesc)?'part':'no');
   const cl={ok:'ok',part:'part',no:'no'}, lbl={ok:'Sí',part:'Parcial',no:'Falta'};
   return [
     r('Dolor / Necesidad','Pain · Need',dolores.length?dolores.slice(0,3).join(', '):'Sin señales aún',cl[need],need==='ok'?'Alto':lbl[need]),
-    r('Métricas de impacto','Metrics',s.fld?.['dol-principal']?'Dolor descrito · cuantificar':'Sin cuantificar',cl[metrics],lbl[metrics]),
-    r('Presupuesto','Budget',s.fld?.['bud-monto']||s.budget||'Sin definir',cl[bud],lbl[bud]),
-    r('Comprador económico','Econ. buyer · Authority',s.decisor||(q.econ?'Identificado':'Sin identificar'),cl[econ],lbl[econ]),
+    r('Métricas de impacto','Metrics',impacto||(s.fld?.['dol-principal']?'Dolor descrito · falta cuantificar':'Sin cuantificar'),cl[metrics],lbl[metrics]),
+    r('Presupuesto','Budget',budMonto||s.budget||'Sin definir',cl[bud],lbl[bud]),
+    r('Comprador económico','Econ. buyer · Authority',ebNombre||s.decisor||'Sin identificar',cl[econ],lbl[econ]),
     r('Champion','Champion',q.champion?'Identificado':'Sin identificar',cl[champ],lbl[champ]),
     r('Criterios de decisión','Decision criteria',q.criterios?'Explorados':'Sin explorar',cl[crit],lbl[crit]),
-    r('Proceso y tiempos','Decision process · Timeline',s.timeline||'Sin fecha',cl[proc],lbl[proc])
+    r('Proceso y tiempos','Decision process · Timeline',procDesc||s.timeline||'Sin fecha',cl[proc],lbl[proc])
   ];
 }
 function dgRenderPostcall(){
@@ -3652,7 +3657,8 @@ function dgRenderPostcall(){
   const kv=[
     {k:'Empleados',v:s['emp-empleados']},{k:'Usuarios con sistema',v:s['emp-usuarios']},
     {k:'Razones sociales',v:s['emp-razones']},{k:(s.sinFines?'Ingreso (donativos)':'Facturación / mes'),v:s['emp-facturacion']},
-    {k:'Sistemas actuales',v:s['emp-sistemas']},{k:'Tipo de venta',v:s['tipo_venta']}
+    {k:'Sistemas actuales',v:s['emp-sistemas']},{k:'Tipo de venta',v:s['tipo_venta']},
+    {k:'Competencia',v:s['competencia']}
   ];
   const kvHTML=kv.map(r=>`<div class="row"><span class="k">${r.k}</span><span class="v ${r.v?'':'empty'}">${r.v?_dgEsc(r.v):'—'}</span></div>`).join('');
   const tags=[DG_PROD_LABEL[s.producto||'fisico'],s['origen-prod'],...(s.prodOpts||[]),s.sinFines?'Sin fines de lucro':null].filter(Boolean);
@@ -3923,17 +3929,22 @@ Con base en este historial, identifica patrones recurrentes y menciónalos en tu
   return `Eres un Account Executive senior de Odoo México especializado en ventas B2B. Tienes acceso a datos históricos del equipo y debes documentar esta discovery call con precisión quirúrgica.
 ${memoryBlock}
 DATOS CAPTURADOS DURANTE LA LLAMADA:
-- Empresa: ${s['emp-nombre']||'no capturado'}, Empleados: ${s['emp-empleados']||'nd'}
+- Empresa: ${s['emp-nombre']||'no capturado'}, Empleados totales: ${s['emp-empleados']||'nd'}
+- Personas por área: Comercial=${s.fld?.['com-vend']||'nd'} · Operativo=${s.fld?.['op-personas']||'nd'} · Administrativo=${s.fld?.['adm-personas']||'nd'}
 - Razones sociales: ${s['emp-razones']||'nd'}, Sistemas actuales: ${s['emp-sistemas']||'nd'}
-- Usuarios en sistema: ${s['emp-usuarios']||'nd'}, Presupuesto sistemas/mes: ${s['emp-presupuesto']||'nd'}
+- Usuarios en sistema actual: ${s['emp-usuarios']||'nd'}, Presupuesto sistemas/mes: ${(s.fld?.['bud-monto']&&s.fld['bud-monto']!=='—')?s.fld['bud-monto']:'nd'}
 - Facturación mensual: ${s['emp-facturacion']||'nd'}
 - Industria: ${s['industria']||'nd'}, Tipo de venta: ${s['tipo_venta']||'nd'}
 - Tipo de producto: ${s['tipo-empresa']||'nd'}${s.sinFines?' · ASOCIACIÓN SIN FINES DE LUCRO':''}${s.puntual?' · busca SOLUCIÓN PUNTUAL (no todo el ERP)':''}
 - Señales/dolores detectados: ${s['dolores']?.join(', ')||'nd'}
 - Dolor principal (en sus palabras): ${s.fld?.['dol-principal']||'nd'}
+- Impacto cuantificado del dolor: ${s.fld?.['dol-impacto']||'nd'}
 - Budget: ${s['budget']||'nd'}, Decisor: ${s['decisor']||'nd'}
+- Comprador económico: ${s.fld?.['eb-nombre']||'nd'}
+- Proceso de aprobación/compra: ${s.fld?.['proceso-desc']||'nd'}
+- Competencia / alternativas: ${s['competencia']||'nd'}
 - Timeline: ${s['timeline']||'nd'}, Fit con Odoo: ${s['fit']||'nd'}
-- Calificación MEDDIC capturada: Comprador económico=${(s.qual?.econ||s['decisor']==='El que decide')?'sí':'no'} | Champion=${s.qual?.champion?'sí':'no'} | Criterios de decisión=${s.qual?.criterios?'sí':'no'} | Métricas cuantificadas=${s.qual?.metrics?'sí':'no'} | Proceso de decisión claro=${s.qual?.proceso?'sí':'no'}
+- Calificación MEDDIC capturada: Comprador económico=${(s.fld?.['eb-nombre']||s['decisor']==='El que decide')?'sí':'no'} | Champion=${s.qual?.champion?'sí':'no'} | Criterios de decisión=${s.qual?.criterios?'sí':'no'} | Métricas cuantificadas=${s.fld?.['dol-impacto']?'sí':'no'} | Proceso de decisión claro=${s.fld?.['proceso-desc']?'sí':'no'}
 - Apps recomendadas: ${apps.join(', ')||'por definir'}
 - Notas libres del AE (durante la llamada): ${s.fld?.['notas-llamada']||'nd'}
 
@@ -4015,9 +4026,10 @@ ${recentSessions.map((r,i)=>{
 PERFIL DEL PROSPECTO:
 - Empresa: ${s['emp-nombre']||'no capturado'} | Industria: ${s['industria']||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
 - Empleados: ${s['emp-empleados']||'nd'} | Sistemas actuales: ${s['emp-sistemas']||'nd'}
-- Facturación: ${s['emp-facturacion']||'nd'} | Presupuesto sistemas/mes: ${s['emp-presupuesto']||'nd'}
-- Dolores detectados: ${s['dolores']?.join(', ')||'nd'}
-- Budget: ${s['budget']||'nd'} | Decisor: ${s['decisor']||'nd'} | Timeline: ${s['timeline']||'nd'}
+- Facturación: ${s['emp-facturacion']||'nd'} | Presupuesto sistemas/mes: ${(s.fld?.['bud-monto']&&s.fld['bud-monto']!=='—')?s.fld['bud-monto']:'nd'}
+- Dolores detectados: ${s['dolores']?.join(', ')||'nd'} | Impacto cuantificado: ${s.fld?.['dol-impacto']||'nd'}
+- Budget: ${s['budget']||'nd'} | Decisor: ${s['decisor']||'nd'} | Comprador económico: ${s.fld?.['eb-nombre']||'nd'} | Timeline: ${s['timeline']||'nd'}
+- Competencia / alternativas: ${s['competencia']||'nd'} | Proceso de aprobación: ${s.fld?.['proceso-desc']||'nd'}
 - Fit con Odoo: ${s['fit']||'nd'} | Visión: ${Array.isArray(s['vision'])?s['vision'].join(', '):(s['vision']||'nd')}
 - Módulos relevantes: ${apps.join(', ')||'nd'}
 ${historialBlock}
