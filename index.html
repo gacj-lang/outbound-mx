@@ -6,6 +6,8 @@
 <!-- Evita que el traductor del navegador (Chrome) traduzca la app — debe quedar SIEMPRE en español -->
 <meta name="google" content="notranslate">
 <title>Outbound México — Odoo</title>
+<!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
+<meta name="app-version" content="2026-08-21T01:05:29Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -276,6 +278,15 @@ input,select,textarea{font-family:inherit;}
 .notif-error{background:var(--danger);color:white;}
 .notif-info{background:var(--gray-700);color:white;}
 .notif-warning{background:var(--warning);color:white;}
+
+/* ── BANNER DE ACTUALIZACIÓN — persistente hasta que el usuario actualiza o lo cierra, izquierda para no chocar con notif/ninja (derecha) ── */
+.update-banner{position:fixed;left:24px;bottom:24px;z-index:9998;background:var(--purple-dark);color:#fff;padding:14px 16px;border-radius:var(--radius);box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:12px;max-width:340px;transform:translateY(20px);opacity:0;pointer-events:none;transition:all .25s ease;}
+.update-banner.show{transform:translateY(0);opacity:1;pointer-events:auto;}
+.update-banner span{font-size:14px;font-weight:500;line-height:1.4;}
+.update-banner .update-btn{background:#fff;color:var(--purple-dark);border:none;border-radius:var(--radius-sm);padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.update-banner .update-btn:hover{opacity:.9;}
+.update-banner .update-dismiss{background:none;border:none;color:rgba(255,255,255,.7);font-size:16px;cursor:pointer;line-height:1;padding:0 2px;}
+.update-banner .update-dismiss:hover{color:#fff;}
 
 /* ════════════════════════════════════════
    DISCOVERY MODULE — FASE 2
@@ -4457,6 +4468,47 @@ window.showNotif=function(msg,type='info'){
   n.textContent=msg; n.className=`global-notif notif-${type} show`;
   clearTimeout(notifT); notifT=setTimeout(()=>n.classList.remove('show'),3500);
 };
+
+// ══════════════════════════════════════════
+// AVISO DE ACTUALIZACIÓN — checa version.json (sin caché) contra la versión con la
+// que cargó esta pestaña. Si cambió, banner persistente con botón de recarga.
+// Se checa al cargar, cada 5 min, y cada vez que la pestaña recupera el foco.
+// ══════════════════════════════════════════
+let _updateBannerShown=false, _updateLatestV=null;
+function checkForUpdate(){
+  const cur=document.querySelector('meta[name="app-version"]')?.content||'';
+  if(!cur) return;
+  fetch('version.json?t='+Date.now(),{cache:'no-store'})
+    .then(r=>r.ok?r.json():null)
+    .then(data=>{
+      if(!data||!data.v||data.v===cur) return;
+      _updateLatestV=data.v;
+      if(_updateBannerShown) return;
+      if(sessionStorage.getItem('updateDismissedV')===data.v) return;
+      showUpdateBanner();
+    }).catch(()=>{});
+}
+function showUpdateBanner(){
+  _updateBannerShown=true;
+  let b=document.getElementById('updateBanner');
+  if(!b){
+    b=document.createElement('div'); b.id='updateBanner'; b.className='update-banner';
+    b.innerHTML=`<span>Hay una versión nueva de la app 🎉</span><button class="update-btn" onclick="location.reload()">Actualizar</button><button class="update-dismiss" title="Recordar después" onclick="dismissUpdateBanner()">✕</button>`;
+    document.body.appendChild(b);
+  }
+  requestAnimationFrame(()=>b.classList.add('show'));
+}
+// Expuesta en window: el onclick inline del botón corre en scope global clásico, no en el
+// scope del <script type="module"> — mismo patrón de bug ya documentado arriba en csvUpdateCell.
+window.dismissUpdateBanner=function(){
+  const b=document.getElementById('updateBanner'); if(b) b.classList.remove('show');
+  _updateBannerShown=false;
+  if(_updateLatestV) sessionStorage.setItem('updateDismissedV',_updateLatestV);
+};
+setInterval(checkForUpdate,5*60*1000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkForUpdate(); });
+window.addEventListener('focus',checkForUpdate);
+setTimeout(checkForUpdate,15000);
 
 // ══════════════════════════════════════════
 // COMPANY CRM
