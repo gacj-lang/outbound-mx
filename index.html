@@ -892,7 +892,6 @@ input,select,textarea{font-family:inherit;}
 .hist-callout{background:var(--purple-light);border:1px solid var(--purple);border-radius:var(--radius);padding:12px 16px;font-size:12.5px;color:var(--purple-dark);margin-bottom:18px;}
 .hist-chip{display:inline-flex;align-items:center;padding:7px 14px;border-radius:99px;border:1.5px solid var(--gray-200);background:white;font-size:12.5px;font-weight:600;color:var(--gray-700);cursor:pointer;transition:all .15s;}
 .hist-chip:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-light);}
-.hist-ai-wrap{max-width:760px;}
 .hist-ai-msg{padding:14px 16px;border-radius:var(--radius);margin-bottom:12px;font-size:14px;line-height:1.55;white-space:pre-wrap;}
 .hist-ai-msg.user{background:var(--purple-light);color:var(--purple-dark);margin-left:60px;}
 .hist-ai-msg.ai{background:var(--gray-50);border:1px solid var(--gray-200);color:var(--gray-900);}
@@ -1016,7 +1015,7 @@ input,select,textarea{font-family:inherit;}
       <button class="nav-item" id="nav-analytics" onclick="showModule('analytics')" data-tip="Métricas de uso y actividad del equipo."><span class="nav-icon">📊</span> Analytics</button>
       <div class="nav-section-label" style="margin-top:8px">Conocimiento</div>
       <button class="nav-item" id="nav-wiki" onclick="showModule('wiki')" data-tip="Wiki interna: proceso de venta, herramientas, apps y tips para resolver dudas y preparar demos."><span class="nav-icon">📚</span> Banco de Información</button>
-      <button class="nav-item" id="nav-historico" onclick="showModule('historico')" data-tip="Ventas y CRM histórico de Odoo México: filtros por fecha/industria/canal, embudo, fuente de lead y buscador con IA."><span class="nav-icon">📈</span> Información Histórica</button>
+      <button class="nav-item" id="nav-historico" onclick="showModule('historico')" data-tip="Ventas y CRM histórico de Odoo México: filtros por fecha/industria/canal, embudo y fuente de lead. Pregúntale a 🥷 Ninja IA sobre estos datos."><span class="nav-icon">📈</span> Información Histórica</button>
       <div class="nav-section-label" style="margin-top:8px">Recursos</div>
       <button class="nav-item" id="nav-framework" onclick="showModule('framework')" data-tip="Guía de marca oficial: colores, tipografía y assets para tus materiales."><span class="nav-icon">🎨</span> Framework Visual</button>
       <button class="nav-item" id="nav-appcatalog" onclick="showModule('appcatalog')" data-tip="Las 49 apps de Odoo con su logo oficial, agrupadas por categoría — mismo índice que usan Brochure y Pricing."><span class="nav-icon">🗂️</span> Catálogo de apps</button>
@@ -7844,7 +7843,6 @@ const HIST_FUNNEL_STAGES = [
 const HIST_CUTOFF_MADURO = {Outbound:'2026-02-05', Inbound:'2026-04-18'};
 
 const _histState = {q1:HIST_QUARTERS[0], q2:HIST_QUARTERS[HIST_QUARTERS.length-1], motion:'Inbound', industria:'todas', tab:'resumen'};
-let _histAiMessages = [];
 
 function _histMotions(){ return _histState.motion==='ambos' ? ['Outbound','Inbound'] : [_histState.motion]; }
 function _histInRange(q){ return q>=_histState.q1 && q<=_histState.q2; }
@@ -7904,7 +7902,7 @@ async function renderHistorico(){
         <div class="hist-filter-note">${_histFmtN(HIST_FACTS.FACT_LEADS.length)} celdas de datos · leads 2024–2026</div>
       </div>
       <div class="hist-tabbar" id="histTabbar">
-        ${[['resumen','Resumen'],['fuente','Fuente del lead'],['geo','Geografía / Industria / Tamaño'],['mercado','Mercado Objetivo'],['motivos','Motivos de pérdida'],['ia','Buscador IA'],['descargas','Descargas']]
+        ${[['resumen','Resumen'],['fuente','Fuente del lead'],['geo','Geografía / Industria / Tamaño'],['mercado','Mercado Objetivo'],['motivos','Motivos de pérdida'],['descargas','Descargas']]
           .map(([k,l])=>`<button class="hist-tab ${_histState.tab===k?'active':''}" onclick="histShowTab('${k}')">${l}</button>`).join('')}
       </div>
       <div id="histTabBody"></div>
@@ -7917,11 +7915,11 @@ window.histSetFilter=function(key,val){ _histState[key]=val; histShowTab(_histSt
 window.histShowTab=function(tab){
   _histState.tab=tab;
   document.querySelectorAll('#histTabbar .hist-tab').forEach((b,i)=>{
-    const keys=['resumen','fuente','geo','mercado','motivos','ia','descargas'];
+    const keys=['resumen','fuente','geo','mercado','motivos','descargas'];
     b.classList.toggle('active', keys[i]===tab);
   });
   const body=document.getElementById('histTabBody'); if(!body) return;
-  const map={resumen:histRenderResumen, fuente:histRenderFuente, geo:histRenderGeo, mercado:histRenderMercado, motivos:histRenderMotivos, ia:histRenderIA, descargas:histRenderDescargas};
+  const map={resumen:histRenderResumen, fuente:histRenderFuente, geo:histRenderGeo, mercado:histRenderMercado, motivos:histRenderMotivos, descargas:histRenderDescargas};
   const fn=map[tab]; if(fn) body.innerHTML=fn();
 };
 
@@ -8139,87 +8137,10 @@ function histRenderMotivos(){
     <div class="hist-motion-grid">${cards}</div>`;
 }
 
-// ───────── Buscador IA ─────────
-function _histAppCapabilities(){
-  const tips=[];
-  document.querySelectorAll('.nav-item[data-tip]').forEach(b=>{
-    const label=b.textContent.trim(); const tip=b.getAttribute('data-tip');
-    if(tip && label) tips.push(`- ${label}: ${tip}`);
-  });
-  return tips.join('\n');
-}
-function _histSummaryForAI(){
-  const motions=_histMotions();
-  let out=`FILTROS ACTIVOS: rango ${_histState.q1} a ${_histState.q2}, canal=${_histState.motion}, industria=${_histState.industria}\n\n`;
-  motions.forEach(motion=>{
-    const leadsRows=_histFilterFact(HIST_FACTS.FACT_LEADS, HIST_FACTS.FACT_LEADS_cols).filter(r=>r[1]===motion);
-    const byStage={}; leadsRows.forEach(r=>{ byStage[r[3]]=(byStage[r[3]]||0)+r[4]; });
-    const total=leadsRows.reduce((a,r)=>a+r[4],0);
-    out+=`== ${motion} ==\nLeads totales: ${total}\nEmbudo: `+HIST_FUNNEL_STAGES.map(s=>`${s.label}=${byStage[s.key]||0}`).join(', ')+'\n';
-    const indAgg={};
-    leadsRows.forEach(([q,m,industria,stage,n])=>{ if(industria==='Sin clasificar / Otra')return; const k=industria; if(!indAgg[k])indAgg[k]={n:0,won:0}; indAgg[k].n+=n; if(stage==='Won')indAgg[k].won+=n; });
-    const topInd=Object.entries(indAgg).filter(([k,v])=>v.n>=20).map(([k,v])=>[k,v.n,(v.won/v.n*100).toFixed(1)]).sort((a,b)=>b[2]-a[2]).slice(0,5);
-    out+=`Top industrias por win-rate (n≥20): `+topInd.map(([k,n,w])=>`${k} (${n} leads, ${w}% ganado)`).join('; ')+'\n';
-    const geoAgg={};
-    HIST_FACTS.FACT_GEO.filter(r=>_histInRange(r[0])&&r[1]===motion).forEach(([q,m,estado,n,won])=>{ if(!geoAgg[estado])geoAgg[estado]={n:0,won:0}; geoAgg[estado].n+=n; geoAgg[estado].won+=won; });
-    const topGeo=Object.entries(geoAgg).filter(([k,v])=>v.n>=20).map(([k,v])=>[k,v.n,(v.won/v.n*100).toFixed(1)]).sort((a,b)=>b[2]-a[2]).slice(0,5);
-    out+=`Top estados por win-rate (n≥20): `+topGeo.map(([k,n,w])=>`${k} (${n} leads, ${w}%)`).join('; ')+'\n';
-    const srcAgg={};
-    HIST_FACTS.FACT_SOURCETAG.filter(r=>_histInRange(r[0])&&r[1]===motion&&r[2]!=='Otro / sin dato').forEach(([q,m,fuente,n,won])=>{ if(!srcAgg[fuente])srcAgg[fuente]={n:0,won:0}; srcAgg[fuente].n+=n; srcAgg[fuente].won+=won; });
-    out+=`Fuente del lead (Lusha/Apollo/MKT): `+Object.entries(srcAgg).map(([k,v])=>`${k}: ${v.n} leads, ${v.won} ganados`).join('; ')+'\n';
-    const lrAgg={};
-    HIST_FACTS.FACT_LOSTREASON.filter(r=>_histInRange(r[0])&&r[1]===motion).forEach(([q,m,motivo,n])=>{ lrAgg[motivo]=(lrAgg[motivo]||0)+n; });
-    const topLr=Object.entries(lrAgg).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    out+=`Top motivos de pérdida: `+topLr.map(([k,n])=>`${k} (${n})`).join('; ')+'\n\n';
-  });
-  return out;
-}
-const HIST_AI_EXAMPLES=[
-  '¿Qué industria cierra mejor en Outbound?',
-  '¿Lusha o Apollo me está dando mejores leads?',
-  '¿En qué estados debería enfocar prospección fría?',
-  '¿Qué tamaño de empresa conviene más para Outbound?',
-  '¿Por qué se me caen más leads después de la demo?',
-  '¿Cómo debería armar mi ICP con estos datos?',
-];
-function histRenderIA(){
-  const msgs=_histAiMessages.map(m=>`<div class="hist-ai-msg ${m.role}">${_histEsc(m.text).replace(/\n/g,'<br>')}</div>`).join('');
-  return `
-    <div class="hist-ai-wrap">
-      <div class="hist-callout">Responde solo con los datos filtrados arriba (${_histState.q1}–${_histState.q2}, ${_histState.motion}, industria: ${_histState.industria}). Usa tu Claude API key de ⚙️ Configuración.</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-        ${HIST_AI_EXAMPLES.map(q=>`<button class="hist-chip" onclick="histAiAsk(${JSON.stringify(q).replace(/"/g,'&quot;')})">${q}</button>`).join('')}
-      </div>
-      <div id="histAiMsgs">${msgs}</div>
-      <div id="histAiLoading" style="display:none;color:var(--gray-500);font-size:13px;margin-bottom:10px">Pensando…</div>
-      <div style="display:flex;gap:8px">
-        <input class="input" id="histAiInput" placeholder="Pregunta sobre estos datos…" onkeydown="if(event.key==='Enter'){histAiAsk(document.getElementById('histAiInput').value)}">
-        <button class="btn btn-primary" onclick="histAiAsk(document.getElementById('histAiInput').value)">Preguntar</button>
-      </div>
-    </div>`;
-}
-window.histAiAsk=async function(question){
-  question=(question||'').trim(); if(!question) return;
-  _histAiMessages.push({role:'user',text:question});
-  const msgsEl=document.getElementById('histAiMsgs'); if(msgsEl) msgsEl.innerHTML=_histAiMessages.map(m=>`<div class="hist-ai-msg ${m.role}">${_histEsc(m.text).replace(/\n/g,'<br>')}</div>`).join('');
-  const input=document.getElementById('histAiInput'); if(input) input.value='';
-  const loading=document.getElementById('histAiLoading'); if(loading) loading.style.display='block';
-  const system=`Eres un analista de datos para el equipo de ventas de Odoo México. Respondes SOLO con la información que se te da abajo (CRM histórico Outbound vs Inbound, ya filtrada). Si algo no está en estos datos, dilo claramente en vez de inventar.
-Tono: directo, sin relleno de IA, sin metáforas, español de México con tuteo (nunca voseo). Frases cortas.
-El objetivo es ayudar al Account Executive a definir su ICP y tomar decisiones de campaña de prospección. Cuando sea útil, sugiere una acción concreta usando SOLO estas funciones reales de la app (no inventes otras):
-${_histAppCapabilities()}
-
-DATOS (ya filtrados según lo que el usuario está viendo en el dashboard):
-${_histSummaryForAI()}`;
-  try{
-    const answer=await gcCallClaude(question, null, {system, maxTokens:900});
-    _histAiMessages.push({role:'ai',text:answer});
-  }catch(e){
-    _histAiMessages.push({role:'ai',text:'Error: '+e.message});
-  }
-  if(loading) loading.style.display='none';
-  if(msgsEl) msgsEl.innerHTML=_histAiMessages.map(m=>`<div class="hist-ai-msg ${m.role}">${_histEsc(m.text).replace(/\n/g,'<br>')}</div>`).join('');
-};
+// El "Buscador IA" que vivía aquí (histRenderIA/histAiAsk) se quitó 2026-08-20: duplicaba a 🥷 Ninja
+// IA, que ahora tiene acceso directo a este mismo dataset vía la herramienta
+// obtener_desempeno_historico_icp (ver ninjaObtenerDesempenoHistorico). Toda consulta con IA sobre
+// estos datos pasa por el chat de Ninja — un solo asistente, no dos.
 
 // ───────── Descargas ─────────
 // Los archivos fuente ya NO viven como estáticos en outbound-app (era un repo público en GitHub
@@ -15264,17 +15185,45 @@ let _ninjaBusy=false;
 let _ninjaMessages=[];   // para pintar: [{role:'user'|'ai'|'status', text}]
 let _ninjaApiHistory=[]; // formato Anthropic real: [{role,content}], incluye tool_use/tool_result
 
-const NINJA_SYSTEM_PROMPT=`Eres "Ninja IA", el asistente interno del equipo Outbound de Odoo México, dentro de outbound-app.
-Contestas SOLO con datos que te devuelvan tus herramientas — nunca inventes cifras, nombres de apps, artículos del Banco de Información, ni contenido de sesiones de Qcall. Si una herramienta no encuentra nada relevante, dilo directamente ("No encontré nada sobre eso en el Banco de Información") — no rellenes con generalidades.
+const NINJA_SYSTEM_PROMPT=`Eres "Ninja IA", el asistente interno de consulta del equipo Outbound de Odoo México, dentro de outbound-app. Eres el punto de entrada único para preguntas sobre datos, proceso o contenido de la app — no el buscador de un solo módulo, cruza lo que haga falta.
+
+REGLA DE ORO: contestas SOLO con datos que te devuelvan tus herramientas. Nunca inventes cifras, nombres de empresas/apps/artículos, ni contenido de sesiones. Si una herramienta no encuentra nada, dilo directo ("No encontré nada sobre eso") — no rellenes con generalidades.
+
+CONTEXTO DE CONVERSACIÓN: antes de pedirle al usuario que aclare algo, revisa los mensajes recientes del turno — casi siempre ahí ya está el tema, la empresa o la industria de la que se habla. Solo pide aclaración cuando de verdad no se pueda inferir. Ejemplo: si el usuario preguntó por el ICP del mes y luego escribe "busca en el banco de información" sin más, no regreses "¿sobre qué tema?" — usa el tema de la pregunta anterior (ICP / industrias objetivo) como término de búsqueda.
+
+PROACTIVIDAD: cuando una pregunta cruza varios módulos (p. ej. "¿cuál es un buen ICP este mes?"), combina varias herramientas en el mismo turno en vez de contestar con una sola y detenerte ahí — cruza el desempeño histórico con la cartera actual del usuario cuando aplique, no te quedes solo en el ICP genérico del wiki.
+
+TUS HERRAMIENTAS Y A QUÉ MÓDULO DE LA APP PERTENECEN:
+- buscar_banco_informacion → 📚 Banco de Información: argumentos de venta, pain points, objeciones, proceso comercial.
+- buscar_apps_odoo → 🗂️ Catálogo de apps: qué app de Odoo resuelve qué problema.
+- obtener_desempeno_historico_icp → 📈 Información Histórica: win-rate real de Outbound por industria/estado/fuente de lead. Úsala para CUALQUIER pregunta sobre ICP, qué industria prospectar, o qué ha convertido mejor — no contestes eso solo con el wiki.
+- obtener_mis_empresas_por_industria → 🏢 Empresas: cuántas empresas tiene hoy el usuario (o su equipo/organización) por industria. Combínala con obtener_desempeno_historico_icp para detectar huecos entre lo que ya se trabaja y lo que mejor convierte.
+- obtener_mis_kpis → actividad propia: Discoveries, Pricings, Propuestas, solicitudes CSV y oportunidades generadas.
+- obtener_metricas_equipo → 🎯 Métricas: forecast (MRR/NRR proyectado vs. logrado) y actividad semanal (intromeets, demos) de un mes.
+- obtener_mis_cadencias_activas → 📨 Cadencias: cadencias de correo en curso, respuestas, rebotes.
+- obtener_historial_empresa → 🏢 Empresas (vista 360 de una empresa puntual): Discovery/Qcall, Pricing, Propuestas, CSV, contenido generado (✉️ Generación de contenidos) y actividad de cadencias, todo junto.
+- obtener_areas_oportunidad_ae (solo tl/manager) → coaching de IA agregado de las últimas Qcalls de un AE.
+
+MÓDULOS SIN HERRAMIENTA DE CONSULTA — si preguntan por esto, dilo directo y manda a la pantalla correcta, no inventes datos:
+- ⚙️ Configuración (API keys, perfil propio): pantalla "⚙️ Configuración".
+- 👥 Manager (aprobaciones, roles de usuario): pantalla "👥 Manager", solo visible para manager.
+- 🎨 Framework Visual (guía de marca, colores, tipografía): pantalla "🎨 Framework Visual".
+- 📊 Analytics (actividad de todo el equipo): pantalla "📊 Analytics".
+- Proveedores de Timbres (PACs): botón de descarga en el menú lateral.
+
+Solo tienes acceso de LECTURA — no puedes crear, activar ni modificar nada (leads, cadencias, empresas, registros). Si te piden crear/activar/editar algo, explica que hoy solo consultas información, y qué pantalla de la app usar para hacerlo.
 ${SPANISH_ORTHOGRAPHY_RULE}
 Español de México, tuteo (nunca voseo). Frases cortas y directas, sin relleno corporativo ni metáforas. Texto plano, sin markdown (nada de **, ##, guiones de lista con asterisco) — esto se muestra en un panel de chat simple.
-Cuando te pidan "áreas de oportunidad" o coaching de un AE en sus Qcalls, sintetiza los patrones que se repiten entre sesiones — no listes cada sesión aparte salvo que te lo pidan explícitamente.
-Solo tienes acceso de LECTURA — no puedes crear, activar ni modificar nada. Si te piden crear un lead, activar una cadencia o algo similar, explica que hoy solo puedes consultar información, y qué pantalla de la app usar para eso.`;
+Cuando te pidan "áreas de oportunidad" o coaching de un AE en sus Qcalls, sintetiza los patrones que se repiten entre sesiones — no listes cada sesión aparte salvo que te lo pidan explícitamente.`;
 
 const NINJA_TOOL_LABELS={
   buscar_banco_informacion:'Buscando en el Banco de Información',
   buscar_apps_odoo:'Buscando en el catálogo de apps',
   obtener_mis_kpis:'Consultando tus KPIs',
+  obtener_desempeno_historico_icp:'Cruzando datos históricos de conversión (Outbound)',
+  obtener_mis_empresas_por_industria:'Contando tus empresas por industria',
+  obtener_metricas_equipo:'Consultando forecast y actividad del mes',
+  obtener_mis_cadencias_activas:'Revisando tus cadencias activas',
   obtener_areas_oportunidad_ae:'Juntando el coaching de sus Qcalls',
   obtener_historial_empresa:'Juntando el historial de la empresa',
 };
@@ -15293,6 +15242,21 @@ function ninjaToolDefs(){
     {name:'obtener_historial_empresa',
      description:'Contexto completo (360) de una empresa: datos básicos, sesiones de Discovery/Qcall, pricing generado, propuestas, solicitudes CSV, contenido guardado (correo/WhatsApp/LinkedIn/etc.) y actividad de cadencias de correo (enviados + respuestas). Úsala para cualquier pregunta sobre una empresa/cliente específico o su historial. Respeta tu alcance por rol — solo regresa empresas que ya puedes ver en la app.',
      input_schema:{type:'object',properties:{empresa:{type:'string',description:'Nombre (o parte del nombre) de la empresa'}},required:['empresa']}},
+    {name:'obtener_desempeno_historico_icp',
+     description:'Win-rate real de Outbound (CRM histórico Odoo México 2024-2026) por industria, estado y fuente de lead, más los motivos de pérdida más comunes. Úsala para CUALQUIER pregunta sobre ICP, qué industria/estado prospectar, o qué ha convertido mejor — no la sustituyas por el Banco de Información. Excluye por defecto los cuartiles más recientes que aún no maduran (los leads de Outbound tardan en cerrar, así que ahí el % ganado estaría subestimado).',
+     input_schema:{type:'object',properties:{
+       industria:{type:'string',description:'Filtra a una industria específica (opcional). Déjalo vacío para ver el top de todas.'},
+       incluirCuartilesRecientes:{type:'boolean',description:'true para incluir los cuartiles más recientes aunque no hayan madurado todavía (por defecto false).'}},
+       required:[]}},
+    {name:'obtener_mis_empresas_por_industria',
+     description:'Cuenta cuántas empresas tiene hoy el usuario (alcance por rol: propio / equipo si es tl / toda la organización si es manager) agrupadas por industria. Úsala junto con obtener_desempeno_historico_icp para detectar huecos entre la cartera actual y las industrias que mejor convierten.',
+     input_schema:{type:'object',properties:{},required:[]}},
+    {name:'obtener_metricas_equipo',
+     description:'Forecast (MRR/NRR proyectado vs. logrado) y actividad semanal (intromeets, demos) de un mes. Alcance por rol: propio si es AE, equipo si es tl, toda la organización si es manager. Úsala para saber qué tan cerca se va de la meta del mes o cuánta actividad de prospección lleva alguien.',
+     input_schema:{type:'object',properties:{mes:{type:'string',description:'Mes en formato YYYY-MM, por defecto el mes actual'}},required:[]}},
+    {name:'obtener_mis_cadencias_activas',
+     description:'Resumen de las cadencias de correo en curso del usuario: cuántas van, cuántas respondieron, tasa de apertura, rebotes, y qué empresas están activas ahora mismo.',
+     input_schema:{type:'object',properties:{},required:[]}},
   ];
   if(currentUserData?.role==='tl'||currentUserData?.role==='manager'){
     tools.push({name:'obtener_areas_oportunidad_ae',
@@ -15461,10 +15425,111 @@ async function ninjaObtenerHistorialEmpresa(empresa){
   };
 }
 
+// Win-rate histórico de Outbound por industria/estado/fuente — mismo dataset (HIST_FACTS) y mismo
+// criterio de agregación que _histSummaryForAI() (histRenderIA, módulo Información Histórica), para
+// que Ninja no le dé al usuario un número distinto al que ve si abre ese dashboard. Se excluyen por
+// defecto los cuartiles que todavía no maduran (HIST_CUTOFF_MADURO) para no subestimar el % ganado.
+function _ninjaDateToQuarter(dateStr){ const [y,m]=dateStr.split('-').map(Number); return `${y}Q${Math.ceil(m/3)}`; }
+async function ninjaObtenerDesempenoHistorico(input){
+  const industriaFiltro=(input?.industria||'').trim();
+  const incluirReciente=!!input?.incluirCuartilesRecientes;
+  const motion='Outbound';
+  const maxMaduro=_ninjaDateToQuarter(HIST_CUTOFF_MADURO[motion]);
+  const quarters=incluirReciente?HIST_QUARTERS:HIST_QUARTERS.filter(q=>q<=maxMaduro);
+  const inRange=q=>quarters.includes(q);
+
+  const indAgg={};
+  HIST_FACTS.FACT_LEADS.forEach(([q,m,industria,stage,n])=>{
+    if(m!==motion||!inRange(q)||industria==='Sin clasificar / Otra') return;
+    if(industriaFiltro&&industria.toLowerCase()!==industriaFiltro.toLowerCase()) return;
+    if(!indAgg[industria]) indAgg[industria]={n:0,won:0};
+    indAgg[industria].n+=n; if(stage==='Won') indAgg[industria].won+=n;
+  });
+  const industrias=Object.entries(indAgg).filter(([k,v])=>v.n>=20)
+    .map(([industria,v])=>({industria,volumen:v.n,ganados:v.won,winRatePct:Number((v.won/v.n*100).toFixed(1))}))
+    .sort((a,b)=>b.winRatePct-a.winRatePct);
+
+  const geoAgg={};
+  HIST_FACTS.FACT_GEO.forEach(([q,m,estado,n,won])=>{ if(m!==motion||!inRange(q)) return; if(!geoAgg[estado])geoAgg[estado]={n:0,won:0}; geoAgg[estado].n+=n; geoAgg[estado].won+=won; });
+  const estados=Object.entries(geoAgg).filter(([k,v])=>v.n>=20)
+    .map(([estado,v])=>({estado,volumen:v.n,ganados:v.won,winRatePct:Number((v.won/v.n*100).toFixed(1))}))
+    .sort((a,b)=>b.winRatePct-a.winRatePct).slice(0,8);
+
+  const srcAgg={};
+  HIST_FACTS.FACT_SOURCETAG.forEach(([q,m,fuente,n,won])=>{ if(m!==motion||!inRange(q)||fuente==='Otro / sin dato') return; if(!srcAgg[fuente])srcAgg[fuente]={n:0,won:0}; srcAgg[fuente].n+=n; srcAgg[fuente].won+=won; });
+  const fuentes=Object.entries(srcAgg).map(([fuente,v])=>({fuente,volumen:v.n,ganados:v.won}));
+
+  const lrAgg={};
+  HIST_FACTS.FACT_LOSTREASON.forEach(([q,m,motivo,n])=>{ if(m!==motion||!inRange(q)) return; lrAgg[motivo]=(lrAgg[motivo]||0)+n; });
+  const motivosPerdida=Object.entries(lrAgg).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([motivo,n])=>({motivo,n}));
+
+  return {
+    ventanaCuartiles:`${quarters[0]}–${quarters[quarters.length-1]}`,
+    nota:incluirReciente?'Incluye cuartiles recientes que aún no maduran para Outbound — el % ganado ahí puede estar subestimado.':`Solo cuartiles maduros para Outbound (hasta ${maxMaduro}) — los leads más nuevos no han tenido tiempo de cerrar, se excluyen para no subestimar el % ganado.`,
+    topIndustriasPorWinRate:industrias.slice(0,8),
+    ...(industriaFiltro&&!industrias.length?{avisoIndustria:`"${industriaFiltro}" no tiene suficiente volumen (mínimo 20 leads) en Outbound en esta ventana para dar un % confiable.`}:{}),
+    topEstadosPorWinRate:estados,
+    volumenPorFuente:fuentes,
+    topMotivosDePerdida:motivosPerdida,
+  };
+}
+
+// Cartera actual del usuario agrupada por industria (mismo alcance por rol que searchCompanies/
+// getUserScope) — para cruzar contra obtener_desempeno_historico_icp y ver dónde falta prospección.
+async function ninjaObtenerEmpresasPorIndustria(){
+  if(!db) return {error:'Sin conexión a la base de datos.'};
+  let companies;
+  try{ companies=await searchCompanies(''); }
+  catch(e){ return {error:'No se pudo leer el directorio de empresas: '+e.message}; }
+  const byGiro={};
+  companies.forEach(c=>{ const g=c.giro||'Sin industria asignada'; if(!byGiro[g])byGiro[g]={total:0,empresas:[]}; byGiro[g].total++; if(byGiro[g].empresas.length<5) byGiro[g].empresas.push(c.nombre); });
+  const industrias=Object.entries(byGiro).map(([giro,v])=>({giro,total:v.total,ejemplos:v.empresas})).sort((a,b)=>b.total-a.total);
+  return {totalEmpresas:companies.length, industrias};
+}
+
+// Forecast + actividad semanal de Métricas — reusa metLoadScoped() (mismo alcance por rol que ya usa
+// el módulo 🎯 Métricas) y el mismo filtro month/weekStart.startsWith(month) que _metFiltered().
+async function ninjaObtenerMetricasEquipo(mesInput){
+  if(!db||!currentUserData?.uid) return {error:'Sin conexión a la base de datos.'};
+  const month=(mesInput||'').trim()||_metMonthKey(new Date());
+  const role=currentUserData.role;
+  let forecasts,activities;
+  try{ [forecasts,activities]=await Promise.all([metLoadScoped('forecastRecords'),metLoadScoped('metActivityRecords')]); }
+  catch(e){ return {error:'No se pudieron leer las métricas: '+e.message}; }
+  const fc=forecasts.filter(r=>r.month===month);
+  const act=activities.filter(r=>r.weekStart&&r.weekStart.startsWith(month));
+  const porAE={};
+  fc.forEach(r=>{ porAE[r.aeUid]=porAE[r.aeUid]||{ae:r.aeName}; Object.assign(porAE[r.aeUid],{targetMRR:r.targetMRR||0,targetNRR:r.targetNRR||0,actualMRR:r.actualMRR||0,actualNRR:r.actualNRR||0}); });
+  act.forEach(r=>{ porAE[r.aeUid]=porAE[r.aeUid]||{ae:r.aeName}; porAE[r.aeUid].intromeets=(porAE[r.aeUid].intromeets||0)+(r.intromeets||0); porAE[r.aeUid].demos=(porAE[r.aeUid].demos||0)+(r.demos||0); });
+  const porPersona=Object.values(porAE);
+  const totales=porPersona.reduce((s,a)=>({targetMRR:s.targetMRR+(a.targetMRR||0),targetNRR:s.targetNRR+(a.targetNRR||0),actualMRR:s.actualMRR+(a.actualMRR||0),actualNRR:s.actualNRR+(a.actualNRR||0),intromeets:s.intromeets+(a.intromeets||0),demos:s.demos+(a.demos||0)}),{targetMRR:0,targetNRR:0,actualMRR:0,actualNRR:0,intromeets:0,demos:0});
+  return {mes:month, alcance:role==='manager'?'toda la organización':role==='tl'?'tu equipo':'tú', resumen:totales, porPersona};
+}
+
+// Cadencias en curso — mismo endpoint /cadences/active y agregación cadComputeStats() que usa la
+// pestaña "Activas" del módulo 📨 Cadencias, scopeado server-side por el mismo token del usuario.
+async function ninjaObtenerCadenciasActivas(){
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/active',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) return {error:data.error||`Error ${res.status} al leer cadencias activas.`};
+    const list=data.cadences||[];
+    const stats=cadComputeStats(list);
+    const porEstado={activa:0,respondio:0,detenida:0,rebotada:0};
+    list.forEach(c=>{ if(c.status==='respondio')porEstado.respondio++; else if(c.status==='activa')porEstado.activa++; else if(c.stopReason==='Rebote detectado.')porEstado.rebotada++; else porEstado.detenida++; });
+    return {total:list.length, ...stats, porEstado, empresasActivas:list.filter(c=>c.status==='activa').slice(0,10).map(c=>c.companyName||c.leadEmail||'')};
+  }catch(e){ return {error:'No se pudieron leer las cadencias activas: '+e.message}; }
+}
+
 const NINJA_TOOL_EXECUTORS={
   buscar_banco_informacion:i=>ninjaBuscarWiki(i.query),
   buscar_apps_odoo:i=>ninjaBuscarApps(i.query),
   obtener_mis_kpis:i=>ninjaObtenerMisKPIs(i.meses),
+  obtener_desempeno_historico_icp:i=>ninjaObtenerDesempenoHistorico(i),
+  obtener_mis_empresas_por_industria:()=>ninjaObtenerEmpresasPorIndustria(),
+  obtener_metricas_equipo:i=>ninjaObtenerMetricasEquipo(i.mes),
+  obtener_mis_cadencias_activas:()=>ninjaObtenerCadenciasActivas(),
   obtener_areas_oportunidad_ae:i=>ninjaObtenerAreasOportunidadAE(i.ae,i.cantidadSesiones),
   obtener_historial_empresa:i=>ninjaObtenerHistorialEmpresa(i.empresa),
 };
@@ -15484,7 +15549,21 @@ async function ninjaCallClaudeRaw(messages,tools){
 
 // Tope duro de round-trips por turno — protección contra un loop descontrolado (mismo espíritu que
 // el pico de gasto de Claude API del 2026-08-10), sin necesidad de una cuota dura tipo quota.js para v1.
-const NINJA_MAX_TOOL_ITERATIONS=4;
+const NINJA_MAX_TOOL_ITERATIONS=6;
+
+// Preguntas de ejemplo en el estado vacío — mismo patrón que HIST_AI_EXAMPLES (histRenderIA), para
+// que el usuario no tenga que adivinar qué se puede preguntar.
+const NINJA_SUGGESTED_QUESTIONS=[
+  '¿Cuál es un buen ICP para prospectar este mes?',
+  '¿Cómo voy contra mi meta del mes?',
+  '¿Qué industria convierte mejor en Outbound?',
+  'Busca en el Banco de Información objeciones de precio',
+];
+window.ninjaAskChip=function(q){
+  const input=document.getElementById('ninjaInput');
+  if(input) input.value=q;
+  ninjaSend();
+};
 
 async function ninjaRunTurn(userText){
   const tools=ninjaToolDefs();
@@ -15561,7 +15640,8 @@ function ninjaRenderMessages(){
   const el=document.getElementById('ninjaMsgs'); if(!el) return;
   const canCoaching=currentUserData?.role==='tl'||currentUserData?.role==='manager';
   if(!_ninjaMessages.length){
-    el.innerHTML=`<div class="ninja-empty">Pregúntame sobre el Banco de Información, el catálogo de apps de Odoo, tus KPIs, o el historial completo de una empresa (Discovery, pricing, propuestas, cadencias, contenido guardado).${canCoaching?' Como '+(currentUserData.role==='manager'?'manager':'TL')+', también puedo juntarte las áreas de oportunidad de un AE en sus últimas Qcalls.':''}</div>`;
+    el.innerHTML=`<div class="ninja-empty">Pregúntame sobre el Banco de Información, el catálogo de apps de Odoo, tus KPIs, ICP e industrias que mejor convierten, forecast/actividad del mes, cadencias activas, o el historial completo de una empresa (Discovery, pricing, propuestas, cadencias, contenido guardado).${canCoaching?' Como '+(currentUserData.role==='manager'?'manager':'TL')+', también puedo juntarte las áreas de oportunidad de un AE en sus últimas Qcalls.':''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${NINJA_SUGGESTED_QUESTIONS.map(q=>`<button class="hist-chip" onclick="ninjaAskChip(${JSON.stringify(q).replace(/"/g,'&quot;')})">${_histEsc(q)}</button>`).join('')}</div>`;
   } else {
     el.innerHTML=_ninjaMessages.map(m=>{
       if(m.role==='status') return `<div class="hist-muted" style="font-size:12px;margin-bottom:8px">${_histEsc(m.text)}</div>`;
