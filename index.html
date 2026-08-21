@@ -13410,6 +13410,54 @@ function _csvContactMatches(existing, contact){
   if(ee&&ce) return ee===ce;
   return _csvNameKey(existing.nombre)===_csvNameKey(contact.nombre);
 }
+// Mapeo determinista texto libre de industria (Apollo en inglés, DENUE/DIRIND/Outscraper en
+// español) → los 15 giros fijos del CRM (Object.keys(INDUSTRY_MAP), ver empShowCreate). Mismo
+// espíritu "mejor esfuerzo, muchos-a-muchos, inevitablemente aproximado" que ya usa el backend
+// para GIRO_TO_DENUE_INDUSTRIA (denue.js) — aquí es la dirección inversa. Orden importa: la
+// primera coincidencia gana, así que los patrones más específicos van antes que los genéricos.
+// Si nada calza, regresa '' (mismo comportamiento de siempre, sin regresión).
+const _CSV_GIRO_KEYWORDS=[
+  ['Restaurante',['restaurant','food & beverage','catering',' bar','preparación de alimentos','alojamiento temporal y de preparación']],
+  ['Construcción',['construction','construc','arquitect','contratista','ingeniería civil']],
+  ['Manufactura',['manufactur','fábrica','fabrica','plastics','machinery','maquinaria','autopartes','metalmecánic','metalmecanic']],
+  ['Software/IT',['software','information technology','it services','tecnología de la información','saas','cloud','computer software','desarrollo de software','sistemas computacionales']],
+  ['Salud',['health','hospital','medical','pharma','farmac','clínica','clinica','servicios de salud','dental']],
+  ['Educación',['education','school','universidad','colegio','capacitación','servicios educativos']],
+  ['Inmobiliaria',['real estate','inmobiliaria','bienes raíces','bienes raices','property management']],
+  ['Logística',['logistics','warehous','almacenamiento','transportes, correos','supply chain','3pl']],
+  ['Agricultura',['farming','agricultur','ganader','pesca','forestal','agropecuario','minería','mineria']],
+  ['Turismo',['tourism','hospitality','hotel','travel','turismo','esparcimiento','recreativ']],
+  ['Ecommerce',['e-commerce','ecommerce','online retail','marketplace','tienda en línea','tienda en linea']],
+  ['Comercializadora',['wholesale','comercio al por mayor','comercializadora']],
+  ['Distribución',['distribution','distribuidora','distribución','transport']],
+  ['Retail',['retail','comercio al por menor','boutique','grocery','supermercado',' tienda']],
+  ['Servicios',['services','consulting','consultor','servicios profesionales','financial services','servicios financieros','insurance','seguros','marketing','publicidad','legal services','human resources','recursos humanos','otros servicios','corporativos']],
+];
+function _csvIndustriaToGiro(raw){
+  const t=_csvNorm(raw);
+  if(!t) return '';
+  for(const [giro,keywords] of _CSV_GIRO_KEYWORDS){
+    if(keywords.some(k=>t.includes(_csvNorm(k)))) return giro;
+  }
+  return '';
+}
+// DENUE trae su propio bucket de personal ocupado (más confiable para PyMEs MX que el estimado de
+// Apollo) — se prioriza sobre 'empleados' cuando existe. Buckets DENUE ver DENUE_SIZE_BUCKETS en
+// providers/denue.js (backend); aquí solo se traduce a los 4 buckets fijos del CRM.
+const _DENUE_TAMANO_MAP={
+  '0 a 5 personas':'1-10 empleados', '6 a 10 personas':'1-10 empleados',
+  '11 a 30 personas':'11-50 empleados', '31 a 50 personas':'11-50 empleados',
+  '51 a 100 personas':'51-200 empleados', '101 a 250 personas':'51-200 empleados',
+};
+function _csvEmpleadosToTamano(empleados, denuePersonalOcupado){
+  if(denuePersonalOcupado&&_DENUE_TAMANO_MAP[denuePersonalOcupado]) return _DENUE_TAMANO_MAP[denuePersonalOcupado];
+  const n=Number(empleados);
+  if(!n||n<=0) return '';
+  if(n<=10) return '1-10 empleados';
+  if(n<=50) return '11-50 empleados';
+  if(n<=200) return '51-200 empleados';
+  return '200+ empleados';
+}
 // Adivina el 'origen' (enum de empShowCreate) a partir del texto libre de Fuente del lead en modo
 // pegar/subir — mejor esfuerzo, nunca inventa: si no reconoce nada, deja vacío para que el AE lo
 // llene a mano en Empresas (igual que ya es opcional en ese formulario).
@@ -13440,9 +13488,13 @@ async function csvSyncRowsToCRM(rows){
       const dk=_csvDomainKey(row.Website);
       const nk=_csvNameKey(row.partner_name);
       const co=(dk&&byDomain.get(dk))||byName.get(nk);
+      // Campos limpios que manda el backend (linkedin_contacto/_empresa) — si el row viene de un
+      // job de búsqueda (Apollo/DENUE/DIRIND/Outscraper) ya vienen resueltos; _csvExtractFromNotes
+      // queda solo de respaldo para rows viejos (creados antes de 2026-08-21) o del flujo de
+      // pegar/subir archivo, que no trae esos campos estructurados.
       const contact=row.contact_name?.trim()?{
         nombre:row.contact_name.trim(), cargo:row.function||'', correo:row.Email||'',
-        phone:row.phone||'', linkedin:_csvExtractFromNotes(row.notes,['LinkedIn contacto','LinkedIn']),
+        phone:row.phone||'', linkedin:row._linkedinContactoRaw||_csvExtractFromNotes(row.notes,['LinkedIn contacto','LinkedIn']),
       }:null;
       if(co){
         if(contact&&!(co.contacts||[]).some(c=>_csvContactMatches(c,contact))){
@@ -13453,8 +13505,11 @@ async function csvSyncRowsToCRM(rows){
         }
       } else {
         const nuevo={
-          nombre:row.partner_name.trim(), giro:'', tamaño:'', origen:row._origen||'',
-          website:row.Website||'', linkedin:_csvExtractFromNotes(row.notes,['LinkedIn empresa']),
+          nombre:row.partner_name.trim(),
+          giro:_csvIndustriaToGiro(row._industriaRaw),
+          tamaño:_csvEmpleadosToTamano(row._empleadosRaw,row._denuePersonalOcupadoRaw),
+          origen:row._origen||'',
+          website:row.Website||'', linkedin:row._linkedinEmpresaRaw||_csvExtractFromNotes(row.notes,['LinkedIn empresa']),
           contacts:contact?[contact]:[],
         };
         const id=await saveCompany(nuevo); if(!id) continue;
@@ -13653,6 +13708,11 @@ function csvLoadJobIntoRows(job){
       _fuentePrimaria:fuentePrimaria,
       _origen:fuentePrimaria!=='apollo'?'Bases de datos':'Apollo',
       _industriaRaw:row.industria||'',
+      // Campos limpios que el backend ya manda (linkedin_contacto/linkedin_empresa/empleados/
+      // denue_personal_ocupado) pero que hasta 2026-08-21 se perdían aquí — csvSyncRowsToCRM
+      // terminaba creando la empresa con giro/tamaño/LinkedIn vacíos aunque el dato ya existía.
+      _linkedinContactoRaw:row.linkedin_contacto||'', _linkedinEmpresaRaw:row.linkedin_empresa||'',
+      _empleadosRaw:row.empleados||null, _denuePersonalOcupadoRaw:row.denue_personal_ocupado||'',
     };
   });
   csvRenderTable();
