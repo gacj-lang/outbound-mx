@@ -15203,6 +15203,9 @@ TUS HERRAMIENTAS Y A QUÉ MÓDULO DE LA APP PERTENECEN:
 - obtener_mis_cadencias_activas → 📨 Cadencias: cadencias de correo en curso, respuestas, rebotes.
 - obtener_historial_empresa → 🏢 Empresas (vista 360 de una empresa puntual): Discovery/Qcall, Pricing, Propuestas, CSV, contenido generado (✉️ Generación de contenidos) y actividad de cadencias, todo junto.
 - obtener_areas_oportunidad_ae (solo tl/manager) → coaching de IA agregado de las últimas Qcalls de un AE.
+- web_search → búsqueda real en internet. Úsala SOLO para lo que ninguna herramienta interna cubre: contexto público de una empresa/prospecto, términos o panorama de una industria, algo de coyuntura reciente — típicamente una duda que surge a media llamada de Qcall/Intromeet y que no está en el Banco de Información. Nunca la uses para algo que ya cubre una herramienta interna (wiki, apps, CRM, KPIs) — ahí esa herramienta manda siempre primero.
+
+FUENTE DE LA RESPUESTA: cuando uses web_search, dile al usuario que esa parte viene de una búsqueda en internet (no de los datos de la app) y agrega la fuente. Es información externa, no verificada por el equipo — adviértelo si es sensible (cifras, fechas, datos financieros de un prospecto). Nunca mezcles dato interno y búsqueda externa sin dejar claro cuál es cuál.
 
 MÓDULOS SIN HERRAMIENTA DE CONSULTA — si preguntan por esto, dilo directo y manda a la pantalla correcta, no inventes datos:
 - ⚙️ Configuración (API keys, perfil propio): pantalla "⚙️ Configuración".
@@ -15266,6 +15269,15 @@ function ninjaToolDefs(){
         cantidadSesiones:{type:'integer',description:'Cuántas sesiones recientes considerar, por defecto 8, máximo 20'}},
         required:['ae']}});
   }
+  // Búsqueda web real (tool nativa server-side de Anthropic, no requiere ejecución local ni entra al
+  // loop de tool_result de abajo) — para dudas fuera de los datos internos de la app: contexto público
+  // de un prospecto, términos de una industria, algo de coyuntura. Tope de 3 búsquedas por turno.
+  // Nota: esta misma tool (web_search_20250305) se había quitado de csvEnrichRowsWithAI el 2026-08-10
+  // por el pico de gasto real (~15M tokens/día) — pero ahí el riesgo era Promise.all sin tope de
+  // concurrencia sobre cientos de filas de un CSV. Aquí el patrón es distinto: chat interactivo,
+  // 1 mensaje humano a la vez, ya acotado por NINJA_MAX_TOOL_ITERATIONS (6) + max_uses (3) — sin el
+  // fan-out concurrente que causó el pico. Vale vigilar el consumo real las primeras semanas de todos modos.
+  tools.push({type:'web_search_20250305', name:'web_search', max_uses:3});
   return tools;
 }
 
@@ -15540,7 +15552,7 @@ async function ninjaCallClaudeRaw(messages,tools){
   const res=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-5',max_tokens:1500,system:NINJA_SYSTEM_PROMPT,tools,messages}),
+    body:JSON.stringify({model:'claude-sonnet-5',max_tokens:2048,system:NINJA_SYSTEM_PROMPT,tools,messages}),
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
@@ -15565,16 +15577,34 @@ window.ninjaAskChip=function(q){
   ninjaSend();
 };
 
+// web_search es una tool server-side (Anthropic la ejecuta y resuelve dentro de la misma respuesta,
+// como bloques server_tool_use/web_search_tool_result) — no pasa por el loop de tool_result de abajo.
+// Solo la detectamos para avisar al usuario y juntar las fuentes citadas (ver regla "FUENTE DE LA
+// RESPUESTA" del system prompt).
+function _ninjaUsedWebSearch(content){ return (content||[]).some(b=>b.type==='server_tool_use'&&b.name==='web_search'); }
+function _ninjaExtractCitations(content){
+  const urls=new Set();
+  (content||[]).forEach(b=>{ if(b.type==='text'&&Array.isArray(b.citations)) b.citations.forEach(c=>{ if(c.url) urls.add(c.url); }); });
+  return [...urls].slice(0,5);
+}
+
 async function ninjaRunTurn(userText){
   const tools=ninjaToolDefs();
   let messages=[..._ninjaApiHistory,{role:'user',content:userText}];
   for(let i=0;i<NINJA_MAX_TOOL_ITERATIONS;i++){
     const data=await ninjaCallClaudeRaw(messages,tools);
     messages.push({role:'assistant',content:data.content});
+    if(_ninjaUsedWebSearch(data.content)){
+      _ninjaMessages.push({role:'status',text:'Buscando en internet…'});
+      ninjaRenderMessages();
+    }
     if(data.stop_reason!=='tool_use'){
       _ninjaApiHistory=messages;
       const textBlock=(data.content||[]).find(b=>b.type==='text');
-      return textBlock?textBlock.text:'(sin respuesta)';
+      let answer=textBlock?textBlock.text:'(sin respuesta)';
+      const fuentes=_ninjaExtractCitations(data.content);
+      if(fuentes.length) answer+='\n\nFuentes: '+fuentes.join(' · ');
+      return answer;
     }
     const toolUses=(data.content||[]).filter(b=>b.type==='tool_use');
     const toolResults=[];
@@ -15640,7 +15670,7 @@ function ninjaRenderMessages(){
   const el=document.getElementById('ninjaMsgs'); if(!el) return;
   const canCoaching=currentUserData?.role==='tl'||currentUserData?.role==='manager';
   if(!_ninjaMessages.length){
-    el.innerHTML=`<div class="ninja-empty">Pregúntame sobre el Banco de Información, el catálogo de apps de Odoo, tus KPIs, ICP e industrias que mejor convierten, forecast/actividad del mes, cadencias activas, o el historial completo de una empresa (Discovery, pricing, propuestas, cadencias, contenido guardado).${canCoaching?' Como '+(currentUserData.role==='manager'?'manager':'TL')+', también puedo juntarte las áreas de oportunidad de un AE en sus últimas Qcalls.':''}</div>
+    el.innerHTML=`<div class="ninja-empty">Pregúntame sobre el Banco de Información, el catálogo de apps de Odoo, tus KPIs, ICP e industrias que mejor convierten, forecast/actividad del mes, cadencias activas, o el historial completo de una empresa (Discovery, pricing, propuestas, cadencias, contenido guardado). Si algo no está en nuestros datos, también puedo buscarlo en internet — útil a media Qcall si te surge una duda.${canCoaching?' Como '+(currentUserData.role==='manager'?'manager':'TL')+', también puedo juntarte las áreas de oportunidad de un AE en sus últimas Qcalls.':''}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${NINJA_SUGGESTED_QUESTIONS.map(q=>`<button class="hist-chip" onclick="ninjaAskChip(${JSON.stringify(q).replace(/"/g,'&quot;')})">${_histEsc(q)}</button>`).join('')}</div>`;
   } else {
     el.innerHTML=_ninjaMessages.map(m=>{
