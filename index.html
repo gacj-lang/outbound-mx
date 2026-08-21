@@ -4870,21 +4870,24 @@ async function _searchCompaniesAll(){
   const snap=await getDocs(query(collection(db,'companies'),orderBy('nombre')));
   return snap.docs.map(d=>({id:d.id,...d.data()}));
 }
-// SOLO createdByUid — NO asignadoUid/gram, aunque matchesScope() (arriba, ya no la llama nadie más
-// que este comentario) sí los usaba. Corregido 2026-08-21 tras probar contra las reglas reales de
-// Firestore que el usuario compartió: match /companies/{id} { allow read: if createdByUid ==
-// request.auth.uid || (isTL() && get(users/{createdByUid}).tlId==... ) || isManager() } — la regla
-// NUNCA revisa asignadoUid ni ningún campo *Gram. Mi primer intento de este fix consultaba por
-// asignadoUid y seguía tronando en silencio (permission-denied → catch()→[]) para cuentas con
-// empresas reasignadas, porque Firestore evalúa la regla contra el documento real, no contra el
-// campo que filtró la query. Gap real y separado: una empresa reasignada a otro AE (asignadoUid
-// nuevo, createdByUid del creador original) hoy es ILEGIBLE para su nuevo dueño hasta que se
-// actualice la regla — reportado al usuario aparte, no se resuelve solo con este cambio de query.
-// 'in' se trocea de 30 (límite real de Firestore) — de sobra para cualquier equipo real hoy.
+// createdByUid + asignadoUid (NO gram — ningún campo *Gram está en la regla). 2026-08-21: primer
+// intento consultaba por asignadoUid y tronaba en silencio (permission-denied → catch()→[]) porque
+// la regla de 'companies' solo autorizaba createdByUid; se corrigió a consultar solo por
+// createdByUid mientras el usuario actualizaba la regla. El usuario ya publicó la regla nueva (ver
+// [[project_creador_vs_asignado_toda_la_app]]) — match /companies/{id} { allow read: if
+// createdByUid==request.auth.uid || asignadoUid==request.auth.uid || (isTL() && ... vía
+// users/{createdByUid|asignadoUid}.tlId) || isManager() } — así que ahora sí se agrega asignadoUid
+// a la query: una empresa reasignada a otro AE ya es legible Y ya se pide. 'in' se trocea de 30
+// (límite real de Firestore) — de sobra para cualquier equipo real hoy. Resultados con id repetido
+// (empresa que matchea por las dos vías, o creada y asignada a la misma persona) se deduplican.
 async function _searchCompaniesByScope(scope){
   const chunk=(arr,n)=>{ const out=[]; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; };
   const uidsArr=[...scope.uids];
-  const queries=chunk(uidsArr,30).map(c=>getDocs(query(collection(db,'companies'),where('createdByUid','in',c))));
+  const queries=[];
+  for(const c of chunk(uidsArr,30)){
+    queries.push(getDocs(query(collection(db,'companies'),where('createdByUid','in',c))));
+    queries.push(getDocs(query(collection(db,'companies'),where('asignadoUid','in',c))));
+  }
   if(!queries.length) return [];
   const snaps=await Promise.all(queries);
   const byId=new Map();
