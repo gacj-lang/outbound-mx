@@ -4870,26 +4870,21 @@ async function _searchCompaniesAll(){
   const snap=await getDocs(query(collection(db,'companies'),orderBy('nombre')));
   return snap.docs.map(d=>({id:d.id,...d.data()}));
 }
-// Mismo OR de 4 vías que matchesScope() (asignado/createdBy × uid/gram) pero resuelto EN Firestore
-// con queries where(...,'in',...) en paralelo, en vez de bajar todo y comparar en JS — companies
-// viejas (antes del backfill pendiente, ver Manager→Mantenimiento) no siempre tienen asignado*, así
-// que no basta con consultar solo por asignadoUid; se mantienen las 4 vías para no perder ninguna
-// empresa que antes sí aparecía por el fallback createdBy*/gram. 'in' se trocea de 30 (límite real
-// de Firestore) — de sobra para cualquier equipo real hoy. Resultados con id repetido (empresa que
-// matchea por más de una vía) se deduplican; el orden por nombre se rehace en el cliente porque ya
-// no hay un solo query con orderBy que cubra las 4 vías combinadas.
+// SOLO createdByUid — NO asignadoUid/gram, aunque matchesScope() (arriba, ya no la llama nadie más
+// que este comentario) sí los usaba. Corregido 2026-08-21 tras probar contra las reglas reales de
+// Firestore que el usuario compartió: match /companies/{id} { allow read: if createdByUid ==
+// request.auth.uid || (isTL() && get(users/{createdByUid}).tlId==... ) || isManager() } — la regla
+// NUNCA revisa asignadoUid ni ningún campo *Gram. Mi primer intento de este fix consultaba por
+// asignadoUid y seguía tronando en silencio (permission-denied → catch()→[]) para cuentas con
+// empresas reasignadas, porque Firestore evalúa la regla contra el documento real, no contra el
+// campo que filtró la query. Gap real y separado: una empresa reasignada a otro AE (asignadoUid
+// nuevo, createdByUid del creador original) hoy es ILEGIBLE para su nuevo dueño hasta que se
+// actualice la regla — reportado al usuario aparte, no se resuelve solo con este cambio de query.
+// 'in' se trocea de 30 (límite real de Firestore) — de sobra para cualquier equipo real hoy.
 async function _searchCompaniesByScope(scope){
   const chunk=(arr,n)=>{ const out=[]; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; };
-  const uidsArr=[...scope.uids], gramsArr=[...scope.grams];
-  const queries=[];
-  for(const c of chunk(uidsArr,30)){
-    queries.push(getDocs(query(collection(db,'companies'),where('asignadoUid','in',c))));
-    queries.push(getDocs(query(collection(db,'companies'),where('createdByUid','in',c))));
-  }
-  for(const c of chunk(gramsArr,30)){
-    queries.push(getDocs(query(collection(db,'companies'),where('asignadoGram','in',c))));
-    queries.push(getDocs(query(collection(db,'companies'),where('createdByGram','in',c))));
-  }
+  const uidsArr=[...scope.uids];
+  const queries=chunk(uidsArr,30).map(c=>getDocs(query(collection(db,'companies'),where('createdByUid','in',c))));
   if(!queries.length) return [];
   const snaps=await Promise.all(queries);
   const byId=new Map();
