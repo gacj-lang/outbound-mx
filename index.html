@@ -4839,19 +4839,62 @@ function matchesScope(c,scope){
 // opts.all=true se salta el alcance por rol y regresa TODAS las empresas — para el link "Buscar en
 // todas las empresas" del picker (m2oShowAllCompanies) y para el cruce de deduplicación al importar
 // CSVs al CRM (csvSyncRowsToCRM), que debe comparar contra la empresa completa, no solo tu alcance.
+//
+// Bug real 2026-08-21 (reportado por el usuario: Empresas tardaba 1-2 min en cargar, y a una cuenta
+// 'account' le salía "No hay empresas registradas todavía" aunque el manager SÍ le veía empresas
+// asignadas): esta función bajaba la colección 'companies' COMPLETA en cada carga, sin importar el
+// rol, y filtraba el alcance en el navegador (matchesScope). Dos consecuencias reales del mismo
+// origen: 1) el tiempo de carga escalaba con el TOTAL de empresas de toda la cuenta, no con las del
+// usuario — lento para todos, peor entre más crece la base; 2) cualquier error a medio bajar esa
+// colección grande (timeout, throttling de Firestore, conexión lenta) caía en el catch() y regresaba
+// [] en silencio — indistinguible en pantalla de "de verdad no tienes empresas". Fix: para tl/account
+// (scope.all===false) el filtro ahora corre EN Firestore (_searchCompaniesByScope), no en el
+// navegador — manager y opts.all siguen bajando la colección completa porque de verdad necesitan
+// verla toda (pendiente si algún día hace falta paginar esa vista, fuera de alcance de este fix).
 async function searchCompanies(term='', opts={}){
   if(!db) return [];
   try{
-    const snap=await getDocs(query(collection(db,'companies'),orderBy('nombre')));
-    let all=snap.docs.map(d=>({id:d.id,...d.data()}));
-    if(!opts.all){
+    let all;
+    if(opts.all){
+      all=await _searchCompaniesAll();
+    } else {
       const scope=await getUserScope();
-      if(!scope.all) all=all.filter(c=>matchesScope(c,scope));
+      all=scope.all?await _searchCompaniesAll():await _searchCompaniesByScope(scope);
     }
     if(!term) return all;
     const t=term.toLowerCase();
     return all.filter(c=>(c.nombre||'').toLowerCase().includes(t)||(c.giro||'').toLowerCase().includes(t));
-  } catch(e){ return []; }
+  } catch(e){ console.warn('searchCompanies:',e); return []; }
+}
+async function _searchCompaniesAll(){
+  const snap=await getDocs(query(collection(db,'companies'),orderBy('nombre')));
+  return snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+// Mismo OR de 4 vías que matchesScope() (asignado/createdBy × uid/gram) pero resuelto EN Firestore
+// con queries where(...,'in',...) en paralelo, en vez de bajar todo y comparar en JS — companies
+// viejas (antes del backfill pendiente, ver Manager→Mantenimiento) no siempre tienen asignado*, así
+// que no basta con consultar solo por asignadoUid; se mantienen las 4 vías para no perder ninguna
+// empresa que antes sí aparecía por el fallback createdBy*/gram. 'in' se trocea de 30 (límite real
+// de Firestore) — de sobra para cualquier equipo real hoy. Resultados con id repetido (empresa que
+// matchea por más de una vía) se deduplican; el orden por nombre se rehace en el cliente porque ya
+// no hay un solo query con orderBy que cubra las 4 vías combinadas.
+async function _searchCompaniesByScope(scope){
+  const chunk=(arr,n)=>{ const out=[]; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out; };
+  const uidsArr=[...scope.uids], gramsArr=[...scope.grams];
+  const queries=[];
+  for(const c of chunk(uidsArr,30)){
+    queries.push(getDocs(query(collection(db,'companies'),where('asignadoUid','in',c))));
+    queries.push(getDocs(query(collection(db,'companies'),where('createdByUid','in',c))));
+  }
+  for(const c of chunk(gramsArr,30)){
+    queries.push(getDocs(query(collection(db,'companies'),where('asignadoGram','in',c))));
+    queries.push(getDocs(query(collection(db,'companies'),where('createdByGram','in',c))));
+  }
+  if(!queries.length) return [];
+  const snaps=await Promise.all(queries);
+  const byId=new Map();
+  snaps.forEach(snap=>snap.docs.forEach(d=>{ if(!byId.has(d.id)) byId.set(d.id,{id:d.id,...d.data()}); }));
+  return [...byId.values()].sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
 }
 
 async function getCompany(id){
@@ -10153,10 +10196,13 @@ async function empLoad(){
     const role=currentUserData?.role;
     scopeLabel.textContent=_empShowAll?'· mostrando todas':role==='manager'?'· mostrando todas':role==='tl'?'· mostrando tu equipo':'· mostrando las tuyas';
   }
-  // Enrich with document counts from Firestore collections
-  for(const co of _allEmpresas){
-    co._docs={discovery:0,pricing:0};
-    if(db){
+  // Enrich with document counts from Firestore collections — TODAS las empresas a la vez (antes
+  // era un for...of con await adentro: una empresa a la vez, en serie — con N empresas eso son N
+  // pares de round-trips secuenciales, el segundo cuello de botella real detrás de la lentitud de
+  // Empresas reportada 2026-08-21 (el primero era searchCompanies(), ver comentario ahí arriba).
+  if(db){
+    await Promise.all(_allEmpresas.map(async co=>{
+      co._docs={discovery:0,pricing:0};
       try{
         const [d,p]=await Promise.all([
           getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',co.id))),
@@ -10164,7 +10210,9 @@ async function empLoad(){
         ]);
         co._docs.discovery=d.size; co._docs.pricing=p.size;
       } catch(e){}
-    }
+    }));
+  } else {
+    _allEmpresas.forEach(co=>{ co._docs={discovery:0,pricing:0}; });
   }
   // Populate account filter for TL/manager
   const accountSel=document.getElementById('empAccountFilter');
