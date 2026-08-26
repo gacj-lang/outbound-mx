@@ -15492,12 +15492,31 @@ function ninjaToolDefs(){
 async function ninjaBuscarWiki(queryText){
   const q=(queryText||'').toLowerCase().trim();
   if(!q) return {error:'Falta el término de búsqueda.'};
+  if(!db) return {error:'Sin conexión a la base de datos.'};
   const terms=q.split(/\s+/).filter(Boolean);
-  const all=WIKI_SEED_BATCHES.flatMap(b=>b.articles);
+  // Antes esto buscaba sobre WIKI_SEED_BATCHES (el array fijo con el que se siembra Firestore una
+  // sola vez) en vez de sobre wikiArticles en vivo — cualquier artículo creado/editado/borrado desde
+  // el Manager (wikiSaveArticle/wikiDelete) era invisible para el Ninja aunque sí apareciera en la
+  // pantalla de Banco de Información. Bug real reportado 2026-08-26 — ahora consulta Firestore directo.
+  let all=[];
+  try{
+    await wikiSeedIfEmpty();
+    const snap=await getDocs(collection(db,'wikiArticles'));
+    all=snap.docs.map(d=>d.data());
+  }catch(e){
+    return {error:'No se pudo consultar el Banco de Información: '+e.message};
+  }
   const score=a=>{ const hay=(a.title+' '+a.summary+' '+(a.tags||[]).join(' ')).toLowerCase(); return terms.reduce((s,t)=>s+(hay.includes(t)?1:0),0); };
   const matches=all.map(a=>({a,s:score(a)})).filter(x=>x.s>0).sort((x,y)=>y.s-x.s).slice(0,3);
-  if(!matches.length) return {resultados:[], mensaje:'No se encontró nada en el Banco de Información para esa búsqueda.'};
-  return {resultados:matches.map(({a})=>({titulo:a.title, resumen:a.summary, contenido:(a.bodyRaw||'').slice(0,1500), fuente:a.source||''}))};
+  // Casos de éxito viven aparte (SUCCESS_STORIES_INDEX, local a propósito — ver wikiRenderCasos) pero
+  // son contenido real del Banco de Información y antes tampoco los alcanzaba ninguna herramienta.
+  const scoreCaso=c=>{ const hay=(c.empresa+' '+c.resumen+' '+(c.giros||[]).join(' ')).toLowerCase(); return terms.reduce((s,t)=>s+(hay.includes(t)?1:0),0); };
+  const casos=SUCCESS_STORIES_INDEX.map(c=>({c,s:scoreCaso(c)})).filter(x=>x.s>0).sort((x,y)=>y.s-x.s).slice(0,2);
+  if(!matches.length && !casos.length) return {resultados:[], mensaje:'No se encontró nada en el Banco de Información para esa búsqueda.'};
+  return {resultados:[
+    ...matches.map(({a})=>({titulo:a.title, resumen:a.summary, contenido:(a.bodyRaw||'').slice(0,1500), fuente:a.source||''})),
+    ...casos.map(({c})=>({titulo:'Caso de éxito: '+c.empresa, resumen:c.resumen, contenido:`${c.ubicacion} — giro: ${(c.giros||[]).join(', ')}`, fuente:c.url})),
+  ]};
 }
 
 async function ninjaBuscarApps(queryText){
@@ -15782,7 +15801,7 @@ async function ninjaCallClaudeRaw(messages,tools){
   const res=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-5',max_tokens:2048,system:NINJA_SYSTEM_PROMPT,tools,messages}),
+    body:JSON.stringify({model:'claude-sonnet-5',max_tokens:4096,system:NINJA_SYSTEM_PROMPT,tools,messages}),
   });
   const data=await res.json();
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
@@ -15821,6 +15840,7 @@ function _ninjaExtractCitations(content){
 async function ninjaRunTurn(userText){
   const tools=ninjaToolDefs();
   let messages=[..._ninjaApiHistory,{role:'user',content:userText}];
+  let answerParts=[]; // texto acumulado entre cortes por max_tokens (ver bug real abajo)
   for(let i=0;i<NINJA_MAX_TOOL_ITERATIONS;i++){
     const data=await ninjaCallClaudeRaw(messages,tools);
     messages.push({role:'assistant',content:data.content});
@@ -15828,27 +15848,39 @@ async function ninjaRunTurn(userText){
       _ninjaMessages.push({role:'status',text:'Buscando en internet…'});
       ninjaRenderMessages();
     }
-    if(data.stop_reason!=='tool_use'){
-      _ninjaApiHistory=messages;
-      const textBlock=(data.content||[]).find(b=>b.type==='text');
-      let answer=textBlock?textBlock.text:'(sin respuesta)';
-      const fuentes=_ninjaExtractCitations(data.content);
-      if(fuentes.length) answer+='\n\nFuentes: '+fuentes.join(' · ');
-      return answer;
+    if(data.stop_reason==='tool_use'){
+      const toolUses=(data.content||[]).filter(b=>b.type==='tool_use');
+      const toolResults=[];
+      for(const tu of toolUses){
+        _ninjaMessages.push({role:'status',text:(NINJA_TOOL_LABELS[tu.name]||tu.name)+'…'});
+        ninjaRenderMessages();
+        let result;
+        try{ const exec=NINJA_TOOL_EXECUTORS[tu.name]; result=exec?await exec(tu.input||{}):{error:'Herramienta desconocida.'}; }
+        catch(e){ result={error:e.message}; }
+        toolResults.push({type:'tool_result',tool_use_id:tu.id,content:JSON.stringify(result)});
+      }
+      messages.push({role:'user',content:toolResults});
+      continue;
     }
-    const toolUses=(data.content||[]).filter(b=>b.type==='tool_use');
-    const toolResults=[];
-    for(const tu of toolUses){
-      _ninjaMessages.push({role:'status',text:(NINJA_TOOL_LABELS[tu.name]||tu.name)+'…'});
-      ninjaRenderMessages();
-      let result;
-      try{ const exec=NINJA_TOOL_EXECUTORS[tu.name]; result=exec?await exec(tu.input||{}):{error:'Herramienta desconocida.'}; }
-      catch(e){ result={error:e.message}; }
-      toolResults.push({type:'tool_result',tool_use_id:tu.id,content:JSON.stringify(result)});
+    const textBlock=(data.content||[]).find(b=>b.type==='text');
+    if(textBlock?.text) answerParts.push(textBlock.text);
+    if(data.stop_reason==='max_tokens'){
+      // Bug real reportado 2026-08-26: respuestas largas (p. ej. explicarle Odoo.sh a un cliente)
+      // se cortaban a media frase porque max_tokens se agotaba y el código trataba cualquier
+      // stop_reason distinto de 'tool_use' como respuesta final. Ahora, si se cortó por longitud,
+      // le pedimos a Claude que retome exactamente donde se quedó y unimos el texto — el usuario
+      // nunca ve el corte.
+      messages.push({role:'user',content:'Continúa tu respuesta exactamente donde se cortó, sin repetir nada de lo ya escrito ni agregar introducción.'});
+      continue;
     }
-    messages.push({role:'user',content:toolResults});
+    _ninjaApiHistory=messages;
+    let answer=answerParts.join('')||'(sin respuesta)';
+    const fuentes=_ninjaExtractCitations(data.content);
+    if(fuentes.length) answer+='\n\nFuentes: '+fuentes.join(' · ');
+    return answer;
   }
   _ninjaApiHistory=messages;
+  if(answerParts.length) return answerParts.join('')+'\n\n(la respuesta se cortó por límite de pasos — pregunta lo que falta en un mensaje aparte)';
   return 'No pude terminar en el número de pasos permitidos — intenta reformular la pregunta de forma más simple.';
 }
 
