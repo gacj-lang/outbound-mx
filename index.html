@@ -9613,6 +9613,103 @@ Es un giro muy cercano al de Comercio Exterior/Logística ya documentado en el w
 Es un giro con muchos pain points simultáneos — no intentes cubrirlos todos en la primera llamada. Prioriza según lo que el prospecto mencione primero: si se queja de quiebres de stock, entra por variantes de producto + inventario; si se queja de temporadas, entra por pronóstico de demanda; si vende en varios canales, entra por la integración omnicanal.`},
 ];
 
+// Onceavo lote (2026-08-26): Hardware e IoT para Punto de Venta — investigado y verificado en
+// vivo contra la documentación oficial de Odoo (saas-19.4) y contra Cyberpuerta.mx (cada link de
+// producto se confirmó con fetch real antes de publicarse, no solo por resultado de búsqueda).
+const WIKI_SEED_11=[
+  {categoryId:'herramientas', icon:'🖨️', title:'Hardware e IoT para Punto de Venta (PdV): cómo conectarlo',
+    summary:'Qué es el IoT de Odoo, las 3 formas de conectar el hardware al POS, y por qué usar Windows le ahorra al cliente comprar una caja física — con tabla rápida y guion de 4 pasos para la demo.',
+    tags:['pos','punto de venta','iot','hardware','windows virtual iot','impresoras','basculas','terminales de pago','iot box'],
+    source:'Documentación oficial de Odoo — Point of Sale: Hardware and network / IoT / Windows Virtual IoT (saas-19.4)',
+    links:[
+      {label:'Hardware and network — Point of Sale (Odoo)', url:'https://www.odoo.com/documentation/saas-19.4/applications/sales/point_of_sale/hardware_network.html'},
+      {label:'Windows virtual IoT (Odoo 19.0)', url:'https://www.odoo.com/documentation/19.0/applications/general/iot/windows_iot.html'},
+    ],
+    bodyRaw:`## ¿Qué es el IoT de Odoo?
+El navegador donde corre el Punto de Venta no puede hablarle directo a la mayoría del hardware de una tienda. El IoT es el puente entre ambos: recibe la orden de imprimir un ticket, pesar un producto o abrir el cajón, y se la pasa al aparato correcto.
+
+Ese puente puede ser tres cosas distintas — cuál aplica depende sobre todo del sistema operativo del equipo del cliente. Esta es la primera pregunta técnica que hace un prospecto con tienda física, y se responde en los primeros cinco minutos de la demo.
+
+## 1. Conexión directa (Local Network Access / LNA) — sin caja, sin software
+Una impresora de red compatible con ePOS se conecta directo desde el navegador, sin pasar por ningún intermediario.
+- Requiere un certificado SSL autofirmado para HTTPS.
+- Solo cubre impresoras ePOS — básculas, cajones y terminales de pago no pasan por aquí.
+- Ideal para un negocio con una sola impresora de red.
+
+## 2. Windows Virtual IoT — la gran ventaja
+Si el POS va a correr en una PC con Windows 10 u 11, no hace falta comprar una caja IoT física aparte. Windows Virtual IoT es un programa que se instala en esa misma computadora y la convierte en el sistema IoT.
+- Soporta impresoras, básculas, cajones, pantallas de cliente, etiquetas electrónicas y terminales de pago (Worldline, Ingenico, entre otros).
+- Se instala una vez y queda corriendo como servicio en segundo plano.
+- Único límite real: no soporta dispositivos MRP (cámaras, calibradores) — no afecta a retail ni restaurantes.
+- **Argumento de venta:** si el cliente ya piensa usar Windows para el POS, esto le ahorra la compra de hardware IoT aparte — vale la pena preguntarlo temprano.
+
+## 3. IoT box física
+Una mini-computadora plug-and-play (tipo Raspberry Pi) con el programa IoT de Odoo ya instalado de fábrica. Se necesita cuando:
+- El POS corre en Mac, Linux, tablet Android/iOS o Chrome OS (ahí Windows Virtual IoT no aplica).
+- Se necesitan dispositivos MRP: cámaras, calibradores.
+- Se prefiere aislar el hardware del equipo del cajero.
+- Necesita suscripción de IoT box activa para HTTPS y uso en producción.
+
+## Tabla rápida para la demo
+| Sistema operativo del POS | ¿Caja IoT física? | Costo extra de hardware |
+| --- | --- | --- |
+| Windows 10/11 | No — usa Windows Virtual IoT | $0, la misma PC hace de IoT |
+| Mac, Linux, Chrome OS o tablet | Sí | Compra una IoT box o arma una con Raspberry Pi |
+| Solo impresora de red ePOS, sin básculas/cajón | No — conexión directa | $0, solo la impresora de red |
+
+## Periféricos que soporta Odoo POS
+Impresoras de tickets (USB o de red), básculas (incluye ajustes para requisitos legales de peso en Europa), escáneres de código de barras (deben emitir carácter ENTER al final de cada lectura), cajones de dinero (se conectan a la impresora de tickets vía cable RJ25), pantalla para el cliente (detalle y precio de la orden en el checkout), etiquetas electrónicas (integración con la plataforma Pricer), y terminales de pago.
+
+## Terminales de pago compatibles
+Adyen, DPO Pay, Ingenico, Mercado Pago, Mollie, Pine Labs, QFPay, Razorpay, SIX, Stripe, Tyro, Viva.com, Worldline. Para México y LATAM, Mercado Pago es el más relevante por cobertura regional; Stripe es la segunda opción con soporte activo. El resto aplica sobre todo a Europa, India y Oceanía — confirma cobertura local antes de comprometerlo en una demo.
+
+## Cómo explicarlo en la demo (4 pasos)
+1. Pregunta primero qué computadora va a correr el POS — esa respuesta define todo lo demás.
+2. Si es Windows: es la ruta más simple, Windows Virtual IoT, cero hardware IoT extra que cotizar.
+3. Si es Mac, Linux o tablet: cotiza una IoT box, o arma una con un Raspberry Pi.
+4. Si solo necesita una impresora de red: ni siquiera necesita IoT — conexión directa desde el navegador.
+
+Ver también el artículo "Equipo recomendado de PdV en México" para links de compra reales y verificados.`},
+
+  {categoryId:'herramientas', icon:'🛒', title:'Equipo recomendado de PdV en México (con links de compra)',
+    summary:'Impresoras, cajón de dinero, lector de código de barras y Raspberry Pi verificados en stock en Cyberpuerta.mx — para armar una demo o primera implementación. Incluye qué necesita IoT y qué no.',
+    tags:['pos','hardware','cyberpuerta','compras','mexico','impresoras','cajon de dinero','raspberry pi'],
+    source:'Cyberpuerta.mx — cada link verificado con fetch real el 26 de agosto de 2026 (el inventario de Cyberpuerta rota seguido: fichas de producto se agotan o se dan de baja)',
+    links:[
+      {label:'iMin Swan 2 — terminal todo-en-uno Android', url:'https://www.cyberpuerta.mx/Punto-de-Venta-POS/Sistemas-POS/iMin-Technology-Sistema-POS-Swan-2-Printer-15-6-ARM-Cortex-A55-4GB-64GB-Android-13.html'},
+      {label:'Epson T20IV-L USB/Ethernet — impresora de red', url:'https://www.cyberpuerta.mx/Punto-de-Venta-POS/Impresoras-de-Tickets/Epson-T20IV-L-Impresora-de-Tickets-Termica-Directa-USB-Ethernet-203-x-203-DPI.html'},
+      {label:'Epson T20IV-L USB/Serial — impresora USB', url:'https://www.cyberpuerta.mx/Punto-de-Venta-POS/Impresoras-de-Tickets/Epson-T20IV-L-Impresora-de-Tickets-Termica-Directa-USB-Serial-203-x-203-DPI.html'},
+      {label:'Nextep NE-515 — cajón de dinero', url:'https://www.cyberpuerta.mx/Punto-de-Venta-POS/Cajones-de-dinero/Cajon-de-Dinero-Nextep-NE-515-5-7Kg-Negro.html'},
+      {label:'Lectores de código de barras (categoría)', url:'https://www.cyberpuerta.mx/Punto-de-Venta-POS/Lectores-y-Terminales/Lectores-de-Codigo-de-Barras/'},
+      {label:'Raspberry Pi 4 Kit 8GB', url:'https://www.cyberpuerta.mx/Computo-Hardware/Componentes/Placas-de-Desarrollo/Placas-de-Desarrollo/Kit-Raspberry-Pi-4-Kit-8GB-WiFi-USB-3-0-Bluetooth-Micro-HDMI.html'},
+      {label:'Mini PC\'s (categoría)', url:'https://www.cyberpuerta.mx/Computadoras/Mini-PC-s/'},
+    ],
+    bodyRaw:`Opciones reales, verificadas en vivo en Cyberpuerta.mx (no solo por resultado de búsqueda — cada link se abrió y se confirmó que carga y tiene existencia). El inventario cambia seguido: varios modelos se agotan o se dan de baja sin aviso. Confirma precio y existencia antes de cotizar con un cliente, no te quedes solo con este listado.
+
+## Terminal todo-en-uno Android — iMin Swan 2 (sin IoT)
+POS con impresora integrada, pantalla 15.6", Android 13. Es el ejemplo que usa la propia documentación de Odoo para equipos que no necesitan PC ni caja aparte. ~$13,309 MXN, en stock.
+
+## Impresora de red — Epson T20IV-L USB/Ethernet (sin IoT)
+Con puerto Ethernet se conecta directo por red desde el navegador, sin caja ni software de por medio (confirma que el modo ePOS esté disponible antes de cotizar). ~$3,319 MXN, en stock.
+
+## Impresora USB — Epson T20IV-L USB/Serial (vía IoT)
+Solo USB/Serial, sin red: necesita Windows Virtual IoT o una IoT box física para hablarle al POS. ~$3,159 MXN, en stock.
+
+## Cajón de dinero — Nextep NE-515 (vía IoT)
+Se conecta a la impresora de tickets y se abre automáticamente al cobrar; la impresora, a su vez, pasa por el IoT. ~$669 MXN, buen stock.
+
+## Lector de código de barras USB (vía IoT)
+Debe emitir ENTER al final de cada lectura para que Odoo lo reconozca. Zebra, Honeywell y Datalogic tienen modelos compatibles — el SKU específico rota mucho en Cyberpuerta, mejor revisar la categoría completa que fiarte de un modelo puntual.
+
+## Raspberry Pi 4 Kit 8GB — para armar tu propia IoT box (es la IoT)
+Si el cliente no usa Windows y prefiere una caja dedicada en lugar de destinar una PC completa, este es el hardware base que usa Odoo. ~$5,109 MXN, en stock.
+
+## Mini PC con Windows 10/11 (sin IoT extra)
+Cualquier mini PC con Windows sirve para correr el POS y, con Windows Virtual IoT, también el hardware — sin comprar una caja aparte.
+
+Ver también el artículo "Hardware e IoT para Punto de Venta (PdV): cómo conectarlo" para el contexto técnico completo.`},
+];
+
 // Lotes de semilla: cada uno se aplica una sola vez (sentinel wikiMeta/<key>), así se puede
 // seguir agregando contenido real de Knowledge en próximas sesiones sin duplicar lo ya sembrado.
 const WIKI_SEED_BATCHES=[
@@ -9626,6 +9723,7 @@ const WIKI_SEED_BATCHES=[
   {key:'seed8', articles:WIKI_SEED_8},
   {key:'seed9', articles:WIKI_SEED_9},
   {key:'seed10', articles:WIKI_SEED_10},
+  {key:'seed11', articles:WIKI_SEED_11},
 ];
 
 let _wikiSeedChecked=false;
