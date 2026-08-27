@@ -7950,7 +7950,13 @@ async function renderHistorico(){
     </div>`;
   histShowTab(_histState.tab);
 }
-function _histEsc(s){ return String(s).replace(/"/g,'&quot;'); }
+// Escapa TODO lo que el navegador puede interpretar como HTML, no solo comillas.
+// Bug real 2026-08-26: solo escapaba `"`, así que un `<` en el texto (p. ej. cuando Ninja IA
+// escribe un umbral como "<6 usuarios por worker") abría una etiqueta falsa y el navegador se
+// tragaba en silencio TODO el texto siguiente hasta el próximo `>` — o hasta el final del mensaje
+// si no había ninguno. Se veía como una respuesta "cortada a media frase", pero la respuesta de la
+// API llegaba completa: lo que fallaba era el pintado. Aparte del corte, era un hueco de XSS.
+function _histEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 window.histSetFilter=function(key,val){ _histState[key]=val; histShowTab(_histState.tab); };
 window.histShowTab=function(tab){
@@ -15514,7 +15520,10 @@ async function ninjaBuscarWiki(queryText){
   const casos=SUCCESS_STORIES_INDEX.map(c=>({c,s:scoreCaso(c)})).filter(x=>x.s>0).sort((x,y)=>y.s-x.s).slice(0,2);
   if(!matches.length && !casos.length) return {resultados:[], mensaje:'No se encontró nada en el Banco de Información para esa búsqueda.'};
   return {resultados:[
-    ...matches.map(({a})=>({titulo:a.title, resumen:a.summary, contenido:(a.bodyRaw||'').slice(0,1500), fuente:a.source||''})),
+    // 6000 y no 1500: con el tope viejo, 34 de los 60 artículos del Banco de Información llegaban
+    // partidos a la mitad (el más largo son ~5,000 caracteres), así que Ninja contestaba con media
+    // guía y no tenía forma de saber que le faltaba el resto. 6000 cubre el artículo más largo completo.
+    ...matches.map(({a})=>({titulo:a.title, resumen:a.summary, contenido:(a.bodyRaw||'').slice(0,6000), fuente:a.source||''})),
     ...casos.map(({c})=>({titulo:'Caso de éxito: '+c.empresa, resumen:c.resumen, contenido:`${c.ubicacion} — giro: ${(c.giros||[]).join(', ')}`, fuente:c.url})),
   ]};
 }
@@ -15862,8 +15871,13 @@ async function ninjaRunTurn(userText){
       messages.push({role:'user',content:toolResults});
       continue;
     }
-    const textBlock=(data.content||[]).find(b=>b.type==='text');
-    if(textBlock?.text) answerParts.push(textBlock.text);
+    // Junta TODOS los bloques de texto, no solo el primero: cuando hay citas (web_search) la API
+    // parte la respuesta en varios bloques `text`, y con .find() se perdían todos menos uno.
+    const textos=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).filter(Boolean);
+    if(textos.length) answerParts.push(textos.join(''));
+    // Diagnóstico en consola del navegador (F12) — mismo patrón que gcCallClaude[web_fetch].
+    // Sirve para distinguir en vivo un corte de la API (stop_reason) de un corte al pintar.
+    console.log('ninja stop_reason:',data.stop_reason,'· bloques:',(data.content||[]).map(b=>b.type),'· chars recibidos:',textos.join('').length,'· acumulado:',answerParts.join('').length);
     if(data.stop_reason==='max_tokens'){
       // Bug real reportado 2026-08-26: respuestas largas (p. ej. explicarle Odoo.sh a un cliente)
       // se cortaban a media frase porque max_tokens se agotaba y el código trataba cualquier
