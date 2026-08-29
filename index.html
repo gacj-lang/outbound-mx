@@ -15410,6 +15410,7 @@ TUS HERRAMIENTAS Y A QUÉ MÓDULO DE LA APP PERTENECEN:
 - obtener_mis_empresas_por_industria → 🏢 Empresas: cuántas empresas tiene hoy el usuario (o su equipo/organización) por industria. Combínala con obtener_desempeno_historico_icp para detectar huecos entre lo que ya se trabaja y lo que mejor convierte.
 - obtener_mis_kpis → actividad propia: Discoveries, Pricings, Propuestas, solicitudes CSV y oportunidades generadas.
 - obtener_metricas_equipo → 🎯 Métricas: forecast (MRR/NRR proyectado vs. logrado) y actividad semanal (intromeets, demos) de un mes.
+- obtener_buenas_practicas_prospeccion → recomendaciones de prospección derivadas de datos reales (segmento que convierte vs. dónde está el volumen, desempeño de la cadencia por toque, qué calificación avanza, motivos de caída por etapa). Úsala para CUALQUIER pregunta de "cómo mejoro", "qué estoy haciendo mal", "qué cambio en mi cadencia" o "cómo prospecto mejor". Respeta siempre el campo confianza de cada bloque.
 - obtener_mis_cadencias_activas → 📨 Cadencias: cadencias de correo en curso, respuestas, rebotes.
 - obtener_historial_empresa → 🏢 Empresas (vista 360 de una empresa puntual): Discovery/Qcall, Pricing, Propuestas, CSV, contenido generado (✉️ Generación de contenidos) y actividad de cadencias, todo junto.
 - obtener_areas_oportunidad_ae (solo tl/manager) → coaching de IA agregado de las últimas Qcalls de un AE.
@@ -15451,6 +15452,7 @@ const NINJA_TOOL_LABELS={
   obtener_desempeno_historico_icp:'Cruzando datos históricos de conversión',
   obtener_mis_empresas_por_industria:'Contando tus empresas por industria',
   obtener_metricas_equipo:'Consultando forecast y actividad del mes',
+  obtener_buenas_practicas_prospeccion:'Calculando qué está funcionando en prospección',
   obtener_mis_cadencias_activas:'Revisando tus cadencias activas',
   obtener_areas_oportunidad_ae:'Juntando el coaching de sus Qcalls',
   obtener_historial_empresa:'Juntando el historial de la empresa',
@@ -15493,6 +15495,9 @@ function ninjaToolDefs(){
        ruta:{type:'string',description:'Ruta exacta devuelta por buscar_documentacion_odoo, p. ej. "finance/fiscal_localizations/mexico".'},
        seccion:{type:'string',description:'Opcional. Nombre (o parte) de la sección a leer, cuando la página vino truncada.'}},
        required:['ruta']}},
+    {name:'obtener_buenas_practicas_prospeccion',
+     description:'Buenas prácticas de prospección CALCULADAS de los datos reales: a qué tamaño de empresa conviene apuntar según el win-rate histórico contra dónde está hoy el volumen, cómo va la cadencia de correo por número de toque (aperturas, respuestas, rebotes), qué campos de calificación traen capturados las Qcalls que sí avanzaron a pricing, y por qué se caen los tratos en cada etapa. Úsala cuando pregunten cómo prospectar mejor, qué cambiar en la cadencia, qué preguntar en la Qcall, o pidan recomendaciones para mejorar resultados. CADA bloque trae su n y un campo confianza: si dice "insuficiente", di que no hay muestra suficiente en vez de dar la recomendación — no inventes seguridad que el dato no tiene.',
+     input_schema:{type:'object',properties:{meses:{type:'integer',description:'Meses hacia atrás para la parte de actividad propia (cadencias y Qcalls). Por defecto 6.'}},required:[]}},
     {name:'obtener_mis_cadencias_activas',
      description:'Resumen de las cadencias de correo en curso del usuario: cuántas van, cuántas respondieron, tasa de apertura, rebotes, y qué empresas están activas ahora mismo.',
      input_schema:{type:'object',properties:{},required:[]}},
@@ -16012,6 +16017,153 @@ async function ninjaObtenerCadenciasActivas(){
   }catch(e){ return {error:'No se pudieron leer las cadencias activas: '+e.message}; }
 }
 
+// ── Buenas prácticas de prospección, APRENDIDAS de los datos reales del equipo ──
+// No es un playbook escrito a mano: se calcula en vivo cruzando el histórico del CRM con la
+// actividad propia (cadencias, Qcalls, pricings, propuestas). La lección del bug del ranking de
+// ICP (2026-08-26) está metida en el diseño: CADA bloque devuelve su n y una bandera de confianza,
+// y cuando la muestra no aguanta se dice explícitamente en vez de dar una recomendación bonita
+// sobre dos casos. Ver MIN_* abajo.
+const BP_MIN_CADENCIAS=15;   // cadencias necesarias para hablar de tasas de respuesta
+const BP_MIN_QCALLS=8;       // Qcalls necesarias para hablar de patrones de calificación
+const BP_MIN_GANADOS=10;     // ganados necesarios para recomendar un segmento (mismo piso que el ICP)
+
+function _bpConfianza(n,min){
+  if(n>=min*2) return 'alta';
+  if(n>=min) return 'media';
+  return 'insuficiente';
+}
+
+async function ninjaObtenerBuenasPracticas(input){
+  if(!db||!currentUserData?.uid) return {error:'Sin conexión a la base de datos.'};
+  const uid=currentUserData.uid;
+  const meses=Number(input&&input.meses)||6;
+  const cutoff=Date.now()-meses*30*86400000;
+  const within=ts=>_aTsMs(ts)>=cutoff;
+  const out={periodoMeses:meses};
+
+  // ── 1. A QUIÉN PROSPECTAR — del histórico real del CRM, no de opinión ──
+  try{
+    const maxMaduro=_ninjaDateToQuarter(HIST_CUTOFF_MADURO.Outbound);
+    const qs=HIST_QUARTERS.filter(q=>q<=maxMaduro);
+    const sizeAgg={};
+    (HIST_FACTS.FACT_SIZE||[]).forEach(function(r){
+      const q=r[0],m=r[1],t=r[2],n=r[3],w=r[4];
+      if(m!=='Outbound'||qs.indexOf(q)<0) return;
+      if(!sizeAgg[t]) sizeAgg[t]={n:0,w:0};
+      sizeAgg[t].n+=n; sizeAgg[t].w+=w;
+    });
+    const tam=Object.keys(sizeAgg).map(function(k){
+      return {tamano:k, leads:sizeAgg[k].n, ganados:sizeAgg[k].w,
+        winRatePct:sizeAgg[k].n?Number((sizeAgg[k].w/sizeAgg[k].n*100).toFixed(2)):0};
+    }).sort(function(a,b){ return b.winRatePct-a.winRatePct; });
+    const mejor=tam.filter(function(x){ return x.ganados>=BP_MIN_GANADOS; })[0];
+    const dondeEstamos=tam.slice().sort(function(a,b){ return b.leads-a.leads; })[0];
+    out.aQuienProspectar={
+      winRatePorTamano:tam,
+      recomendacion: mejor
+        ? `El segmento con mejor conversión comprobada es "${mejor.tamano}" (${mejor.winRatePct}%, ${mejor.ganados} ganados de ${mejor.leads}).`+
+          (dondeEstamos&&dondeEstamos.tamano!==mejor.tamano
+            ? ` Pero el grueso del volumen se está trabajando en "${dondeEstamos.tamano}" (${dondeEstamos.leads} leads, ${dondeEstamos.winRatePct}%). Ahí está el hueco más accionable.`
+            : '')
+        : `Ningún segmento de tamaño llega a ${BP_MIN_GANADOS} ganados en la ventana madura: no hay base para recomendar un segmento. Dilo así.`,
+      confianza: mejor?'alta':'insuficiente',
+    };
+  }catch(e){ out.aQuienProspectar={error:'No se pudo calcular: '+e.message}; }
+
+  // ── 2. CÓMO ESTÁ FUNCIONANDO LA CADENCIA — en qué toque contestan ──
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/active',{headers:{'Authorization':'Bearer '+idToken}});
+    const data=await res.json().catch(function(){ return {}; });
+    if(!res.ok) throw new Error(data.error||('HTTP '+res.status));
+    const list=data.cadences||[];
+    // Enviados y aperturas por número de toque: dice si vale la pena el toque 3 o si se muere en el 1.
+    const porToque={};
+    list.forEach(function(c){
+      (c.steps||[]).forEach(function(s,i){
+        const k=i+1;
+        if(!porToque[k]) porToque[k]={toque:k,enviados:0,abiertos:0};
+        if(s.status==='hecho'){ porToque[k].enviados++; if(s.opens>0) porToque[k].abiertos++; }
+      });
+    });
+    const toques=Object.keys(porToque).map(function(k){
+      const t=porToque[k];
+      return {toque:t.toque, enviados:t.enviados, abiertos:t.abiertos,
+        tasaAperturaPct:t.enviados?Number((t.abiertos/t.enviados*100).toFixed(1)):0};
+    }).sort(function(a,b){ return a.toque-b.toque; });
+    const st=cadComputeStats(list);
+    const conf=_bpConfianza(list.length,BP_MIN_CADENCIAS);
+    out.comoVaLaCadencia={
+      cadencias:list.length,
+      tasaRespuestaPct:list.length?Number((st.replied/list.length*100).toFixed(1)):0,
+      tasaRebotePct:list.length?Number((st.bounced/list.length*100).toFixed(1)):0,
+      tasaAperturaPct:st.sent?Number((st.opened/st.sent*100).toFixed(1)):0,
+      porToque:toques,
+      confianza:conf,
+      ...(conf==='insuficiente'?{aviso:`Solo ${list.length} cadencia(s) en el periodo. No alcanza para sacar conclusiones de qué toque funciona — dilo así en vez de recomendar cambios de cadencia.`}:{}),
+    };
+  }catch(e){ out.comoVaLaCadencia={error:'No se pudieron leer las cadencias: '+e.message}; }
+
+  // ── 3. QUÉ CALIFICACIÓN AVANZA — de las Qcalls propias que sí llegaron a pricing/propuesta ──
+  try{
+    const [dSnap,pSnap,prSnap]=await Promise.all([
+      getDocs(query(collection(db,'discoveryRecords'),where('aeUid','==',uid))),
+      getDocs(query(collection(db,'pricingRecords'),where('aeUid','==',uid))),
+      getDocs(query(collection(db,'propuestaRecords'),where('aeUid','==',uid))),
+    ]);
+    const disc=dSnap.docs.map(function(d){ return d.data(); }).filter(function(d){ return within(d.createdAt); });
+    const conPricing={}, conProp={};
+    pSnap.docs.map(function(d){ return d.data(); }).filter(function(d){ return within(d.createdAt); })
+      .forEach(function(p){ if(p.companyId) conPricing[p.companyId]=true; });
+    prSnap.docs.map(function(d){ return d.data(); }).filter(function(d){ return within(d.createdAt); })
+      .forEach(function(p){ if(p.companyId) conProp[p.companyId]=true; });
+
+    // ¿Qué campos de calificación traen capturados las Qcalls que SÍ avanzaron a pricing?
+    const campos=['budget','decisor','timeline','fit','dolores','tipoVenta'];
+    const avanzaron=disc.filter(function(d){ return d.companyId&&conPricing[d.companyId]; });
+    const no=disc.filter(function(d){ return !(d.companyId&&conPricing[d.companyId]); });
+    const lleno=function(v){ return v!==null&&v!==undefined&&String(v).trim()!==''; };
+    const tasa=function(arr,c){ return arr.length?Number((arr.filter(function(d){ return lleno(d[c]); }).length/arr.length*100).toFixed(0)):0; };
+    const comparativa=campos.map(function(c){
+      return {campo:c, capturadoEnLasQueAvanzaron:tasa(avanzaron,c), capturadoEnLasQueNo:tasa(no,c),
+        diferencia:tasa(avanzaron,c)-tasa(no,c)};
+    }).sort(function(a,b){ return b.diferencia-a.diferencia; });
+    const conf=_bpConfianza(disc.length,BP_MIN_QCALLS);
+    out.queCalificacionAvanza={
+      qcalls:disc.length,
+      llegaronAPricing:avanzaron.length,
+      llegaronAPropuesta:disc.filter(function(d){ return d.companyId&&conProp[d.companyId]; }).length,
+      camposPorDiferencia:comparativa,
+      confianza:conf,
+      lectura:conf==='insuficiente'
+        ? `Solo ${disc.length} Qcall(s) en el periodo: no alcanza para decir qué campo de calificación marca la diferencia. Repórtalo como dato descriptivo, NO como recomendación.`
+        : 'Los campos con "diferencia" alta son los que más aparecen capturados en las Qcalls que sí avanzaron a pricing. Es correlación, no causa: úsalo como pista de qué preguntar, no como regla.',
+    };
+  }catch(e){ out.queCalificacionAvanza={error:'No se pudieron leer tus registros: '+e.message}; }
+
+  // ── 4. POR QUÉ SE CAEN — motivos de pérdida por etapa, del histórico real ──
+  try{
+    const maxMaduro=_ninjaDateToQuarter(HIST_CUTOFF_MADURO.Outbound);
+    const qs=HIST_QUARTERS.filter(q=>q<=maxMaduro);
+    const agg={};
+    (HIST_FACTS.FACT_LOSTREASON_STAGE||[]).forEach(function(r){
+      const q=r[0],m=r[1],stage=r[2],motivo=r[3],n=r[4];
+      if(m!=='Outbound'||qs.indexOf(q)<0) return;
+      if(!agg[stage]) agg[stage]={};
+      agg[stage][motivo]=(agg[stage][motivo]||0)+n;
+    });
+    out.porQueSeCaen=Object.keys(agg).map(function(stage){
+      const ms=agg[stage];
+      return {etapa:stage, total:Object.keys(ms).reduce(function(s,k){ return s+ms[k]; },0),
+        topMotivos:Object.keys(ms).map(function(k){ return {motivo:k,n:ms[k]}; })
+          .sort(function(a,b){ return b.n-a.n; }).slice(0,3)};
+    }).sort(function(a,b){ return b.total-a.total; }).slice(0,6);
+  }catch(e){ out.porQueSeCaen={error:'No se pudo calcular: '+e.message}; }
+
+  out.comoUsarEsto='Estas son prácticas DERIVADAS de datos reales, no un playbook escrito. Cita siempre el n y la confianza cuando des una recomendación. Si un bloque dice confianza "insuficiente", di que no hay suficiente muestra en vez de recomendar algo — es exactamente el error que ya se cometió una vez con el ranking de industrias.';
+  return out;
+}
+
 const NINJA_TOOL_EXECUTORS={
   buscar_banco_informacion:i=>ninjaBuscarWiki(i.query),
   buscar_apps_odoo:i=>ninjaBuscarApps(i.query),
@@ -16021,6 +16173,7 @@ const NINJA_TOOL_EXECUTORS={
   obtener_desempeno_historico_icp:i=>ninjaObtenerDesempenoHistorico(i),
   obtener_mis_empresas_por_industria:()=>ninjaObtenerEmpresasPorIndustria(),
   obtener_metricas_equipo:i=>ninjaObtenerMetricasEquipo(i.mes),
+  obtener_buenas_practicas_prospeccion:i=>ninjaObtenerBuenasPracticas(i),
   obtener_mis_cadencias_activas:()=>ninjaObtenerCadenciasActivas(),
   obtener_areas_oportunidad_ae:i=>ninjaObtenerAreasOportunidadAE(i.ae,i.cantidadSesiones),
   obtener_historial_empresa:i=>ninjaObtenerHistorialEmpresa(i.empresa),
