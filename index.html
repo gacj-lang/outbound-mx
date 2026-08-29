@@ -15413,7 +15413,10 @@ TUS HERRAMIENTAS Y A QUÉ MÓDULO DE LA APP PERTENECEN:
 - obtener_mis_cadencias_activas → 📨 Cadencias: cadencias de correo en curso, respuestas, rebotes.
 - obtener_historial_empresa → 🏢 Empresas (vista 360 de una empresa puntual): Discovery/Qcall, Pricing, Propuestas, CSV, contenido generado (✉️ Generación de contenidos) y actividad de cadencias, todo junto.
 - obtener_areas_oportunidad_ae (solo tl/manager) → coaching de IA agregado de las últimas Qcalls de un AE.
+- buscar_documentacion_odoo + leer_documentacion_odoo → DOCUMENTACIÓN OFICIAL de Odoo (versión saas-19.4, leída del repo oficial). Es tu fuente para CUALQUIER duda técnica de producto: si Odoo hace X, cómo se configura, qué es estándar y qué no, localización mexicana (CFDI, Carta Porte, complementos), contabilidad, inventario, manufactura, nómina, Studio. Flujo obligatorio: primero buscar_documentacion_odoo, luego leer_documentacion_odoo con la ruta que devolvió. NUNCA contestes una duda técnica solo con el título que salió en la búsqueda — hay que leer la página. Cita siempre la URL oficial que te devuelve. Esta pareja manda sobre web_search y sobre el Banco de Información para todo lo que sea funcionamiento del producto.
 - web_search → búsqueda real en internet. Úsala SOLO para lo que ninguna herramienta interna cubre: contexto público de una empresa/prospecto, términos o panorama de una industria, algo de coyuntura reciente — típicamente una duda que surge a media llamada de Qcall/Intromeet y que no está en el Banco de Información. Nunca la uses para algo que ya cubre una herramienta interna (wiki, apps, CRM, KPIs) — ahí esa herramienta manda siempre primero.
+
+JERARQUÍA DE FUENTES para una duda técnica de Odoo: (1) documentación oficial vía leer_documentacion_odoo — es la única que te deja afirmar cómo funciona el producto; (2) el Banco de Información, para cómo lo vendemos en México y experiencia del equipo; (3) web_search, solo si las dos anteriores no lo cubren, y avisando que es externa. Si la documentación oficial y el Banco se contradicen, gana la documentación oficial y dilo.
 
 FUENTE DE LA RESPUESTA: cuando uses web_search, dile al usuario que esa parte viene de una búsqueda en internet (no de los datos de la app) y agrega la fuente. Es información externa, no verificada por el equipo — adviértelo si es sensible (cifras, fechas, datos financieros de un prospecto). Nunca mezcles dato interno y búsqueda externa sin dejar claro cuál es cuál.
 
@@ -15442,6 +15445,8 @@ Cuando te pidan "áreas de oportunidad" o coaching de un AE en sus Qcalls, sinte
 const NINJA_TOOL_LABELS={
   buscar_banco_informacion:'Buscando en el Banco de Información',
   buscar_apps_odoo:'Buscando en el catálogo de apps',
+  buscar_documentacion_odoo:'Buscando en la documentación oficial de Odoo',
+  leer_documentacion_odoo:'Leyendo la documentación oficial',
   obtener_mis_kpis:'Consultando tus KPIs',
   obtener_desempeno_historico_icp:'Cruzando datos históricos de conversión',
   obtener_mis_empresas_por_industria:'Contando tus empresas por industria',
@@ -15479,6 +15484,15 @@ function ninjaToolDefs(){
     {name:'obtener_metricas_equipo',
      description:'Forecast (MRR/NRR proyectado vs. logrado) y actividad semanal (intromeets, demos) de un mes. Alcance por rol: propio si es AE, equipo si es tl, toda la organización si es manager. Úsala para saber qué tan cerca se va de la meta del mes o cuánta actividad de prospección lleva alguien.',
      input_schema:{type:'object',properties:{mes:{type:'string',description:'Mes en formato YYYY-MM, por defecto el mes actual'}},required:[]}},
+    {name:'buscar_documentacion_odoo',
+     description:'Busca en la DOCUMENTACIÓN OFICIAL de Odoo (repo oficial, versión saas-19.4) las páginas que hablan de un tema. Úsala para CUALQUIER duda técnica de producto: cómo funciona una feature, si Odoo soporta algo, cómo se configura, límites del estándar, localización mexicana (CFDI, Carta Porte, complementos), contabilidad, inventario, manufactura, nómina, Studio, etc. Devuelve páginas candidatas con su ruta; para responder SIEMPRE hay que leerlas después con leer_documentacion_odoo. Puedes buscar en español: los términos comunes se traducen solos. Esta herramienta manda sobre web_search para todo lo que sea producto Odoo.',
+     input_schema:{type:'object',properties:{consulta:{type:'string',description:'Tema a buscar. Español o inglés.'}},required:['consulta']}},
+    {name:'leer_documentacion_odoo',
+     description:'Lee el contenido real de una página de la documentación oficial de Odoo. Se usa DESPUÉS de buscar_documentacion_odoo, con la ruta exacta que esa devolvió. Es la única forma de contestar una duda técnica con fundamento: no respondas de memoria ni solo con el título de la búsqueda. Devuelve también la URL pública oficial para que se la cites al usuario. Si la página es larga se corta y te da la lista de secciones: vuelve a llamarla con el parámetro "seccion" para leer la que necesitas.',
+     input_schema:{type:'object',properties:{
+       ruta:{type:'string',description:'Ruta exacta devuelta por buscar_documentacion_odoo, p. ej. "finance/fiscal_localizations/mexico".'},
+       seccion:{type:'string',description:'Opcional. Nombre (o parte) de la sección a leer, cuando la página vino truncada.'}},
+       required:['ruta']}},
     {name:'obtener_mis_cadencias_activas',
      description:'Resumen de las cadencias de correo en curso del usuario: cuántas van, cuántas respondieron, tasa de apertura, rebotes, y qué empresas están activas ahora mismo.',
      input_schema:{type:'object',properties:{},required:[]}},
@@ -15536,6 +15550,158 @@ async function ninjaBuscarWiki(queryText){
     ...matches.map(({a})=>({titulo:a.title, resumen:a.summary, contenido:(a.bodyRaw||'').slice(0,6000), fuente:a.source||''})),
     ...casos.map(({c})=>({titulo:'Caso de éxito: '+c.empresa, resumen:c.resumen, contenido:`${c.ubicacion} — giro: ${(c.giros||[]).join(', ')}`, fuente:c.url})),
   ]};
+}
+
+// ── Documentación oficial de Odoo (repo github.com/odoo/documentation, rama saas-19.4) ──
+// Dos herramientas: buscar sobre un índice local de las 941 páginas, y leer el .rst real de GitHub
+// en el momento. Por qué el repo y no www.odoo.com/documentation: raw.githubusercontent.com responde
+// con "access-control-allow-origin: *", así que el navegador lo baja directo — sin backend y sin
+// costo de API; la URL pública NO manda CORS y no se puede leer desde aquí. La ruta del repo mapea
+// 1:1 a la URL pública, así que igual se le cita al usuario el link oficial.
+// El índice (~200 KB) se baja UNA vez por sesión y solo cuando alguien pregunta algo técnico —
+// no se carga junto con la app.
+let _odooDocsIndex=null, _odooDocsPromise=null;
+async function _odooDocsLoad(){
+  if(_odooDocsIndex) return _odooDocsIndex;
+  if(!_odooDocsPromise){
+    _odooDocsPromise=fetch('odoo-docs-index.json')
+      .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(j=>{ _odooDocsIndex=j; return j; })
+      .catch(e=>{ _odooDocsPromise=null; throw e; });
+  }
+  return _odooDocsPromise;
+}
+
+// Normaliza para buscar: minúsculas y sin acentos. La documentación está en inglés y la gente
+// pregunta en español, así que además se traducen los términos más frecuentes del día a día.
+const _docsNorm=t=>(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const DOCS_ES_EN={
+  factura:'invoice', facturacion:'invoicing', facturas:'invoices', contabilidad:'accounting',
+  inventario:'inventory', almacen:'warehouse', almacenes:'warehouses', existencias:'stock',
+  compras:'purchase', compra:'purchase', ventas:'sales', venta:'sales', cotizacion:'quotation',
+  cliente:'customer', clientes:'customers', proveedor:'vendor', proveedores:'vendors',
+  producto:'product', productos:'products', lote:'lot', lotes:'lots', serie:'serial',
+  fabricacion:'manufacturing', produccion:'manufacturing', calidad:'quality',
+  nomina:'payroll', empleado:'employee', empleados:'employees', asistencia:'attendance',
+  proyecto:'project', proyectos:'projects', tarea:'task', tareas:'tasks',
+  suscripcion:'subscription', suscripciones:'subscriptions', alquiler:'rental',
+  caja:'pos', mercadotecnia:'marketing', correo:'email', boleto:'ticket',
+  sitio:'website', tienda:'ecommerce', pago:'payment', pagos:'payments', banco:'bank',
+  impuesto:'tax', impuestos:'taxes', reporte:'reporting', reportes:'reporting',
+  mantenimiento:'maintenance', reclutamiento:'recruitment', gastos:'expenses',
+  firma:'sign', documentos:'documents', ayuda:'helpdesk', soporte:'helpdesk',
+  mexico:'mexico', mexicana:'mexico', localizacion:'localization', envio:'shipping',
+  entrega:'delivery', devolucion:'return', descuento:'discount', precio:'pricelist',
+  contrato:'contract', activo:'asset', activos:'assets', presupuesto:'budget',
+  conciliacion:'reconciliation', trazabilidad:'traceability', variante:'variant',
+};
+function _docsTerminos(consulta){
+  const base=_docsNorm(consulta).split(/[^a-z0-9.]+/).filter(t=>t.length>2);
+  const set=new Set(base);
+  base.forEach(t=>{ if(DOCS_ES_EN[t]) set.add(DOCS_ES_EN[t]); });
+  return [...set];
+}
+
+async function ninjaBuscarDocsOdoo(consulta){
+  const q=(consulta||'').trim();
+  if(!q) return {error:'Falta el término de búsqueda.'};
+  let idx;
+  try{ idx=await _odooDocsLoad(); }
+  catch(e){ return {error:'No se pudo cargar el índice de la documentación de Odoo: '+e.message}; }
+  const terms=_docsTerminos(q);
+  if(!terms.length) return {error:'La consulta es demasiado corta.'};
+  // Pesos: la ruta y el título mandan sobre la descripción. Coincidencia exacta del último
+  // segmento de la ruta (el slug de la página) pesa extra: es lo que mejor identifica el tema.
+  const scored=idx.paginas.map(pg=>{
+    const ruta=_docsNorm(pg.p), tit=_docsNorm(pg.t), des=_docsNorm(pg.d);
+    const slug=ruta.split('/').pop();
+    let sc=0;
+    terms.forEach(t=>{
+      if(slug===t) sc+=12;
+      else if(slug.includes(t)) sc+=6;
+      if(tit.includes(t)) sc+=5;
+      if(ruta.includes(t)) sc+=3;
+      if(des.includes(t)) sc+=1;
+    });
+    return {pg,sc};
+  }).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc).slice(0,8);
+
+  if(!scored.length) return {
+    resultados:[],
+    mensaje:'No se encontró ninguna página de la documentación oficial para esa búsqueda. Prueba con el término en inglés (la documentación está en inglés) o con el nombre de la app de Odoo.',
+  };
+  return {
+    version:idx.version,
+    aviso:'Estas son las páginas candidatas. Todavía NO leíste su contenido: para responder algo técnico usa leer_documentacion_odoo con la ruta exacta. No respondas solo con el título y la descripción de abajo.',
+    resultados:scored.map(function(x){ return {ruta:x.pg.p, titulo:x.pg.t, descripcion:x.pg.d, url:idx.baseUrl+x.pg.p+'.html'}; }),
+  };
+}
+
+// Convierte RST a texto legible. No es un parser completo: quita las directivas y roles que
+// estorban para leer, y conserva encabezados, listas y tablas simples.
+function _rstATexto(rst){
+  let t=rst;
+  t=t.replace(/^\.\. \|[^|]+\| replace::[\s\S]*?(?=\n\S|\n\n)/gm,'');
+  t=t.replace(/^\.\. (image|figure|toctree|meta|_[\w/.-]+):[\s\S]*?(?=\n\S|\n\n)/gm,'');
+  t=t.replace(/^\.\. (note|warning|tip|important|seealso|example)::/gm,'\n[$1]');
+  t=t.replace(/^\.\. [\w-]+::.*$/gm,'');
+  t=t.replace(/^:[a-z-]+:\s*$/gm,'');                                  // campos sueltos: :orphan:, :show-content:, :nosearch:
+  t=t.replace(/:abbr:`([^`(]*)\s*\(([^)]*)\)`/g,'$1 ($2)');
+  t=t.replace(/:[a-z:-]+:`([^`<]*?)(?:\s*<[^>]*>)?`/g,'$1');
+  t=t.replace(/`([^`<]*?)\s*<[^>]*>`_+/g,'$1');
+  t=t.replace(/\|([A-Za-z0-9_]+)\|/g,'$1');
+  t=t.replace(/^([^\n]+)\n[=\-~^"'`*+#]{3,}\s*$/gm,'\n## $1');
+  t=t.replace(/[`*]{1,2}/g,'');
+  t=t.replace(/^[=\-~^"'+#]{3,}\s*$/gm,'');                            // subrayados huérfanos
+  t=t.replace(/\n{3,}/g,'\n\n');
+  return t.trim();
+}
+
+async function ninjaLeerDocsOdoo(input){
+  const ruta=((input&&input.ruta)||'').trim().replace(/^\/+/,'').replace(/\.rst$/,'').replace(/\.html$/,'');
+  if(!ruta) return {error:'Falta la ruta de la página (la devuelve buscar_documentacion_odoo).'};
+  let idx;
+  try{ idx=await _odooDocsLoad(); }
+  catch(e){ return {error:'No se pudo cargar el índice de la documentación: '+e.message}; }
+  const pg=idx.paginas.find(function(x){ return x.p===ruta; });
+  if(!pg) return {error:'La ruta "'+ruta+'" no existe en el índice. Usa buscar_documentacion_odoo primero y copia la ruta tal cual.'};
+
+  let rst;
+  try{
+    const r=await fetch(idx.baseRaw+ruta+'.rst');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    rst=await r.text();
+  }catch(e){ return {error:'No se pudo leer la página desde el repo de Odoo: '+e.message}; }
+
+  const texto=_rstATexto(rst);
+  const url=idx.baseUrl+ruta+'.html';
+  const LIMITE=14000;
+  const INSTR='Responde SOLO con lo que dice este contenido y cita la url al final. Si la respuesta no está aquí, dilo — no la completes de memoria.';
+  if(texto.length<=LIMITE){
+    return {version:idx.version, titulo:pg.t, ruta:ruta, url:url, contenido:texto, instruccion:INSTR};
+  }
+  // Páginas grandes (11 de 941 pasan de 40 KB): se corta por sección. Si el usuario pidió una,
+  // se devuelve solo esa; si no, el listado de secciones para que Ninja pida la que necesita.
+  const partes=texto.split(/\n## /).map(function(x,i){ return i?'## '+x:x; });
+  const secciones=partes.map(function(p){ const m=p.match(/^## (.+)$/m); return m?m[1]:null; }).filter(Boolean);
+  const filtro=_docsNorm((input&&input.seccion)||'');
+  if(filtro){
+    // Primero por nombre de encabezado; si no casa, por contenido. Esto importa: el término que
+    // usa el vendedor casi nunca es el título en inglés de la sección (preguntan por "Carta Porte"
+    // y la sección se llama "Delivery guide").
+    let hit=partes.filter(function(p){ const m=p.match(/^## (.+)$/m); return m && _docsNorm(m[1]).includes(filtro); });
+    let porContenido=false;
+    if(!hit.length){ hit=partes.filter(function(p){ return _docsNorm(p).includes(filtro); }); porContenido=hit.length>0; }
+    if(hit.length) return {version:idx.version, titulo:pg.t, ruta:ruta, url:url,
+      seccion:input.seccion,
+      ...(porContenido?{nota:'Ninguna sección se llama así; estas son las que mencionan el término en su contenido.'}:{}),
+      contenido:hit.join('\n\n').slice(0,LIMITE), instruccion:INSTR};
+  }
+  return {version:idx.version, titulo:pg.t, ruta:ruta, url:url,
+    contenido:texto.slice(0,LIMITE),
+    truncado:true,
+    seccionesDisponibles:secciones,
+    instruccion:'Esta página es larga y se cortó. Arriba va el inicio. Si lo que necesitas está en otra sección, vuelve a llamar leer_documentacion_odoo con el mismo "ruta" y el nombre de la sección en "seccion". Cita la url al final.'};
 }
 
 async function ninjaBuscarApps(queryText){
@@ -15849,6 +16015,8 @@ async function ninjaObtenerCadenciasActivas(){
 const NINJA_TOOL_EXECUTORS={
   buscar_banco_informacion:i=>ninjaBuscarWiki(i.query),
   buscar_apps_odoo:i=>ninjaBuscarApps(i.query),
+  buscar_documentacion_odoo:i=>ninjaBuscarDocsOdoo(i.consulta),
+  leer_documentacion_odoo:i=>ninjaLeerDocsOdoo(i),
   obtener_mis_kpis:i=>ninjaObtenerMisKPIs(i.meses),
   obtener_desempeno_historico_icp:i=>ninjaObtenerDesempenoHistorico(i),
   obtener_mis_empresas_por_industria:()=>ninjaObtenerEmpresasPorIndustria(),
