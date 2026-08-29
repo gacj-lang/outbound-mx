@@ -15425,6 +15425,16 @@ MÓDULOS SIN HERRAMIENTA DE CONSULTA — si preguntan por esto, dilo directo y m
 - Proveedores de Timbres (PACs): botón de descarga en el menú lateral.
 
 Solo tienes acceso de LECTURA — no puedes crear, activar ni modificar nada (leads, cadencias, empresas, registros). Si te piden crear/activar/editar algo, explica que hoy solo consultas información, y qué pantalla de la app usar para hacerlo.
+
+REGLAS DE PRODUCTO (innegociables — un error aquí cuesta una venta en Proposition, no en la llamada):
+- NUNCA afirmes que Odoo hace algo si no salió de una de tus herramientas o de los hechos verificados de abajo. Es preferible quedar corto que prometer de más.
+- Distingue siempre entre lo que es ESTÁNDAR, lo que se resuelve con STUDIO (personalización sin código) y lo que requiere DESARROLLO. Si no lo sabes con certeza, dilo.
+- Si la duda es técnica y ninguna herramienta la cubre, la respuesta correcta es: "No te lo confirmo, eso lo valido con Presales antes de comprometerlo con el cliente." Dáselo al AE como frase lista para usar en la llamada.
+- Nunca inventes precios ni cifras de implementación. El tarifario vive en la pantalla 💰 Pricing; manda al usuario ahí.
+
+${ODOO_VERIFIED_FACTS}
+
+Evita este lenguaje vacío de marketing: ${ODOO_BUZZWORDS_BANNED.join(', ')}.
 ${SPANISH_ORTHOGRAPHY_RULE}
 Español de México, tuteo (nunca voseo). Frases cortas y directas, sin relleno corporativo ni metáforas. Texto plano, sin markdown (nada de **, ##, guiones de lista con asterisco) — esto se muestra en un panel de chat simple.
 Cuando te pidan "áreas de oportunidad" o coaching de un AE en sus Qcalls, sintetiza los patrones que se repiten entre sesiones — no listes cada sesión aparte salvo que te lo pidan explícitamente.`;
@@ -15456,7 +15466,7 @@ function ninjaToolDefs(){
      description:'Contexto completo (360) de una empresa: datos básicos, sesiones de Discovery/Qcall, pricing generado, propuestas, solicitudes CSV, contenido guardado (correo/WhatsApp/LinkedIn/etc.) y actividad de cadencias de correo (enviados + respuestas). Úsala para cualquier pregunta sobre una empresa/cliente específico o su historial. Respeta tu alcance por rol — solo regresa empresas que ya puedes ver en la app.',
      input_schema:{type:'object',properties:{empresa:{type:'string',description:'Nombre (o parte del nombre) de la empresa'}},required:['empresa']}},
     {name:'obtener_desempeno_historico_icp',
-     description:'Win-rate real (CRM histórico Odoo México 2024-2026) por industria, estado y fuente de lead, más los motivos de pérdida — generales y desglosados por etapa del embudo (Territory/Nuevo, Qualified, Qualified Sponsor, Proposition, Negotiation, Cold Opp). Por defecto es de Outbound; pasa motion:"Inbound" si preguntan específicamente por Inbound, o llama la herramienta dos veces (una por motion) para comparar. Úsala para CUALQUIER pregunta sobre ICP, qué industria/estado prospectar, qué ha convertido mejor, o por qué se pierden leads en una etapa concreta — no la sustituyas por el Banco de Información. Excluye por defecto los cuartiles más recientes que aún no maduran (los leads tardan en cerrar, así que ahí el % ganado estaría subestimado).',
+     description:'Win-rate real (CRM histórico Odoo México 2024-2026) por TAMAÑO DE EMPRESA, industria, estado y fuente de lead, más los motivos de pérdida — generales y desglosados por etapa del embudo (Territory/Nuevo, Qualified, Qualified Sponsor, Proposition, Negotiation, Cold Opp). Por defecto es de Outbound; pasa motion:"Inbound" si preguntan específicamente por Inbound, o llama la herramienta dos veces (una por motion) para comparar. Úsala para CUALQUIER pregunta sobre ICP, a quién prospectar, qué ha convertido mejor, o por qué se pierden leads en una etapa concreta — no la sustituyas por el Banco de Información. IMPORTANTE al interpretar el resultado: el campo winRatePorTamanoEmpresa es la señal más confiable y va PRIMERO en tu respuesta; el ranking por industria solo es válido si topIndustriasPorWinRate trae algo — si viene vacío, di que no hay volumen para rankear industrias en ese canal y NO uses industriasSinSenalEstadistica como si fuera un top (esos porcentajes salen de muy pocos tratos ganados). Excluye por defecto los cuartiles más recientes que aún no maduran (los leads tardan en cerrar, así que ahí el % ganado estaría subestimado).',
      input_schema:{type:'object',properties:{
        industria:{type:'string',description:'Filtra a una industria específica (opcional). Déjalo vacío para ver el top de todas.'},
        motion:{type:'string',enum:['Outbound','Inbound'],description:'Canal a consultar, por defecto Outbound.'},
@@ -15695,9 +15705,18 @@ async function ninjaObtenerDesempenoHistorico(input){
     if(!indAgg[industria]) indAgg[industria]={n:0,won:0};
     indAgg[industria].n+=n; if(stage==='Won') indAgg[industria].won+=n;
   });
-  const industrias=Object.entries(indAgg).filter(([k,v])=>v.n>=20)
+  // Doble piso: volumen Y ganados. Antes solo se exigía v.n>=20 (leads), y eso dejaba subir al #1 del
+  // ranking a industrias con UN SOLO trato ganado — en Outbound maduro, "Educación 4.2%" es 1 de 24.
+  // Un ranking así reorienta prospección real hacia ruido estadístico, así que ahora una industria solo
+  // se rankea si tiene una base de ganados que aguante (MIN_WON). Las que pasan el volumen pero no los
+  // ganados NO se tiran: se devuelven aparte, marcadas como no concluyentes, para que Ninja pueda decir
+  // "no hay señal" en vez de inventar un top. Bug real encontrado 2026-08-26.
+  const MIN_VOL=20, MIN_WON=10;
+  const indTodas=Object.entries(indAgg).filter(([k,v])=>v.n>=MIN_VOL)
     .map(([industria,v])=>({industria,volumen:v.n,ganados:v.won,winRatePct:Number((v.won/v.n*100).toFixed(1))}))
     .sort((a,b)=>b.winRatePct-a.winRatePct);
+  const industrias=indTodas.filter(r=>r.ganados>=MIN_WON);
+  const industriasSinSenal=indTodas.filter(r=>r.ganados<MIN_WON).slice(0,8);
 
   const geoAgg={};
   HIST_FACTS.FACT_GEO.forEach(([q,m,estado,n,won])=>{ if(m!==motion||!inRange(q)) return; if(!geoAgg[estado])geoAgg[estado]={n:0,won:0}; geoAgg[estado].n+=n; geoAgg[estado].won+=won; });
@@ -15705,9 +15724,24 @@ async function ninjaObtenerDesempenoHistorico(input){
     .map(([estado,v])=>({estado,volumen:v.n,ganados:v.won,winRatePct:Number((v.won/v.n*100).toFixed(1))}))
     .sort((a,b)=>b.winRatePct-a.winRatePct).slice(0,8);
 
+  // Tamaño de empresa: la ÚNICA señal de ICP del dataset que aguanta un piso serio de ganados y que
+  // además se replica en el otro motion (Inbound, con n enorme). En Outbound maduro: 5-20 empleados
+  // 6.5% (10 ganados de 154) contra 1-5 empleados 1.7% (14 de 834). El dashboard de Información
+  // Histórica ya la pintaba; esta herramienta nunca la leyó. Agregada 2026-08-26.
+  const sizeAgg={};
+  (HIST_FACTS.FACT_SIZE||[]).forEach(([q,m,tamano,n,won])=>{ if(m!==motion||!inRange(q)) return; if(!sizeAgg[tamano])sizeAgg[tamano]={n:0,won:0}; sizeAgg[tamano].n+=n; sizeAgg[tamano].won+=won; });
+  const tamanos=Object.entries(sizeAgg).map(([tamano,v])=>({tamano,volumen:v.n,ganados:v.won,winRatePct:v.n?Number((v.won/v.n*100).toFixed(2)):0}))
+    .sort((a,b)=>b.winRatePct-a.winRatePct);
+
+  // El cubo 'Otro / sin dato' se EXCLUÍA, y en Outbound maduro son 2,979 leads con 65 ganados de un
+  // universo de 3,322 — o sea que esta sección reportaba el 10% del total y presentaba como fuente
+  // dominante a Lusha (273 leads), que nunca se conectó. Ahora se incluye el cubo y se devuelve la
+  // cobertura real, para que Ninja no pueda presentar esto como si fuera el panorama completo.
   const srcAgg={};
-  HIST_FACTS.FACT_SOURCETAG.forEach(([q,m,fuente,n,won])=>{ if(m!==motion||!inRange(q)||fuente==='Otro / sin dato') return; if(!srcAgg[fuente])srcAgg[fuente]={n:0,won:0}; srcAgg[fuente].n+=n; srcAgg[fuente].won+=won; });
-  const fuentes=Object.entries(srcAgg).map(([fuente,v])=>({fuente,volumen:v.n,ganados:v.won}));
+  HIST_FACTS.FACT_SOURCETAG.forEach(([q,m,fuente,n,won])=>{ if(m!==motion||!inRange(q)) return; if(!srcAgg[fuente])srcAgg[fuente]={n:0,won:0}; srcAgg[fuente].n+=n; srcAgg[fuente].won+=won; });
+  const fuentes=Object.entries(srcAgg).map(([fuente,v])=>({fuente,volumen:v.n,ganados:v.won})).sort((a,b)=>b.volumen-a.volumen);
+  const totalFuentes=fuentes.reduce((s,f)=>s+f.volumen,0);
+  const sinClasificar=fuentes.find(f=>f.fuente==='Otro / sin dato');
 
   const lrAgg={};
   HIST_FACTS.FACT_LOSTREASON.forEach(([q,m,motivo,n])=>{ if(m!==motion||!inRange(q)) return; lrAgg[motivo]=(lrAgg[motivo]||0)+n; });
@@ -15734,10 +15768,16 @@ async function ninjaObtenerDesempenoHistorico(input){
     motion,
     ventanaCuartiles:`${quarters[0]}–${quarters[quarters.length-1]}`,
     nota:incluirReciente?`Incluye cuartiles recientes que aún no maduran para ${motion} — el % ganado ahí puede estar subestimado.`:`Solo cuartiles maduros para ${motion} (hasta ${maxMaduro}) — los leads más nuevos no han tenido tiempo de cerrar, se excluyen para no subestimar el % ganado.`,
+    // Señal más fuerte primero: el tamaño de empresa es lo único que aguanta estadísticamente.
+    winRatePorTamanoEmpresa:tamanos,
+    lecturaTamano:`El tamaño de empresa es la señal de ICP más confiable de este dataset: es la única que pasa un piso serio de ganados y se replica en el otro canal. Úsala ANTES que el ranking por industria.`,
     topIndustriasPorWinRate:industrias.slice(0,8),
-    ...(industriaFiltro&&!industrias.length?{avisoIndustria:`"${industriaFiltro}" no tiene suficiente volumen (mínimo 20 leads) en ${motion} en esta ventana para dar un % confiable.`}:{}),
+    industriasSinSenalEstadistica:industriasSinSenal,
+    reglaDeCorte:`Una industria solo se rankea con ${MIN_VOL}+ leads Y ${MIN_WON}+ ganados. Las de "industriasSinSenalEstadistica" pasan el volumen pero NO los ganados: su % viene de muy pocos tratos y NO se debe usar para decidir a quién prospectar. Si "topIndustriasPorWinRate" viene vacío, la respuesta correcta es decir que en ${motion} no hay volumen para rankear industrias — no ofrecer el mejor de la lista sin señal.`,
+    ...(industriaFiltro&&!indTodas.length?{avisoIndustria:`"${industriaFiltro}" no tiene suficiente volumen (mínimo ${MIN_VOL} leads) en ${motion} en esta ventana para dar un % confiable.`}:{}),
     topEstadosPorWinRate:estados,
     volumenPorFuente:fuentes,
+    coberturaFuente:sinClasificar?`Ojo: ${sinClasificar.volumen} de ${totalFuentes} leads (${(sinClasificar.volumen/totalFuentes*100).toFixed(0)}%) están en "Otro / sin dato". Este desglose NO es representativo de las fuentes que el equipo usa hoy (Apollo, DENUE, Outscraper, DIRIND), que no existen en este histórico. No lo presentes como el panorama de fuentes actual.`:'',
     topMotivosDePerdida:motivosPerdida,
     motivosPerdidaPorEtapa,
     ...(etapaFiltro&&!motivosPerdidaPorEtapa.length?{avisoEtapa:`"${etapaFiltro}" no tiene datos de motivos de pérdida en ${motion} en esta ventana.`}:{}),
@@ -15769,11 +15809,25 @@ async function ninjaObtenerMetricasEquipo(mesInput){
   const fc=forecasts.filter(r=>r.month===month);
   const act=activities.filter(r=>r.weekStart&&r.weekStart.startsWith(month));
   const porAE={};
-  fc.forEach(r=>{ porAE[r.aeUid]=porAE[r.aeUid]||{ae:r.aeName}; Object.assign(porAE[r.aeUid],{targetMRR:r.targetMRR||0,targetNRR:r.targetNRR||0,actualMRR:r.actualMRR||0,actualNRR:r.actualNRR||0}); });
+  // actualMRR/actualNRR nacen en null y se capturan A MANO después (metSaveForecastActual). Con
+  // `r.actualMRR||0` un mes sin capturar se reportaba como "$0 logrado", indistinguible de un mes
+  // real en cero — Ninja podía decirle a un TL que su equipo no vendió nada cuando en realidad
+  // nadie había capturado todavía. Ahora se conserva el null y se cuenta aparte quién falta.
+  fc.forEach(r=>{ porAE[r.aeUid]=porAE[r.aeUid]||{ae:r.aeName}; Object.assign(porAE[r.aeUid],{
+    targetMRR:r.targetMRR||0, targetNRR:r.targetNRR||0,
+    actualMRR:(r.actualMRR===null||r.actualMRR===undefined)?null:r.actualMRR,
+    actualNRR:(r.actualNRR===null||r.actualNRR===undefined)?null:r.actualNRR,
+    logradoCapturado:!(r.actualMRR===null||r.actualMRR===undefined),
+  }); });
   act.forEach(r=>{ porAE[r.aeUid]=porAE[r.aeUid]||{ae:r.aeName}; porAE[r.aeUid].intromeets=(porAE[r.aeUid].intromeets||0)+(r.intromeets||0); porAE[r.aeUid].demos=(porAE[r.aeUid].demos||0)+(r.demos||0); });
   const porPersona=Object.values(porAE);
   const totales=porPersona.reduce((s,a)=>({targetMRR:s.targetMRR+(a.targetMRR||0),targetNRR:s.targetNRR+(a.targetNRR||0),actualMRR:s.actualMRR+(a.actualMRR||0),actualNRR:s.actualNRR+(a.actualNRR||0),intromeets:s.intromeets+(a.intromeets||0),demos:s.demos+(a.demos||0)}),{targetMRR:0,targetNRR:0,actualMRR:0,actualNRR:0,intromeets:0,demos:0});
-  return {mes:month, alcance:role==='manager'?'toda la organización':role==='tl'?'tu equipo':'tú', resumen:totales, porPersona};
+  const conForecast=porPersona.filter(a=>a.targetMRR||a.targetNRR).length;
+  const sinCapturar=porPersona.filter(a=>(a.targetMRR||a.targetNRR)&&!a.logradoCapturado).length;
+  return {mes:month, alcance:role==='manager'?'toda la organización':role==='tl'?'tu equipo':'tú',
+    resumen:totales, porPersona,
+    capturaDelLogrado:{personasConMeta:conForecast, sinCapturarLogrado:sinCapturar},
+    ...(sinCapturar?{avisoCaptura:`${sinCapturar} de ${conForecast} persona(s) no han capturado su MRR/NRR logrado de ${month}. El total de "logrado" está INCOMPLETO — no lo presentes como resultado real ni digas que van en cero por eso; el dato accionable aquí es que falta capturar.`}:{})};
 }
 
 // Cadencias en curso — mismo endpoint /cadences/active y agregación cadComputeStats() que usa la
@@ -15819,15 +15873,25 @@ async function ninjaCallClaudeRaw(messages,tools){
 
 // Tope duro de round-trips por turno — protección contra un loop descontrolado (mismo espíritu que
 // el pico de gasto de Claude API del 2026-08-10), sin necesidad de una cuota dura tipo quota.js para v1.
-const NINJA_MAX_TOOL_ITERATIONS=6;
+const NINJA_MAX_TOOL_ITERATIONS=10;
+// Tope aparte para reanudaciones (continuaciones por max_tokens y pause_turn de web_search). No son
+// llamadas a herramientas, así que no deben competir por el mismo presupuesto: antes compartían
+// contador y una respuesta larga agotaba el turno sin haber consultado nada.
+const NINJA_MAX_REANUDACIONES=6;
 
 // Preguntas de ejemplo en el estado vacío — mismo patrón que HIST_AI_EXAMPLES (histRenderIA), para
 // que el usuario no tenga que adivinar qué se puede preguntar.
+// Chips del estado vacío. Se cambiaron 2026-08-27 tras la auditoría: las dos primeras versiones
+// apuntaban a callejones sin salida. "¿Qué industria convierte mejor en Outbound?" ahora contesta
+// correctamente que no hay señal estadística (ver el doble piso de ninjaObtenerDesempenoHistorico),
+// lo cual es cierto pero es una mala primera impresión; y "¿cómo voy contra mi meta?" lee un campo
+// autoreportado que vale null hasta que alguien lo captura a mano. Estas apuntan a datos que sí
+// tienen respuesta sólida hoy.
 const NINJA_SUGGESTED_QUESTIONS=[
-  '¿Cuál es un buen ICP para prospectar este mes?',
-  '¿Cómo voy contra mi meta del mes?',
-  '¿Qué industria convierte mejor en Outbound?',
+  '¿Qué tamaño de empresa me conviene prospectar?',
+  '¿Por qué se pierden los leads en Territory?',
   'Busca en el Banco de Información objeciones de precio',
+  '¿Qué app de Odoo resuelve control de inventario por lote?',
 ];
 window.ninjaAskChip=function(q){
   const input=document.getElementById('ninjaInput');
@@ -15850,14 +15914,27 @@ async function ninjaRunTurn(userText){
   const tools=ninjaToolDefs();
   let messages=[..._ninjaApiHistory,{role:'user',content:userText}];
   let answerParts=[]; // texto acumulado entre cortes por max_tokens (ver bug real abajo)
-  for(let i=0;i<NINJA_MAX_TOOL_ITERATIONS;i++){
+  // Dos contadores separados a propósito. Antes había uno solo y una respuesta larga (varias
+  // continuaciones por max_tokens) o una búsqueda web con pausas podía quemar el tope completo sin
+  // haber ejecutado una sola herramienta útil — el usuario recibía "no pude terminar" tras esperar.
+  let usosHerramienta=0, reanudaciones=0;
+  while(usosHerramienta<NINJA_MAX_TOOL_ITERATIONS && reanudaciones<NINJA_MAX_REANUDACIONES){
     const data=await ninjaCallClaudeRaw(messages,tools);
     messages.push({role:'assistant',content:data.content});
     if(_ninjaUsedWebSearch(data.content)){
       _ninjaMessages.push({role:'status',text:'Buscando en internet…'});
       ninjaRenderMessages();
     }
-    if(data.stop_reason==='tool_use'){
+    // pause_turn: la API lo devuelve cuando el loop server-side de web_search llega a su límite y quiere
+    // reanudar. Antes caía al camino de respuesta final y Ninja devolvía el texto parcial tirando el
+    // resto del turno — justo en el escenario "duda a media Qcall". Se re-mandan los MISMOS messages sin
+    // agregar nada: meterle un "continúa" rompe la reanudación del lado del servidor.
+    if(data.stop_reason==='pause_turn'){ reanudaciones++; continue; }
+    // Un corte por max_tokens puede caer a media emisión de un bloque tool_use. En ese caso hay que
+    // ejecutar las herramientas y responder con tool_results como siempre: mandar un mensaje de texto
+    // del usuario después de un assistant con tool_use sin su tool_result es una forma que la API
+    // rechaza con 400, y el usuario solo vería "Error: ...".
+    if(data.stop_reason==='tool_use'||(data.content||[]).some(b=>b.type==='tool_use')){
       const toolUses=(data.content||[]).filter(b=>b.type==='tool_use');
       const toolResults=[];
       for(const tu of toolUses){
@@ -15869,6 +15946,7 @@ async function ninjaRunTurn(userText){
         toolResults.push({type:'tool_result',tool_use_id:tu.id,content:JSON.stringify(result)});
       }
       messages.push({role:'user',content:toolResults});
+      usosHerramienta++;
       continue;
     }
     // Junta TODOS los bloques de texto, no solo el primero: cuando hay citas (web_search) la API
@@ -15885,6 +15963,7 @@ async function ninjaRunTurn(userText){
       // le pedimos a Claude que retome exactamente donde se quedó y unimos el texto — el usuario
       // nunca ve el corte.
       messages.push({role:'user',content:'Continúa tu respuesta exactamente donde se cortó, sin repetir nada de lo ya escrito ni agregar introducción.'});
+      reanudaciones++;
       continue;
     }
     _ninjaApiHistory=messages;
@@ -15951,7 +16030,11 @@ function ninjaRenderMessages(){
   } else {
     el.innerHTML=_ninjaMessages.map(m=>{
       if(m.role==='status') return `<div class="hist-muted" style="font-size:12px;margin-bottom:8px">${_histEsc(m.text)}</div>`;
-      return `<div class="hist-ai-msg ${m.role==='user'?'user':'ai'}">${_histEsc(m.text).replace(/\n/g,'<br>')}</div>`;
+      // stripMd antes de escapar: el modelo a veces ignora la regla de "sin markdown" del prompt y
+      // el usuario terminaba viendo ** y ## crudos. Solo en las respuestas de la IA — lo que escribió
+      // el usuario se muestra tal cual lo escribió.
+      const txt=m.role==='ai'?stripMd(m.text):m.text;
+      return `<div class="hist-ai-msg ${m.role==='user'?'user':'ai'}">${_histEsc(txt).replace(/\n/g,'<br>')}</div>`;
     }).join('');
   }
   if(_ninjaBusy) el.innerHTML+=`<div style="color:var(--gray-500);font-size:13px">Pensando…</div>`;
