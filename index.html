@@ -7,7 +7,7 @@
 <meta name="google" content="notranslate">
 <title>Outbound México — Odoo</title>
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-08-31T21:51:15Z">
+<meta name="app-version" content="2026-08-31T22:07:16Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1687,6 +1687,9 @@ function _doShowModule(moduleId, skipNavHighlight=false){
     // creando un registro nuevo (duplicado) en vez de actualizar el existente. Ahora discardForm()
     // espera a que el guardado en vuelo termine antes de limpiar el estado.
     clearTimeout(_discAutosaveT);
+    // El análisis en segundo plano NO se cancela al salir (tiene su propia copia del contexto y
+    // guarda por recordId), pero sí conviene decirlo: si no, parece que se perdió.
+    if(discJob&&discJob.running) showNotif('El análisis sigue corriendo — te avisamos con la campana 🔔 cuando termine','success');
     if(disc.recordId||disc.companyId||disc.selections['emp-nombre']){
       window.discSaveRecord({silent:true}).finally(()=>disc.discardForm());
     } else {
@@ -3407,6 +3410,9 @@ window.openDiscoveryForm = async function(recordId){
     wrapEl.addEventListener('change',()=>discAutosave());
   }
   // El company picker vive en la barra fija superior (dgMountPicker, llamado una vez desde discInitForm).
+  // Si el análisis de ESTA sesión sigue corriendo en segundo plano, se reconstruye la pantalla con
+  // lo que lleve hecho (tarjetas, marcas de paso, botón bloqueado) en vez de mostrarla en blanco.
+  if(discJob&&discJob.running&&discJob.recordId===recordId){ discSetMode('postcall'); discJobPintar(discJob); }
   // Show start popup only for NEW sessions
   if(!recordId) discShowStartPopup();
 };
@@ -4368,14 +4374,14 @@ async function discLoadRecentSessions(industry, limit=5){
   } catch(e){ return []; }
 }
 
-function discBuildClaudePrompt(transcript, recentSessions=[]){
-  const s=disc.selections;
-  const apps=[]; if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>apps.push('Odoo '+a.name));
-  disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!apps.includes('Odoo '+TV_APPS[tv].name)) apps.push('Odoo '+TV_APPS[tv].name); });
+function discBuildClaudePrompt(ctx){
+  const s=ctx.selections;
+  const apps=[]; if(ctx.currentInd&&APPS_DB[ctx.currentInd]) APPS_DB[ctx.currentInd].forEach(a=>apps.push('Odoo '+a.name));
+  ctx.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!apps.includes('Odoo '+TV_APPS[tv].name)) apps.push('Odoo '+TV_APPS[tv].name); });
 
-  const memoryBlock = recentSessions.length>0 ? `
-MEMORIA DEL EQUIPO — Patrones detectados en las últimas ${recentSessions.length} sesiones de ${IND_NAMES[disc.currentInd]||'esta industria'}:
-${recentSessions.map((r,i)=>{
+  const memoryBlock = ctx.recentSessions.length>0 ? `
+MEMORIA DEL EQUIPO — Patrones detectados en las últimas ${ctx.recentSessions.length} sesiones de ${IND_NAMES[ctx.currentInd]||'esta industria'}:
+${ctx.recentSessions.map((r,i)=>{
   const d=(r.selections?.dolores||r.dolores||[]).join(', ')||'no registrados';
   const b=r.selections?.budget||r.budget||'nd';
   const fit=r.selections?.fit||r.fit||'nd';
@@ -4408,7 +4414,7 @@ DATOS CAPTURADOS DURANTE LA LLAMADA:
 - Notas libres del AE (durante la llamada): ${s.fld?.['notas-llamada']||'nd'}
 
 TRANSCRIPCIÓN COMPLETA:
-${transcript||'(No hay transcripción disponible para esta sesión. Básate SOLO en los datos capturados arriba — si una sección de abajo depende de la transcripción y no la tienes, dilo explícitamente en vez de inventar contenido.)'}
+${ctx.transcript||'(No hay transcripción disponible para esta sesión. Básate SOLO en los datos capturados arriba — si una sección de abajo depende de la transcripción y no la tienes, dilo explícitamente en vez de inventar contenido.)'}
 
 El objetivo es DOCUMENTAR al cliente con información de calidad para que cualquiera del equipo lo entienda sin haber estado en la llamada. Genera la nota con exactamente estas 7 secciones, en este orden y con estos títulos, numeradas igual:
 
@@ -4449,8 +4455,8 @@ El objetivo es DOCUMENTAR al cliente con información de calidad para que cualqu
    El orden en que conviene mostrarle Odoo a ESTE cliente, en tres fases: Comercial → Operativo → Administrativo/Contable. Por cada fase: qué módulos, qué dolor específico de ellos resuelve cada módulo, y con qué efecto WOW conviene abrir esa fase. Cierra con una frase de por dónde empezar la demo y por qué, conectada a lo que más les duele.
 
 7. ÁREAS DE OPORTUNIDAD — FALTÓ POR CALIFICAR
-   Todo lo que quedó en "Falta" o "Parcial" en la tabla del punto 4, más cualquier tema del negocio que no se alcanzó a explorar. Por cada punto: qué falta → la pregunta concreta para la siguiente interacción → por qué importa para avanzar el deal.${recentSessions.length>0?`
-   Cierra la sección con una línea que empiece con "Patrones del equipo:" comparando con el historial de ${IND_NAMES[disc.currentInd]||'la industria'}: dolores recurrentes y qué hace distinto a este prospecto.`:''}
+   Todo lo que quedó en "Falta" o "Parcial" en la tabla del punto 4, más cualquier tema del negocio que no se alcanzó a explorar. Por cada punto: qué falta → la pregunta concreta para la siguiente interacción → por qué importa para avanzar el deal.${ctx.recentSessions.length>0?`
+   Cierra la sección con una línea que empiece con "Patrones del equipo:" comparando con el historial de ${IND_NAMES[ctx.currentInd]||'la industria'}: dolores recurrentes y qué hace distinto a este prospecto.`:''}
 
 Escribe en español de México, tono profesional pero directo. NO inventes datos: si algo no está en lo capturado ni en la transcripción, escribe "No documentado". No repitas información entre secciones. No recortes ni resumas de más para ahorrar espacio: no hay límite de longitud y esta nota es el contexto del cliente para todo el equipo — es preferible larga y completa que corta y con huecos.`;
 }
@@ -4511,26 +4517,120 @@ async function discClaudeText(prompt, opts={}){
   return full||'Sin respuesta';
 }
 
+// ══════════════════════════════════════════
+// ANÁLISIS EN SEGUNDO PLANO
+// ══════════════════════════════════════════
+// Antes, "Analizar discovery" vivía en la pantalla: cada paso escribía su resultado directo en el
+// DOM y el guardado final volvía a leerlo de ahí. Si el AE se salía del módulo a medio análisis,
+// _doShowModule vaciaba #moduleContent y llamaba discardForm() — así que los pasos que seguían en
+// vuelo escribían sobre elementos que ya no existían, los que faltaban armaban su prompt con
+// disc.selections ya vacío, y el guardado final leía cadenas vacías con disc.recordId en null: el
+// análisis se perdía entero y encima podía crear un registro fantasma.
+// Ahora el análisis es un job con su propia copia de todo lo que necesita (ctx), guarda sus
+// resultados por recordId sin depender de la pantalla, y avisa por la campana 🔔 al terminar.
+let discJob=null;
+
+// ¿El AE sigue viendo la sesión que este análisis está procesando? Si se fue a otro módulo o abrió
+// otra sesión, la pantalla ya no es de este job: los resultados se guardan igual (en el job y en
+// Firestore), simplemente no se pinta nada.
+function discJobEnPantalla(job){
+  return !!job && disc.formActive && !!disc.recordId && disc.recordId===job.recordId && !!document.getElementById('discGeminiOutput');
+}
+
+// Vuelca al estado vivo y a la pantalla TODO lo que el job lleva hecho. Se llama al terminar cada
+// paso y también al reabrir la sesión con el análisis todavía corriendo, así que sirve igual para
+// pintar un resultado nuevo que para reconstruir la pantalla desde cero.
+function discJobPintar(job){
+  if(!discJobEnPantalla(job)) return;
+  const r=job.results;
+  const set=(id,txt)=>{ const e=document.getElementById(id); if(e) e.textContent=txt; };
+  const show=id=>{ const e=document.getElementById(id); if(e) e.style.display='block'; };
+  const err=job.errores||{};
+  if(err[1]){ set('discGeminiOutput',err[1]); show('discNotaStepOut'); }
+  else if(r.geminiNote!=null){ set('discGeminiOutput',r.geminiNote); show('discNotaStepOut'); set('discEngineLabel',r.engineLabel||'⚡ Claude'); }
+  if(err[2]){ set('discRecoOutput',err[2]); show('discRecoStepOut'); }
+  else if(r.recoNote!=null){ set('discRecoOutput',r.recoNote); show('discRecoStepOut'); set('discRecoLabel',r.recoLabel||''); }
+  if(r.appsAI){ disc.appsAI=r.appsAI; disc.appsFlow=r.appsFlow||''; discRenderAppsList(r.appsAI,r.appsNote||''); }
+  if(r.wowAI){ disc.wowAI=r.wowAI; dgRenderPostcall(); }
+  if(r.resumenIntromeet){ disc.resumenIntromeet=r.resumenIntromeet; discRenderResumen(r.resumenIntromeet); }
+  if(r.feedbackFinal){ disc.feedbackFinal=r.feedbackFinal; discRenderFeedback(r.feedbackFinal); }
+  [1,2,3,4,5,6].forEach(n=>discStepMark(n,job.steps[n]||null));
+  const btn=document.getElementById('discAnalyzeAllBtn'), lbl=document.getElementById('discAnalyzeAllLbl'), loading=document.getElementById('discAnalyzeAllLoading');
+  if(btn) btn.disabled=job.running;
+  if(loading) loading.classList.toggle('show',job.running);
+  if(lbl) lbl.textContent=job.running?(job.fase||'Analizando…'):'↺ Regenerar';
+}
+
+// Guarda los resultados directo por recordId. A propósito NO pasa por discSaveRecord: ese lee el
+// formulario vivo (y hasta el DOM), y el punto aquí es justamente que el análisis pueda terminar
+// con el AE en otro módulo. Es un updateDoc parcial: solo toca los campos del análisis, nunca pisa
+// lo que el AE haya seguido capturando en otra sesión mientras tanto.
+async function discJobGuardar(job){
+  if(!job.recordId||!db) return;
+  const r=job.results, patch={updatedAt:serverTimestamp()};
+  if(r.geminiNote!=null) patch.geminiNote=r.geminiNote;
+  if(r.recoNote!=null) patch.recoNote=r.recoNote;
+  if(r.appsAI){ patch.appsAI=r.appsAI; patch.appsFlow=r.appsFlow||''; }
+  if(r.wowAI) patch.wowAI=r.wowAI;
+  if(r.resumenIntromeet) patch.resumenIntromeet=r.resumenIntromeet;
+  if(r.feedbackFinal) patch.feedbackFinal=r.feedbackFinal;
+  if(job.done&&r.geminiNote){ patch.status='completado'; patch.callEnded=true; }
+  try{ await updateDoc(doc(db,'discoveryRecords',job.recordId),patch); }
+  catch(e){ console.warn('discJobGuardar:',e); }
+}
+
+// ── Aviso al terminar: campana 🔔 (misma que búsquedas de leads y respuestas de cadencias) ──
+let _discAnalisisCache=[];
+let _discAnalisisDismissed=new Set();
+function discJobAvisar(job){
+  const enPantalla=discJobEnPantalla(job);
+  const entry={id:job.recordId, empresa:job.empresa||'Sin nombre', fallidos:job.fallidos.slice(), read:enPantalla, at:new Date()};
+  _discAnalisisCache=[entry,..._discAnalisisCache.filter(e=>e.id!==entry.id)].slice(0,10);
+  _discAnalisisDismissed.delete(entry.id);
+  renderLeadJobsBell();
+  const ok=!entry.fallidos.length;
+  showNotif(ok?`✅ Análisis de ${entry.empresa} listo`:`⚠️ Análisis de ${entry.empresa}: falló ${entry.fallidos.join(', ')}`, ok?'success':'error');
+  // Notificación del navegador solo si NO lo está viendo — si sigue en la pantalla ya vio aparecer
+  // las tarjetas y una notificación encima sobra.
+  if(!enPantalla && 'Notification' in window && Notification.permission==='granted'){
+    const n=new Notification('🔔 Análisis de Qcall listo',{
+      body:`${entry.empresa} — nota para CRM, resumen y feedback listos.`,
+      tag:`discAnalisis-${entry.id}`,
+    });
+    n.onclick=()=>{ window.focus(); n.close(); window.discOpenAnalisisFromBell(entry.id); };
+  }
+}
+window.discOpenAnalisisFromBell=function(id){
+  const e=_discAnalisisCache.find(x=>x.id===id); if(e) e.read=true;
+  _leadBellOpen=false;
+  showModule('discovery',false,()=>openDiscoveryForm(id));
+};
+window.discDismissAnalisis=function(id){
+  const e=_discAnalisisCache.find(x=>x.id===id); if(e) e.read=true;
+  _discAnalisisDismissed.add(id); renderLeadJobsBell();
+};
+window.discMarkAllAnalisisRead=function(){ _discAnalisisCache.forEach(e=>e.read=true); renderLeadJobsBell(); };
+
 // ── Recomendaciones (coaching sin transcripción) ──
 // ── Paso 1: Nota para CRM (usa transcripción si hay; si no, se basa en lo capturado en la app) ──
-async function discStepNota(transcript, recentSessions){
-  const text=stripMd(await discClaudeText(discBuildClaudePrompt(transcript,recentSessions),{maxTokens:8000}));
-  const output=document.getElementById('discGeminiOutput'), wrap=document.getElementById('discNotaStepOut'), engineLabel=document.getElementById('discEngineLabel');
-  if(output) output.textContent=text;
-  if(wrap) wrap.style.display='block';
-  if(engineLabel) engineLabel.textContent='⚡ Claude'+(recentSessions.length>0?` · ${recentSessions.length} sesiones de contexto`:'');
+async function discStepNota(ctx){
+  const text=stripMd(await discClaudeText(discBuildClaudePrompt(ctx),{maxTokens:8000}));
+  const n=ctx.ctx.recentSessions.length;
+  ctx.job.results.geminiNote=text;
+  ctx.job.results.engineLabel='⚡ Claude'+(n>0?` · ${n} sesiones de contexto`:'');
+  discJobPintar(ctx.job);
   return text;
 }
 
 // ── Paso 2: Recomendaciones para cerrar (no requiere transcripción) ──
-async function discStepReco(recentSessions){
-  const s=disc.selections;
-  const apps=[]; if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>apps.push('Odoo '+a.name));
-  disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!apps.includes('Odoo '+TV_APPS[tv].name)) apps.push('Odoo '+TV_APPS[tv].name); });
+async function discStepReco(ctx){
+  const s=ctx.selections;
+  const apps=[]; if(ctx.currentInd&&APPS_DB[ctx.currentInd]) APPS_DB[ctx.currentInd].forEach(a=>apps.push('Odoo '+a.name));
+  ctx.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!apps.includes('Odoo '+TV_APPS[tv].name)) apps.push('Odoo '+TV_APPS[tv].name); });
 
-  const historialBlock = recentSessions.length>0 ? `
-HISTORIAL DEL EQUIPO — Últimas ${recentSessions.length} sesiones de ${IND_NAMES[disc.currentInd]||'esta industria'}:
-${recentSessions.map((r,i)=>{
+  const historialBlock = ctx.recentSessions.length>0 ? `
+HISTORIAL DEL EQUIPO — Últimas ${ctx.recentSessions.length} sesiones de ${IND_NAMES[ctx.currentInd]||'esta industria'}:
+${ctx.recentSessions.map((r,i)=>{
   const d=(r.selections?.dolores||r.dolores||[]).join(', ')||'nd';
   const b=r.selections?.budget||r.budget||'nd';
   const t=r.selections?.timeline||r.timeline||'nd';
@@ -4540,7 +4640,7 @@ ${recentSessions.map((r,i)=>{
 }).join('\n')}
 ` : '';
 
-  const prompt = `Eres el coach de ventas senior del equipo Outbound México de Odoo. Tu trabajo es ayudar a ${currentUserData?.name||'el AE'} a cerrar este prospecto.
+  const prompt = `Eres el coach de ventas senior del equipo Outbound México de Odoo. Tu trabajo es ayudar a ${ctx.aeName||'el AE'} a cerrar este prospecto.
 
 PERFIL DEL PROSPECTO:
 - Empresa: ${s['emp-nombre']||'no capturado'} | Industria: ${s['industria']||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
@@ -4569,38 +4669,37 @@ Qué hacer exactamente en la siguiente interacción. Sé muy específico.
 🔴 SEÑALES DE ALERTA
 Factores de riesgo detectados en este perfil que podrían complicar el cierre.
 
-${recentSessions.length>0?`📊 VS. HISTORIAL DEL EQUIPO
-¿En qué se diferencia este prospecto de los otros ${recentSessions.length} casos similares? ¿Qué lecciones aplican aquí?`:''}
+${ctx.recentSessions.length>0?`📊 VS. HISTORIAL DEL EQUIPO
+¿En qué se diferencia este prospecto de los otros ${ctx.recentSessions.length} casos similares? ¿Qué lecciones aplican aquí?`:''}
 
 Sé directo, específico y accionable. Habla de tú al AE. No repitas los datos del perfil.`;
 
   const text=stripMd(await discClaudeText(prompt,{maxTokens:6000}));
-  const output=document.getElementById('discRecoOutput'), wrap=document.getElementById('discRecoStepOut'), label=document.getElementById('discRecoLabel');
-  if(output) output.textContent=text;
-  if(wrap) wrap.style.display='block';
-  if(label) label.textContent=recentSessions.length>0?`Basado en ${recentSessions.length} sesiones del equipo`:'Basado en el perfil capturado';
+  ctx.job.results.recoNote=text;
+  ctx.job.results.recoLabel=ctx.ctx.recentSessions.length>0?`Basado en ${ctx.ctx.recentSessions.length} sesiones del equipo`:'Basado en el perfil capturado';
+  discJobPintar(ctx.job);
   return text;
 }
 
 // ── Paso 3: Apps recomendadas — SOLO del catálogo oficial ODOO_APPS_FLAT (misma fuente que Pricing/Propuesta), nunca inventadas ──
-async function discStepApps(transcript, notaText){
-  const s=disc.selections;
+async function discStepApps(ctx, notaText){
+  const s=ctx.selections;
   const catalogBlock=ODOO_APPS_FLAT.map(a=>`- ${a.name}: ${a.desc}`).join('\n');
-  const indCtx=ODOO_INDUSTRIES[IND_NAMES[disc.currentInd]]||'';
+  const indCtx=ODOO_INDUSTRIES[IND_NAMES[ctx.currentInd]]||'';
   const prompt=`Eres un consultor preventa de Odoo México eligiendo qué apps mostrarle a este prospecto en la demo.
 
 CATÁLOGO OFICIAL DE ODOO — única fuente permitida. NUNCA menciones una app que no esté en esta lista exacta, NUNCA inventes nombres ni funciones que no estén descritas aquí:
 ${catalogBlock}
 
 CONTEXTO DEL PROSPECTO:
-- Industria: ${IND_NAMES[disc.currentInd]||'nd'}${indCtx?(' · '+indCtx):''}
+- Industria: ${IND_NAMES[ctx.currentInd]||'nd'}${indCtx?(' · '+indCtx):''}
 - Tipo de venta: ${s['tipo_venta']||'nd'} | Tipo de producto: ${s['tipo-empresa']||'nd'}
 - Dolores detectados: ${(s.dolores||[]).join(', ')||'nd'}
 - Dolor principal: ${s.fld?.['dol-principal']||'nd'}
 - Sistemas actuales: ${s['emp-sistemas']||'nd'}
 - Notas del AE durante la llamada: ${s.fld?.['notas-llamada']||'nd'}
 ${notaText?`- Nota de discovery ya generada:\n${notaText}`:''}
-${transcript?`- Transcripción completa de la llamada (úsala si aporta):\n${transcript}`:''}
+${ctx.transcript?`- Transcripción completa de la llamada (úsala si aporta):\n${ctx.transcript}`:''}
 
 Elige entre 4 y 8 apps del catálogo — las MÁS relevantes para ESTE prospecto, no una lista genérica de industria. Para cada una, clasifícala en la FASE de la demo donde mejor encaja:
 - "comercial": lleva toda la parte comercial — CRM, cotizaciones, ventas, portal del cliente
@@ -4622,33 +4721,35 @@ Y sugiere el ORDEN de presentación en la demo: primero Comercial, luego Operati
   const validNames=new Set(ODOO_APPS_FLAT.map(a=>a.name.toLowerCase()));
   let list=(Array.isArray(parsed.apps)?parsed.apps:[]).filter(x=>x?.name&&validNames.has(String(x.name).toLowerCase()))
     .map(x=>{ const f=String(x.fase||'').trim().toLowerCase(); return {name:x.name,reason:stripMd(x.reason),fase:FASES.has(f)?f:null}; }).slice(0,8);
-  disc.appsFlow=list.some(a=>a.fase)?stripMd(parsed.flujo||''):'';
+  let appsFlow=list.some(a=>a.fase)?stripMd(parsed.flujo||''):'';
   if(!list.length){
     // Fallback a la línea base por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
     const apps=[]; const seen=new Set();
-    if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>{ if(!seen.has(a.name)){ apps.push(a); seen.add(a.name); }});
-    disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!seen.has(TV_APPS[tv].name)){ apps.push(TV_APPS[tv]); seen.add(TV_APPS[tv].name); }});
+    if(ctx.currentInd&&APPS_DB[ctx.currentInd]) APPS_DB[ctx.currentInd].forEach(a=>{ if(!seen.has(a.name)){ apps.push(a); seen.add(a.name); }});
+    ctx.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!seen.has(TV_APPS[tv].name)){ apps.push(TV_APPS[tv]); seen.add(TV_APPS[tv].name); }});
     list=apps;
-    disc.appsFlow='';
+    appsFlow='';
   }
-  disc.appsAI=list;
-  discRenderAppsList(list,'Generado con IA · catálogo oficial de Odoo + tus notas');
+  ctx.job.results.appsAI=list;
+  ctx.job.results.appsFlow=appsFlow;
+  ctx.job.results.appsNote='Generado con IA · catálogo oficial de Odoo + tus notas';
+  discJobPintar(ctx.job);
   return list;
 }
 
 // ── Paso 4: Efectos WOW para la demo — SOLO del catálogo WOW_DB (misma lógica anti-alucinación que discStepApps), elegidos por relevancia real al dolor detectado, no por regla fija de industria ──
-async function discStepWow(transcript, notaText){
-  const s=disc.selections;
+async function discStepWow(ctx, notaText){
+  const s=ctx.selections;
   const areaLbl={comercial:'Comercial',operativo:'Operativo',administrativo:'Administrativo'};
   // Catálogo acotado a lo relevante para esta sesión (generales + industria + tipo de venta actuales) — mismo criterio que dgWowItems, sin recortar a 6: aquí elige la IA.
   const catalogItems=[];
   Object.entries(WOW_DB).forEach(([area,items])=>{
     items.forEach(w=>{
-      const relevant=w.type==='gen'||(w.type==='ind'&&w.ind===disc.currentInd)||(w.type==='tv'&&disc.activeTV.has(w.tv));
+      const relevant=w.type==='gen'||(w.type==='ind'&&w.ind===ctx.currentInd)||(w.type==='tv'&&ctx.activeTV.has(w.tv));
       if(relevant) catalogItems.push({...w,area});
     });
   });
-  if(!catalogItems.length){ disc.wowAI=[]; dgRenderPostcall(); return []; }
+  if(!catalogItems.length){ ctx.job.results.wowAI=[]; discJobPintar(ctx.job); return []; }
   const catalogBlock=catalogItems.map((w,i)=>`${i+1}. [${areaLbl[w.area]}] "${w.title}" — ${w.desc}`).join('\n');
   const prompt=`Eres un consultor preventa de Odoo México eligiendo qué "efectos WOW" mostrarle a este prospecto en la demo — los momentos que más lo van a impresionar porque conectan directo con SU dolor.
 
@@ -4656,12 +4757,12 @@ CATÁLOGO DE EFECTOS WOW — única fuente permitida. NUNCA inventes un efecto q
 ${catalogBlock}
 
 CONTEXTO DEL PROSPECTO:
-- Industria: ${IND_NAMES[disc.currentInd]||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
+- Industria: ${IND_NAMES[ctx.currentInd]||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
 - Dolor principal (en sus palabras): ${s.fld?.['dol-principal']||'nd'}
 - Otras señales/dolores detectados: ${(s.dolores||[]).join(', ')||'nd'}
 - Notas del AE durante la llamada: ${s.fld?.['notas-llamada']||'nd'}
 ${notaText?`- Nota de discovery ya generada:\n${notaText}`:''}
-${transcript?`- Transcripción completa de la llamada (úsala si aporta):\n${transcript}`:''}
+${ctx.transcript?`- Transcripción completa de la llamada (úsala si aporta):\n${ctx.transcript}`:''}
 
 Elige entre 3 y 6 efectos del catálogo — los MÁS conectados al dolor real de ESTE prospecto, no una lista genérica de industria. Ordénalos del más al menos impactante para ESTE cliente. Responde SOLO con este JSON (sin markdown, sin texto fuera del JSON):
 [{"title":"Título EXACTO tal cual aparece en el catálogo","why":"por qué este efecto en particular le va a pegar a ESTE prospecto, en 1 frase, conectada a algo que dijo o hace"}]`;
@@ -4681,19 +4782,19 @@ Elige entre 3 y 6 efectos del catálogo — los MÁS conectados al dolor real de
     list=catalogItems.filter(w=>w.type!=='gen').slice(0,6);
     if(list.length<4) list=[...list,...catalogItems.filter(w=>w.type==='gen')].slice(0,6);
   }
-  disc.wowAI=list;
-  dgRenderPostcall();
+  ctx.job.results.wowAI=list;
+  discJobPintar(ctx.job);
   return list;
 }
 
 // ── Paso 5: Resumen Intromeet — síntesis reutilizable como contexto en otras apps (vía memoria de empresa) ──
-async function discStepResumen(notaText, recoText, appsList){
-  const s=disc.selections;
+async function discStepResumen(ctx, notaText, recoText, appsList){
+  const s=ctx.selections;
   const appsTxt=(appsList||[]).map(a=>a.name).join(', ')||'nd';
   const prompt=`Escribe el "Resumen Intromeet" de esta sesión de discovery: un texto denso (8-15 líneas, más si el caso lo amerita — no lo recortes a costa de perder contexto) que otro AE, o la IA de otras herramientas de Odoo México, pueda usar como contexto de la cuenta sin leer toda la sesión.
 
 DATOS CAPTURADOS:
-- Empresa: ${s['emp-nombre']||'nd'} | Industria: ${IND_NAMES[disc.currentInd]||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
+- Empresa: ${s['emp-nombre']||'nd'} | Industria: ${IND_NAMES[ctx.currentInd]||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
 - Empleados: ${s['emp-empleados']||'nd'} | Facturación: ${s['emp-facturacion']||'nd'} | Sistemas actuales: ${s['emp-sistemas']||'nd'}
 - Dolor principal: ${s.fld?.['dol-principal']||'nd'} | Otras señales: ${(s.dolores||[]).join(', ')||'nd'}
 - Budget: ${s['budget']||'nd'} | Decisor: ${s['decisor']||'nd'} | Timeline: ${s['timeline']||'nd'}
@@ -4704,32 +4805,31 @@ ${recoText?`RECOMENDACIONES PARA CERRAR:\n${recoText}`:''}
 Escribe en tercera persona, tono de bitácora de cuenta (no un mensaje al cliente). Sintetiza, no repitas las secciones tal cual. Si algo no se sabe, dilo brevemente en vez de omitirlo en silencio.`;
 
   const text=stripMd(await discClaudeText(prompt,{maxTokens:6000}));
-  disc.resumenIntromeet=text;
-  discRenderResumen(text);
+  ctx.job.results.resumenIntromeet=text;
+  discJobPintar(ctx.job);
   return text;
 }
 
 // ── Paso 6: Feedback final de IA — coach de la SESIÓN (no del prospecto): acciones en la app + transcripción ──
-async function discStepFeedback(transcript){
-  const s=disc.selections;
-  const cov=dgCoverage();
-  const totals=cov.reduce((a,c)=>({d:a.d+c.done,t:a.t+c.total}),{d:0,t:0});
-  const pct=totals.t?Math.round(100*totals.d/totals.t):0;
-  const faltan=cov.filter(c=>c.st!=='full').map(c=>c.label);
-  const gaps=dgQualRows().filter(x=>x.chip==='no').map(x=>x.t);
+async function discStepFeedback(ctx){
+  const s=ctx.selections;
+  // pct/faltan/gaps se calculan al lanzar el análisis (dgCoverage y dgQualRows leen el formulario
+  // vivo) y viajan en el ctx — para que este paso siga dando el mismo feedback aunque el AE ya haya
+  // salido de la pantalla y el formulario esté descargado.
+  const {covPct:pct, covFaltan:faltan, qualGaps:gaps}=ctx;
   const prompt=`Eres el coach de ventas del equipo. Da feedback honesto y accionable al AE sobre CÓMO LLEVÓ esta sesión de discovery — no sobre el prospecto, sobre la sesión misma.
 
 QUÉ CUBRIÓ EN LA APP (checklist real de la llamada):
 - Completitud del discovery: ${pct}%. Faltó cubrir: ${faltan.join(', ')||'nada, cubrió todo'}.
 - Calificación MEDDIC/BANT sin documentar: ${gaps.join(', ')||'ninguna, quedó completa'}.
 - Dolor principal capturado: ${s.fld?.['dol-principal']||'no se capturó dolor principal en sus propias palabras'}.
-${transcript?`\nTRANSCRIPCIÓN COMPLETA DE LA LLAMADA (úsala para evaluar CÓMO preguntó, cuánto habló, si escuchó):\n${transcript}`:'\n(No hay transcripción disponible — da el feedback solo con base en lo documentado en la app.)'}
+${ctx.transcript?`\nTRANSCRIPCIÓN COMPLETA DE LA LLAMADA (úsala para evaluar CÓMO preguntó, cuánto habló, si escuchó):\n${ctx.transcript}`:'\n(No hay transcripción disponible — da el feedback solo con base en lo documentado en la app.)'}
 
 Dale 2-4 puntos de mejora CONCRETOS (qué pregunta faltó, qué tema no se cerró, si habló de más) y qué debe resolver en la siguiente interacción con este cliente para terminar de conocerlo. Sé directo y breve — esto lo lee el AE, no el cliente. Si la sesión estuvo sólida, dilo también; no inventes problemas que no existen.`;
 
   const text=stripMd(await discClaudeText(prompt,{maxTokens:6000}));
-  disc.feedbackFinal=text;
-  discRenderFeedback(text);
+  ctx.job.results.feedbackFinal=text;
+  discJobPintar(ctx.job);
   return text;
 }
 
@@ -4737,53 +4837,80 @@ Dale 2-4 puntos de mejora CONCRETOS (qué pregunta faltó, qué tema no se cerr�
 window.discAnalyzeDiscovery = async function(){
   const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   if(!claudeKey||claudeKey==='CLAUDE_KEY_DEFAULT'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
-  const btn=document.getElementById('discAnalyzeAllBtn');
-  const lbl=document.getElementById('discAnalyzeAllLbl');
-  const loading=document.getElementById('discAnalyzeAllLoading');
-  const transcript=document.getElementById('discTranscriptInput')?.value.trim()||'';
-  btn.disabled=true; if(loading) loading.classList.add('show');
-  [1,2,3,4,5,6].forEach(n=>discStepMark(n,null));
+  if(discJob&&discJob.running){ showNotif('Ya hay un análisis corriendo — te avisamos con la campana 🔔 cuando termine','error'); return; }
 
+  // El análisis escribe sus resultados por recordId, así que la sesión tiene que existir ANTES de
+  // arrancar: si no, al terminar no habría a dónde guardarlos.
+  await window.discSaveRecord({silent:true});
+  if(!disc.recordId){ showNotif('No se pudo guardar la sesión antes de analizar — inténtalo de nuevo','error'); return; }
+
+  const transcript=document.getElementById('discTranscriptInput')?.value.trim()||'';
   let recentSessions=[];
   if(disc.currentInd) recentSessions=await discLoadRecentSessions(disc.currentInd,5);
 
-  // Corre un paso marcándolo en la UI. Nunca lanza: un paso que falla deja su marca en blanco,
-  // reporta el error donde corresponda y devuelve null, sin tumbar a los que corren junto a él.
-  const paso=(n,fn,onError)=>{
-    discStepMark(n,'active');
-    return Promise.resolve().then(fn).then(r=>{ discStepMark(n,'done'); return r; })
-      .catch(e=>{ discStepMark(n,null); onError(e); return null; });
+  // Copia de TODO lo que los pasos necesitan. Se toma ahora, con el formulario vivo, porque a media
+  // corrida el AE puede salirse del módulo y discardForm() deja disc.selections en blanco. covPct /
+  // covFaltan / qualGaps se calculan aquí por lo mismo: dgCoverage y dgQualRows leen el formulario.
+  const cov=dgCoverage();
+  const totals=cov.reduce((a,c)=>({d:a.d+c.done,t:a.t+c.total}),{d:0,t:0});
+  const ctx={
+    selections:JSON.parse(JSON.stringify(disc.selections||{})),
+    currentInd:disc.currentInd,
+    activeTV:new Set(disc.activeTV),
+    transcript, recentSessions,
+    aeName:currentUserData?.name||'',
+    covPct:totals.t?Math.round(100*totals.d/totals.t):0,
+    covFaltan:cov.filter(c=>c.st!=='full').map(c=>c.label),
+    qualGaps:dgQualRows().filter(x=>x.chip==='no').map(x=>x.t),
   };
-  const errEnCaja=(outId,wrapId)=>e=>{ const o=document.getElementById(outId),w=document.getElementById(wrapId); if(o) o.textContent='Error: '+e.message; if(w) w.style.display='block'; };
-  const errEnAviso=msg=>e=>showNotif(msg+': '+e.message,'error');
 
-  // Los 6 pasos no son una cadena: solo 3 dependen de la salida de otro. Antes corrían uno por uno
-  // y el tiempo total era la suma de los seis; con la transcripción completa eso se volvió lento de
-  // más. Ahora van en 3 tandas, por dependencia real:
-  //   1) nota, recomendaciones y feedback — no dependen de nada entre sí
-  //   2) apps y efectos WOW — usan la nota como contexto
-  //   3) resumen — sintetiza nota + recomendaciones + apps
-  // El total pasa a ser nota + apps + resumen, no la suma de los seis. Además cada tarjeta aparece
-  // en cuanto su paso termina, en vez de esperar su turno en la fila.
-  lbl.textContent='Analizando la llamada…';
-  const [notaText, recoText] = await Promise.all([
-    paso(1,()=>discStepNota(transcript,recentSessions), errEnCaja('discGeminiOutput','discNotaStepOut')),
-    paso(2,()=>discStepReco(recentSessions), errEnCaja('discRecoOutput','discRecoStepOut')),
-    paso(6,()=>discStepFeedback(transcript), errEnAviso('No se pudo generar el feedback final')),
-  ]);
+  const job={recordId:disc.recordId, empresa:disc.selections['emp-nombre']||'Sin nombre',
+             ctx, steps:{}, results:{}, errores:{}, fallidos:[], running:true, done:false, fase:'Analizando la llamada…'};
+  ctx.job=job; discJob=job;
+  [1,2,3,4,5,6].forEach(n=>discStepMark(n,null));
+  discJobPintar(job);
 
-  lbl.textContent='Preparando la demo…';
-  const [appsList] = await Promise.all([
-    paso(3,()=>discStepApps(transcript,notaText||''), errEnAviso('No se pudieron sugerir apps con IA')),
-    paso(4,()=>discStepWow(transcript,notaText||''), errEnAviso('No se pudieron elegir efectos WOW con IA')),
-  ]);
+  // Corre un paso, lo marca en la UI y persiste lo que produjo. Nunca lanza: un paso que falla se
+  // anota en job.fallidos y los que corren junto a él siguen su camino.
+  const paso=(n,etiqueta,fn)=>{
+    job.steps[n]='active'; discJobPintar(job);
+    return Promise.resolve().then(fn)
+      .then(async r=>{ job.steps[n]='done'; await discJobGuardar(job); discJobPintar(job); return r; })
+      .catch(async e=>{ job.steps[n]=null; job.fallidos.push(etiqueta); console.warn('Análisis Qcall · '+etiqueta+':',e);
+        job.errores[n]='Error: '+e.message;
+        discJobPintar(job); return null; });
+  };
+  const fase=t=>{ job.fase=t; discJobPintar(job); };
 
-  lbl.textContent='Guardando resumen…';
-  await paso(5,()=>discStepResumen(notaText||'',recoText||'',appsList||[]), errEnAviso('No se pudo generar el Resumen Intromeet'));
+  // Los 6 pasos no son una cadena: solo 3 dependen de la salida de otro. Van en 3 tandas, por
+  // dependencia real — (1) nota, recomendaciones y feedback, que no dependen de nada entre sí;
+  // (2) apps y efectos WOW, que usan la nota como contexto; (3) resumen, que sintetiza las tres.
+  // El total es nota + apps + resumen, no la suma de los seis.
+  try{
+    fase('Analizando la llamada…');
+    const [notaText, recoText] = await Promise.all([
+      paso(1,'la nota para CRM',()=>discStepNota(ctx)),
+      paso(2,'las recomendaciones',()=>discStepReco(ctx)),
+      paso(6,'el feedback final',()=>discStepFeedback(ctx)),
+    ]);
 
-  btn.disabled=false; if(loading) loading.classList.remove('show'); lbl.textContent='↺ Regenerar';
-  discMarkCompleted();
-  discSaveRecord({silent:true});
+    fase('Preparando la demo…');
+    const [appsList] = await Promise.all([
+      paso(3,'las apps sugeridas',()=>discStepApps(ctx,notaText||'')),
+      paso(4,'los efectos WOW',()=>discStepWow(ctx,notaText||'')),
+    ]);
+
+    fase('Guardando resumen…');
+    await paso(5,'el Resumen Intromeet',()=>discStepResumen(ctx,notaText||'',recoText||'',appsList||[]));
+  } finally {
+    job.running=false; job.done=true;
+    await discJobGuardar(job);
+    // El estado "completado" solo se refleja en pantalla si el AE sigue en esta sesión; si no, ya
+    // quedó escrito en Firestore por discJobGuardar y se ve al reabrirla.
+    if(job.results.geminiNote&&discJobEnPantalla(job)) discMarkCompleted();
+    discJobPintar(job);
+    discJobAvisar(job);
+  }
 };
 
 // ── Save to Firestore ──
@@ -13862,7 +13989,11 @@ function renderLeadJobsBell(){
   // urgente que un job de búsqueda terminado.
   const repliesVisible=_cadRepliesCache.filter(r=>!_cadRepliesDismissed.has(r.id));
   const repliesUnread=repliesVisible.filter(r=>!r.read).length;
-  const unread=jobsUnread+repliesUnread;
+  // Análisis de Qcall terminados (ver discJobAvisar) — comparten esta campana porque el análisis
+  // corre en segundo plano y el AE puede estar en cualquier otro módulo cuando termina.
+  const analisisVisible=_discAnalisisCache.filter(a=>!_discAnalisisDismissed.has(a.id));
+  const analisisUnread=analisisVisible.filter(a=>!a.read).length;
+  const unread=jobsUnread+repliesUnread+analisisUnread;
   const statusLabel={buscando:'⏳ Buscando…',esperando_telefonos:'📞 Resolviendo teléfonos…',listo:'✅ Listo para descargar',error:'⚠️ Error en la búsqueda'};
   const fmtReply=s=>{ try{return new Date(s).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return s||'';} };
   const repliesHtml=repliesVisible.length?`<div style="padding:8px 14px 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase">✉️ Respuestas de cadencias</div>`+
@@ -13879,9 +14010,20 @@ function renderLeadJobsBell(){
   const dropdown=_leadBellOpen?`<div class="lead-bell-dropdown">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--gray-100);position:sticky;top:0;background:white">
       <span style="font-size:12px;font-weight:700;color:var(--gray-500)">Notificaciones</span>
-      ${unread>0?`<button onclick="csvMarkAllJobsRead();cadMarkAllRepliesRead()" style="background:none;border:none;color:var(--purple);font-size:11px;font-weight:700;cursor:pointer;padding:2px">Marcar todo leído</button>`:''}
+      ${unread>0?`<button onclick="csvMarkAllJobsRead();cadMarkAllRepliesRead();discMarkAllAnalisisRead()" style="background:none;border:none;color:var(--purple);font-size:11px;font-weight:700;cursor:pointer;padding:2px">Marcar todo leído</button>`:''}
     </div>
     ${repliesHtml}
+    ${analisisVisible.length?`<div style="padding:8px 14px 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase">🧠 Análisis de Qcall</div>`+
+      analisisVisible.map(a=>{ const ok=!a.fallidos.length; return `<div class="lead-bell-item" ${!a.read?'style="background:var(--success-light)"':''}>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <div style="flex:1;cursor:pointer" onclick="discOpenAnalisisFromBell('${a.id}')">
+            <div style="font-weight:600">${_esc(a.empresa)}</div>
+            <div style="font-size:11px;margin-top:3px;${ok?'color:var(--success);font-weight:700':'color:var(--danger)'}">${ok?'✅ Análisis listo':'⚠️ Falló '+_esc(a.fallidos.join(', '))}${!a.read?' · NUEVO':''}</div>
+            <div style="font-size:11px;color:var(--gray-400);margin-top:2px">${fmtReply(a.at.toISOString())}</div>
+          </div>
+          <button onclick="event.stopPropagation();discDismissAnalisis('${a.id}')" title="Descartar" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:13px;flex-shrink:0;padding:2px">✕</button>
+        </div>
+      </div>`; }).join(''):''}
     <div style="padding:8px 14px 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase">🔍 Búsquedas de leads</div>
     ${visibles.length?visibles.map(j=>{
       const n=j.leads?.length||0;
