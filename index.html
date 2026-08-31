@@ -278,7 +278,7 @@ input,select,textarea{font-family:inherit;}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
 /* ── NOTIF ── */
-.global-notif{position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;box-shadow:var(--shadow-lg);transform:translateY(20px);opacity:0;transition:all .25s ease;max-width:360px;}
+.global-notif{position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;box-shadow:var(--shadow-lg);transform:translateY(20px);opacity:0;pointer-events:none;transition:all .25s ease;max-width:360px;}
 .global-notif.show{transform:translateY(0);opacity:1;}
 .notif-success{background:var(--success);color:white;}
 .notif-error{background:var(--danger);color:white;}
@@ -17003,7 +17003,7 @@ window.ninjaSend=async function(){
   ninjaRenderMessages();
 };
 
-window.ninjaToggle=function(){ _ninjaOpen=!_ninjaOpen; ninjaRenderMount(); };
+window.ninjaToggle=function(){ _ninjaOpen=!_ninjaOpen; ninjaRenderMount(); if(_ninjaOpen) setTimeout(()=>document.getElementById('ninjaInput')?.focus(),60); };
 window.ninjaClose=function(){ _ninjaOpen=false; ninjaRenderMount(); };
 
 function ninjaInit(){ ninjaRenderMount(); }
@@ -17012,7 +17012,7 @@ function ninjaRenderMount(){
   const wrap=document.getElementById('ninjaMount'); if(!wrap) return;
   if(!currentUserData){ wrap.innerHTML=''; return; }
   wrap.innerHTML=`
-    <button class="ninja-fab" onclick="ninjaToggle()" title="Ninja IA">🥷</button>
+    <button class="ninja-fab" onclick="ninjaToggle()" title="Ninja IA" style="display:${_ninjaOpen?'none':'flex'}">🥷</button>
     <div class="ninja-overlay" style="display:${_ninjaOpen?'block':'none'}" onclick="ninjaClose()"></div>
     <div class="ninja-panel" style="transform:translateX(${_ninjaOpen?'0':'100%'})">
       <div class="ninja-panel-header">
