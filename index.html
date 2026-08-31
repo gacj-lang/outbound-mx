@@ -7,7 +7,7 @@
 <meta name="google" content="notranslate">
 <title>Outbound México — Odoo</title>
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-08-21T01:05:29Z">
+<meta name="app-version" content="2026-08-31T20:40:45Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1024,7 +1024,7 @@ input,select,textarea{font-family:inherit;}
         <span class="nav-download-text"><strong>Proveedores de Timbres</strong><span>⬇ Descargar PDF</span></span>
       </a>
       <div class="nav-section-label" style="margin-top:8px">Gestión</div>
-      <button class="nav-item" id="nav-metricas" onclick="showModule('metricas')" data-tip="Forecast por account (proyectado vs. logrado) y registro semanal de intromeets/demos, con histórico."><span class="nav-icon">🎯</span> Métricas</button>
+      <button class="nav-item" id="nav-metricas" onclick="showModule('metricas')" data-tip="Forecast por account (objetivo vs. logrado), llamadas, actividad semanal y tablero de KPIs con % de performance."><span class="nav-icon">🎯</span> Métricas</button>
       <button class="nav-item" id="nav-manager" onclick="showModule('manager')" style="display:none" data-tip="Aprobaciones de usuarios, asignación de roles y edición de perfiles."><span class="nav-icon">👥</span> Manager<span class="nav-badge" id="pendingBadge"></span></button>
       <button class="nav-item" id="nav-settings" onclick="showModule('settings')" data-tip="Ajusta tu perfil e integraciones de la app."><span class="nav-icon">⚙️</span> Configuración</button>
     </nav>
@@ -1056,7 +1056,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-08-17 Cadencias: botón "Activar cadencia" junto a Descargar CSV/Guardar sesión (toma toda la lista, sin seleccionar filas) + selector "Cargar desde un CSV ya generado" en Nueva cadencia.';
+const APP_BUILD_STAMP='2026-08-31 Métricas: rango semana laboral / mes completo, apartado de "logrado" en Forecast, pestaña de Llamadas (realizadas y conectadas) y Tablero de KPIs con % de performance ponderado por rol.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -2275,249 +2275,677 @@ window.savePexelsKey=async function(){
 };
 
 // ══════════════════════════════════════════
-// MÉTRICAS — Forecast (proyectado vs. logrado) y Actividad semanal (intromeets/demos)
+// MÉTRICAS — Forecast (objetivo vs. logrado), Llamadas, Actividad semanal y Tablero de KPIs
 // Alcance por rol: manager=todo · tl=su equipo (tlId) + lo suyo · ae=solo lo suyo (aeUid).
-// KPI de referencia del equipo (20 intromeets/mes, 15 demos/mes) — solo se compara, no se fuerza.
-// Colecciones nuevas: forecastRecords (1 doc por account+mes) y metActivityRecords (1 doc por
-// account+semana), mismo patrón de scoping por rol que discoveryRecords/analytics.
+// Colecciones: forecastRecords (1 doc por account+mes) y metActivityRecords (1 doc por
+// account+semana, con intromeets/demos/llamadas/llamadas conectadas), mismo patrón de scoping
+// por rol que discoveryRecords/analytics.
+// OJO: las dos colecciones necesitan su regla en Firestore. Sin regla, leer regresa vacío y
+// guardar truena con permission-denied — por eso metLoadScoped() ya no se traga el error en
+// silencio: lo deja visible arriba del módulo con el nombre de la colección que falta.
 // ══════════════════════════════════════════
-const MET_KPI = { INTROMEETS_MES:20, DEMOS_MES:15 };
-const _metState = { tab:'forecast', forecasts:[], activities:[], people:[], tls:[] };
 
+// Metas mensuales de referencia del área (2026). Se comparan, nunca se fuerzan.
+// LLAMADAS_MES: 20 llamadas/día × 5 días × 4.33 semanas ≈ 430. Ajusta aquí si el área lo cambia.
+const MET_KPI = { LLAMADAS_MES:430, INTROMEETS_MES:20, DEMOS_MES:15, MRR_MES:11000, NRR_MES:60000 };
+// Pesos del % de performance. El orden lo definió el área:
+// target (MRR+NRR) > demos > intromeets > llamadas > certeza del forecast.
+// Cada componente se topa en 100%: rebasar el MRR NO compensa quedarse corto en demos.
+const MET_PESOS = { mrr:0.25, nrr:0.25, demos:0.20, intromeets:0.15, llamadas:0.10, certeza:0.05 };
+const MET_TABS = [
+  {k:'forecast', label:'🎯 Forecast'},
+  {k:'llamadas', label:'📞 Llamadas'},
+  {k:'activity', label:'📅 Actividad semanal'},
+  {k:'tablero',  label:'📊 Tablero de KPIs'},
+];
+
+const _metState = {
+  tab:'forecast',
+  range:'month',        // 'week' = semana laboral L–V · 'month' = mes completo
+  month:'', weekRef:'', // YYYY-MM · YYYY-MM-DD (cualquier día de la semana; se ajusta al lunes)
+  account:'', tl:'',
+  forecasts:[], activities:[], people:[], tls:[], errors:[]
+};
+
+// Fechas SIEMPRE en local (America/Mexico_City en la práctica). toISOString() convierte a UTC y
+// recorre el día — ese bug ya nos costó una vez en cadencias, aquí se evita de raíz.
+function _metISO(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function _metMonthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function _metMonthLabel(mk){ if(!mk) return '—'; const [y,m]=mk.split('-'); return new Date(+y,+m-1,1).toLocaleDateString('es-MX',{month:'long',year:'numeric'}); }
 function _metMondayOf(dateStr){
-  const d=new Date(dateStr+'T00:00:00'); const day=d.getDay();
+  const d=new Date(dateStr+'T00:00:00'); if(isNaN(d)) return '';
+  const day=d.getDay();
   d.setDate(d.getDate()+(day===0?-6:1-day));
-  return d.toISOString().slice(0,10);
+  return _metISO(d);
 }
-function _metMXN(n){ return (n===null||n===undefined||n==='')?'—':'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0}); }
+function _metAddDays(dateStr,n){ const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+n); return _metISO(d); }
+// Semana laboral: lunes a viernes. El viernes es el lunes + 4 días.
+function _metWeekLabel(mondayISO){
+  if(!mondayISO) return '—';
+  const a=new Date(mondayISO+'T00:00:00'), b=new Date(_metAddDays(mondayISO,4)+'T00:00:00');
+  const mesA=a.toLocaleDateString('es-MX',{month:'short'}).replace('.',''), mesB=b.toLocaleDateString('es-MX',{month:'short'}).replace('.','');
+  return mesA===mesB
+    ? `${a.getDate()}–${b.getDate()} ${mesB} ${b.getFullYear()}`
+    : `${a.getDate()} ${mesA} – ${b.getDate()} ${mesB} ${b.getFullYear()}`;
+}
+function _metMXN(n){ return (n===null||n===undefined||n==='')?'—':'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function _metPct(n){ return Math.round(n*100)+'%'; }
+function _metBandColor(p){ return p>=90?'#2e7d32':p>=70?'#b26a00':'#c62828'; }
+// Firestore truena con "Unsupported field value: undefined". Los perfiles viejos no siempre
+// traen name/gram/tlId, así que todo lo que se escribe pasa por aquí.
+function _metClean(obj){ const o={}; Object.entries(obj).forEach(([k,v])=>{ o[k]=(v===undefined)?null:v; }); return o; }
+function _metMyUid(){ return currentUserData?.uid || currentUser?.uid || null; }
+function _metErrMsg(e){
+  if(e?.code==='permission-denied'||/insufficient permissions/i.test(e?.message||''))
+    return 'Firestore rechazó la operación (permission-denied). Falta la regla de seguridad de esta colección.';
+  return e?.message||String(e);
+}
 
 async function renderMetricas(){
   const content=document.getElementById('moduleContent');
-  const me=currentUserData||{};
-  const isTLorMgr = me.role==='tl'||me.role==='manager';
-  const isMgr = me.role==='manager';
-  const curMonth=_metMonthKey(new Date());
+  if(!_metState.month) _metState.month=_metMonthKey(new Date());
+  if(!_metState.weekRef) _metState.weekRef=_metISO(new Date());
   content.innerHTML=`
     <div style="max-width:1100px;margin:0 auto;padding:24px">
-      <div class="page-header" style="margin-bottom:16px"><h2>🎯 Métricas</h2><p>Forecast por account (proyectado vs. logrado) y registro semanal de intromeets/demos.</p></div>
-      <div style="display:flex;gap:8px;margin-bottom:18px">
-        <button class="btn ${_metState.tab==='forecast'?'btn-primary':'btn-ghost'}" id="metTabForecast" onclick="metSetTab('forecast')">🎯 Forecast</button>
-        <button class="btn ${_metState.tab==='activity'?'btn-primary':'btn-ghost'}" id="metTabActivity" onclick="metSetTab('activity')">📅 Actividad semanal</button>
-      </div>
-      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-        <input type="month" id="metFilterMonth" class="input" style="max-width:170px" value="${curMonth}" onchange="metApplyFilters()">
-        ${isTLorMgr?`<select id="metFilterAccount" class="input" style="max-width:200px" onchange="metApplyFilters()"><option value="">Todas las cuentas</option></select>`:''}
-        ${isMgr?`<select id="metFilterTL" class="input" style="max-width:180px" onchange="metApplyFilters()"><option value="">Todos los TL</option></select>`:''}
-      </div>
+      <div class="page-header" style="margin-bottom:16px"><h2>🎯 Métricas</h2><p>Forecast por account (objetivo vs. logrado), llamadas, actividad semanal y tablero de KPIs del mes.</p></div>
+      <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap" id="metTabs"></div>
       <div id="metBody"><div class="cdc-empty">Cargando métricas…</div></div>
     </div>`;
+  metRenderTabs();
   await metLoadPeopleOptions();
   await metLoadAll();
 }
 
-window.metSetTab=function(tab){
-  _metState.tab=tab;
-  const fb=document.getElementById('metTabForecast'), ab=document.getElementById('metTabActivity');
-  if(fb) fb.className='btn '+(tab==='forecast'?'btn-primary':'btn-ghost');
-  if(ab) ab.className='btn '+(tab==='activity'?'btn-primary':'btn-ghost');
-  metRenderBody();
-};
+function metRenderTabs(){
+  const el=document.getElementById('metTabs'); if(!el) return;
+  el.innerHTML=MET_TABS.map(t=>`<button class="btn ${_metState.tab===t.k?'btn-primary':'btn-ghost'}" onclick="metSetTab('${t.k}')">${t.label}</button>`).join('');
+}
+
+window.metSetTab=function(tab){ _metState.tab=tab; metRenderTabs(); metRenderBody(); };
 
 async function metLoadPeopleOptions(){
-  const me=currentUserData||{}; const role=me.role;
-  if(!db){ _metState.people=[{uid:me.uid,name:me.name,gram:me.gram}]; _metState.tls=[]; return; }
+  const me=currentUserData||{}; const role=me.role; const myUid=_metMyUid();
+  const self={uid:myUid,name:me.name,gram:me.gram,role:role,tlId:me.tlId||null};
+  if(!db){ _metState.people=[self]; _metState.tls=[]; return; }
   try{
     if(role==='manager'){
       const snap=await getDocs(query(collection(db,'users'),where('status','==','active')));
       const all=snap.docs.map(d=>({uid:d.id,...d.data()}));
       _metState.people=all; _metState.tls=all.filter(u=>u.role==='tl');
     } else if(role==='tl'){
-      const snap=await getDocs(query(collection(db,'users'),where('tlId','==',me.uid)));
+      const snap=await getDocs(query(collection(db,'users'),where('tlId','==',myUid)));
       const team=snap.docs.map(d=>({uid:d.id,...d.data()}));
-      _metState.people=[{uid:me.uid,name:me.name,gram:me.gram},...team]; _metState.tls=[];
+      _metState.people=[self,...team]; _metState.tls=[];
     } else {
-      _metState.people=[{uid:me.uid,name:me.name,gram:me.gram}]; _metState.tls=[];
+      _metState.people=[self]; _metState.tls=[];
     }
-  }catch(e){ console.warn('metricas people:',e); _metState.people=[{uid:me.uid,name:me.name,gram:me.gram}]; _metState.tls=[]; }
-  const accSel=document.getElementById('metFilterAccount');
-  if(accSel){ accSel.innerHTML='<option value="">Todas las cuentas</option>'+_metState.people.map(p=>`<option value="${p.uid}">${p.name||p.gram||'Sin nombre'}</option>`).join(''); }
-  const tlSel=document.getElementById('metFilterTL');
-  if(tlSel){ tlSel.innerHTML='<option value="">Todos los TL</option>'+_metState.tls.map(t=>`<option value="${t.uid}">${t.name||t.gram||'Sin nombre'}</option>`).join(''); }
+  }catch(e){ console.warn('metricas people:',e); _metState.people=[self]; _metState.tls=[]; }
 }
 
 async function metLoadScoped(coll){
-  const me=currentUserData||{}; const role=me.role;
-  if(!db) return [];
-  try{
-    let docs;
-    if(role==='manager'){
-      const snap=await getDocs(query(collection(db,coll),orderBy('createdAt','desc')));
-      docs=snap.docs;
-    } else if(role==='tl'){
-      const [ownSnap,teamSnap]=await Promise.all([
-        getDocs(query(collection(db,coll),where('aeUid','==',me.uid))),
-        getDocs(query(collection(db,coll),where('tlId','==',me.uid))),
-      ]);
-      const byId=new Map();
-      [...ownSnap.docs,...teamSnap.docs].forEach(d=>byId.set(d.id,d));
-      docs=[...byId.values()];
-    } else {
-      const snap=await getDocs(query(collection(db,coll),where('aeUid','==',me.uid)));
-      docs=snap.docs;
-    }
-    return docs.map(d=>({id:d.id,...d.data()}));
-  }catch(e){ console.warn('metricas '+coll+':',e); return []; }
+  const me=currentUserData||{}; const role=me.role; const myUid=_metMyUid();
+  if(!db||!myUid) return [];
+  let docs;
+  if(role==='manager'){
+    const snap=await getDocs(collection(db,coll));
+    docs=snap.docs;
+  } else if(role==='tl'){
+    const [ownSnap,teamSnap]=await Promise.all([
+      getDocs(query(collection(db,coll),where('aeUid','==',myUid))),
+      getDocs(query(collection(db,coll),where('tlId','==',myUid))),
+    ]);
+    const byId=new Map();
+    [...ownSnap.docs,...teamSnap.docs].forEach(d=>byId.set(d.id,d));
+    docs=[...byId.values()];
+  } else {
+    const snap=await getDocs(query(collection(db,coll),where('aeUid','==',myUid)));
+    docs=snap.docs;
+  }
+  return docs.map(d=>({id:d.id,...d.data()}));
+}
+
+// Envuelve metLoadScoped para que un permission-denied NO se vea como "no hay registros".
+async function _metLoadSafe(coll){
+  try{ return await metLoadScoped(coll); }
+  catch(e){ console.warn('metricas '+coll+':',e); _metState.errors.push(coll+': '+_metErrMsg(e)); return []; }
 }
 
 async function metLoadAll(){
   const body=document.getElementById('metBody');
   if(!db){ if(body) body.innerHTML='<div class="cdc-empty">Requiere conexión a Firebase</div>'; return; }
-  const [forecasts,activities]=await Promise.all([metLoadScoped('forecastRecords'),metLoadScoped('metActivityRecords')]);
+  _metState.errors=[];
+  const [forecasts,activities]=await Promise.all([_metLoadSafe('forecastRecords'),_metLoadSafe('metActivityRecords')]);
   _metState.forecasts=forecasts; _metState.activities=activities;
   metRenderBody();
 }
 
-window.metApplyFilters=function(){ metRenderBody(); };
+// ── Barra de filtros ──────────────────────────────────────────────────────────
+window.metSetRange=function(r){ _metState.range=r; metRenderBody(); };
+window.metSetFilter=function(field,value){
+  _metState[field]=value;
+  // El formulario de Forecast se precarga con el mes elegido, así que ese sí se redibuja entero.
+  if(_metState.tab==='forecast') metRenderBody(); else metRenderResults();
+};
 
-function _metFiltered(list, dateField){
-  const month=document.getElementById('metFilterMonth')?.value||'';
-  const account=document.getElementById('metFilterAccount')?.value||'';
-  const tl=document.getElementById('metFilterTL')?.value||'';
-  return list.filter(r=>{
-    if(account && r.aeUid!==account) return false;
-    if(tl && r.tlId!==tl) return false;
-    if(month){
-      if(dateField==='month'){ if(r.month!==month) return false; }
-      else { if(!r.weekStart || !r.weekStart.startsWith(month)) return false; }
-    }
-    return true;
-  });
+function _metFilterBar(){
+  const me=currentUserData||{};
+  const isTLorMgr=me.role==='tl'||me.role==='manager', isMgr=me.role==='manager';
+  const usaRango=(_metState.tab==='llamadas'||_metState.tab==='activity');
+  const monday=_metMondayOf(_metState.weekRef);
+  const rango=usaRango?`
+    <div style="display:inline-flex;background:var(--gray-100);border-radius:8px;padding:3px;gap:3px">
+      <button class="btn ${_metState.range==='week'?'btn-primary':'btn-ghost'}" style="padding:6px 12px;font-size:12.5px" onclick="metSetRange('week')">Semana laboral (L–V)</button>
+      <button class="btn ${_metState.range==='month'?'btn-primary':'btn-ghost'}" style="padding:6px 12px;font-size:12.5px" onclick="metSetRange('month')">Mes completo</button>
+    </div>
+    ${_metState.range==='week'
+      ? `<input type="date" class="input" style="max-width:170px" value="${_metState.weekRef}" onchange="metSetFilter('weekRef',this.value)">
+         <span style="font-size:12.5px;color:var(--gray-500)">Semana del <strong>${_metWeekLabel(monday)}</strong></span>`
+      : `<input type="month" class="input" style="max-width:170px" value="${_metState.month}" onchange="metSetFilter('month',this.value)">`}`
+    :`<input type="month" class="input" style="max-width:170px" value="${_metState.month}" onchange="metSetFilter('month',this.value)">`;
+  const accSel=isTLorMgr?`<select class="input" style="max-width:200px" onchange="metSetFilter('account',this.value)">
+      <option value="">Todas las cuentas</option>
+      ${_metState.people.filter(p=>p.uid).map(p=>`<option value="${p.uid}" ${_metState.account===p.uid?'selected':''}>${p.name||p.gram||'Sin nombre'}</option>`).join('')}
+    </select>`:'';
+  const tlSel=isMgr?`<select class="input" style="max-width:180px" onchange="metSetFilter('tl',this.value)">
+      <option value="">Todos los TL</option>
+      ${_metState.tls.map(t=>`<option value="${t.uid}" ${_metState.tl===t.uid?'selected':''}>${t.name||t.gram||'Sin nombre'}</option>`).join('')}
+    </select>`:'';
+  return `<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">${rango}${accSel}${tlSel}</div>`;
+}
+
+function _metErrorBanner(){
+  if(!_metState.errors.length) return '';
+  return `<div class="card" style="padding:14px 16px;margin-bottom:18px;border-left:4px solid #c62828;background:#fdecea">
+    <div style="font-size:13px;font-weight:700;color:#c62828;margin-bottom:4px">No se pudieron leer todos los registros</div>
+    <div style="font-size:12.5px;color:var(--gray-700)">${_metState.errors.map(e=>`<div>· ${e}</div>`).join('')}</div>
+    <div style="font-size:12px;color:var(--gray-500);margin-top:6px">Lo que ves abajo está incompleto. Si dice <em>permission-denied</em>, falta publicar la regla de seguridad de esa colección en Firestore.</div>
+  </div>`;
 }
 
 function metRenderBody(){
   const body=document.getElementById('metBody'); if(!body) return;
-  if(_metState.tab==='forecast') metRenderForecast(body); else metRenderActivity(body);
+  body.innerHTML=_metErrorBanner()+_metFilterBar()+'<div id="metResults"></div>';
+  metRenderResults();
 }
 
-function metRenderForecast(body){
-  const me=currentUserData||{};
-  const month=document.getElementById('metFilterMonth')?.value||_metMonthKey(new Date());
-  const mine=_metState.forecasts.find(r=>r.aeUid===me.uid && r.month===month);
-  const rows=_metFiltered(_metState.forecasts,'month').sort((a,b)=>b.month.localeCompare(a.month));
-  const formCard=`
-    <div class="card" style="padding:20px;margin-bottom:20px">
+function metRenderResults(){
+  const el=document.getElementById('metResults'); if(!el) return;
+  if(_metState.tab==='forecast') metRenderForecast(el);
+  else if(_metState.tab==='llamadas') metRenderLlamadas(el);
+  else if(_metState.tab==='activity') metRenderActivity(el);
+  else metRenderTablero(el);
+}
+
+// Devuelve los registros semanales que caen en el rango elegido (semana laboral o mes),
+// ya filtrados por cuenta y TL.
+function _metActivityRows(){
+  const monday=_metMondayOf(_metState.weekRef);
+  return _metState.activities.filter(r=>{
+    if(_metState.account && r.aeUid!==_metState.account) return false;
+    if(_metState.tl && r.tlId!==_metState.tl) return false;
+    if(!r.weekStart) return false;
+    return _metState.range==='week' ? r.weekStart===monday : r.weekStart.startsWith(_metState.month);
+  }).sort((a,b)=>(b.weekStart||'').localeCompare(a.weekStart||''));
+}
+function _metRangeLabel(){
+  return _metState.range==='week' ? 'la semana del '+_metWeekLabel(_metMondayOf(_metState.weekRef)) : _metMonthLabel(_metState.month);
+}
+// La meta cambia con el rango (mes completo o la parte proporcional de una semana laboral) y con
+// cuántas cuentas hay en el filtro: un manager viendo a todo el equipo no se compara contra la
+// meta de una sola persona.
+function _metTargetFor(mensual,nAcc){
+  const base=_metState.range==='week' ? Math.round(mensual/4.33) : mensual;
+  return base*(nAcc||1);
+}
+function _metNAcc(rows){ return new Set(rows.map(r=>r.aeUid).filter(Boolean)).size||1; }
+function _metMetaSufijo(nAcc){ return nAcc>1?` <span style="color:var(--gray-400)">(${nAcc} cuentas)</span>`:''; }
+
+// ── Pestaña Forecast ──────────────────────────────────────────────────────────
+function metRenderForecast(el){
+  const myUid=_metMyUid();
+  const month=_metState.month;
+  const mine=_metState.forecasts.find(r=>r.aeUid===myUid && r.month===month);
+  const rows=_metState.forecasts.filter(r=>{
+    if(_metState.account && r.aeUid!==_metState.account) return false;
+    if(_metState.tl && r.tlId!==_metState.tl) return false;
+    return r.month===month;
+  }).sort((a,b)=>(b.month||'').localeCompare(a.month||''));
+
+  const objetivoCard=`
+    <div class="card" style="padding:20px;margin-bottom:16px">
       <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">🎯 Tu objetivo — ${_metMonthLabel(month)}</h3>
-      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Se fija idealmente el día 15 del mes anterior. Al cierre de mes, registra lo logrado para ver la variación.</p>
+      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Se fija idealmente el día 15 del mes anterior (regla 15-15).</p>
       <div class="form-grid-2">
-        <div class="form-group"><label>Objetivo MRR (Mex$)</label><input type="number" id="metFcTargetMRR" class="input" value="${mine?.targetMRR??''}" placeholder="Ej. 11000"></div>
-        <div class="form-group"><label>Objetivo NRR (Mex$)</label><input type="number" id="metFcTargetNRR" class="input" value="${mine?.targetNRR??''}" placeholder="Ej. 60000"></div>
+        <div class="form-group"><label>Objetivo MRR (Mex$)</label><input type="number" id="metFcTargetMRR" class="input" value="${mine?.targetMRR??''}" placeholder="Ej. ${MET_KPI.MRR_MES}"></div>
+        <div class="form-group"><label>Objetivo NRR (Mex$)</label><input type="number" id="metFcTargetNRR" class="input" value="${mine?.targetNRR??''}" placeholder="Ej. ${MET_KPI.NRR_MES}"></div>
       </div>
-      <input type="hidden" id="metFcMonth" value="${month}">
       <button class="btn btn-primary" style="margin-top:6px" onclick="metSaveForecastTarget()">Guardar objetivo</button>
-      ${mine?`
-      <div class="form-grid-2" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100)">
-        <div class="form-group"><label>Logrado MRR (Mex$)</label><input type="number" id="metActualMRR_self" class="input" value="${mine.actualMRR??''}" placeholder="Al cierre de mes"></div>
-        <div class="form-group"><label>Logrado NRR (Mex$)</label><input type="number" id="metActualNRR_self" class="input" value="${mine.actualNRR??''}" placeholder="Al cierre de mes"></div>
-      </div>
-      <button class="btn btn-ghost" style="margin-top:6px" onclick="metSaveForecastActual('${mine.id}')">Registrar logrado</button>`:''}
     </div>`;
+
+  // El apartado de "logrado" ya no depende de que exista un objetivo guardado: si no hay registro
+  // del mes, se crea al guardar. Antes sólo aparecía cuando ya existía el doc, y como guardar
+  // truena sin regla de Firestore, en la práctica nunca se veía.
+  const logradoCard=`
+    <div class="card" style="padding:20px;margin-bottom:16px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">✅ Lo logrado — ${_metMonthLabel(month)}</h3>
+      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Puedes actualizarlo durante el mes y cerrarlo al final: el tablero de KPIs lo usa tal cual. Alimenta la comparativa de abajo y la certeza de tu forecast.</p>
+      <div class="form-grid-2">
+        <div class="form-group"><label>Logrado MRR (Mex$)</label><input type="number" id="metActualMRR_self" class="input" value="${mine?.actualMRR??''}" placeholder="Al cierre de mes"></div>
+        <div class="form-group"><label>Logrado NRR (Mex$)</label><input type="number" id="metActualNRR_self" class="input" value="${mine?.actualNRR??''}" placeholder="Al cierre de mes"></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:6px" onclick="metSaveForecastActual()">Registrar logrado</button>
+      ${mine?.actualSetAt?'<span style="font-size:12px;color:var(--gray-400);margin-left:10px">Ya capturado</span>':''}
+    </div>`;
+
+  const comparativa=mine?_metComparativaCard(mine):'';
+
+  const grid='display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr .9fr;gap:8px;align-items:center';
   const varTag=v=>v===null?'<span style="color:var(--gray-400)">—</span>':`<span style="color:${v>=0?'#2e7d32':'#c62828'};font-weight:700">${v>=0?'+':''}${v}%</span>`;
   const tableRows=rows.map(r=>{
     const varMRR=(r.actualMRR!=null&&r.targetMRR)?Math.round((r.actualMRR-r.targetMRR)/r.targetMRR*100):null;
     const varNRR=(r.actualNRR!=null&&r.targetNRR)?Math.round((r.actualNRR-r.targetNRR)/r.targetNRR*100):null;
-    return `<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr 1fr;gap:8px;padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;align-items:center;font-size:13px">
+    return `<div style="${grid};padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;font-size:13px">
       <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">${_metMonthLabel(r.month)}</div></div>
       <div>${_metMXN(r.targetMRR)}</div><div>${_metMXN(r.actualMRR)} ${varTag(varMRR)}</div>
       <div>${_metMXN(r.targetNRR)}</div><div>${_metMXN(r.actualNRR)} ${varTag(varNRR)}</div>
-      <div style="font-size:11px;color:var(--gray-400)">${r.actualSetAt?'Cerrado':'Abierto'}</div>
+      <div style="font-size:11px;color:var(--gray-400)">${r.actualSetAt||r.actualMRR!=null?'Cerrado':'Abierto'}</div>
     </div>`;
   }).join('');
-  const header=`<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr 1fr;gap:8px;padding:0 12px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400)">
+  const header=`<div style="${grid};padding:0 12px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400)">
     <div>Account / Mes</div><div>Objetivo MRR</div><div>Logrado MRR</div><div>Objetivo NRR</div><div>Logrado NRR</div><div>Estatus</div></div>`;
-  body.innerHTML=formCard+_aSection('📊 Histórico de forecast',header+(tableRows||'<div class="cdc-empty">Sin registros para este filtro</div>'));
+  el.innerHTML=objetivoCard+logradoCard+comparativa
+    +_aSection('📊 Histórico de forecast',`<div style="overflow-x:auto"><div style="min-width:720px">${header}${tableRows||'<div class="cdc-empty">Sin registros para este filtro</div>'}</div></div>`);
+}
+
+function _metComparativaCard(r){
+  const bar=(label,target,actual)=>{
+    const t=Number(target)||0, a=(actual==null)?null:Number(actual);
+    const pct=(t>0&&a!=null)?Math.min(Math.round(a/t*100),140):0;
+    const varPct=(t>0&&a!=null)?Math.round((a-t)/t*100):null;
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px">
+        <span style="color:var(--gray-700);font-weight:600">${label}</span>
+        <span>${_metMXN(a)} <span style="color:var(--gray-400)">/ ${_metMXN(t)}</span> ${varPct===null?'':`<strong style="color:${varPct>=0?'#2e7d32':'#c62828'}">${varPct>=0?'+':''}${varPct}%</strong>`}</span>
+      </div>
+      <div style="height:12px;background:var(--gray-100);border-radius:99px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(pct,100)}%;background:${pct>=100?'#2e7d32':pct>=70?'#FBB130':'#c62828'}"></div>
+      </div></div>`;
+  };
+  const cert=_metCerteza({hasActual:r.actualMRR!=null||r.actualNRR!=null,mrr:r.actualMRR,nrr:r.actualNRR,targetMRR:r.targetMRR,targetNRR:r.targetNRR});
+  const certHtml=cert===null
+    ? '<span style="color:var(--gray-400)">Se calcula cuando captures lo logrado</span>'
+    : `<strong style="color:${_metBandColor(cert*100)};font-size:18px">${_metPct(cert)}</strong> <span style="color:var(--gray-500)">de precisión entre lo que proyectaste y lo que cerraste</span>`;
+  return _aSection('⚖️ Objetivo vs. logrado',
+    bar('MRR',r.targetMRR,r.actualMRR)+bar('NRR',r.targetNRR,r.actualNRR)
+    +`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--gray-100);font-size:13px">🎯 Certeza del forecast: ${certHtml}</div>`);
 }
 
 window.metSaveForecastTarget=async function(){
-  if(!db||!currentUserData) return;
-  const month=document.getElementById('metFcMonth')?.value;
+  const myUid=_metMyUid();
+  if(!db||!myUid){ showNotif('Sin sesión activa','error'); return; }
+  const month=_metState.month;
   const targetMRR=parseFloat(document.getElementById('metFcTargetMRR')?.value)||0;
   const targetNRR=parseFloat(document.getElementById('metFcTargetNRR')?.value)||0;
   if(!month){ showNotif('Selecciona el mes','error'); return; }
-  const me=currentUserData;
   try{
-    const existing=await getDocs(query(collection(db,'forecastRecords'),where('aeUid','==',me.uid),where('month','==',month)));
-    if(!existing.empty){
-      await updateDoc(doc(db,'forecastRecords',existing.docs[0].id),{targetMRR,targetNRR,targetSetAt:serverTimestamp()});
-    } else {
-      await addDoc(collection(db,'forecastRecords'),{aeUid:me.uid,aeName:me.name,aeGram:me.gram,tlId:me.tlId||null,month,targetMRR,targetNRR,targetSetAt:serverTimestamp(),actualMRR:null,actualNRR:null,actualSetAt:null,createdAt:serverTimestamp()});
-    }
+    const ref=await _metEnsureForecastDoc(month);
+    await updateDoc(doc(db,'forecastRecords',ref),_metClean({targetMRR,targetNRR,targetSetAt:serverTimestamp()}));
     showNotif('Objetivo guardado ✓','success');
     await metLoadAll();
-  }catch(e){ showNotif('Error: '+e.message,'error'); }
+  }catch(e){ showNotif('Error: '+_metErrMsg(e),'error'); }
 };
 
-window.metSaveForecastActual=async function(recordId){
+window.metSaveForecastActual=async function(){
+  const myUid=_metMyUid();
+  if(!db||!myUid){ showNotif('Sin sesión activa','error'); return; }
+  const month=_metState.month;
   const actualMRR=parseFloat(document.getElementById('metActualMRR_self')?.value)||0;
   const actualNRR=parseFloat(document.getElementById('metActualNRR_self')?.value)||0;
   try{
-    await updateDoc(doc(db,'forecastRecords',recordId),{actualMRR,actualNRR,actualSetAt:serverTimestamp()});
+    const ref=await _metEnsureForecastDoc(month);
+    await updateDoc(doc(db,'forecastRecords',ref),_metClean({actualMRR,actualNRR,actualSetAt:serverTimestamp()}));
     showNotif('Logrado registrado ✓','success');
     await metLoadAll();
-  }catch(e){ showNotif('Error: '+e.message,'error'); }
+  }catch(e){ showNotif('Error: '+_metErrMsg(e),'error'); }
 };
 
-function metRenderActivity(body){
-  const month=document.getElementById('metFilterMonth')?.value||_metMonthKey(new Date());
-  const rows=_metFiltered(_metState.activities,'week').sort((a,b)=>(b.weekStart||'').localeCompare(a.weekStart||''));
-  const totalIntromeets=rows.reduce((a,r)=>a+(r.intromeets||0),0);
+// Un solo doc por account+mes. Si no existe lo crea vacío para que "Registrar logrado" funcione
+// aunque el account nunca haya fijado objetivo.
+async function _metEnsureForecastDoc(month){
+  const me=currentUserData||{}; const myUid=_metMyUid();
+  const existing=await getDocs(query(collection(db,'forecastRecords'),where('aeUid','==',myUid),where('month','==',month)));
+  if(!existing.empty) return existing.docs[0].id;
+  const created=await addDoc(collection(db,'forecastRecords'),_metClean({
+    aeUid:myUid, aeName:me.name, aeGram:me.gram, tlId:me.tlId||null, month,
+    targetMRR:0, targetNRR:0, targetSetAt:null, actualMRR:null, actualNRR:null, actualSetAt:null,
+    createdAt:serverTimestamp() }));
+  return created.id;
+}
+
+// ── Pestaña Llamadas ──────────────────────────────────────────────────────────
+function metRenderLlamadas(el){
+  const rows=_metActivityRows();
+  const totalLl=rows.reduce((a,r)=>a+(r.calls||0),0);
+  const totalCn=rows.reduce((a,r)=>a+(r.callsConnected||0),0);
+  const tasa=totalLl?totalCn/totalLl:0;
+  const nAcc=_metNAcc(rows);
+  const metaLl=_metTargetFor(MET_KPI.LLAMADAS_MES,nAcc);
+  const semanaActual=_metMondayOf(_metISO(new Date()));
+  const form=`
+    <div class="card" style="padding:20px;margin-bottom:20px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">📞 Registrar llamadas de la semana</h3>
+      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Elige cualquier día de la semana — se ajusta solo al lunes. Se guarda en el mismo registro semanal que intromeets y demos.</p>
+      <div class="form-grid-2">
+        <div class="form-group"><label>Semana</label><input type="date" id="metCallWeek" class="input" value="${_metISO(new Date())}"></div>
+        <div></div>
+        <div class="form-group"><label>Llamadas realizadas</label><input type="number" min="0" id="metCalls" class="input" placeholder="0"></div>
+        <div class="form-group"><label>Llamadas conectadas</label><input type="number" min="0" id="metCallsConnected" class="input" placeholder="0"></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:6px" onclick="metSaveCalls()">Guardar llamadas</button>
+      <div style="font-size:12px;color:var(--gray-400);margin-top:8px">Semana en curso: ${_metWeekLabel(semanaActual)}</div>
+    </div>`;
+  const kpis=`<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    ${_metKpiCard('Llamadas en '+_metRangeLabel()+_metMetaSufijo(nAcc),totalLl,metaLl)}
+    ${_metKpiCard('Conectadas',totalCn,null)}
+    ${_metKpiCard('Tasa de conexión',_metPct(tasa),null,tasa>=0.3?'#2e7d32':'#b26a00')}
+  </div>`;
+  const grid='display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:8px;align-items:center';
+  const header=`<div style="${grid};padding:0 12px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400)">
+    <div>Account / Semana</div><div>Llamadas</div><div>Conectadas</div><div>Tasa</div></div>`;
+  const body=rows.map(r=>{
+    const c=r.calls||0, k=r.callsConnected||0;
+    return `<div style="${grid};padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;font-size:13px">
+      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">${_metWeekLabel(r.weekStart)}</div></div>
+      <div>${c}</div><div>${k}</div><div>${c?Math.round(k/c*100)+'%':'—'}</div></div>`;
+  }).join('');
+  el.innerHTML=form+kpis+_aSection('📊 Histórico de llamadas',header+(body||'<div class="cdc-empty">Sin registros para este filtro</div>'));
+}
+
+window.metSaveCalls=async function(){
+  const dateVal=document.getElementById('metCallWeek')?.value;
+  const calls=parseInt(document.getElementById('metCalls')?.value)||0;
+  const callsConnected=parseInt(document.getElementById('metCallsConnected')?.value)||0;
+  if(!dateVal){ showNotif('Selecciona la semana','error'); return; }
+  if(callsConnected>calls){ showNotif('Las conectadas no pueden superar el total de llamadas','error'); return; }
+  await _metSaveWeek(dateVal,{calls,callsConnected},'Llamadas guardadas ✓');
+};
+
+// ── Pestaña Actividad semanal ─────────────────────────────────────────────────
+function metRenderActivity(el){
+  const rows=_metActivityRows();
+  const totalIntro=rows.reduce((a,r)=>a+(r.intromeets||0),0);
   const totalDemos=rows.reduce((a,r)=>a+(r.demos||0),0);
-  const kpiTag=(v,target)=>`<span style="color:${v>=target?'#2e7d32':'#c62828'};font-weight:700">${v}/${target}</span>`;
-  const formCard=`
+  const nAcc=_metNAcc(rows);
+  const form=`
     <div class="card" style="padding:20px;margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">📅 Registrar semana</h3>
-      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Elige cualquier día de la semana — se ajusta automáticamente al lunes.</p>
+      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Elige cualquier día de la semana — se ajusta solo al lunes de esa semana laboral.</p>
       <div class="form-grid-2">
-        <div class="form-group"><label>Semana</label><input type="date" id="metWeekStart" class="input"></div>
+        <div class="form-group"><label>Semana</label><input type="date" id="metWeekStart" class="input" value="${_metISO(new Date())}"></div>
         <div></div>
-        <div class="form-group"><label>Intromeets realizados</label><input type="number" id="metIntromeets" class="input" placeholder="0"></div>
-        <div class="form-group"><label>Demos realizadas</label><input type="number" id="metDemos" class="input" placeholder="0"></div>
+        <div class="form-group"><label>Intromeets realizados</label><input type="number" min="0" id="metIntromeets" class="input" placeholder="0"></div>
+        <div class="form-group"><label>Demos realizadas</label><input type="number" min="0" id="metDemos" class="input" placeholder="0"></div>
       </div>
       <button class="btn btn-primary" style="margin-top:6px" onclick="metSaveWeeklyActivity()">Guardar</button>
-    </div>
-    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-      <div class="card" style="flex:1;min-width:200px;padding:18px 20px"><div style="font-size:12.5px;color:var(--gray-500);margin-bottom:4px">Intromeets en ${_metMonthLabel(month)}</div><div style="font-size:24px">${kpiTag(totalIntromeets,MET_KPI.INTROMEETS_MES)}</div></div>
-      <div class="card" style="flex:1;min-width:200px;padding:18px 20px"><div style="font-size:12.5px;color:var(--gray-500);margin-bottom:4px">Demos en ${_metMonthLabel(month)}</div><div style="font-size:24px">${kpiTag(totalDemos,MET_KPI.DEMOS_MES)}</div></div>
     </div>`;
-  const tableRows=rows.map(r=>`<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;align-items:center;font-size:13px">
-      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">Semana del ${r.weekStart}</div></div>
-      <div>${r.intromeets||0} intromeets</div><div>${r.demos||0} demos</div>
-    </div>`).join('');
-  const header=`<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;padding:0 12px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400)">
+  const kpis=`<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    ${_metKpiCard('Intromeets en '+_metRangeLabel()+_metMetaSufijo(nAcc),totalIntro,_metTargetFor(MET_KPI.INTROMEETS_MES,nAcc))}
+    ${_metKpiCard('Demos en '+_metRangeLabel()+_metMetaSufijo(nAcc),totalDemos,_metTargetFor(MET_KPI.DEMOS_MES,nAcc))}
+  </div>`;
+  const grid='display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;align-items:center';
+  const header=`<div style="${grid};padding:0 12px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400)">
     <div>Account / Semana</div><div>Intromeets</div><div>Demos</div></div>`;
-  body.innerHTML=formCard+_aSection('📊 Histórico de actividad',header+(tableRows||'<div class="cdc-empty">Sin registros para este filtro</div>'));
+  const body=rows.map(r=>`<div style="${grid};padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;font-size:13px">
+      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">${_metWeekLabel(r.weekStart)}</div></div>
+      <div>${r.intromeets||0}</div><div>${r.demos||0}</div></div>`).join('');
+  el.innerHTML=form+kpis+_aSection('📊 Histórico de actividad',header+(body||'<div class="cdc-empty">Sin registros para este filtro</div>'));
 }
 
 window.metSaveWeeklyActivity=async function(){
-  if(!db||!currentUserData) return;
   const dateVal=document.getElementById('metWeekStart')?.value;
   const intromeets=parseInt(document.getElementById('metIntromeets')?.value)||0;
   const demos=parseInt(document.getElementById('metDemos')?.value)||0;
   if(!dateVal){ showNotif('Selecciona la semana','error'); return; }
-  const weekStart=_metMondayOf(dateVal);
-  const me=currentUserData;
-  try{
-    const existing=await getDocs(query(collection(db,'metActivityRecords'),where('aeUid','==',me.uid),where('weekStart','==',weekStart)));
-    if(!existing.empty){
-      await updateDoc(doc(db,'metActivityRecords',existing.docs[0].id),{intromeets,demos,updatedAt:serverTimestamp()});
-    } else {
-      await addDoc(collection(db,'metActivityRecords'),{aeUid:me.uid,aeName:me.name,aeGram:me.gram,tlId:me.tlId||null,weekStart,intromeets,demos,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-    }
-    showNotif('Actividad guardada ✓','success');
-    await metLoadAll();
-  }catch(e){ showNotif('Error: '+e.message,'error'); }
+  await _metSaveWeek(dateVal,{intromeets,demos},'Actividad guardada ✓');
 };
+
+// Un solo doc por account+semana. Las pestañas de Llamadas y Actividad escriben campos distintos
+// del MISMO doc, por eso el update es parcial: guardar llamadas no pisa intromeets/demos.
+async function _metSaveWeek(dateVal,fields,okMsg){
+  const me=currentUserData||{}; const myUid=_metMyUid();
+  if(!db||!myUid){ showNotif('Sin sesión activa','error'); return; }
+  const weekStart=_metMondayOf(dateVal);
+  if(!weekStart){ showNotif('Fecha inválida','error'); return; }
+  try{
+    const existing=await getDocs(query(collection(db,'metActivityRecords'),where('aeUid','==',myUid),where('weekStart','==',weekStart)));
+    if(!existing.empty){
+      await updateDoc(doc(db,'metActivityRecords',existing.docs[0].id),_metClean({...fields,updatedAt:serverTimestamp()}));
+    } else {
+      await addDoc(collection(db,'metActivityRecords'),_metClean({
+        aeUid:myUid, aeName:me.name, aeGram:me.gram, tlId:me.tlId||null, weekStart,
+        intromeets:0, demos:0, calls:0, callsConnected:0, ...fields,
+        createdAt:serverTimestamp(), updatedAt:serverTimestamp() }));
+    }
+    showNotif(okMsg,'success');
+    await metLoadAll();
+  }catch(e){ showNotif('Error: '+_metErrMsg(e),'error'); }
+}
+
+function _metKpiCard(label,value,target,color){
+  const num=(target===null||target===undefined)
+    ? `<span style="color:${color||'var(--gray-900)'};font-weight:800">${value}</span>`
+    : `<span style="color:${value>=target?'#2e7d32':'#c62828'};font-weight:800">${value}</span><span style="color:var(--gray-400);font-weight:600">/${target}</span>`;
+  return `<div class="card" style="flex:1;min-width:200px;padding:18px 20px">
+    <div style="font-size:12.5px;color:var(--gray-500);margin-bottom:4px">${label}</div>
+    <div style="font-size:24px;line-height:1.1">${num}</div></div>`;
+}
+
+// ── Pestaña Tablero de KPIs (fase 2) ──────────────────────────────────────────
+// Un renglón por persona con los 6 KPIs del mes y un % de performance normalizado.
+// Cada componente se topa en 100% a propósito: estar en target de MRR/NRR con 2 demos y
+// 5 intromeets NO puede dar 100% — el exceso de un KPI no compensa el faltante de otro.
+function _metCerteza(p){
+  if(!p.hasActual) return null;
+  const acc=[];
+  if(p.targetMRR>0) acc.push(Math.max(0,1-Math.abs((p.mrr??0)-p.targetMRR)/p.targetMRR));
+  if(p.targetNRR>0) acc.push(Math.max(0,1-Math.abs((p.nrr??0)-p.targetNRR)/p.targetNRR));
+  return acc.length?acc.reduce((a,b)=>a+b,0)/acc.length:null;
+}
+
+function _metPerf(p){
+  const parts=[
+    {k:'mrr',        label:'MRR',        w:MET_PESOS.mrr,        v:p.mrr??0,     t:MET_KPI.MRR_MES,        money:true},
+    {k:'nrr',        label:'NRR',        w:MET_PESOS.nrr,        v:p.nrr??0,     t:MET_KPI.NRR_MES,        money:true},
+    {k:'demos',      label:'Demos',      w:MET_PESOS.demos,      v:p.demos,      t:MET_KPI.DEMOS_MES},
+    {k:'intromeets', label:'Intromeets', w:MET_PESOS.intromeets, v:p.intromeets, t:MET_KPI.INTROMEETS_MES},
+    {k:'llamadas',   label:'Llamadas',   w:MET_PESOS.llamadas,   v:p.llamadas,   t:MET_KPI.LLAMADAS_MES},
+  ].map(c=>({...c,score:c.t>0?Math.min(c.v/c.t,1):0}));
+  const cert=_metCerteza(p);
+  // Sin "logrado" capturado la certeza no existe todavía; su peso se reparte entre los demás
+  // en lugar de contar como cero, que castigaría a todos a media carrera del mes.
+  if(cert!==null) parts.push({k:'certeza',label:'Certeza forecast',w:MET_PESOS.certeza,v:Math.round(cert*100),t:100,score:cert,pct:true});
+  const wsum=parts.reduce((a,c)=>a+c.w,0);
+  const perf=wsum?Math.round(parts.reduce((a,c)=>a+c.w*c.score,0)/wsum*100):0;
+  return {parts,certeza:cert,perf};
+}
+
+function _metBuildBoard(month){
+  const acts=_metState.activities.filter(r=>r.weekStart&&r.weekStart.startsWith(month));
+  const fcs=_metState.forecasts.filter(r=>r.month===month);
+  const byUid=new Map();
+  const touch=(uid,name,gram,tlId)=>{
+    if(!uid) return null;
+    if(!byUid.has(uid)) byUid.set(uid,{uid,name:name||gram||'—',gram:gram||'',tlId:tlId||null,
+      llamadas:0,conectadas:0,intromeets:0,demos:0,mrr:null,nrr:null,targetMRR:null,targetNRR:null,hasActual:false});
+    const p=byUid.get(uid);
+    if(name&&(p.name==='—'||!p.name)) p.name=name;
+    if(tlId&&!p.tlId) p.tlId=tlId;
+    return p;
+  };
+  (_metState.people||[]).filter(p=>p.role!=='manager').forEach(p=>touch(p.uid,p.name,p.gram,p.tlId));
+  acts.forEach(r=>{ const p=touch(r.aeUid,r.aeName,r.aeGram,r.tlId); if(!p) return;
+    p.llamadas+=r.calls||0; p.conectadas+=r.callsConnected||0; p.intromeets+=r.intromeets||0; p.demos+=r.demos||0; });
+  fcs.forEach(r=>{ const p=touch(r.aeUid,r.aeName,r.aeGram,r.tlId); if(!p) return;
+    p.targetMRR=r.targetMRR??null; p.targetNRR=r.targetNRR??null;
+    if(r.actualSetAt||r.actualMRR!=null||r.actualNRR!=null){ p.mrr=r.actualMRR??0; p.nrr=r.actualNRR??0; p.hasActual=true; } });
+  let rows=[...byUid.values()];
+  if(_metState.account) rows=rows.filter(p=>p.uid===_metState.account);
+  if(_metState.tl) rows=rows.filter(p=>p.tlId===_metState.tl||p.uid===_metState.tl);
+  rows.forEach(p=>{ Object.assign(p,_metPerf(p));
+    // "Sin registros" ≠ "0% de performance": si la persona no capturó nada del mes, su 0% no es
+    // un resultado, es un hueco de captura. Se marca aparte y no arrastra el promedio del equipo.
+    p.conRegistros=!!(p.llamadas||p.conectadas||p.intromeets||p.demos||p.hasActual||p.targetMRR||p.targetNRR);
+  });
+  return rows.sort((a,b)=>(b.conRegistros-a.conRegistros)||(b.perf-a.perf));
+}
+
+function metRenderTablero(el){
+  const month=_metState.month;
+  const rows=_metBuildBoard(month);
+  if(!rows.length){ el.innerHTML='<div class="cdc-empty">Sin personas ni registros para este filtro</div>'; return; }
+  const T=rows.reduce((s,p)=>({llamadas:s.llamadas+p.llamadas,conectadas:s.conectadas+p.conectadas,
+    intromeets:s.intromeets+p.intromeets,demos:s.demos+p.demos,
+    mrr:s.mrr+(p.mrr||0),nrr:s.nrr+(p.nrr||0)}),{llamadas:0,conectadas:0,intromeets:0,demos:0,mrr:0,nrr:0});
+  const conReg=rows.filter(p=>p.conRegistros);
+  const sinReg=rows.length-conReg.length;
+  const sinLogrado=conReg.filter(p=>!p.hasActual).length;
+  const perfProm=conReg.length?Math.round(conReg.reduce((a,p)=>a+p.perf,0)/conReg.length):0;
+  const enTarget=conReg.filter(p=>p.perf>=90).length, enRiesgo=conReg.filter(p=>p.perf<70).length;
+
+  const cards=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px">
+    ${_metBoardStat('Performance promedio',perfProm+'%',_metBandColor(perfProm),`${enTarget} en verde · ${enRiesgo} en riesgo${sinReg?' · '+sinReg+' sin registros':''}`)}
+    ${_metBoardStat('Llamadas',T.llamadas,'#0A66C2',`meta equipo ${MET_KPI.LLAMADAS_MES*rows.length} · ${T.conectadas} conectadas`)}
+    ${_metBoardStat('Intromeets',T.intromeets,'#714B67',`meta equipo ${MET_KPI.INTROMEETS_MES*rows.length}`)}
+    ${_metBoardStat('Demos',T.demos,'#017E84',`meta equipo ${MET_KPI.DEMOS_MES*rows.length}`)}
+    ${_metBoardStat('MRR conseguido',_metMXN(T.mrr),'#FBB130',`meta equipo ${_metMXN(MET_KPI.MRR_MES*rows.length)}`)}
+    ${_metBoardStat('NRR conseguido',_metMXN(T.nrr),'#FC787D',`meta equipo ${_metMXN(MET_KPI.NRR_MES*rows.length)}`)}
+  </div>
+  ${sinLogrado?`<div class="card" style="padding:12px 16px;margin-bottom:22px;border-left:4px solid #FBB130;background:#fff8e6;font-size:12.5px;color:var(--gray-700)">
+    <strong>${sinLogrado} account${sinLogrado===1?'':'s'} sin capturar su MRR/NRR logrado de ${_metMonthLabel(month)}.</strong>
+    Mientras no lo capturen, esos dos KPIs cuentan como cero y su performance se ve más bajo de lo real. El logrado se captura en la pestaña 🎯 Forecast.</div>`:''}`;
+
+  el.innerHTML=cards
+    +_metChartPerf(rows,month)
+    +_metChartKPIEquipo(rows)
+    +_metChartTrend(month)
+    +_metBoardTable(rows)
+    +_metBoardLegend();
+}
+
+function _metBoardStat(label,value,color,sub){
+  return `<div class="card" style="flex:1;min-width:165px;padding:18px 20px">
+    <div style="font-size:26px;font-weight:800;color:${color};line-height:1">${value}</div>
+    <div style="font-size:12.5px;color:var(--gray-500);margin-top:4px">${label}</div>
+    <div style="font-size:11px;color:var(--gray-400);margin-top:2px">${sub||''}</div></div>`;
+}
+
+// Barras horizontales de performance por persona — el gráfico de "¿quién va bien y quién no?".
+function _metChartPerf(rows,month){
+  const bars=rows.map(p=>{
+    const c=_metBandColor(p.perf);
+    return `<div style="display:flex;align-items:center;gap:12px;padding:7px 4px;border-top:1px solid var(--gray-100)">
+      <div style="width:150px;min-width:150px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}${p.conRegistros?'':' <span style="font-weight:400;color:var(--gray-400);font-size:11px">· sin registros</span>'}</div>
+      <div style="flex:1;height:16px;background:var(--gray-100);border-radius:99px;overflow:hidden;position:relative">
+        <div style="height:100%;width:${Math.min(p.perf,100)}%;background:${c}"></div>
+        <div style="position:absolute;left:90%;top:0;bottom:0;width:1px;background:var(--gray-300)"></div>
+      </div>
+      <div style="width:52px;text-align:right;font-size:14px;font-weight:800;color:${c}">${p.perf}%</div></div>`;
+  }).join('');
+  const leyenda=`<div style="display:flex;gap:16px;margin-top:10px;font-size:11.5px;color:var(--gray-500);flex-wrap:wrap">
+    <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#2e7d32"></span>Buen performance (≥90%)</span>
+    <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#b26a00"></span>Atención (70–89%)</span>
+    <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#c62828"></span>Mal performance (&lt;70%)</span>
+    <span style="color:var(--gray-400)">La línea vertical marca el 90%</span></div>`;
+  return _aSection('🏁 Performance por account — '+_metMonthLabel(month),bars+leyenda);
+}
+
+// Cumplimiento del equipo KPI por KPI: dónde está el hueco real del mes.
+function _metChartKPIEquipo(rows){
+  const n=rows.length;
+  const defs=[
+    {label:'MRR',        v:rows.reduce((a,p)=>a+(p.mrr||0),0),   t:MET_KPI.MRR_MES*n,        color:'#FBB130', money:true},
+    {label:'NRR',        v:rows.reduce((a,p)=>a+(p.nrr||0),0),   t:MET_KPI.NRR_MES*n,        color:'#FC787D', money:true},
+    {label:'Demos',      v:rows.reduce((a,p)=>a+p.demos,0),      t:MET_KPI.DEMOS_MES*n,      color:'#017E84'},
+    {label:'Intromeets', v:rows.reduce((a,p)=>a+p.intromeets,0), t:MET_KPI.INTROMEETS_MES*n, color:'#714B67'},
+    {label:'Llamadas',   v:rows.reduce((a,p)=>a+p.llamadas,0),   t:MET_KPI.LLAMADAS_MES*n,   color:'#0A66C2'},
+  ];
+  const certs=rows.map(p=>p.certeza).filter(c=>c!==null);
+  if(certs.length) defs.push({label:'Certeza forecast',v:Math.round(certs.reduce((a,b)=>a+b,0)/certs.length*100),t:100,color:'#9333ea',pct:true});
+  const bars=defs.map(d=>{
+    const pct=d.t>0?Math.round(d.v/d.t*100):0;
+    const fmt=x=>d.money?_metMXN(x):(d.pct?x+'%':x);
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+      <div style="width:110px;min-width:110px;font-size:12.5px;color:var(--gray-700)">${d.label}</div>
+      <div style="flex:1;height:14px;background:var(--gray-100);border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.min(pct,100)}%;background:${d.color}"></div></div>
+      <div style="width:185px;min-width:185px;text-align:right;font-size:12.5px;white-space:nowrap">${d.pct?'':`<strong>${fmt(d.v)}</strong> <span style="color:var(--gray-400)">/ ${fmt(d.t)}</span> `}<strong style="color:${_metBandColor(pct)}">${pct}%</strong></div></div>`;
+  }).join('');
+  return _aSection('📐 Cumplimiento del equipo por KPI',bars+`<div style="font-size:11.5px;color:var(--gray-400);margin-top:8px">Meta del equipo = meta individual × ${n} persona${n===1?'':'s'} en el filtro.</div>`);
+}
+
+// Tendencia del performance promedio del equipo en los últimos 6 meses.
+function _metChartTrend(month){
+  const [y,m]=month.split('-').map(Number);
+  const meses=[];
+  for(let i=5;i>=0;i--){ const d=new Date(y,m-1-i,1); meses.push(_metMonthKey(d)); }
+  const buckets=meses.map(mk=>{
+    const rows=_metBuildBoard(mk);
+    const conDatos=rows.filter(p=>p.conRegistros);
+    return {mk,label:new Date(+mk.split('-')[0],+mk.split('-')[1]-1,1).toLocaleDateString('es-MX',{month:'short'}).replace('.',''),
+      perf:conDatos.length?Math.round(conDatos.reduce((a,p)=>a+p.perf,0)/conDatos.length):0, n:conDatos.length};
+  });
+  if(!buckets.some(b=>b.n)) return '';
+  const W=720,H=190,padL=30,padB=26,padT=12,plotH=H-padB-padT,plotW=W-padL-10;
+  const gw=plotW/buckets.length, bw=Math.min(46,gw*0.5);
+  const yv=v=>padT+plotH-(Math.min(v,100)/100*plotH);
+  let bars='',labels='',vals='';
+  buckets.forEach((b,i)=>{ const cx=padL+gw*i+gw/2;
+    bars+=`<rect x="${(cx-bw/2).toFixed(1)}" y="${yv(b.perf).toFixed(1)}" width="${bw.toFixed(1)}" height="${(padT+plotH-yv(b.perf)).toFixed(1)}" rx="3" fill="${_metBandColor(b.perf)}"></rect>`;
+    labels+=`<text x="${cx.toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="#9ca3af">${b.label}</text>`;
+    vals+=b.n?`<text x="${cx.toFixed(1)}" y="${(yv(b.perf)-5).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="#6b7280">${b.perf}%</text>`:''; });
+  const svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:100%;height:auto;font-family:Inter,sans-serif">
+    <line x1="${padL}" y1="${yv(90)}" x2="${W}" y2="${yv(90)}" stroke="#d1d5db" stroke-dasharray="4 4"></line>
+    <text x="0" y="${(yv(90)+4).toFixed(1)}" font-size="10" fill="#9ca3af">90%</text>
+    <line x1="${padL}" y1="${yv(0)}" x2="${W}" y2="${yv(0)}" stroke="#e5e7eb"></line>
+    ${bars}${vals}${labels}</svg>`;
+  return _aSection('📈 Tendencia del performance del equipo',svg+'<div style="font-size:11.5px;color:var(--gray-400);margin-top:6px">Promedio de los accounts con actividad registrada en cada mes. La línea punteada es el 90%.</div>');
+}
+
+function _metBoardTable(rows){
+  const grid='display:grid;grid-template-columns:minmax(150px,1.5fr) 66px 66px 62px 56px 96px 96px 72px minmax(120px,1fr);gap:8px;align-items:center';
+  const num=(v,t)=>`<div style="text-align:right;font-size:13px;color:${t&&v>=t?'#2e7d32':t?'#c62828':'var(--gray-900)'}">${v}</div>`;
+  const head=`<div style="${grid};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--gray-400);padding:0 4px 8px">
+    <div>Account</div><div style="text-align:right">Llam.</div><div style="text-align:right">Conect.</div>
+    <div style="text-align:right">Intro</div><div style="text-align:right">Demos</div>
+    <div style="text-align:right">MRR</div><div style="text-align:right">NRR</div>
+    <div style="text-align:right">Certeza</div><div style="text-align:right">Performance</div></div>`;
+  const body=rows.map(p=>`<div style="${grid};padding:9px 4px;border-top:1px solid var(--gray-100)">
+    <div style="display:flex;align-items:center;gap:8px;min-width:0">
+      <div style="width:24px;height:24px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(p.name||'?')[0].toUpperCase()}</div>
+      <div style="min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div><div style="font-size:11px;color:var(--gray-400)">${p.conRegistros?(p.gram||''):'Sin registros del mes'}</div></div></div>
+    ${num(p.llamadas,MET_KPI.LLAMADAS_MES)}${num(p.conectadas,0)}
+    ${num(p.intromeets,MET_KPI.INTROMEETS_MES)}${num(p.demos,MET_KPI.DEMOS_MES)}
+    <div style="text-align:right;font-size:12.5px;color:${(p.mrr||0)>=MET_KPI.MRR_MES?'#2e7d32':'#c62828'}">${p.hasActual?_metMXN(p.mrr):'<span style="color:var(--gray-400)">sin captura</span>'}</div>
+    <div style="text-align:right;font-size:12.5px;color:${(p.nrr||0)>=MET_KPI.NRR_MES?'#2e7d32':'#c62828'}">${p.hasActual?_metMXN(p.nrr):'<span style="color:var(--gray-400)">sin captura</span>'}</div>
+    <div style="text-align:right;font-size:12.5px">${p.certeza===null?'<span style="color:var(--gray-400)">—</span>':`<span style="color:${_metBandColor(p.certeza*100)};font-weight:700">${_metPct(p.certeza)}</span>`}</div>
+    <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
+      <div style="flex:1;height:9px;background:var(--gray-100);border-radius:99px;overflow:hidden;max-width:80px"><div style="height:100%;width:${Math.min(p.perf,100)}%;background:${_metBandColor(p.perf)}"></div></div>
+      <span style="font-size:13.5px;font-weight:800;min-width:34px;text-align:right;color:${_metBandColor(p.perf)}">${p.perf}%</span></div></div>`).join('');
+  return _aSection('👥 Detalle por account',`<div style="overflow-x:auto"><div style="min-width:900px">${head}${body}</div></div>`);
+}
+
+function _metBoardLegend(){
+  const pesos=[['MRR conseguido',MET_PESOS.mrr],['NRR conseguido',MET_PESOS.nrr],['Demos',MET_PESOS.demos],
+    ['Intromeets',MET_PESOS.intromeets],['Llamadas',MET_PESOS.llamadas],['Certeza del forecast',MET_PESOS.certeza]];
+  const chips=pesos.map(([l,w])=>`<span style="font-size:12px;background:var(--gray-100);padding:4px 10px;border-radius:99px">${l} <strong>${Math.round(w*100)}%</strong></span>`).join(' ');
+  return _aSection('ℹ️ Cómo se calcula el % de performance',
+    `<div style="font-size:13px;color:var(--gray-700);line-height:1.65">
+      <p style="margin-bottom:10px">Cada KPI se compara contra su meta mensual y se topa en 100%. El performance final es el promedio ponderado:</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${chips}</div>
+      <p style="margin-bottom:6px">Metas mensuales por account: <strong>${MET_KPI.LLAMADAS_MES}</strong> llamadas · <strong>${MET_KPI.INTROMEETS_MES}</strong> intromeets · <strong>${MET_KPI.DEMOS_MES}</strong> demos · <strong>${_metMXN(MET_KPI.MRR_MES)}</strong> MRR · <strong>${_metMXN(MET_KPI.NRR_MES)}</strong> NRR.</p>
+      <p style="margin-bottom:6px">Topar cada KPI en 100% es a propósito: <em>estar en target de MRR y NRR con 2 demos y 5 intromeets no da 100%</em> — el exceso de un KPI no tapa el hueco de otro.</p>
+      <p style="color:var(--gray-500)">La <strong>certeza del forecast</strong> mide qué tan cerca quedó lo logrado de lo que la persona proyectó. Mientras no capture su "logrado" del mes, ese componente no cuenta y su peso se reparte entre los demás, en vez de castigar con cero a media carrera.</p>
+    </div>`);
+}
 
 // ══════════════════════════════════════════
 // DISCOVERY MODULE
@@ -15409,7 +15837,7 @@ TUS HERRAMIENTAS Y A QUÉ MÓDULO DE LA APP PERTENECEN:
 - obtener_desempeno_historico_icp → 📈 Información Histórica: win-rate real por industria/estado/fuente de lead, y motivos de pérdida generales y por etapa del embudo (Territory/Nuevo, Qualified, Proposition, etc.). Por defecto es Outbound; pásale motion:"Inbound" si preguntan por Inbound, o llámala dos veces para comparar canales. Úsala para CUALQUIER pregunta sobre ICP, qué industria prospectar, qué ha convertido mejor, o por qué se pierde en una etapa — no contestes eso solo con el wiki.
 - obtener_mis_empresas_por_industria → 🏢 Empresas: cuántas empresas tiene hoy el usuario (o su equipo/organización) por industria. Combínala con obtener_desempeno_historico_icp para detectar huecos entre lo que ya se trabaja y lo que mejor convierte.
 - obtener_mis_kpis → actividad propia: Discoveries, Pricings, Propuestas, solicitudes CSV y oportunidades generadas.
-- obtener_metricas_equipo → 🎯 Métricas: forecast (MRR/NRR proyectado vs. logrado) y actividad semanal (intromeets, demos) de un mes.
+- obtener_metricas_equipo → 🎯 Métricas: forecast (MRR/NRR proyectado vs. logrado), llamadas (realizadas y conectadas) y actividad semanal (intromeets, demos) de un mes.
 - obtener_buenas_practicas_prospeccion → recomendaciones de prospección derivadas de datos reales (segmento que convierte vs. dónde está el volumen, desempeño de la cadencia por toque, qué calificación avanza, motivos de caída por etapa). Úsala para CUALQUIER pregunta de "cómo mejoro", "qué estoy haciendo mal", "qué cambio en mi cadencia" o "cómo prospecto mejor". Respeta siempre el campo confianza de cada bloque.
 - obtener_mis_cadencias_activas → 📨 Cadencias: cadencias de correo en curso, respuestas, rebotes.
 - obtener_historial_empresa → 🏢 Empresas (vista 360 de una empresa puntual): Discovery/Qcall, Pricing, Propuestas, CSV, contenido generado (✉️ Generación de contenidos) y actividad de cadencias, todo junto.
@@ -15451,7 +15879,7 @@ const NINJA_TOOL_LABELS={
   obtener_mis_kpis:'Consultando tus KPIs',
   obtener_desempeno_historico_icp:'Cruzando datos históricos de conversión',
   obtener_mis_empresas_por_industria:'Contando tus empresas por industria',
-  obtener_metricas_equipo:'Consultando forecast y actividad del mes',
+  obtener_metricas_equipo:'Consultando forecast, llamadas y actividad del mes',
   obtener_buenas_practicas_prospeccion:'Calculando qué está funcionando en prospección',
   obtener_mis_cadencias_activas:'Revisando tus cadencias activas',
   obtener_areas_oportunidad_ae:'Juntando el coaching de sus Qcalls',
@@ -15990,9 +16418,9 @@ async function ninjaObtenerMetricasEquipo(mesInput){
     actualNRR:(r.actualNRR===null||r.actualNRR===undefined)?null:r.actualNRR,
     logradoCapturado:!(r.actualMRR===null||r.actualMRR===undefined),
   }); });
-  act.forEach(r=>{ porAE[r.aeUid]=porAE[r.aeUid]||{ae:r.aeName}; porAE[r.aeUid].intromeets=(porAE[r.aeUid].intromeets||0)+(r.intromeets||0); porAE[r.aeUid].demos=(porAE[r.aeUid].demos||0)+(r.demos||0); });
+  act.forEach(r=>{ const a=porAE[r.aeUid]=porAE[r.aeUid]||{ae:r.aeName}; a.intromeets=(a.intromeets||0)+(r.intromeets||0); a.demos=(a.demos||0)+(r.demos||0); a.llamadas=(a.llamadas||0)+(r.calls||0); a.llamadasConectadas=(a.llamadasConectadas||0)+(r.callsConnected||0); });
   const porPersona=Object.values(porAE);
-  const totales=porPersona.reduce((s,a)=>({targetMRR:s.targetMRR+(a.targetMRR||0),targetNRR:s.targetNRR+(a.targetNRR||0),actualMRR:s.actualMRR+(a.actualMRR||0),actualNRR:s.actualNRR+(a.actualNRR||0),intromeets:s.intromeets+(a.intromeets||0),demos:s.demos+(a.demos||0)}),{targetMRR:0,targetNRR:0,actualMRR:0,actualNRR:0,intromeets:0,demos:0});
+  const totales=porPersona.reduce((s,a)=>({targetMRR:s.targetMRR+(a.targetMRR||0),targetNRR:s.targetNRR+(a.targetNRR||0),actualMRR:s.actualMRR+(a.actualMRR||0),actualNRR:s.actualNRR+(a.actualNRR||0),intromeets:s.intromeets+(a.intromeets||0),demos:s.demos+(a.demos||0),llamadas:s.llamadas+(a.llamadas||0),llamadasConectadas:s.llamadasConectadas+(a.llamadasConectadas||0)}),{targetMRR:0,targetNRR:0,actualMRR:0,actualNRR:0,intromeets:0,demos:0,llamadas:0,llamadasConectadas:0});
   const conForecast=porPersona.filter(a=>a.targetMRR||a.targetNRR).length;
   const sinCapturar=porPersona.filter(a=>(a.targetMRR||a.targetNRR)&&!a.logradoCapturado).length;
   return {mes:month, alcance:role==='manager'?'toda la organización':role==='tl'?'tu equipo':'tú',
