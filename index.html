@@ -7,7 +7,7 @@
 <meta name="google" content="notranslate">
 <title>Outbound México — Odoo</title>
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-08-31T20:41:46Z">
+<meta name="app-version" content="2026-08-31T21:27:07Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -501,6 +501,26 @@ input,select,textarea{font-family:inherit;}
 .disc-popup-title{font-size:15px;font-weight:700;}
 .disc-popup-actions{display:flex;gap:8px;align-items:center;}
 .disc-popup-body{padding:24px;overflow-y:auto;flex:1;font-family:'Inter',monospace;font-size:12.5px;line-height:1.8;white-space:normal;color:#1f2937;}
+/* Render legible de los textos que genera la IA (nota para CRM, recomendaciones, resumen, feedback):
+   títulos de sección, viñetas y la tabla BANT/MEDDIC como tabla de verdad. Ver discRichHTML(). */
+.disc-rich{white-space:normal;font-family:'Inter',sans-serif;}
+.disc-rich h4{font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#714B67;margin:22px 0 9px;padding-bottom:6px;border-bottom:1px solid #f0e9ee;}
+.disc-rich h4:first-child{margin-top:0;}
+.disc-rich h5{font-size:12.5px;font-weight:700;color:#21272B;margin:12px 0 4px;}
+.disc-rich p{margin:0 0 9px;font-size:12.5px;line-height:1.7;color:#374151;}
+.disc-rich ul{margin:0 0 11px;padding-left:18px;}
+.disc-rich li{font-size:12.5px;line-height:1.7;color:#374151;margin-bottom:5px;}
+.disc-rich strong{color:#21272B;font-weight:700;}
+.disc-rich-tw{overflow-x:auto;margin:2px 0 14px;border:1px solid #e5e7eb;border-radius:10px;}
+.disc-rich-tbl{border-collapse:collapse;width:100%;font-size:12px;}
+.disc-rich-tbl th{text-align:left;background:#f7f4f6;color:#714B67;font-weight:800;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:9px 11px;border-bottom:1px solid #e5e7eb;white-space:nowrap;}
+.disc-rich-tbl td{padding:9px 11px;border-bottom:1px solid #f3f4f6;color:#374151;line-height:1.55;vertical-align:top;}
+.disc-rich-tbl tr:last-child td{border-bottom:none;}
+.disc-rich-tbl td:first-child{font-weight:700;color:#21272B;}
+.disc-rich-tbl td.st{font-weight:800;white-space:nowrap;}
+.disc-rich-tbl td.st.ok{color:#047857;}
+.disc-rich-tbl td.st.part{color:#b45309;}
+.disc-rich-tbl td.st.no{color:#b91c1c;}
 .disc-gemini-loading{display:none;align-items:center;gap:10px;padding:16px;color:#6b7280;font-size:13px;}
 .disc-gemini-loading.show{display:flex;}
 .disc-spinner{width:20px;height:20px;border:2px solid #e5e7eb;border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite;}
@@ -4390,50 +4410,93 @@ DATOS CAPTURADOS DURANTE LA LLAMADA:
 TRANSCRIPCIÓN COMPLETA:
 ${transcript||'(No hay transcripción disponible para esta sesión. Básate SOLO en los datos capturados arriba — si una sección de abajo depende de la transcripción y no la tienes, dilo explícitamente en vez de inventar contenido.)'}
 
-El objetivo es DOCUMENTAR al cliente con información de calidad para que cualquiera del equipo lo entienda sin haber estado en la llamada. Genera la nota con exactamente estas secciones:
+El objetivo es DOCUMENTAR al cliente con información de calidad para que cualquiera del equipo lo entienda sin haber estado en la llamada. Genera la nota con exactamente estas 7 secciones, en este orden y con estos títulos, numeradas igual:
 
 1. EMPRESA Y CONTEXTO
-   Qué hacen, tamaño (empleados, razones sociales), sistemas actuales y cómo están conectados (o no).
+   A qué se dedican, qué venden y a quién. Tamaño real: empleados, razones sociales, sucursales, facturación. Industria y tipo de venta. Contexto que explique su momento: crecimiento, temporada, estructura del grupo, quiénes estuvieron en la llamada y qué puesto tienen.
 
-2. OPERACIÓN ACTUAL
-   Tres viñetas: Comercial (cómo venden), Operativo (cómo entregan), Administrativo (facturación/contabilidad/nómina). Usa lo de la transcripción.
+2. SISTEMAS ACTUALES
+   Qué software usan hoy, área por área (comercial, operativo, administrativo/contable). Cuántos usuarios, qué está conectado con qué, y qué se pasa a mano o vive en Excel. Cuánto pagan hoy por esos sistemas si se supo. Qué les funciona y qué no de lo que ya tienen. Si de un área no se habló, escríbelo en vez de omitirla.
 
-3. DOLOR E IMPACTO
-   El dolor #1 con cita textual entre comillas si la hubo. A quién afecta y su impacto (dinero/tiempo). Si no se cuantificó, dilo explícitamente.
+3. OPERACIÓN ACTUAL
+   Cómo funciona el día a día, en tres bloques, con estos nombres y en este orden:
+   Comercial: cómo consiguen clientes, cómo cotizan y cierran, cómo dan seguimiento y postventa.
+   Operativo: cómo entregan lo que venden (inventario, compras, producción, proyectos, servicio en campo… lo que aplique a ellos).
+   Administrativo: facturación, contabilidad, cobranza, nómina.
+   En cada bloque di cuánta gente hay y en qué punto exacto se rompe o se atora el proceso.
 
-4. CALIFICACIÓN (MEDDIC + BANT)
-   Una línea por dimensión, marcando lo que SÍ se sabe y lo que FALTA documentar:
-   Necesidad | Métricas de impacto | Presupuesto | Comprador económico | Champion | Criterios de decisión | Proceso y tiempos.
+4. CALIFICACIÓN BANT + MEDDIC
+   Devuelve una TABLA en texto plano: una fila por renglón, columnas separadas por " | ", sin markdown y sin líneas de guiones. La primera fila es exactamente:
+   CONCEPTO | ESTADO | DETALLE
+   Y después estas 10 filas, en este orden y con estos nombres exactos en la primera columna:
+   Necesidad (BANT)
+   Presupuesto (BANT)
+   Autoridad — quién decide (BANT)
+   Tiempos (BANT)
+   Dolor identificado (MEDDIC)
+   Métricas de impacto (MEDDIC)
+   Comprador económico (MEDDIC)
+   Criterios de decisión (MEDDIC)
+   Proceso de decisión (MEDDIC)
+   Champion (MEDDIC)
+   ESTADO es exactamente una de estas tres palabras: Cubierto, Parcial o Falta.
+   DETALLE: si está Cubierto o Parcial, el dato concreto (nombre y puesto, monto, fecha, cita del cliente). Si está en Falta, la pregunta exacta que hay que hacerle al cliente para cerrarlo. Nunca dejes DETALLE vacío ni escribas solo "No documentado" en una fila en Falta: ahí va la pregunta. Mantén cada celda por debajo de ~150 caracteres; el contexto largo va en las otras secciones.
 
-5. ENCAJE CON ODOO (LLEVAR A LA DEMO)
-   Para cada módulo relevante: nombre → dolor específico que resuelve → efecto WOW clave.
+5. PRINCIPALES DOLORES E IMPACTO
+   Lista ordenada del más grave al menos grave. Por cada dolor: qué es, con cita textual del cliente entre comillas si la hubo → a quién afecta y con qué frecuencia → impacto en dinero, tiempo o clientes → qué han intentado para resolverlo y por qué no funcionó. Si el impacto no se cuantificó en la llamada, dilo explícitamente en vez de estimarlo tú.
 
-6. PENDIENTES POR DOCUMENTAR
-   Lista concreta de lo que falta confirmar para avanzar el deal (deriva de los "FALTA" de la calificación).
+6. FLUJO SUGERIDO PARA LA DEMO
+   El orden en que conviene mostrarle Odoo a ESTE cliente, en tres fases: Comercial → Operativo → Administrativo/Contable. Por cada fase: qué módulos, qué dolor específico de ellos resuelve cada módulo, y con qué efecto WOW conviene abrir esa fase. Cierra con una frase de por dónde empezar la demo y por qué, conectada a lo que más les duele.
 
-7. PRÓXIMO PASO
-   Acción concreta con responsable y fecha sugerida.
-${recentSessions.length>0?`
-8. PATRONES DEL EQUIPO
-   Compara con el historial de ${IND_NAMES[disc.currentInd]||'la industria'}. ¿Dolores recurrentes? ¿Qué diferencia a este prospecto?`:''}
+7. ÁREAS DE OPORTUNIDAD — FALTÓ POR CALIFICAR
+   Todo lo que quedó en "Falta" o "Parcial" en la tabla del punto 4, más cualquier tema del negocio que no se alcanzó a explorar. Por cada punto: qué falta → la pregunta concreta para la siguiente interacción → por qué importa para avanzar el deal.${recentSessions.length>0?`
+   Cierra la sección con una línea que empiece con "Patrones del equipo:" comparando con el historial de ${IND_NAMES[disc.currentInd]||'la industria'}: dolores recurrentes y qué hace distinto a este prospecto.`:''}
 
-Escribe en español de México, tono profesional pero directo. NO inventes datos: si algo no está en lo capturado ni en la transcripción, escribe "No documentado". Sé conciso y accionable. No repitas información entre secciones.`;
+Escribe en español de México, tono profesional pero directo. NO inventes datos: si algo no está en lo capturado ni en la transcripción, escribe "No documentado". No repitas información entre secciones. No recortes ni resumas de más para ahorrar espacio: no hay límite de longitud y esta nota es el contexto del cliente para todo el equipo — es preferible larga y completa que corta y con huecos.`;
 }
 
 
 
+// ── Llamada a Claude con continuación automática (sin tope de longitud) ──
+// Antes, cada paso hacía su propio fetch con un max_tokens fijo y se quedaba con lo que llegara: si
+// la respuesta topaba con ese límite, se cortaba a media frase y esa versión truncada era la que se
+// mostraba, se copiaba al CRM y se guardaba en Firestore — sin ningún aviso. Bug real: la "Nota para
+// CRM" salía incompleta justo cuando la llamada tenía más contexto, que es cuando más se necesita.
+// Aquí se revisa stop_reason: si la API cortó por max_tokens, se reanuda LA MISMA respuesta pasando
+// lo ya generado como turno del asistente (el modelo continúa exactamente donde se quedó, sin
+// repetir encabezados) y se concatenan los tramos. Así max_tokens deja de ser un límite de longitud
+// y pasa a ser solo el tamaño de cada tramo.
+const DISC_MAX_CONT=8; // tramos máximos por respuesta — red de seguridad contra bucles, no un límite de contenido
+async function discClaudeText(prompt, opts={}){
+  const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
+  const messages=[{role:'user',content:prompt}];
+  let full='', cortes=0;
+  for(let i=0;i<DISC_MAX_CONT;i++){
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||8000,system:opts.system||ANTI_HALLUCINATION,messages})
+    });
+    const data=await res.json();
+    if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+    const chunk=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    full+=chunk;
+    if(data.stop_reason!=='max_tokens'||!chunk.trim()) break;
+    cortes++;
+    // La API rechaza un turno del asistente que termine en espacios/saltos, así que se recorta solo
+    // por la derecha antes de reenviarlo; el siguiente tramo se pega justo ahí.
+    full=full.replace(/\s+$/,'');
+    if(messages.length===1) messages.push({role:'assistant',content:full});
+    else messages[1].content=full;
+  }
+  if(cortes) console.log('discClaudeText: respuesta reanudada en',cortes,'tramo(s) — longitud final',full.length,'caracteres');
+  return full||'Sin respuesta';
+}
+
 // ── Recomendaciones (coaching sin transcripción) ──
 // ── Paso 1: Nota para CRM (usa transcripción si hay; si no, se basa en lo capturado en la app) ──
 async function discStepNota(transcript, recentSessions){
-  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:3000,system:ANTI_HALLUCINATION,messages:[{role:'user',content:discBuildClaudePrompt(transcript,recentSessions)}]})
-  });
-  const data=await res.json();
-  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const text=stripMd(data.content?.[0]?.text||'Sin respuesta');
+  const text=stripMd(await discClaudeText(discBuildClaudePrompt(transcript,recentSessions),{maxTokens:8000}));
   const output=document.getElementById('discGeminiOutput'), wrap=document.getElementById('discNotaStepOut'), engineLabel=document.getElementById('discEngineLabel');
   if(output) output.textContent=text;
   if(wrap) wrap.style.display='block';
@@ -4443,7 +4506,6 @@ async function discStepNota(transcript, recentSessions){
 
 // ── Paso 2: Recomendaciones para cerrar (no requiere transcripción) ──
 async function discStepReco(recentSessions){
-  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   const s=disc.selections;
   const apps=[]; if(disc.currentInd&&APPS_DB[disc.currentInd]) APPS_DB[disc.currentInd].forEach(a=>apps.push('Odoo '+a.name));
   disc.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!apps.includes('Odoo '+TV_APPS[tv].name)) apps.push('Odoo '+TV_APPS[tv].name); });
@@ -4494,14 +4556,7 @@ ${recentSessions.length>0?`📊 VS. HISTORIAL DEL EQUIPO
 
 Sé directo, específico y accionable. Habla de tú al AE. No repitas los datos del perfil.`;
 
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
-  });
-  const data=await res.json();
-  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const text=stripMd(data.content?.[0]?.text||'Sin respuesta');
+  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000}));
   const output=document.getElementById('discRecoOutput'), wrap=document.getElementById('discRecoStepOut'), label=document.getElementById('discRecoLabel');
   if(output) output.textContent=text;
   if(wrap) wrap.style.display='block';
@@ -4511,7 +4566,6 @@ Sé directo, específico y accionable. Habla de tú al AE. No repitas los datos 
 
 // ── Paso 3: Apps recomendadas — SOLO del catálogo oficial ODOO_APPS_FLAT (misma fuente que Pricing/Propuesta), nunca inventadas ──
 async function discStepApps(transcript, notaText){
-  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   const s=disc.selections;
   const catalogBlock=ODOO_APPS_FLAT.map(a=>`- ${a.name}: ${a.desc}`).join('\n');
   const indCtx=ODOO_INDUSTRIES[IND_NAMES[disc.currentInd]]||'';
@@ -4528,7 +4582,7 @@ CONTEXTO DEL PROSPECTO:
 - Sistemas actuales: ${s['emp-sistemas']||'nd'}
 - Notas del AE durante la llamada: ${s.fld?.['notas-llamada']||'nd'}
 ${notaText?`- Nota de discovery ya generada:\n${notaText}`:''}
-${transcript?`- Fragmento de transcripción (úsalo solo si aporta): ${transcript.slice(0,3000)}`:''}
+${transcript?`- Transcripción completa de la llamada (úsala si aporta):\n${transcript}`:''}
 
 Elige entre 4 y 8 apps del catálogo — las MÁS relevantes para ESTE prospecto, no una lista genérica de industria. Para cada una, clasifícala en la FASE de la demo donde mejor encaja:
 - "comercial": lleva toda la parte comercial — CRM, cotizaciones, ventas, portal del cliente
@@ -4541,14 +4595,7 @@ Y sugiere el ORDEN de presentación en la demo: primero Comercial, luego Operati
   "flujo":"1-2 frases sugiriendo cómo presentar la demo en ese orden (Comercial → Operativo → Administrativo/Contable) para ESTE prospecto, mencionando las apps elegidas por nombre"
 }`;
 
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1400,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
-  });
-  const data=await res.json();
-  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const raw=data.content?.[0]?.text||'{}';
+  const raw=await discClaudeText(prompt,{maxTokens:4000})||'{}';
   const jsonMatch=raw.match(/\{[\s\S]*\}/);
   let parsed={};
   try{ parsed=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ parsed={}; }
@@ -4573,7 +4620,6 @@ Y sugiere el ORDEN de presentación en la demo: primero Comercial, luego Operati
 
 // ── Paso 4: Efectos WOW para la demo — SOLO del catálogo WOW_DB (misma lógica anti-alucinación que discStepApps), elegidos por relevancia real al dolor detectado, no por regla fija de industria ──
 async function discStepWow(transcript, notaText){
-  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   const s=disc.selections;
   const areaLbl={comercial:'Comercial',operativo:'Operativo',administrativo:'Administrativo'};
   // Catálogo acotado a lo relevante para esta sesión (generales + industria + tipo de venta actuales) — mismo criterio que dgWowItems, sin recortar a 6: aquí elige la IA.
@@ -4597,19 +4643,12 @@ CONTEXTO DEL PROSPECTO:
 - Otras señales/dolores detectados: ${(s.dolores||[]).join(', ')||'nd'}
 - Notas del AE durante la llamada: ${s.fld?.['notas-llamada']||'nd'}
 ${notaText?`- Nota de discovery ya generada:\n${notaText}`:''}
-${transcript?`- Fragmento de transcripción (úsalo solo si aporta): ${transcript.slice(0,3000)}`:''}
+${transcript?`- Transcripción completa de la llamada (úsala si aporta):\n${transcript}`:''}
 
 Elige entre 3 y 6 efectos del catálogo — los MÁS conectados al dolor real de ESTE prospecto, no una lista genérica de industria. Ordénalos del más al menos impactante para ESTE cliente. Responde SOLO con este JSON (sin markdown, sin texto fuera del JSON):
 [{"title":"Título EXACTO tal cual aparece en el catálogo","why":"por qué este efecto en particular le va a pegar a ESTE prospecto, en 1 frase, conectada a algo que dijo o hace"}]`;
 
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:1200,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
-  });
-  const data=await res.json();
-  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const raw=data.content?.[0]?.text||'[]';
+  const raw=await discClaudeText(prompt,{maxTokens:4000})||'[]';
   const jsonMatch=raw.match(/\[[\s\S]*\]/);
   let picks=[];
   try{ picks=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ picks=[]; }
@@ -4631,10 +4670,9 @@ Elige entre 3 y 6 efectos del catálogo — los MÁS conectados al dolor real de
 
 // ── Paso 5: Resumen Intromeet — síntesis reutilizable como contexto en otras apps (vía memoria de empresa) ──
 async function discStepResumen(notaText, recoText, appsList){
-  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   const s=disc.selections;
   const appsTxt=(appsList||[]).map(a=>a.name).join(', ')||'nd';
-  const prompt=`Escribe el "Resumen Intromeet" de esta sesión de discovery: un párrafo denso (6-10 líneas) que otro AE, o la IA de otras herramientas de Odoo México, pueda usar como contexto de la cuenta sin leer toda la sesión.
+  const prompt=`Escribe el "Resumen Intromeet" de esta sesión de discovery: un texto denso (8-15 líneas, más si el caso lo amerita — no lo recortes a costa de perder contexto) que otro AE, o la IA de otras herramientas de Odoo México, pueda usar como contexto de la cuenta sin leer toda la sesión.
 
 DATOS CAPTURADOS:
 - Empresa: ${s['emp-nombre']||'nd'} | Industria: ${IND_NAMES[disc.currentInd]||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
@@ -4647,14 +4685,7 @@ ${recoText?`RECOMENDACIONES PARA CERRAR:\n${recoText}`:''}
 
 Escribe en tercera persona, tono de bitácora de cuenta (no un mensaje al cliente). Sintetiza, no repitas las secciones tal cual. Si algo no se sabe, dilo brevemente en vez de omitirlo en silencio.`;
 
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:900,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
-  });
-  const data=await res.json();
-  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const text=stripMd(data.content?.[0]?.text||'Sin respuesta');
+  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000}));
   disc.resumenIntromeet=text;
   discRenderResumen(text);
   return text;
@@ -4662,7 +4693,6 @@ Escribe en tercera persona, tono de bitácora de cuenta (no un mensaje al client
 
 // ── Paso 6: Feedback final de IA — coach de la SESIÓN (no del prospecto): acciones en la app + transcripción ──
 async function discStepFeedback(transcript){
-  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   const s=disc.selections;
   const cov=dgCoverage();
   const totals=cov.reduce((a,c)=>({d:a.d+c.done,t:a.t+c.total}),{d:0,t:0});
@@ -4675,18 +4705,11 @@ QUÉ CUBRIÓ EN LA APP (checklist real de la llamada):
 - Completitud del discovery: ${pct}%. Faltó cubrir: ${faltan.join(', ')||'nada, cubrió todo'}.
 - Calificación MEDDIC/BANT sin documentar: ${gaps.join(', ')||'ninguna, quedó completa'}.
 - Dolor principal capturado: ${s.fld?.['dol-principal']||'no se capturó dolor principal en sus propias palabras'}.
-${transcript?`\nTRANSCRIPCIÓN DE LA LLAMADA (úsala para evaluar CÓMO preguntó, cuánto habló, si escuchó):\n${transcript.slice(0,6000)}`:'\n(No hay transcripción disponible — da el feedback solo con base en lo documentado en la app.)'}
+${transcript?`\nTRANSCRIPCIÓN COMPLETA DE LA LLAMADA (úsala para evaluar CÓMO preguntó, cuánto habló, si escuchó):\n${transcript}`:'\n(No hay transcripción disponible — da el feedback solo con base en lo documentado en la app.)'}
 
 Dale 2-4 puntos de mejora CONCRETOS (qué pregunta faltó, qué tema no se cerró, si habló de más) y qué debe resolver en la siguiente interacción con este cliente para terminar de conocerlo. Sé directo y breve — esto lo lee el AE, no el cliente. Si la sesión estuvo sólida, dilo también; no inventes problemas que no existen.`;
 
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'x-api-key':claudeKey,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:900,system:ANTI_HALLUCINATION,messages:[{role:'user',content:prompt}]})
-  });
-  const data=await res.json();
-  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  const text=stripMd(data.content?.[0]?.text||'Sin respuesta');
+  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000}));
   disc.feedbackFinal=text;
   discRenderFeedback(text);
   return text;
@@ -6232,19 +6255,33 @@ async function gcCallClaude(prompt, fileAttachment=null, opts={}){
   // fallar en silencio a nivel de la herramienta (sin error HTTP) y Claude responde con una
   // explicación en prosa en vez del JSON pedido ("Claude no devolvió un formato válido").
   if(usesWebFetch) headers['anthropic-beta']='web-fetch-2025-09-10';
-  const body={model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||(usesWebFetch?6000:4000),system:opts.system||ANTI_HALLUCINATION,messages:[{role:'user',content}]};
+  const messages=[{role:'user',content}];
+  const body={model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||(usesWebFetch?6000:4000),system:opts.system||ANTI_HALLUCINATION,messages};
   if(opts.tools) body.tools=opts.tools;
   if(opts.toolChoice) body.tool_choice=opts.toolChoice;
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers,
-    body:JSON.stringify(body)
-  });
-  const data=await res.json();
-  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-  // Cuando se usa web_fetch, la respuesta incluye bloques de tipo web_fetch_tool_result antes del texto final —
-  // unimos SOLO los bloques de texto (puede haber más de uno si hay citas).
-  const text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n')||'';
+  // Continuación automática, igual que discClaudeText: si la API corta por max_tokens, se reanuda la
+  // MISMA respuesta con lo ya generado como turno del asistente en vez de entregar un texto cortado a
+  // media frase. Solo aplica cuando NO hay herramientas server-side (web_fetch/web_search): ahí la
+  // respuesta trae bloques de tool_result que no se pueden reanudar concatenando texto.
+  const puedeContinuar=!opts.tools;
+  let data=null, text='';
+  for(let i=0;i<8;i++){
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers,
+      body:JSON.stringify(body)
+    });
+    data=await res.json();
+    if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+    // Cuando se usa web_fetch, la respuesta incluye bloques de tipo web_fetch_tool_result antes del texto final —
+    // unimos SOLO los bloques de texto (puede haber más de uno si hay citas).
+    const chunk=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n')||'';
+    text+=chunk;
+    if(!puedeContinuar||data.stop_reason!=='max_tokens'||!chunk.trim()) break;
+    text=text.replace(/\s+$/,''); // la API rechaza un turno del asistente que termine en espacios
+    if(messages.length===1) messages.push({role:'assistant',content:text});
+    else messages[1].content=text;
+  }
   if(usesWebFetch){
     // Diagnóstico para depurar en vivo desde la consola del navegador (F12) si vuelve a fallar —
     // sin esto, no hay forma de saber si el fetch de la página falló, si se truncó por max_tokens,
@@ -10636,6 +10673,48 @@ function renderHome(){
 // ══════════════════════════════════════════
 // TEXT POPUP
 // ══════════════════════════════════════════
+// Convierte el texto plano que devuelve la IA en HTML legible: títulos de sección, viñetas, etiquetas
+// en negrita y — lo importante para la Nota para CRM — la calificación BANT/MEDDIC, que viaja como
+// filas separadas por " | " y en texto corrido era justo lo más difícil de leer. El texto original
+// NO se toca: el botón Copiar entrega siempre el plano, que es lo que se pega en Odoo o WhatsApp.
+function discRichHTML(text){
+  const raw=String(text||'').replace(/\r/g,'');
+  const esc=_dgEsc;
+  const out=[]; let para=[], list=[], tbl=[];
+  const ESTADO={cubierto:'ok',parcial:'part',falta:'no'};
+  const isRow=l=>l.split('|').length>=3;
+  const isHead=l=>/^\d+[.)]\s*\S/.test(l)&&l===l.toUpperCase()&&l.length<110;
+  const isSub=l=>/^[^|:]{2,60}:$/.test(l);
+  // "Comercial: cómo venden…" → la etiqueta antes de los dos puntos se resalta.
+  const line=l=>{ const m=l.match(/^([^:.\u2022]{2,48}):\s+(.+)$/); return m?`<strong>${esc(m[1])}:</strong> ${esc(m[2])}`:esc(l); };
+  const flushP=()=>{ if(para.length){ out.push('<p>'+para.map(line).join('<br>')+'</p>'); para=[]; } };
+  const flushL=()=>{ if(list.length){ out.push('<ul>'+list.map(x=>'<li>'+line(x)+'</li>').join('')+'</ul>'); list=[]; } };
+  const flushT=()=>{
+    if(!tbl.length) return;
+    // Una sola línea con pipes no es una tabla (p. ej. una enumeración suelta): se deja como párrafo.
+    if(tbl.length<2){ para.push(...tbl); tbl=[]; return; }
+    const rows=tbl.map(l=>l.replace(/^\||\|$/g,'').split('|').map(c=>c.trim()));
+    const head=rows[0].every(c=>c&&c===c.toUpperCase())?rows.shift():null;
+    const th=head?`<thead><tr>${head.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead>`:'';
+    const td=rows.map(r=>`<tr>${r.map((c,i)=>{ const k=i===1?(ESTADO[c.toLowerCase()]||''):''; return `<td${k?` class="st ${k}"`:''}>${esc(c)}</td>`; }).join('')}</tr>`).join('');
+    out.push(`<div class="disc-rich-tw"><table class="disc-rich-tbl">${th}<tbody>${td}</tbody></table></div>`);
+    tbl=[];
+  };
+  for(const ln of raw.split('\n')){
+    const t=ln.trim();
+    if(t&&isRow(t)){ flushL(); flushP(); tbl.push(t); continue; }
+    flushT();
+    if(!t){ flushL(); flushP(); continue; }
+    if(isHead(t)){ flushL(); flushP(); out.push('<h4>'+esc(t)+'</h4>'); continue; }
+    const b=t.match(/^[\u2022\u00b7\u25aa\-]\s+(.+)$/);
+    if(b){ flushP(); list.push(b[1]); continue; }
+    if(isSub(t)){ flushL(); flushP(); out.push('<h5>'+esc(t)+'</h5>'); continue; }
+    flushL(); para.push(t);
+  }
+  flushT(); flushL(); flushP();
+  return out.join('')||'<p>'+esc(raw)+'</p>';
+}
+
 window.discShowPopup=function(sourceId,title){
   const src=document.getElementById(sourceId); if(!src) return;
   const text=src.textContent||src.innerText||'';
@@ -10643,16 +10722,20 @@ window.discShowPopup=function(sourceId,title){
   overlay.className='disc-popup-overlay';
   overlay.id='discTextPopup';
   overlay.innerHTML=`
-    <div class="disc-popup-box">
+    <div class="disc-popup-box" style="max-width:860px">
       <div class="disc-popup-header">
         <div class="disc-popup-title">${title}</div>
         <div class="disc-popup-actions">
-          <button class="disc-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('discPopupText').textContent).then(()=>showNotif('Copiado ✓','success'))">📋 Copiar</button>
+          <button class="disc-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('discPopupRaw').textContent).then(()=>showNotif('Copiado ✓','success'))">📋 Copiar</button>
           <button class="disc-copy-btn" onclick="document.getElementById('discTextPopup').remove()">✕ Cerrar</button>
         </div>
       </div>
-      <div class="disc-popup-body" id="discPopupText" style="white-space:pre-wrap">${text}</div>
+      <div class="disc-popup-body disc-rich" id="discPopupText">${discRichHTML(text)}</div>
+      <div id="discPopupRaw" style="display:none"></div>
     </div>`;
+  // El texto original va por textContent (no por innerHTML) — así el botón Copiar siempre entrega el
+  // plano tal cual salió de la IA, sin las etiquetas que agrega discRichHTML.
+  overlay.querySelector('#discPopupRaw').textContent=text;
   overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.remove(); });
   document.body.appendChild(overlay);
 };
