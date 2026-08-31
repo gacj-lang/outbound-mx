@@ -7,7 +7,7 @@
 <meta name="google" content="notranslate">
 <title>Outbound México — Odoo</title>
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-08-31T20:40:45Z">
+<meta name="app-version" content="2026-08-31T20:41:46Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2285,9 +2285,10 @@ window.savePexelsKey=async function(){
 // silencio: lo deja visible arriba del módulo con el nombre de la colección que falta.
 // ══════════════════════════════════════════
 
-// Metas mensuales de referencia del área (2026). Se comparan, nunca se fuerzan.
-// LLAMADAS_MES: 20 llamadas/día × 5 días × 4.33 semanas ≈ 430. Ajusta aquí si el área lo cambia.
-const MET_KPI = { LLAMADAS_MES:430, INTROMEETS_MES:20, DEMOS_MES:15, MRR_MES:11000, NRR_MES:60000 };
+// Metas MENSUALES de referencia del área (definidas 2026-08-04). Se comparan, nunca se fuerzan.
+// Los KPI de esfuerzo son mensuales, no diarios: 800 llamadas, 20 intromeets y 15 demos al mes por
+// account. Target de ingreso: 11k MRR y 60k NRR mensuales por account. Ajusta aquí si el área cambia.
+const MET_KPI = { LLAMADAS_MES:800, INTROMEETS_MES:20, DEMOS_MES:15, MRR_MES:11000, NRR_MES:60000 };
 // Pesos del % de performance. El orden lo definió el área:
 // target (MRR+NRR) > demos > intromeets > llamadas > certeza del forecast.
 // Cada componente se topa en 100%: rebasar el MRR NO compensa quedarse corto en demos.
