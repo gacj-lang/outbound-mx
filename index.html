@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-08-31T22:07:16Z">
+<meta name="app-version" content="2026-08-31T22:59:19Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4621,7 +4621,7 @@ window.discMarkAllAnalisisRead=function(){ _discAnalisisCache.forEach(e=>e.read=
 // ── Paso 1: Nota para CRM (usa transcripción si hay; si no, se basa en lo capturado en la app) ──
 async function discStepNota(ctx){
   const text=stripMd(await discClaudeText(discBuildClaudePrompt(ctx),{maxTokens:8000}));
-  const n=ctx.ctx.recentSessions.length;
+  const n=ctx.recentSessions.length;
   ctx.job.results.geminiNote=text;
   ctx.job.results.engineLabel='⚡ Claude'+(n>0?` · ${n} sesiones de contexto`:'');
   discJobPintar(ctx.job);
@@ -4682,7 +4682,7 @@ Sé directo, específico y accionable. Habla de tú al AE. No repitas los datos 
 
   const text=stripMd(await discClaudeText(prompt,{maxTokens:6000}));
   ctx.job.results.recoNote=text;
-  ctx.job.results.recoLabel=ctx.ctx.recentSessions.length>0?`Basado en ${ctx.ctx.recentSessions.length} sesiones del equipo`:'Basado en el perfil capturado';
+  ctx.job.results.recoLabel=ctx.recentSessions.length>0?`Basado en ${ctx.recentSessions.length} sesiones del equipo`:'Basado en el perfil capturado';
   discJobPintar(ctx.job);
   return text;
 }
