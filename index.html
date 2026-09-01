@@ -3081,21 +3081,21 @@ const DG_IND_CRIT={
   comercializadora:['¿Cómo concilian inventario entre sucursales o almacenes?','¿Manejan consignación o inventario en poder de terceros?'],
   retail:['¿Cómo unifican stock entre tienda física y venta en línea?'],
   restaurante:['¿Descuentan inventario por receta/escandallo al vender?','¿Controlan cocina (KDS) y mermas de preparación?'],
-  manufactura:['¿Cómo planean la producción y las órdenes de trabajo?','¿Lista de materiales (BOM) multinivel o subensambles?','¿Trazabilidad de insumo a producto terminado?'],
-  construccion:['¿Cómo controlan el avance físico por obra?','¿Cómo asignan compras y materiales a cada obra?'],
+  manufactura:['¿Cómo planean la producción y las órdenes de trabajo?','¿Lista de materiales (BOM) multinivel o subensambles?','¿Trazabilidad de insumo a producto terminado?','¿Cómo gestionan el mantenimiento de la maquinaria (preventivo/correctivo)?'],
+  construccion:['¿Cómo controlan el avance físico por obra?','¿Cómo asignan compras y materiales a cada obra?','¿Cómo controlan asistencia y seguridad del personal en obra?'],
   servicios:['¿Cómo controlan la calidad y los entregables del servicio?','¿Subcontratan parte del servicio?'],
-  distribucion:['¿Manejan rutas de entrega y las optimizan?','¿Controlan inventario en tránsito entre almacenes?'],
-  ecommerce:['¿Cómo gestionan envíos, guías y devoluciones?','¿Manejan multi-almacén para los pedidos online?'],
-  salud:['¿Trazabilidad regulatoria de medicamentos o insumos?','¿Agenda de citas conectada a la operación?'],
+  distribucion:['¿Consolidan pedidos de varios almacenes en un mismo despacho, o cada almacén surte por separado?','¿Controlan inventario en tránsito entre almacenes?'],
+  ecommerce:['¿Cómo gestionan envíos, guías y devoluciones?','¿Manejan multi-almacén para los pedidos online?','¿Ofrecen click & collect (comprar en línea, recoger en tienda)?'],
+  salud:['¿Trazabilidad regulatoria de medicamentos o insumos?','¿Agenda de citas conectada a la operación?','¿Necesitan expediente clínico electrónico, o el alcance es agenda + facturación de servicios?'],
   software:['¿Cómo dan soporte y miden SLAs/tickets?','¿Gestionan proyectos de implementación?'],
   inmobiliaria:['¿Gestionan mantenimiento de las unidades?','¿Control de disponibilidad y ocupación?'],
   logistica:['¿Manejan rutas, flota y entregas con evidencia?','¿Controlan inventario en tránsito y multi-almacén?'],
-  educacion:['¿Agenda académica y control de grupos?','¿Seguimiento académico de los alumnos?'],
+  educacion:['¿Agenda académica y control de grupos?','¿Necesitan control de calificaciones/expediente académico, o el alcance es agenda + grupos + cobranza?'],
   turismo:['¿Cómo gestionan disponibilidad y cupos?','¿Coordinan proveedores y servicios del paquete?'],
   agricultura:['¿Trazabilidad de campo por lote y temporada?','¿Control de insumos y mermas de cosecha?'],
   otra:['¿Cuál es el proceso que más se rompe o más trabajo manual genera hoy?']
 };
-const DG_NONPROFIT_CRIT=['¿Gestionan eventos, campañas y voluntarios?','¿Cómo coordinan sus programas o proyectos sociales?'];
+const DG_NONPROFIT_CRIT=['¿Gestionan eventos, campañas y voluntarios?','¿Cómo coordinan sus programas o proyectos sociales?','¿Cómo miden y reportan el impacto de sus programas ante donantes o el consejo?'];
 // Críticas por tipo de venta (van en Comercial)
 // Preguntas críticas por tipo de venta — separadas por área (com=comercial, op=operativo, adm=administrativo)
 const DG_VENTA_CRIT={
@@ -3119,19 +3119,20 @@ const DG_ADM_GENERAL=[
   {t:'¿Contabilidad interna o con despacho externo?'},
   {t:'¿Tienen visibilidad de su rentabilidad y márgenes hoy?'},
   {t:'¿Manejan crédito a clientes?',s:'límites y cobranza de cuentas por cobrar'},
-  {t:'¿Consolidan información de varias empresas o sucursales?'}
+  {t:'¿Consolidan información de varias empresas o sucursales?'},
+  {t:'¿Necesitan procesar nómina en el mismo sistema, o la manejan aparte (despacho, IDSE, etc.)?'}
 ];
 // Preguntas críticas por INDUSTRIA — Comercial
 const DG_COM_CRIT={
   comercializadora:['¿Pedidos recurrentes o contratos marco?','¿Venden por catálogo, mostrador o representantes?'],
-  retail:['¿Venden también en línea?','¿Programa de lealtad o promociones?'],
+  retail:['¿Venden también en línea?','¿Cómo segmentan a quién ofrecer promociones o descuentos — todos, VIP, por historial?'],
   restaurante:['¿Delivery propio o por plataformas?','¿Manejan reservaciones?'],
   manufactura:['¿Venden producto configurable o a medida?','¿Cotizan por proyecto?'],
-  construccion:['¿Licitaciones o cartera fija?'],
+  construccion:['¿Licitaciones o cartera fija?','¿Cuántos proyectos manejan al año?'],
   servicios:['¿Venden por proyecto, hora o iguala?','¿Manejan contratos recurrentes?'],
   distribucion:['¿Venta por ruta o preventa?','¿Pedido mínimo por zona o cliente?'],
   logistica:['¿Tarifas por ruta, zona o peso?','¿Contratos de servicio recurrentes?'],
-  ecommerce:['¿Cuántos canales online (web, marketplace, redes)?','¿Venta B2B y B2C?'],
+  ecommerce:['¿Cuántos canales online (web, marketplace, redes)?','¿Venta B2B y B2C?','¿Qué integrador usan hoy para sincronizar marketplaces (Yuju, Ventiapp, Producteca, conector nativo) o lo hacen manual?'],
   salud:['¿Venden a particulares, aseguradoras o instituciones?','¿Manejan convenios?'],
   software:['¿Venden licencias, suscripciones o proyectos?','¿Expansión/upsell de cuentas?'],
   inmobiliaria:['¿Manejan cartera de unidades y apartados?','¿Comisiones a asesores?'],
@@ -3143,14 +3144,14 @@ const DG_COM_CRIT={
 // Preguntas críticas por INDUSTRIA — Administrativo
 const DG_ADM_CRIT={
   comercializadora:['¿Margen real por cliente o producto?','¿Rotación y rentabilidad del inventario?'],
-  retail:['¿Cierre de caja por sucursal?','¿Comisiones automáticas a vendedores?'],
+  retail:['¿Qué tan rápido pueden ver reportes de ventas por sucursal o vendedor?','¿Comisiones automáticas a vendedores?'],
   restaurante:['¿Costo y margen real por platillo?','¿Tratamiento contable de propinas?'],
   manufactura:['¿Costeo de producción real vs. estándar (materiales y MO)?','¿Margen por producto fabricado?'],
-  construccion:['¿Costeo analítico por obra?','¿Facturación por estimaciones de avance?'],
+  construccion:['¿Costeo analítico por obra?','¿Facturación por estimaciones de avance?','¿Cómo administran las retenciones (ISR/IVA) de cada contrato u obra?'],
   servicios:['¿Facturación por horas trabajadas?','¿Rentabilidad por proyecto?'],
   distribucion:['¿Conciliación de cobranza por ruta/repartidor?','¿Liquidación de vendedores en ruta?'],
   logistica:['¿Costeo por viaje o ruta?','¿Conciliación con transportistas?'],
-  ecommerce:['¿Conciliación automática de ventas online?','¿Contabilidad por canal?'],
+  ecommerce:['¿Concilian pagos y pasarelas automáticamente, o hay contracargos/cobros pendientes sin resolver?','¿Cómo registran las comisiones de marketplace en su contabilidad?'],
   salud:['¿Facturación a aseguradoras e instituciones?','¿Conciliación de copagos y reembolsos?'],
   software:['¿Reconocimiento de ingreso diferido?','¿Seguimiento de MRR y churn?'],
   inmobiliaria:['¿Estado de cuenta por unidad?','¿Depósitos y garantías por contrato?'],
@@ -3160,8 +3161,8 @@ const DG_ADM_CRIT={
   otra:[]
 };
 // Sin fines de lucro — por área
-const DG_NONPROFIT_COM=['¿Cómo captan donantes, socios o aliados?','¿Manejan campañas de recaudación?'];
-const DG_NONPROFIT_ADM=['¿Emiten recibos deducibles (donataria autorizada)?','¿Reportan el uso de fondos por proyecto o donante?'];
+const DG_NONPROFIT_COM=['¿Cómo captan donantes, socios o aliados?','¿Manejan campañas de recaudación?','¿Tienen membresías, cuotas o donativos recurrentes?'];
+const DG_NONPROFIT_ADM=['¿Emiten recibos deducibles (donataria autorizada)?','¿Reportan el uso de fondos por proyecto o donante?','¿Llevan control del límite de gasto administrativo que exige el SAT a donatarias autorizadas?'];
 // Operativo responsivo al tipo de producto
 const DG_OPERATIVO={
   fisico:{ opener:'Cuéntenme cómo se mueve un producto en su operación — desde que lo compran o reciben hasta que lo entregan al cliente.',
@@ -3169,7 +3170,7 @@ const DG_OPERATIVO={
     fields:[{one:{id:'op-inv-sys',l:'Sistema de inventario actual',ph:'Ej. Excel, WMS, ninguno…'}},{two:[{id:'op-almacenes',l:'Almacenes',ph:'#'},{id:'op-skus',l:'SKUs aprox.',ph:'#'}]},{one:{id:'op-personas',l:'Personas operativas',ph:'#'}}],
     chips:['Inventario a mano','Quiebres de stock','Mermas / caducidad','Doble captura','Sin trazabilidad'] },
   servicios:{ opener:'Como su entrega es un servicio, cuéntenme cómo planean el trabajo, lo asignan a su gente y lo entregan al cliente.',
-    guide:[{t:'Cómo planean y asignan el trabajo',s:'agenda, proyectos, personal'},{t:'Registro de horas / esfuerzo',s:'timesheets'},{t:'Entregables y avance del proyecto'},{t:'Cómo facturan el servicio',s:'hito, recurrente, por hora'}],
+    guide:[{t:'Cómo planean y asignan el trabajo',s:'agenda, proyectos, personal'},{t:'Registro de horas / esfuerzo',s:'timesheets'},{t:'Entregables y avance del proyecto'}],
     fields:[{one:{id:'op-proj-sys',l:'Herramienta de proyectos actual',ph:'Ej. Excel, Trello, ninguna…'}},{two:[{id:'op-personas',l:'Personas operativas',ph:'#'},{id:'op-horas',l:'¿Registran horas?',sel:['—','No','En Excel','En sistema']}]}],
     chips:['Planeación en Excel','Sin registro de horas','Rentabilidad a ciegas','Reprocesos','Depende de personas clave'] },
   mixto:{ opener:'Manejan productos y servicios, así que veamos ambos: cómo mueven el producto y cómo entregan el servicio asociado.',
