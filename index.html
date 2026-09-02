@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-02T03:32:51Z">
+<meta name="app-version" content="2026-09-02T03:33:56Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4945,7 +4945,9 @@ CERO INVENCIÓN — manda sobre todo lo demás. Si la nota no lo dice, no lo afi
     .filter(Boolean);
   let appsFlow=stripMd(String(parsed.flujo||''));
   // Respaldo por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
+  let appsDeRespaldo=false;
   if(!appsAI.length){
+    appsDeRespaldo=true;
     const apps=[]; const seen=new Set();
     if(ctx.currentInd&&APPS_DB[ctx.currentInd]) APPS_DB[ctx.currentInd].forEach(a=>{ if(!seen.has(a.name)){ apps.push(a); seen.add(a.name); }});
     ctx.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!seen.has(TV_APPS[tv].name)){ apps.push(TV_APPS[tv]); seen.add(TV_APPS[tv].name); }});
@@ -4975,7 +4977,11 @@ CERO INVENCIÓN — manda sobre todo lo demás. Si la nota no lo dice, no lo afi
   ctx.job.results.recoLabel=ctx.recentSessions.length>0?`Basado en la nota y ${ctx.recentSessions.length} sesiones del equipo`:'Basado en la nota de discovery';
   ctx.job.results.appsAI=appsAI;
   ctx.job.results.appsFlow=appsFlow;
-  ctx.job.results.appsNote='Derivado de la nota de discovery · catálogo oficial de Odoo';
+  // La etiqueta dice de dónde salió la lista de verdad: si entró el respaldo, decir que se derivó
+  // de la nota sería mentirle al AE sobre qué tan afinada está la sugerencia.
+  ctx.job.results.appsNote=appsDeRespaldo
+    ? 'Línea base por industria y tipo de venta — la IA no devolvió una lista usable'
+    : 'Derivado de la nota de discovery · catálogo oficial de Odoo';
   ctx.job.results.wowAI=wowAI;
   // discJobPintar es quien pinta: lee appsAI/appsFlow/appsNote y llama a discRenderAppsList. No hay
   // que renderizar aquí a mano o la tarjeta se pinta dos veces con etiquetas distintas.
