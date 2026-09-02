@@ -21,17 +21,24 @@
 html,body{margin:0;padding:0;background:#525659}
 body{font-family:'Inter',system-ui,sans-serif;color:var(--tinta);-webkit-font-smoothing:antialiased}
 
-/* ── El artboard ── */
+/* ── El artboard ──
+   El padding de abajo reserva la banda del pie: ningún bloque de contenido
+   puede entrar ahí. Es estructural a propósito — no depende de que quien
+   escriba el layout se acuerde de dejar el hueco.                        */
 .hoja{
   position:relative; width:1280px; height:720px; overflow:hidden;
   background:#fff; margin:0 auto 24px; box-sizing:border-box;
-  padding:56px 72px;
+  padding:52px 72px 88px;
   break-after:page; page-break-after:always;
 }
 .hoja:last-child{break-after:auto;page-break-after:auto}
 /* .reparte: contenido distribuido en el alto útil, para que no quede
    un hueco muerto a media hoja cuando el bloque de arriba es corto. */
-.hoja > .reparte{display:flex;flex-direction:column;justify-content:space-between;height:100%}
+/* TODO layout va dentro de .contenido. Ocupa el alto útil y centra en
+   vertical, para que no quede un hueco muerto a media hoja. Tres modos:  */
+.hoja > .contenido{height:100%;display:flex;flex-direction:column;justify-content:center;gap:22px}
+.hoja > .contenido.arriba {justify-content:flex-start}
+.hoja > .contenido.reparte{justify-content:space-between}
 @media print{ .hoja{margin:0;box-shadow:none} }
 
 /* ── Tipografía ──
@@ -83,17 +90,24 @@ body{font-family:'Inter',system-ui,sans-serif;color:var(--tinta);-webkit-font-sm
 
 /* ═══ Componentes por tipo de hoja ═══ */
 
-/* Portada */
+/* Portada: texto a la izquierda, foto real de la industria a la derecha.
+   El bloque de sector (ícono + nombre en Caveat + doodles) va abajo a la
+   izquierda, no como etiqueta arriba.                                    */
 .portada{padding:0}
-.portada .txt{position:absolute;left:72px;top:120px;right:52%}
-.portada .marca{position:absolute;left:72px;top:52px;display:flex;align-items:center;gap:14px}
-.portada .marca img{height:34px}
-.portada .etiqueta{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-                   color:var(--morado);background:var(--morado-claro);padding:7px 15px;border-radius:99px}
-.portada .arte{position:absolute;right:0;top:0;bottom:0;width:46%;background:var(--morado-claro);
-               display:flex;align-items:center;justify-content:center}
-.portada .arte img.ind{width:300px;height:300px;object-fit:contain}
-.portada .onda{position:absolute;left:0;right:0;bottom:0;height:120px;object-fit:cover;object-position:top}
+.portada .cara{position:absolute;left:0;top:0;bottom:0;right:42%;
+               padding:52px 56px 48px 72px;display:flex;flex-direction:column;justify-content:space-between}
+.portada .logo{height:46px;width:auto;align-self:flex-start}
+.portada .foto{position:absolute;right:0;top:0;bottom:0;width:42%;
+               background:var(--morado-claro);overflow:hidden}
+.portada .foto img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* Bloque de sector */
+.sector{display:flex;align-items:center;gap:18px;position:relative}
+.sector img.ico{width:72px;height:72px;object-fit:contain;flex-shrink:0}
+.sector .nom{font-family:'Caveat',cursive;font-weight:700;font-size:46px;
+             color:var(--morado);line-height:1}
+.sector .det{font-size:15px;color:var(--gris);line-height:1.4;margin-top:2px}
+
 
 /* Mosaico de íconos de app */
 .mosaico{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}

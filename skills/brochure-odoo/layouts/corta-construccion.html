@@ -2,151 +2,170 @@
 <title>Brochure Odoo · Construcción · versión corta</title>
 <link rel="stylesheet" href="../referencias/marca.css">
 <style>
-  .filas{display:flex;flex-direction:column;justify-content:space-evenly;margin-top:30px;height:404px}
+  .filas{display:flex;flex-direction:column;gap:20px}
   .fila{display:grid;grid-template-columns:1fr 60px 1fr;align-items:center}
   .flecha{display:flex;align-items:center;justify-content:center}
   .flecha img{width:44px;height:auto;opacity:.9}
 </style></head><body>
 
-<!-- ══ 1 · PORTADA ══ -->
+<!-- ══ 1 · PORTADA ══
+     La foto sale de fetchIndustryPhoto(giro) — Pexels, ya integrado en la app,
+     con keywords por industria. Aquí va una foto de material de Odoo como muestra. -->
 <div class="hoja portada">
-  <div class="arte">
-    <img class="ind" src="https://gacj-lang.github.io/outbound-mx/assets/icons/industry-solo/industry_construction.svg">
+  <div class="foto">
+    <img src="https://gacj-lang.github.io/outbound-mx/assets/images/support/construccion/foto-portada.jpg" alt="">
   </div>
-  <div class="marca">
-    <img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg">
-    <span class="etiqueta">Construcción · México</span>
+  <div class="cara">
+    <img class="logo" src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg">
+
+    <div>
+      <h1 class="h1">La obra <span class="mk mk-amarillo">avanza</span>.<br>¿La información también?</h1>
+      <p class="sub">Proyectos, costos, materiales y facturación en un solo sistema.</p>
+    </div>
+
+    <div class="sector">
+      <img class="ico" src="https://gacj-lang.github.io/outbound-mx/assets/icons/industry-solo/industry_construction.svg">
+      <div>
+        <div class="nom">Construcción</div>
+        <div class="det">Constructoras, contratistas y desarrolladoras · México</div>
+      </div>
+      <img class="doodle" src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/yellow_pencil-ruler.svg"
+           style="right:-6px;top:-14px;width:44px;transform:rotate(-12deg)">
+      <img class="doodle" src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/blue_ruler.svg"
+           style="right:52px;bottom:-16px;width:38px;transform:rotate(8deg)">
+    </div>
   </div>
-  <div class="txt">
-    <h1 class="h1">La obra <span class="mk mk-amarillo">avanza</span>.<br>¿La información también?</h1>
-    <p class="sub">Proyectos, costos, materiales y facturación en un solo sistema.
-       Odoo para constructoras, contratistas y desarrolladoras en México.</p>
-  </div>
-  <div class="pie"><span></span><span>Preparado para <strong>Constructora de ejemplo</strong></span></div>
 </div>
 
 <!-- ══ 2 · QUÉ ES ODOO ══ -->
 <div class="hoja">
-  <div class="reparte" style="padding-bottom:44px">
-   <div style="display:grid;grid-template-columns:1fr 400px;gap:56px;align-items:start">
-    <div>
-      <h1 class="h1 morado">¿Qué es Odoo?</h1>
-      <p class="cuerpo" style="margin-top:18px;font-size:19px">
-        Una suite de <strong>aplicaciones empresariales que se comunican entre ellas en tiempo real</strong>.
-        Activas solo las que necesitas hoy y agregas el resto conforme creces, sin cambiar de sistema
-        y sin sumar proveedores.</p>
-      <p class="cuerpo" style="margin-top:14px;font-size:19px">
-        Una sola base de datos: lo que registra la obra lo ve compras, y lo que compra
-        compras lo ve contabilidad. Sin volver a capturar nada.</p>
+  <div class="contenido">
+    <div style="display:grid;grid-template-columns:1fr 400px;gap:56px;align-items:center">
+      <div>
+        <h1 class="h1 morado">¿Qué es Odoo?</h1>
+        <p class="cuerpo" style="margin-top:18px;font-size:19px">
+          Una suite de <strong>aplicaciones empresariales que se comunican entre ellas en tiempo real</strong>.
+          Activas solo las que necesitas hoy y agregas el resto conforme creces, sin cambiar de sistema
+          y sin sumar proveedores.</p>
+        <p class="cuerpo" style="margin-top:14px;font-size:19px">
+          Una sola base de datos: lo que registra la obra lo ve compras, y lo que compra
+          compras lo ve contabilidad. Sin volver a capturar nada.</p>
+      </div>
+      <div class="mosaico"><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/project.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/account.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/purchase.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/stock.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/sale.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/sign.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/documents.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/hr_timesheet.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/hr_expense.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/crm.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/maintenance.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/spreadsheet.svg"></div></div>
     </div>
-    <div class="mosaico"><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/project.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/account.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/purchase.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/stock.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/sale.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/sign.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/documents.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/hr_timesheet.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/hr_expense.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/crm.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/maintenance.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/spreadsheet.svg"></div></div>
-   </div>
-   <div class="datos"><div class="d"><div class="n">12M+</div><div class="l">usuarios en el mundo</div></div><div class="d"><div class="n">175</div><div class="l">países</div></div><div class="d"><div class="n">70+</div><div class="l">apps integradas</div></div><div class="d"><div class="n">1</div><div class="l">sola base de datos</div></div></div>
+    <div class="datos"><div class="d"><div class="n">12M+</div><div class="l">usuarios en el mundo</div></div><div class="d"><div class="n">175</div><div class="l">países</div></div><div class="d"><div class="n">70+</div><div class="l">apps integradas</div></div><div class="d"><div class="n">1</div><div class="l">sola base de datos</div></div></div>
   </div>
   <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Constructora de ejemplo · Odoo México 2026</span></div>
 </div>
 
 <!-- ══ 3 · RETOS ↔ ODOO ══ -->
 <div class="hoja">
-  <img class="doodle" src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/yellow_checklist.svg" style="right:64px;top:46px;width:52px;transform:rotate(9deg)">
-  <h1 class="h1">Tus retos, y <span class="mk mk-turquesa">con qué</span> los resuelve Odoo</h1>
-  <p class="sub">Cada aplicación entra porque resuelve algo que ya te está costando. Nada más.</p>
-  <div class="filas"><div class="fila">
+  <img class="doodle" src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/yellow_checklist.svg" style="right:64px;top:44px;width:52px;transform:rotate(9deg)">
+  <div class="contenido">
+    <div>
+      <h1 class="h1">Tus retos, y <span class="mk mk-turquesa">con qué</span> los resuelve Odoo</h1>
+      <p class="sub">Cada aplicación entra porque resuelve algo que ya te está costando. Nada más.</p>
+    </div>
+    <div class="filas"><div class="fila">
         <div class="reto c-azul"><div class="tit">Cada obra vive en su propio archivo</div><div class="txt">El avance real se sabe cuando alguien pregunta, y la respuesta depende de quién conteste.</div></div>
         <div class="flecha"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/blue_arrow-right.svg"></div>
         <div class="app" style="padding-left:22px">
           <div class="ico"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/project.svg"></div>
           <div><div class="nom">Proyecto</div><div class="como">Un tablero por obra con avance, tareas y responsables. Todos ven lo mismo, al mismo tiempo.</div></div>
-        </div>
-      </div><div class="fila">
+        </div></div><div class="fila">
         <div class="reto c-amarillo"><div class="tit">El costo real llega tarde</div><div class="txt">El presupuesto contra el gasto se cuadra al cierre, cuando la desviación ya no se puede corregir.</div></div>
         <div class="flecha"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/yellow_arrow-right.svg"></div>
         <div class="app" style="padding-left:22px">
           <div class="ico"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/account.svg"></div>
           <div><div class="nom">Contabilidad analítica</div><div class="como">Costo por obra en vivo: cada compra, hora y factura se carga sola al proyecto que le toca.</div></div>
-        </div>
-      </div><div class="fila">
+        </div></div><div class="fila">
         <div class="reto c-rosa"><div class="tit">El material se pide por WhatsApp</div><div class="txt">Requisiciones sueltas, sin aprobación registrada y sin rastro de qué entró a la obra.</div></div>
         <div class="flecha"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/red_arrow-right.svg"></div>
         <div class="app" style="padding-left:22px">
           <div class="ico"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/purchase.svg"></div>
           <div><div class="nom">Compras e Inventario</div><div class="como">Requisición, aprobación y entrada a almacén en un solo hilo, trazable por obra.</div></div>
-        </div>
-      </div></div>
+        </div></div></div>
+  </div>
   <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Constructora de ejemplo · Odoo México 2026</span></div>
 </div>
 
 <!-- ══ 4 · PRUEBA ══ -->
 <div class="hoja">
-  <h1 class="h1">Constructoras que ya <span class="mk mk-azul">operan</span> con Odoo</h1>
-  <img src="https://gacj-lang.github.io/outbound-mx/assets/images/support/construccion/clientes.png"
-       style="height:330px;object-fit:contain;display:block;margin:16px auto 0">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:20px"><div class="caso">
-        <div class="quien">Odisa</div><div class="donde">Ciudad de México</div>
-        <div class="qué">centralizó operaciones fragmentadas y agilizó su gestión de inventario de maquinaria para concreto.</div>
-        <a href="https://www.odoo.com/es/blog/customer-reviews-6/odisa-and-odoo-transforming-the-concrete-machinery-industry-with-innovation-and-business-efficiency-1161">Ver el caso en odoo.com &#8599;</a>
-      </div><div class="caso">
-        <div class="quien">CANTAB</div><div class="donde">Ciudad de México</div>
-        <div class="qué">fortaleció la gestión de cuentas por cobrar y optimizó el monitoreo de inventario con Odoo.</div>
-        <a href="https://www.odoo.com/es/blog/customer-reviews-6/cantab-raises-business-efficiency-with-odoo-1152">Ver el caso en odoo.com &#8599;</a>
-      </div></div>
+  <div class="contenido">
+    <h1 class="h1">Constructoras que ya <span class="mk mk-azul">operan</span> con Odoo</h1>
+    <img src="https://gacj-lang.github.io/outbound-mx/assets/images/support/construccion/clientes.png"
+         style="height:300px;object-fit:contain;display:block;margin:0 auto">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px"><div class="caso"><div class="quien">Odisa</div><div class="donde">Ciudad de México</div>
+        <div class="qué">centralizó operaciones fragmentadas y agilizó su gestión de inventario de maquinaria para concreto.</div><a href="https://www.odoo.com/es/blog/customer-reviews-6/odisa-and-odoo-transforming-the-concrete-machinery-industry-with-innovation-and-business-efficiency-1161">Ver el caso en odoo.com &#8599;</a></div><div class="caso"><div class="quien">CANTAB</div><div class="donde">Ciudad de México</div>
+        <div class="qué">fortaleció la gestión de cuentas por cobrar y optimizó el monitoreo de inventario con Odoo.</div><a href="https://www.odoo.com/es/blog/customer-reviews-6/cantab-raises-business-efficiency-with-odoo-1152">Ver el caso en odoo.com &#8599;</a></div></div>
+  </div>
   <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Casos publicados en odoo.com · verificables</span></div>
 </div>
 
 <!-- ══ 5 · INVERSIÓN ══ -->
 <div class="hoja">
-  <h1 class="h1">Lo que cuesta, y lo que <span class="mk mk-amarillo">incluye</span></h1>
-  <p class="sub">Todas las aplicaciones entran en el precio. Un proveedor, una base de datos, sin costo por módulo.</p>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:24px">
-    <div class="precio c-rosa">
-      <div class="plan">Estándar</div>
-      <div class="n">180<span>MXN</span></div>
-      <div class="por">por usuario / mes · plan anual</div>
-      <div class="plat">Odoo en línea</div>
-    </div>
-    <div class="precio c-turquesa">
-      <div class="plan">Personalizado</div>
-      <div class="n">274<span>MXN</span></div>
-      <div class="por">por usuario / mes · plan anual</div>
-      <div class="plat">Odoo en línea · Odoo.sh · Local</div>
-      <div class="extra">+ Studio · Multiempresas · API externa</div>
-    </div>
-  </div>
-  <div class="planes" style="margin-top:22px">
-    <div class="p"><div class="t">Mensual</div><div class="v">$225 · $342 por usuario</div></div>
-    <div class="p destaca"><div class="t">Anual</div><div class="v">20% menos por usuario que el mensual</div></div>
-    <!-- PENDIENTE confirmar con GACJ la lectura de ratesY2 antes de afirmar nada del multianual -->
-    <div class="p"><div class="t">Multianual</div><div class="v">De 24 a 60 meses</div></div>
-  </div>
-  <div style="margin-top:18px;margin-bottom:34px;background:var(--morado-claro);border-radius:20px;padding:18px 26px;
-              display:grid;grid-template-columns:1fr 1fr;gap:26px">
+  <div class="contenido">
     <div>
-      <div class="h2" style="font-size:34px;color:var(--morado)">QuickStart</div>
-      <div class="cuerpo" style="margin-top:6px;font-size:15.5px">
-        Te acompañamos de inicio a fin. La metodología prioriza llegar al <strong>Go-Live rápido</strong>,
-        con control de presupuesto y enfocada en la adopción real del usuario.</div>
+      <h1 class="h1">Lo que cuesta, y lo que <span class="mk mk-amarillo">incluye</span></h1>
+      <p class="sub">Todas las aplicaciones entran en el precio. Un proveedor, una base de datos, sin costo por módulo.</p>
     </div>
-    <div class="cuerpo" style="font-size:15.5px;align-self:center">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px">
+      <div class="precio c-rosa">
+        <div class="plan">Estándar</div><div class="n">180<span>MXN</span></div>
+        <div class="por">por usuario / mes · plan anual</div>
+        <div class="plat">Odoo en línea</div>
+      </div>
+      <div class="precio c-turquesa">
+        <div class="plan">Personalizado</div><div class="n">274<span>MXN</span></div>
+        <div class="por">por usuario / mes · plan anual</div>
+        <div class="plat">Odoo en línea · Odoo.sh · Local</div>
+        <div class="extra">+ Studio · Multiempresas · API externa</div>
+      </div>
+    </div>
+    <div class="planes">
+      <div class="p"><div class="t">Mensual</div><div class="v">$225 · $342 por usuario</div></div>
+      <div class="p destaca"><div class="t">Anual</div><div class="v">20% menos por usuario que el mensual</div></div>
+      <!-- PENDIENTE confirmar con GACJ la lectura de ratesY2 antes de afirmar nada del multianual -->
+      <div class="p"><div class="t">Multianual</div><div class="v">De 24 a 60 meses</div></div>
+    </div>
+    <div style="background:var(--morado-claro);border-radius:20px;padding:20px 28px;
+                display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center">
+      <div>
+        <div class="h2" style="font-size:36px;color:var(--morado)">QuickStart</div>
+        <div class="cuerpo" style="margin-top:6px;font-size:15.5px">
+          Te acompañamos de inicio a fin. La metodología prioriza llegar al <strong>Go-Live rápido</strong>,
+          con control de presupuesto y enfocada en la adopción real del usuario.</div>
+      </div>
       <!-- PENDIENTE confirmar alcance real de migración antes de mandarlo a un cliente -->
-      La migración de catálogos y saldos desde tu sistema actual —Contpaq, Aspel o Microsip—
-      entra en el alcance del arranque.</div>
+      <div class="cuerpo" style="font-size:15.5px">
+        La migración de catálogos y saldos desde tu sistema actual —Contpaq, Aspel o Microsip—
+        entra en el alcance del arranque.</div>
+    </div>
   </div>
   <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Precios de referencia en MXN · odoo.com/pricing</span></div>
 </div>
 
-<!-- ══ 6 · CIERRE ══ -->
+<!-- ══ 6 · CIERRE ══
+     El texto del recuadro morado es DINÁMICO: sale de brGetCtaText(cont.brCta),
+     que ya tiene cinco variantes (prospección, seguimiento a demo, a pricing,
+     a cierre, y bienvenida). Aquí se muestra la de prospección. -->
 <div class="hoja">
-  <h1 class="h1">¿Lo <span class="mk mk-turquesa">vemos</span> con tus números?</h1>
-  <div class="cta" style="margin-top:26px">
-    <div class="msg">Media hora para revisar cómo se vería tu operación de obra dentro de Odoo,
-      con tus procesos y no con una demo genérica.</div>
-    <div class="ae">
-      <div class="n">Ariel</div><div class="r">Account Executive</div>
-      <div class="c">gacj@odoo.com</div><div class="a">Agenda una sesión &#8594;</div>
+  <div class="contenido">
+    <h1 class="h1">Antes de la demo, <span class="mk mk-turquesa">conócenos</span></h1>
+    <div class="cta">
+      <div class="msg" data-cta="prospeccion">Media hora para entender cómo trabajas hoy:
+        tus obras, tus procesos y dónde se te va el control.
+        Con eso sobre la mesa, lo que sigue se arma sobre tu operación.</div>
+      <div class="ae">
+        <div class="n">Ariel</div><div class="r">Account Executive</div>
+        <div class="c">gacj@odoo.com</div><div class="a">Agenda una sesión &#8594;</div>
+      </div>
+    </div>
+    <div>
+      <div class="h2" style="font-size:38px">Mientras tanto, conócelo <span class="mk mk-garabato">por tu cuenta</span></div>
+      <div class="links" style="margin-top:18px"><a href="https://www.odoo.com/blog/customer-reviews-6"><span class="ic">💬</span>Opiniones de clientes</a><a href="https://www.odoo.com/documentation/user"><span class="ic">📘</span>Documentación</a><a href="https://www.odoo.com/page/tour"><span class="ic">▶️</span>Odoo Tour (vídeos)</a><a href="https://www.odoo.com/security"><span class="ic">🛡️</span>Seguridad</a><a href="https://www.odoo.com/privacy"><span class="ic">👁️</span>Privacidad</a><a href="https://www.odoo.com/legal"><span class="ic">⚖️</span>Legal</a></div>
     </div>
   </div>
-  <div class="h2" style="margin-top:34px;font-size:36px">Mientras tanto, conócelo <span class="mk mk-garabato">por tu cuenta</span></div>
-  <div class="links" style="margin-top:18px"><a href="https://www.odoo.com/blog/customer-reviews-6"><span class="ic">💬</span>Opiniones de clientes</a><a href="https://www.odoo.com/documentation/user"><span class="ic">📘</span>Documentación</a><a href="https://www.odoo.com/page/tour"><span class="ic">▶️</span>Odoo Tour (vídeos)</a><a href="https://www.odoo.com/security"><span class="ic">🛡️</span>Seguridad</a><a href="https://www.odoo.com/privacy"><span class="ic">👁️</span>Privacidad</a><a href="https://www.odoo.com/legal"><span class="ic">⚖️</span>Legal</a></div>
   <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Odoo México 2026</span></div>
 </div>
 
