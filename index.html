@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-02T03:49:42Z">
+<meta name="app-version" content="2026-09-02T04:22:03Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1174,7 +1174,6 @@ const ODOO_INDUSTRY_ICONS = {
 };
 // Helper para obtener URL de asset
 function industryIconUrl(giro){ const k=Object.keys(ODOO_INDUSTRY_ICONS).find(k=>k===giro?.toLowerCase()); return k?`${ASSETS}/icons/industry/${ODOO_INDUSTRY_ICONS[k]}.svg`:`${ASSETS}/icons/industry/industry_it.svg`; }
-let CLAUDE_KEY_DEFAULT = ''; // Cargado desde Firestore — no guardar en código fuente
 let PEXELS_KEY = ''; // Banco de fotos para imágenes de LinkedIn — cargado desde Firestore config/app
 
 // ── Lista única de buzzwords prohibidas — compartida por TODOS los prompts vía ANTI_HALLUCINATION
@@ -1505,12 +1504,15 @@ function routeByStatus(){
 
 // Carga configuración compartida desde Firestore (Claude key, etc.)
 async function loadAppConfig(){
+  // La key de Claude ya NO se lee de aquí: vive en el servidor (ver CLAUDE_PROXY_URL). Se borra la
+  // copia que haya quedado en el navegador de cada AE — dejarla sería mantener una credencial viva
+  // en el dispositivo sin ninguna razón.
+  try{ localStorage.removeItem('outbound_claude_key'); }catch(e){}
   if(!db) return;
   try{
     const snap=await getDoc(doc(db,'config','app'));
     if(snap.exists()){
       const d=snap.data();
-      if(d.claudeKey) CLAUDE_KEY_DEFAULT=d.claudeKey;
       if(d.pexelsKey) PEXELS_KEY=d.pexelsKey;
     }
   } catch(e){ console.warn('loadAppConfig:',e); }
@@ -2074,9 +2076,11 @@ async function aiRenderConsumo(){
     ${extra?`<div style="font-size:10.5px;color:var(--gray-400);margin-top:3px">${extra}</div>`:''}</div>`;
 
   cont.innerHTML=`
-    <div style="display:flex;gap:8px;margin-bottom:14px">
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
       ${[7,30].map(d=>`<button class="btn ${_aiPanelDias===d?'btn-primary':''}" style="padding:5px 12px;font-size:12px"
         onclick="aiPanelSetRango(${d})">${d} días</button>`).join('')}
+      <button class="btn" style="padding:5px 12px;font-size:12px" onclick="aiPanelSetRango(${_aiPanelDias})" title="Vuelve a leer aiUsage">↻ Actualizar</button>
+      <span style="font-size:11px;color:var(--gray-400)">Leído ${new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</span>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">
       ${tile(_aiUSD(t.costoUSD),'Costo estimado','precio de lista, no la factura')}
@@ -2333,7 +2337,6 @@ function csvNotifyLeadJobReady(job){
 }
 function renderSettings(){
   const saved=(() =>{ try{ const ls=JSON.parse(localStorage.getItem('outbound_firebase_cfg')||'{}'); return Object.keys(ls).length>0?ls:firebaseConfig; }catch(e){ return firebaseConfig; }})();
-  const ck=localStorage.getItem('outbound_claude_key')||'';
   const u=currentUserData||{};
   const isManager=u.role==='manager';
   document.getElementById('moduleContent').innerHTML=`
@@ -2392,13 +2395,8 @@ function renderSettings(){
           <button class="btn btn-primary" onclick="saveFirebaseConfig()">Guardar Firebase</button>
         </div>
         <div class="card settings-card">
-          <div class="card-header"><h3>🤖 Claude API (Anthropic)</h3><span class="status-dot ${ck?'dot-green':'dot-red'}"></span></div>
-          <p class="settings-desc">Motor de IA para todos los módulos — Discovery, Generación de leads, Seguimiento y Contenidos. Se guarda en este dispositivo.<br><a href="https://console.anthropic.com" target="_blank" class="link">Anthropic Console →</a></p>
-          <div class="form-group"><label>Claude API Key</label><input type="password" id="claudeApiKey" class="input" placeholder="sk-ant-api03-..." value="${ck}"></div>
-          <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
-            <button class="btn btn-primary" onclick="saveClaudeKey()">Guardar</button>
-            ${ck?'<span class="key-saved">✓ Activa</span>':'<span style="font-size:13px;color:var(--gray-400)">Sin configurar — los módulos de IA no funcionarán</span>'}
-          </div>
+          <div class="card-header"><h3>🤖 Claude API (Anthropic)</h3><span class="status-dot dot-green"></span></div>
+          <p class="settings-desc">Ya no se configura aquí. Desde el 2 de septiembre de 2026 las llamadas de IA pasan por el servidor de la app, que guarda la key de la empresa — antes viajaba al navegador de cada quien y cualquiera podía copiarla desde las herramientas de desarrollador. No tienes que hacer nada.</p>
         </div>
         ${isManager?`<div class="card settings-card">
           <div class="card-header"><h3>🖼️ Pexels (fotos para LinkedIn)</h3><span class="status-dot ${PEXELS_KEY?'dot-green':'dot-red'}"></span></div>
@@ -2464,14 +2462,6 @@ window.changeMyPassword=async function(){
       'auth/requires-recent-login':'Por seguridad, vuelve a iniciar sesión e inténtalo de nuevo'};
     showNotif(msgs[e.code]||'Error: '+e.message,'error');
   }
-};
-
-window.saveClaudeKey=function(){
-  const k=document.getElementById('claudeApiKey').value.trim();
-  if(!k.startsWith('sk-ant')){ showNotif('La key debe empezar con sk-ant','error'); return; }
-  localStorage.setItem('outbound_claude_key',k);
-  showNotif('Claude API Key guardada ✓','success');
-  setTimeout(()=>renderSettings(),800);
 };
 
 // Key compartida de Pexels — vive SOLO en Firestore config/app (nunca en el código fuente del
@@ -4681,12 +4671,11 @@ CERO INVENCIÓN — esta regla manda sobre todas las demás, incluida la de dens
 // pueden topar el límite de la cuenta, y sin esto el paso moría con un error rojo en vez de esperar
 // unos segundos y volver a intentar.
 async function _discFetchClaude(body, intentos=4, meta={}){
-  const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   let espera=2000;
   for(let i=0;;i++){
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch(CLAUDE_PROXY_URL,{
       method:'POST',
-      headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      headers:await claudeProxyHeaders(),
       body:JSON.stringify(body)
     });
     if(i<intentos-1&&(res.status===429||res.status>=500)){
@@ -5049,8 +5038,7 @@ Dale 2-4 puntos de mejora CONCRETOS (qué pregunta faltó, qué tema no se cerr�
 
 // ── Orquestador: "Analizar discovery" — un solo botón, corre los 6 pasos en cadena ──
 window.discAnalyzeDiscovery = async function(){
-  const claudeKey=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
-  if(!claudeKey||claudeKey==='CLAUDE_KEY_DEFAULT'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); return; }
+  if(!currentUser){ showNotif('Tu sesión expiró — vuelve a entrar a la app','error'); return; }
   if(discJob&&discJob.running){ showNotif('Ya hay un análisis corriendo — te avisamos con la campana 🔔 cuando termine','error'); return; }
 
   // El análisis escribe sus resultados por recordId, así que la sesión tiene que existir ANTES de
@@ -6612,8 +6600,6 @@ const GC_MODULO_POR_ORIGEN={
 };
 
 async function gcCallClaude(prompt, fileAttachment=null, opts={}){
-  const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
-  if(!key||key==='CLAUDE_KEY_DEFAULT'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
   let content;
   if(fileAttachment){
     content=[];
@@ -6626,13 +6612,13 @@ async function gcCallClaude(prompt, fileAttachment=null, opts={}){
   } else {
     content=prompt;
   }
-  const headers={'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'};
-  if(fileAttachment?.type==='document') headers['anthropic-beta']='pdfs-2024-09-25';
+  const betas={};
+  if(fileAttachment?.type==='document') betas['anthropic-beta']='pdfs-2024-09-25';
   const usesWebFetch=(opts.tools||[]).some(t=>t?.type?.startsWith('web_fetch'));
   // web_fetch (herramienta server-side) necesita este header beta — sin él, la llamada puede
   // fallar en silencio a nivel de la herramienta (sin error HTTP) y Claude responde con una
   // explicación en prosa en vez del JSON pedido ("Claude no devolvió un formato válido").
-  if(usesWebFetch) headers['anthropic-beta']='web-fetch-2025-09-10';
+  if(usesWebFetch) betas['anthropic-beta']='web-fetch-2025-09-10';
   const messages=[{role:'user',content}];
   const body={model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||(usesWebFetch?6000:4000),system:opts.system||ANTI_HALLUCINATION,messages};
   if(opts.tools) body.tools=opts.tools;
@@ -6644,9 +6630,9 @@ async function gcCallClaude(prompt, fileAttachment=null, opts={}){
   const puedeContinuar=!opts.tools;
   let data=null, text='';
   for(let i=0;i<8;i++){
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch(CLAUDE_PROXY_URL,{
       method:'POST',
-      headers,
+      headers:await claudeProxyHeaders(betas),
       body:JSON.stringify(body)
     });
     data=await res.json();
@@ -9040,6 +9026,19 @@ function histRenderMotivos(){
 // Pages — descargables sin login, y dos traían PII real). Ahora se sirven desde el backend de
 // Railway (mismo verifyCallerToken que usa el resto de la app, repo privado) vía /reportesOdoo.
 const REPORTES_ODOO_BASE='https://thorough-curiosity-production-098d.up.railway.app';
+
+// ── Proxy de Claude ──
+// Desde 2026-09-02 la app NO habla con api.anthropic.com. Habla con Railway, y Railway usa la API
+// key que vive en su variable de entorno. Antes la key se cargaba de Firestore al navegador de cada
+// AE, así que cualquiera con F12 abierto podía copiarla.
+// Lo que autoriza la llamada es el token de sesión de Firebase, el mismo que ya usan /searchLeads y
+// las cadencias. Si el AE no está logueado, no hay llamada — que es justo lo que queremos.
+const CLAUDE_PROXY_URL=REPORTES_ODOO_BASE+'/claude';
+async function claudeProxyHeaders(extra={}){
+  if(!currentUser) throw new Error('Tu sesión expiró — vuelve a entrar a la app.');
+  const idToken=await currentUser.getIdToken();
+  return {'Authorization':`Bearer ${idToken}`,'content-type':'application/json',...extra};
+}
 let _histDescargasCache=null;
 function histRenderDescargas(){
   if(!_histDescargasCache) setTimeout(histLoadDescargas,0);
@@ -17147,15 +17146,13 @@ window.ninjaSetModelo=function(m){
 let _ninjaSinWebSearch=false;
 
 async function ninjaCallClaudeRaw(messages,tools){
-  const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
-  if(!key||key==='CLAUDE_KEY_DEFAULT') throw new Error('Configura tu Claude API key en ⚙️ Configuración.');
   const modelo=ninjaModelo();
   const toolsFinal=_ninjaSinWebSearch
     ? tools.filter(t=>!String(t?.type||'').startsWith('web_search'))
     : tools;
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
+  const res=await fetch(CLAUDE_PROXY_URL,{
     method:'POST',
-    headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+    headers:await claudeProxyHeaders(),
     body:JSON.stringify({model:modelo,max_tokens:4096,system:NINJA_SYSTEM_PROMPT,tools:toolsFinal,messages}),
   });
   const data=await res.json();
