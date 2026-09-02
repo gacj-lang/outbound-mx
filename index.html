@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-02T03:26:26Z">
+<meta name="app-version" content="2026-09-02T03:32:51Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4327,7 +4327,7 @@ function dgRenderPostcall(){
   const signalsCount=Object.values(groups).reduce((n,a)=>n+a.length,0);
   const sigHTML=Object.entries(groups).filter(([g,a])=>a.length).map(([g,a])=>`<div class="dg-siggroup"><div class="dg-siglbl">${g}</div>${a.map(t=>`<span class="dg-sig">${_dgEsc(t)}</span>`).join('')}</div>`).join('');
   // WOW demo — si ya se corrió "Analizar discovery", usa la selección de la IA (acotada al catálogo WOW_DB
-  // por discStepWow, ordenada por relevancia al dolor real); si no, línea base por reglas de industria/tipo de venta.
+  // por discStepDerivadas, ordenada por relevancia al dolor real); si no, línea base por reglas de industria/tipo de venta.
   const areaLbl={comercial:'Comercial',operativo:'Operativo',administrativo:'Administrativo'};
   let wowShown, wowSourceNote;
   if(Array.isArray(disc.wowAI)&&disc.wowAI.length){
@@ -4508,7 +4508,7 @@ function discRenderAppsList(apps,note){
     <button class="dg-viewmore-btn" onclick="discShowCardPopup('discAppsDetail','🧩 Apps de Odoo recomendadas')">↗ Ver detalle de las ${apps.length} apps</button>
     ${note?`<div style="font-size:10.5px;color:#9ca3af;margin-top:8px">${_dgEsc(note)}</div>`:''}`;
   // Segundo box: orden sugerido de demo (Comercial → Operativo → Administrativo/Contable) — solo
-  // aparece cuando las apps ya vienen clasificadas por fase (discStepApps corrió con IA); la línea
+  // aparece cuando las apps ya vienen clasificadas por fase (discStepDerivadas corrió con IA); la línea
   // base por reglas (discUpdateApps) no clasifica, así que aquí no se muestra.
   if(disc.appsFlow&&apps.some(a=>a.fase)){
     const faseLbl={comercial:'1️⃣ Comercial',operativo:'2️⃣ Operativo',administrativo:'3️⃣ Administrativo / Contable'};
@@ -4637,7 +4637,20 @@ El objetivo es DOCUMENTAR al cliente con información de calidad para que cualqu
    Todo lo que quedó en "Falta" o "Parcial" en la tabla del punto 4, más cualquier tema del negocio que no se alcanzó a explorar. Por cada punto: qué falta → la pregunta concreta para la siguiente interacción → por qué importa para avanzar el deal.${ctx.recentSessions.length>0?`
    Cierra la sección con una línea que empiece con "Patrones del equipo:" comparando con el historial de ${IND_NAMES[ctx.currentInd]||'la industria'}: dolores recurrentes y qué hace distinto a este prospecto.`:''}
 
-Escribe en español de México, tono profesional pero directo. NO inventes datos: si algo no está en lo capturado ni en la transcripción, escribe "No documentado". No repitas información entre secciones. No recortes ni resumas de más para ahorrar espacio: no hay límite de longitud y esta nota es el contexto del cliente para todo el equipo — es preferible larga y completa que corta y con huecos.`;
+Escribe en español de México, tono profesional pero directo.
+
+DENSIDAD — esta nota se lee completa antes de una junta, así que cada línea tiene que ganarse su lugar:
+- Un dato vive en UNA sola sección. Si ya lo escribiste en la 2, en la 5 lo referencias en tres palabras en vez de repetirlo.
+- Nada de preámbulos, frases de relleno, ni cierres que resuman lo que acabas de decir.
+- No hay límite de longitud, pero tampoco premio por extensión: si una sección se dice bien en cuatro líneas, son cuatro líneas. Lo que no se vale es dejar huecos.
+- Prefiere el dato concreto sobre la descripción. "Facturan 4 MDP al mes con 12 personas en administración" vale más que un párrafo sobre su tamaño.
+- Cero adjetivos de relleno. Si quitas una palabra y la frase dice lo mismo, quítala.
+
+CERO INVENCIÓN — esta regla manda sobre todas las demás, incluida la de densidad:
+- Si algo no está en lo capturado ni en la transcripción, escribe "No documentado". No lo deduzcas, no lo estimes, y no lo completes con lo que suele pasar en esa industria.
+- Si se dijo pero quedó ambiguo, escríbelo con la duda a la vista: "mencionaron ~15 usuarios, no quedó claro si incluye a los de bodega".
+- Nunca conviertas una suposición tuya en un hecho del cliente. Si la estás haciendo, márcala como tuya: "no lo dijeron, pero por el tipo de operación valdría preguntar si...".
+- Ante la duda entre escribir de más o marcar "No documentado", marca "No documentado". Un hueco señalado se puede cerrar en la siguiente llamada; un dato inventado se descubre enfrente del cliente.`;
 }
 
 
@@ -4827,7 +4840,7 @@ window.discMarkAllAnalisisRead=function(){ _discAnalisisCache.forEach(e=>e.read=
 // ── Recomendaciones (coaching sin transcripción) ──
 // ── Paso 1: Nota para CRM (usa transcripción si hay; si no, se basa en lo capturado en la app) ──
 async function discStepNota(ctx){
-  const text=stripMd(await discClaudeText(discBuildClaudePrompt(ctx),{maxTokens:8000,funcion:'nota'}));
+  const text=stripMd(await discClaudeText(discBuildClaudePrompt(ctx),{maxTokens:16000,funcion:'nota'}));
   const n=ctx.recentSessions.length;
   ctx.job.results.geminiNote=text;
   ctx.job.results.engineLabel='⚡ Claude'+(n>0?` · ${n} sesiones de contexto`:'');
@@ -4835,11 +4848,31 @@ async function discStepNota(ctx){
   return text;
 }
 
-// ── Paso 2: Recomendaciones para cerrar (no requiere transcripción) ──
-async function discStepReco(ctx){
+// ── Pasos 2, 3 y 4, en UNA sola llamada: apps, efectos WOW y recomendaciones ──
+// Antes eran tres llamadas independientes y las tres volvían a razonar sobre el prospecto desde
+// cero — dos de ellas cargando otra vez la transcripción completa. El problema no era solo el
+// costo (28% del análisis): al elegir por separado, podían contradecir a la nota. La sección 6 de
+// la nota YA decide el flujo de la demo, qué módulo resuelve qué dolor y con qué efecto abrir cada
+// fase; esto no vuelve a decidirlo, lo estructura contra los catálogos cerrados.
+//
+// Los catálogos siguen siendo la única fuente permitida de nombres: la nota escribe prosa y aquí
+// se ancla a un nombre EXACTO de ODOO_APPS_FLAT y a un título EXACTO de WOW_DB. Esa es la red
+// anti-alucinación, y por eso los catálogos siguen viajando en el prompt.
+async function discStepDerivadas(ctx, notaText){
   const s=ctx.selections;
-  const apps=[]; if(ctx.currentInd&&APPS_DB[ctx.currentInd]) APPS_DB[ctx.currentInd].forEach(a=>apps.push('Odoo '+a.name));
-  ctx.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!apps.includes('Odoo '+TV_APPS[tv].name)) apps.push('Odoo '+TV_APPS[tv].name); });
+  const areaLbl={comercial:'Comercial',operativo:'Operativo',administrativo:'Administrativo'};
+  const appsCatalog=ODOO_APPS_FLAT.map(a=>`- ${a.name}: ${a.desc}`).join('\n');
+  const indCtx=ODOO_INDUSTRIES[IND_NAMES[ctx.currentInd]]||'';
+
+  // Mismo criterio de relevancia que tenía discStepWow: generales + industria + tipo de venta.
+  const wowItems=[];
+  Object.entries(WOW_DB).forEach(([area,items])=>{
+    items.forEach(w=>{
+      const relevant=w.type==='gen'||(w.type==='ind'&&w.ind===ctx.currentInd)||(w.type==='tv'&&ctx.activeTV.has(w.tv));
+      if(relevant) wowItems.push({...w,area});
+    });
+  });
+  const wowCatalog=wowItems.map((w,i)=>`${i+1}. [${areaLbl[w.area]}] "${w.title}" — ${w.desc}`).join('\n');
 
   const historialBlock = ctx.recentSessions.length>0 ? `
 HISTORIAL DEL EQUIPO — Últimas ${ctx.recentSessions.length} sesiones de ${IND_NAMES[ctx.currentInd]||'esta industria'}:
@@ -4848,156 +4881,106 @@ ${ctx.recentSessions.map((r,i)=>{
   const b=r.selections?.budget||r.budget||'nd';
   const t=r.selections?.timeline||r.timeline||'nd';
   const fit=r.selections?.fit||r.fit||'nd';
-  const empresa=r.empresa||'Sin nombre';
-  return `  ${i+1}. ${empresa}: Dolores=[${d}] | Budget=[${b}] | Timeline=[${t}] | Fit=[${fit}]`;
+  return `  ${i+1}. ${r.empresa||'Sin nombre'}: Dolores=[${d}] | Budget=[${b}] | Timeline=[${t}] | Fit=[${fit}]`;
 }).join('\n')}
 ` : '';
 
-  const prompt = `Eres el coach de ventas senior del equipo Outbound México de Odoo. Tu trabajo es ayudar a ${ctx.aeName||'el AE'} a cerrar este prospecto.
+  const prompt=`Eres un consultor preventa senior de Odoo México. Ya existe una nota de discovery de este prospecto y tu trabajo NO es volver a analizarlo: es convertir lo que la nota ya dice en tres entregables accionables, sin contradecirla y sin agregar hechos que ella no contenga.
 
-PERFIL DEL PROSPECTO:
-- Empresa: ${s['emp-nombre']||'no capturado'} | Industria: ${s['industria']||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
-- Empleados: ${s['emp-empleados']||'nd'} | Sistemas actuales: ${s['emp-sistemas']||'nd'}
-- Facturación: ${s['emp-facturacion']||'nd'} | Presupuesto sistemas/mes: ${(s.fld?.['bud-monto']&&s.fld['bud-monto']!=='—')?s.fld['bud-monto']:'nd'}
-- Dolores detectados: ${s['dolores']?.join(', ')||'nd'} | Impacto cuantificado: ${s.fld?.['dol-impacto']||'nd'}
-- Budget: ${s['budget']||'nd'} | Decisor: ${s['decisor']||'nd'} | Comprador económico: ${s.fld?.['eb-nombre']||'nd'} | Timeline: ${s['timeline']||'nd'}
-- Competencia / alternativas: ${s['competencia']||'nd'} | Proceso de aprobación: ${s.fld?.['proceso-desc']||'nd'}
-- Fit con Odoo: ${s['fit']||'nd'} | Visión: ${Array.isArray(s['vision'])?s['vision'].join(', '):(s['vision']||'nd')}
-- Módulos relevantes: ${apps.join(', ')||'nd'}
-${historialBlock}
-Dame recomendaciones estratégicas concretas en este formato:
+NOTA DE DISCOVERY — es tu única fuente sobre este cliente:
+${notaText||'(No se pudo generar la nota. Trabaja solo con el perfil de abajo y di explícitamente qué te falta.)'}
 
-🎯 ESTRATEGIA DE ACERCAMIENTO
-Cómo posicionarte con este cliente específico. Tono, ángulo, qué enfatizar.
-
-⚠️ PUNTOS DE DOLOR PRIORITARIOS
-Lista ordenada (del más al menos impactante). Para cada uno: dolor → por qué importa → cómo conectarlo con Odoo.
-
-🛡️ OBJECIONES PROBABLES
-Las 2-3 objeciones más comunes en este perfil y cómo manejarlas.
-
-🚀 PRÓXIMO PASO CONCRETO
-Qué hacer exactamente en la siguiente interacción. Sé muy específico.
-
-🔴 SEÑALES DE ALERTA
-Factores de riesgo detectados en este perfil que podrían complicar el cierre.
-
-${ctx.recentSessions.length>0?`📊 VS. HISTORIAL DEL EQUIPO
-¿En qué se diferencia este prospecto de los otros ${ctx.recentSessions.length} casos similares? ¿Qué lecciones aplican aquí?`:''}
-
-Sé directo, específico y accionable. Habla de tú al AE. No repitas los datos del perfil.`;
-
-  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000,funcion:'recomendaciones'}));
-  ctx.job.results.recoNote=text;
-  ctx.job.results.recoLabel=ctx.recentSessions.length>0?`Basado en ${ctx.recentSessions.length} sesiones del equipo`:'Basado en el perfil capturado';
-  discJobPintar(ctx.job);
-  return text;
-}
-
-// ── Paso 3: Apps recomendadas — SOLO del catálogo oficial ODOO_APPS_FLAT (misma fuente que Pricing/Propuesta), nunca inventadas ──
-async function discStepApps(ctx, notaText){
-  const s=ctx.selections;
-  const catalogBlock=ODOO_APPS_FLAT.map(a=>`- ${a.name}: ${a.desc}`).join('\n');
-  const indCtx=ODOO_INDUSTRIES[IND_NAMES[ctx.currentInd]]||'';
-  const prompt=`Eres un consultor preventa de Odoo México eligiendo qué apps mostrarle a este prospecto en la demo.
-
-CATÁLOGO OFICIAL DE ODOO — única fuente permitida. NUNCA menciones una app que no esté en esta lista exacta, NUNCA inventes nombres ni funciones que no estén descritas aquí:
-${catalogBlock}
-
-CONTEXTO DEL PROSPECTO:
+PERFIL CAPTURADO EN LA APP (complementa la nota, no la sustituye):
 - Industria: ${IND_NAMES[ctx.currentInd]||'nd'}${indCtx?(' · '+indCtx):''}
 - Tipo de venta: ${s['tipo_venta']||'nd'} | Tipo de producto: ${s['tipo-empresa']||'nd'}
-- Dolores detectados: ${(s.dolores||[]).join(', ')||'nd'}
-- Dolor principal: ${s.fld?.['dol-principal']||'nd'}
-- Sistemas actuales: ${s['emp-sistemas']||'nd'}
-- Notas del AE durante la llamada: ${s.fld?.['notas-llamada']||'nd'}
-${notaText?`- Nota de discovery ya generada:\n${notaText}`:''}
-${ctx.transcript?`- Transcripción completa de la llamada (úsala si aporta):\n${ctx.transcript}`:''}
+- Budget: ${s['budget']||'nd'} | Decisor: ${s['decisor']||'nd'} | Timeline: ${s['timeline']||'nd'}
+- Competencia / alternativas: ${s['competencia']||'nd'} | Fit con Odoo: ${s['fit']||'nd'}
+${historialBlock}
+CATÁLOGO OFICIAL DE APPS — única fuente permitida de nombres de app. NUNCA menciones una app que no esté aquí, NUNCA inventes funciones que no estén descritas:
+${appsCatalog}
 
-Elige entre 4 y 8 apps del catálogo — las MÁS relevantes para ESTE prospecto, no una lista genérica de industria. Para cada una, clasifícala en la FASE de la demo donde mejor encaja:
-- "comercial": lleva toda la parte comercial — CRM, cotizaciones, ventas, portal del cliente
-- "operativo": lleva la operación real de ESTE negocio en particular — inventario, proyectos, manufactura, servicio en campo, o lo que sea que su operación necesite según lo que detectaste
-- "administrativo": RH/nómina, contabilidad, facturación, gastos
+CATÁLOGO DE EFECTOS WOW — única fuente permitida. Usa el título EXACTO tal cual aparece:
+${wowCatalog||'(No hay efectos WOW aplicables a esta industria y tipo de venta — devuelve "wow" como arreglo vacío.)'}
 
-Y sugiere el ORDEN de presentación en la demo: primero Comercial, luego Operativo, y se cierra con Administrativo/Contable — esa secuencia sigue el flujo real del negocio (se vende → se opera → se factura/paga) y es más fácil de seguir para el prospecto que saltar entre áreas. Responde SOLO con este JSON (sin markdown, sin texto fuera del JSON):
+Devuelve SOLO este JSON, sin markdown y sin texto fuera del JSON:
 {
-  "apps":[{"name":"Nombre EXACTO tal cual aparece en el catálogo de arriba","reason":"por qué esta app específica, en 1 frase, conectada a algo que dijo o hace el prospecto","fase":"comercial, operativo o administrativo — exactamente una de estas tres palabras"}],
-  "flujo":"1-2 frases sugiriendo cómo presentar la demo en ese orden (Comercial → Operativo → Administrativo/Contable) para ESTE prospecto, mencionando las apps elegidas por nombre"
-}`;
+  "apps":[{"name":"Nombre EXACTO del catálogo","reason":"por qué esta app para ESTE prospecto, en 1 frase, conectada a algo concreto de la nota","fase":"comercial, operativo o administrativo — exactamente una de estas tres palabras"}],
+  "flujo":"1-2 frases de cómo presentar la demo en orden Comercial → Operativo → Administrativo/Contable, mencionando las apps elegidas por nombre",
+  "wow":[{"title":"Título EXACTO del catálogo","why":"por qué este efecto le va a pegar a ESTE prospecto, en 1 frase conectada a la nota"}],
+  "recomendaciones":[{"titulo":"🎯 ESTRATEGIA DE ACERCAMIENTO","contenido":"..."}]
+}
 
-  const raw=await discClaudeText(prompt,{maxTokens:4000,funcion:'apps'})||'{}';
+REGLAS DE CADA CAMPO:
+
+"apps" — entre 4 y 8, las que la sección 6 de la nota ya señaló como el flujo de la demo. Si la nota nombró un módulo que no existe en el catálogo, elige el del catálogo que más se le parezca y dilo en el "reason". Fases: comercial = CRM, cotizaciones, ventas, portal; operativo = lo que este negocio realmente hace (inventario, proyectos, manufactura, servicio en campo); administrativo = RH/nómina, contabilidad, facturación, gastos.
+
+"wow" — entre 3 y 6, ordenados del más al menos impactante para ESTE cliente, alineados con lo que la nota dijo que más les duele.
+
+"recomendaciones" — EXACTAMENTE estas ${ctx.recentSessions.length>0?'seis':'cinco'} entradas, en este orden y con estos títulos exactos:
+  "🎯 ESTRATEGIA DE ACERCAMIENTO" — cómo posicionarte con este cliente: tono, ángulo, qué enfatizar.
+  "⚠️ PUNTOS DE DOLOR PRIORITARIOS" — del más al menos impactante: dolor → por qué importa → con qué se conecta en Odoo.
+  "🛡️ OBJECIONES PROBABLES" — las 2 o 3 más probables para ESTE perfil y cómo manejarlas.
+  "🚀 PRÓXIMO PASO CONCRETO" — qué hacer exactamente en la siguiente interacción.
+  "🔴 SEÑALES DE ALERTA" — riesgos detectados que podrían complicar el cierre.${ctx.recentSessions.length>0?`
+  "📊 VS. HISTORIAL DEL EQUIPO" — en qué se diferencia de los otros ${ctx.recentSessions.length} casos y qué lección aplica.`:''}
+
+CÓMO ESCRIBIR "contenido": español de México, tuteo, hablándole al AE. Denso y accionable, sin preámbulos ni relleno. No repitas los datos del perfil ni parrafadas que la nota ya tiene: aquí va la lectura comercial, no el resumen del cliente.
+
+CERO INVENCIÓN — manda sobre todo lo demás. Si la nota no lo dice, no lo afirmes. Cuando propongas algo que es criterio tuyo y no un hecho del cliente, márcalo así ("no lo dijeron, pero por el tipo de operación conviene..."). Si algo importante falta para recomendar bien, dilo en vez de rellenar.`;
+
+  const raw=await discClaudeText(prompt,{maxTokens:8000,funcion:'derivadas'})||'{}';
   const jsonMatch=raw.match(/\{[\s\S]*\}/);
   let parsed={};
-  try{ parsed=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ parsed={}; }
-  const FASES=new Set(['comercial','operativo','administrativo']);
-  // Defensa extra: aunque el prompt lo prohíbe, se filtra cualquier nombre que no exista en el catálogo real.
-  const validNames=new Set(ODOO_APPS_FLAT.map(a=>a.name.toLowerCase()));
-  let list=(Array.isArray(parsed.apps)?parsed.apps:[]).filter(x=>x?.name&&validNames.has(String(x.name).toLowerCase()))
-    .map(x=>{ const f=String(x.fase||'').trim().toLowerCase(); return {name:x.name,reason:stripMd(x.reason),fase:FASES.has(f)?f:null}; }).slice(0,8);
-  let appsFlow=list.some(a=>a.fase)?stripMd(parsed.flujo||''):'';
-  if(!list.length){
-    // Fallback a la línea base por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
+  try{ parsed=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ console.warn('discStepDerivadas: JSON inválido',e); parsed={}; }
+
+  // ── Apps: se descarta cualquier nombre que no exista EXACTO en el catálogo ──
+  let appsAI=(Array.isArray(parsed.apps)?parsed.apps:[])
+    .map(a=>{
+      const real=ODOO_APPS_FLAT.find(x=>x.name.toLowerCase()===String(a?.name||'').trim().toLowerCase());
+      if(!real) return null;
+      const fase=['comercial','operativo','administrativo'].includes(String(a.fase||'').toLowerCase())
+        ? String(a.fase).toLowerCase() : 'operativo';
+      return {name:real.name, reason:stripMd(String(a.reason||'')), fase};
+    })
+    .filter(Boolean);
+  let appsFlow=stripMd(String(parsed.flujo||''));
+  // Respaldo por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
+  if(!appsAI.length){
     const apps=[]; const seen=new Set();
     if(ctx.currentInd&&APPS_DB[ctx.currentInd]) APPS_DB[ctx.currentInd].forEach(a=>{ if(!seen.has(a.name)){ apps.push(a); seen.add(a.name); }});
     ctx.activeTV.forEach(tv=>{ if(TV_APPS[tv]&&!seen.has(TV_APPS[tv].name)){ apps.push(TV_APPS[tv]); seen.add(TV_APPS[tv].name); }});
-    list=apps;
+    appsAI=apps;
     appsFlow='';
   }
-  ctx.job.results.appsAI=list;
-  ctx.job.results.appsFlow=appsFlow;
-  ctx.job.results.appsNote='Generado con IA · catálogo oficial de Odoo + tus notas';
-  discJobPintar(ctx.job);
-  return list;
-}
 
-// ── Paso 4: Efectos WOW para la demo — SOLO del catálogo WOW_DB (misma lógica anti-alucinación que discStepApps), elegidos por relevancia real al dolor detectado, no por regla fija de industria ──
-async function discStepWow(ctx, notaText){
-  const s=ctx.selections;
-  const areaLbl={comercial:'Comercial',operativo:'Operativo',administrativo:'Administrativo'};
-  // Catálogo acotado a lo relevante para esta sesión (generales + industria + tipo de venta actuales) — mismo criterio que dgWowItems, sin recortar a 6: aquí elige la IA.
-  const catalogItems=[];
-  Object.entries(WOW_DB).forEach(([area,items])=>{
-    items.forEach(w=>{
-      const relevant=w.type==='gen'||(w.type==='ind'&&w.ind===ctx.currentInd)||(w.type==='tv'&&ctx.activeTV.has(w.tv));
-      if(relevant) catalogItems.push({...w,area});
-    });
-  });
-  if(!catalogItems.length){ ctx.job.results.wowAI=[]; discJobPintar(ctx.job); return []; }
-  const catalogBlock=catalogItems.map((w,i)=>`${i+1}. [${areaLbl[w.area]}] "${w.title}" — ${w.desc}`).join('\n');
-  const prompt=`Eres un consultor preventa de Odoo México eligiendo qué "efectos WOW" mostrarle a este prospecto en la demo — los momentos que más lo van a impresionar porque conectan directo con SU dolor.
-
-CATÁLOGO DE EFECTOS WOW — única fuente permitida. NUNCA inventes un efecto que no esté en esta lista exacta, usa el título EXACTO tal cual aparece:
-${catalogBlock}
-
-CONTEXTO DEL PROSPECTO:
-- Industria: ${IND_NAMES[ctx.currentInd]||'nd'} | Tipo de venta: ${s['tipo_venta']||'nd'}
-- Dolor principal (en sus palabras): ${s.fld?.['dol-principal']||'nd'}
-- Otras señales/dolores detectados: ${(s.dolores||[]).join(', ')||'nd'}
-- Notas del AE durante la llamada: ${s.fld?.['notas-llamada']||'nd'}
-${notaText?`- Nota de discovery ya generada:\n${notaText}`:''}
-${ctx.transcript?`- Transcripción completa de la llamada (úsala si aporta):\n${ctx.transcript}`:''}
-
-Elige entre 3 y 6 efectos del catálogo — los MÁS conectados al dolor real de ESTE prospecto, no una lista genérica de industria. Ordénalos del más al menos impactante para ESTE cliente. Responde SOLO con este JSON (sin markdown, sin texto fuera del JSON):
-[{"title":"Título EXACTO tal cual aparece en el catálogo","why":"por qué este efecto en particular le va a pegar a ESTE prospecto, en 1 frase, conectada a algo que dijo o hace"}]`;
-
-  const raw=await discClaudeText(prompt,{maxTokens:4000,funcion:'wow'})||'[]';
-  const jsonMatch=raw.match(/\[[\s\S]*\]/);
-  let picks=[];
-  try{ picks=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ picks=[]; }
-  // Defensa extra: solo dejamos pasar títulos que existen tal cual en el catálogo acotado — el texto de desc/wow siempre sale del catálogo, nunca de lo que devolvió la IA.
-  const byTitle=new Map(catalogItems.map(w=>[w.title.toLowerCase(),w]));
-  let list=(Array.isArray(picks)?picks:[]).map(x=>{
-    const src=x?.title&&byTitle.get(String(x.title).toLowerCase());
-    return src?{title:src.title,area:src.area,desc:src.desc,wow:src.wow,why:stripMd(x.why||'')}:null;
-  }).filter(Boolean).slice(0,6);
-  if(!list.length){
-    // Fallback a la línea base por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
-    list=catalogItems.filter(w=>w.type!=='gen').slice(0,6);
-    if(list.length<4) list=[...list,...catalogItems.filter(w=>w.type==='gen')].slice(0,6);
+  // ── WOW: mismo filtro contra el catálogo, por título exacto ──
+  let wowAI=(Array.isArray(parsed.wow)?parsed.wow:[])
+    .map(w=>{
+      const real=wowItems.find(x=>x.title.toLowerCase()===String(w?.title||'').trim().toLowerCase());
+      return real ? {title:real.title,area:real.area,desc:real.desc,wow:real.wow,why:stripMd(String(w.why||''))} : null;
+    })
+    .filter(Boolean).slice(0,6);
+  // Respaldo por reglas si la IA no devolvió nada usable — nunca deja la tarjeta vacía.
+  if(!wowAI.length){
+    wowAI=wowItems.filter(w=>w.type!=='gen').slice(0,6);
+    if(wowAI.length<4) wowAI=[...wowAI,...wowItems.filter(w=>w.type==='gen')].slice(0,6);
   }
-  ctx.job.results.wowAI=list;
+
+  // ── Recomendaciones: se reconstruye el texto plano que ya esperaba la pantalla ──
+  const recoText=(Array.isArray(parsed.recomendaciones)?parsed.recomendaciones:[])
+    .map(r=>`${stripMd(String(r?.titulo||''))}\n${stripMd(String(r?.contenido||''))}`.trim())
+    .filter(Boolean).join('\n\n');
+
+  ctx.job.results.recoNote=recoText;
+  ctx.job.results.recoLabel=ctx.recentSessions.length>0?`Basado en la nota y ${ctx.recentSessions.length} sesiones del equipo`:'Basado en la nota de discovery';
+  ctx.job.results.appsAI=appsAI;
+  ctx.job.results.appsFlow=appsFlow;
+  ctx.job.results.appsNote='Derivado de la nota de discovery · catálogo oficial de Odoo';
+  ctx.job.results.wowAI=wowAI;
+  // discJobPintar es quien pinta: lee appsAI/appsFlow/appsNote y llama a discRenderAppsList. No hay
+  // que renderizar aquí a mano o la tarjeta se pinta dos veces con etiquetas distintas.
   discJobPintar(ctx.job);
-  return list;
+  return {recoText, appsList:appsAI, wowList:wowAI};
 }
 
 // ── Paso 5: Resumen Intromeet — síntesis reutilizable como contexto en otras apps (vía memoria de empresa) ──
@@ -5017,7 +5000,7 @@ ${recoText?`RECOMENDACIONES PARA CERRAR:\n${recoText}`:''}
 
 Escribe en tercera persona, tono de bitácora de cuenta (no un mensaje al cliente). Sintetiza, no repitas las secciones tal cual. Si algo no se sabe, dilo brevemente en vez de omitirlo en silencio.`;
 
-  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000,funcion:'resumen'}));
+  const text=stripMd(await discClaudeText(prompt,{maxTokens:12000,funcion:'resumen'}));
   ctx.job.results.resumenIntromeet=text;
   discJobPintar(ctx.job);
   return text;
@@ -5085,36 +5068,37 @@ window.discAnalyzeDiscovery = async function(){
 
   // Corre un paso, lo marca en la UI y persiste lo que produjo. Nunca lanza: un paso que falla se
   // anota en job.fallidos y los que corren junto a él siguen su camino.
-  const paso=(n,etiqueta,fn)=>{
-    job.steps[n]='active'; discJobPintar(job);
+  // Acepta un número o varios: apps, efectos WOW y recomendaciones salen de UNA sola llamada, pero
+  // en la pantalla siguen siendo tres pasos porque para el AE son tres entregables distintos.
+  const paso=(ns,etiqueta,fn)=>{
+    const idx=Array.isArray(ns)?ns:[ns];
+    idx.forEach(n=>job.steps[n]='active'); discJobPintar(job);
     return Promise.resolve().then(fn)
-      .then(async r=>{ job.steps[n]='done'; await discJobGuardar(job); discJobPintar(job); return r; })
-      .catch(async e=>{ job.steps[n]=null; job.fallidos.push(etiqueta); console.warn('Análisis Qcall · '+etiqueta+':',e);
-        job.errores[n]='Error: '+e.message;
+      .then(async r=>{ idx.forEach(n=>job.steps[n]='done'); await discJobGuardar(job); discJobPintar(job); return r; })
+      .catch(async e=>{ idx.forEach(n=>{ job.steps[n]=null; job.errores[n]='Error: '+e.message; });
+        job.fallidos.push(etiqueta); console.warn('Análisis Qcall · '+etiqueta+':',e);
         discJobPintar(job); return null; });
   };
   const fase=t=>{ job.fase=t; discJobPintar(job); };
 
-  // Los 6 pasos no son una cadena: solo 3 dependen de la salida de otro. Van en 3 tandas, por
-  // dependencia real — (1) nota, recomendaciones y feedback, que no dependen de nada entre sí;
-  // (2) apps y efectos WOW, que usan la nota como contexto; (3) resumen, que sintetiza las tres.
-  // El total es nota + apps + resumen, no la suma de los seis.
+  // Seis entregables en cuatro llamadas. La nota y el feedback son independientes y arrancan
+  // juntos; las derivadas (apps, WOW, recomendaciones) leen la nota, así que esperan; el resumen
+  // sintetiza lo anterior. Antes eran siete llamadas porque apps, WOW y recomendaciones razonaban
+  // el prospecto por separado — y dos de ellas volvían a cargar la transcripción completa.
   try{
     fase('Analizando la llamada…');
-    const [notaText, recoText] = await Promise.all([
+    const [notaText] = await Promise.all([
       paso(1,'la nota para CRM',()=>discStepNota(ctx)),
-      paso(2,'las recomendaciones',()=>discStepReco(ctx)),
       paso(6,'el feedback final',()=>discStepFeedback(ctx)),
     ]);
 
     fase('Preparando la demo…');
-    const [appsList] = await Promise.all([
-      paso(3,'las apps sugeridas',()=>discStepApps(ctx,notaText||'')),
-      paso(4,'los efectos WOW',()=>discStepWow(ctx,notaText||'')),
-    ]);
+    const derivadas = await paso([2,3,4],'las apps, los efectos WOW y las recomendaciones',
+      ()=>discStepDerivadas(ctx,notaText||''));
 
     fase('Guardando resumen…');
-    await paso(5,'el Resumen Intromeet',()=>discStepResumen(ctx,notaText||'',recoText||'',appsList||[]));
+    await paso(5,'el Resumen Intromeet',
+      ()=>discStepResumen(ctx,notaText||'',derivadas?.recoText||'',derivadas?.appsList||[]));
   } finally {
     job.running=false; job.done=true;
     await discJobGuardar(job);
