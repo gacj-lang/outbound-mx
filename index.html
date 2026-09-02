@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-02T03:48:22Z">
+<meta name="app-version" content="2026-09-02T03:49:42Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14784,10 +14784,10 @@ function csvLoadJobIntoRows(job){
 // ── Enriquecimiento con IA post-carga (columna Resumen) ──
 // Se llama SOLO sobre los leads que el backend ya confirmó/entregó (nunca sobre candidatos
 // descartados durante la búsqueda) — mismo principio de control de costo que ya aplica el backend
-// con los créditos de Apollo. 1 llamada por lead con el tool de búsqueda web nativo de Claude
-// (LinkedIn + sitio de la empresa) — no se puede batchear una búsqueda real de varias empresas a
-// la vez sin confundir resultados. Antes esta investigación vivía separada en una columna "Web"
-// (solo DENUE-primario, dato menos verificado); se fusionó aquí y ahora aplica a TODAS las fuentes.
+// con los créditos de Apollo. Antes esta investigación vivía separada en una columna "Web" (solo
+// DENUE-primario, dato menos verificado); se fusionó aquí y ahora aplica a TODAS las fuentes.
+// Históricamente era 1 llamada por lead porque cada una hacía su propia búsqueda web; esa búsqueda
+// se quitó el 2026-08-10 y desde el 2026-09-02 los resúmenes van en lotes (ver csvBatchResumenes).
 window.csvEnrichRowsWithAI=async function(rows){
   if(!rows.length) return;
   try{
@@ -14801,18 +14801,50 @@ window.csvEnrichRowsWithAI=async function(rows){
 // pegado/subido a CSV Builder puede disparar cientos de llamadas simultáneas, cada una con hasta 2
 // búsquedas reales y su contexto de resultados sin cachear (pico real: ~15M tokens en un día por un
 // solo archivo de 125 filas). El resumen ahora sale SOLO de los datos ya conocidos del lead.
+// 2026-09-02: pasa de una llamada POR LEAD a un lote por tanda. La razón original de ir uno por uno
+// era la búsqueda web —no se pueden buscar varias empresas a la vez sin confundir resultados—, pero
+// esa búsqueda se quitó el 2026-08-10 y el resumen sale solo de datos ya conocidos. O sea que desde
+// entonces se estaban pagando N envoltorios de instrucciones para producir 140 caracteres cada uno.
+//
+// Las tandas van EN SERIE, no en paralelo. Es el mismo riesgo que ya está documentado arriba: sin
+// tope de concurrencia, un archivo grande disparaba cientos de llamadas simultáneas, que además se
+// topaban con el límite por minuto y se reintentaban. Con lotes de 20 en serie, 125 filas son 7
+// llamadas ordenadas en vez de 125 al mismo tiempo.
+const CSV_RESUMEN_LOTE=20;
 async function csvBatchResumenes(rows){
-  await Promise.all(rows.map(async(r)=>{
-    const contexto=[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo,r.datos_outscraper].filter(Boolean).join(' | ').slice(0,600);
+  const lote=r=>({
+    empresa:r.partner_name||'nd',
+    contacto:r.contact_name||'nd',
+    cargo:r.function||'nd',
+    ubicacion:r.state_id||r.country_id||'nd',
+    contexto:[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo,r.datos_outscraper].filter(Boolean).join(' | ').slice(0,600),
+  });
+
+  for(let i=0;i<rows.length;i+=CSV_RESUMEN_LOTE){
+    const tanda=rows.slice(i,i+CSV_RESUMEN_LOTE);
+    const items=tanda.map(lote);
     try{
-      const raw=await gcCallClaude(`Genera un resumen ULTRA BREVE (máximo 140 caracteres) de este lead de ventas B2B para Odoo, pensado para que un vendedor sepa en un vistazo por qué contactarlo. Usa SOLO estos datos, sin inventar nada más:
-Empresa: ${r.partner_name||'nd'} | Contacto: ${r.contact_name||'nd'} | Cargo: ${r.function||'nd'} | Ubicación: ${r.state_id||r.country_id||'nd'}
-${contexto?`Contexto: ${contexto}`:''}
-Responde en español, SOLO el resumen final, sin markdown.`,
-        null, {maxTokens:300, system:`Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown. ${SPANISH_ORTHOGRAPHY_RULE}`, origen:'csvBatchResumenes'});
-      r.resumen=String(raw||'').trim().slice(0,140);
-    }catch(e){ console.warn('csvBatchResumenes:',r.partner_name,e); r.resumen=''; }
-  }));
+      const raw=await gcCallClaude(`Genera un resumen ULTRA BREVE de cada lead de ventas B2B para Odoo, pensado para que un vendedor sepa de un vistazo por qué contactarlo. Máximo 140 caracteres cada uno.
+
+Usa SOLO los datos de cada lead, sin inventar nada. Si de un lead no hay pistas suficientes, devuelve una cadena vacía "" en su posición en vez de rellenar con generalidades.
+
+LEADS (${items.length}):
+${JSON.stringify(items,null,1)}
+
+Devuelve EXCLUSIVAMENTE un array JSON de ${items.length} cadenas, EN EL MISMO ORDEN Y LA MISMA CANTIDAD que los leads de arriba. Sin markdown, sin claves, sin explicaciones. Ejemplo de forma: ["resumen del primero","resumen del segundo"]`,
+        null, {maxTokens:2000, system:`Devuelves SIEMPRE y SOLO un array JSON válido de cadenas en texto plano, sin markdown. ${SPANISH_ORTHOGRAPHY_RULE}`, origen:'csvBatchResumenes'});
+
+      const m=String(raw||'').match(/\[[\s\S]*\]/);
+      const arr=JSON.parse(m?m[0]:raw);
+      if(!Array.isArray(arr)||arr.length!==items.length) throw new Error('longitud de respuesta no coincide');
+      tanda.forEach((r,j)=>{ r.resumen=String(arr[j]||'').trim().slice(0,140); });
+    }catch(e){
+      // Una tanda que falla deja su resumen vacío y no tumba las demás — mismo criterio que tenía
+      // el bucle por lead, solo que ahora el radio de la falla son 20 filas y no una.
+      console.warn('csvBatchResumenes · tanda',(i/CSV_RESUMEN_LOTE)+1,e);
+      tanda.forEach(r=>{ r.resumen=''; });
+    }
+  }
 }
 // Popup (no toast) al lanzar una búsqueda — el AE necesita quedar bien enterado de que el
 // teléfono tarda unos minutos y de que se le va a avisar por la campana, no un aviso que
