@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-02T04:22:03Z">
+<meta name="app-version" content="2026-09-02T04:25:38Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2060,7 +2060,7 @@ async function aiRenderConsumo(){
   if(!docs.length){
     cont.innerHTML=`<p style="font-size:12.5px;color:var(--gray-500);line-height:1.6">Todavía no hay registros en este rango.
       Si el equipo ya usó Qcall, Contenidos, CSV Builder o Ninja desde que se publicó este cambio y aquí sigue vacío,
-      lo más probable es que falte la regla de Firestore de <code>aiUsage</code> — revisa la consola del navegador (F12).</p>`;
+      lo más probable es que falte la regla de Firestore de <code>aiUsage</code> — revisa la consola del navegador (en Mac: ⌥⌘J; en Windows: F12).</p>`;
     return;
   }
   const t=docs.reduce((a,d)=>({
@@ -6649,7 +6649,7 @@ async function gcCallClaude(prompt, fileAttachment=null, opts={}){
     else messages[1].content=text;
   }
   if(usesWebFetch){
-    // Diagnóstico para depurar en vivo desde la consola del navegador (F12) si vuelve a fallar —
+    // Diagnóstico para depurar en vivo desde la consola del navegador (⌥⌘J en Mac) si vuelve a fallar —
     // sin esto, no hay forma de saber si el fetch de la página falló, si se truncó por max_tokens,
     // o si el modelo simplemente no devolvió texto.
     console.log('gcCallClaude[web_fetch] stop_reason:', data.stop_reason, '· bloques:', (data.content||[]).map(b=>b.type), '· texto vacío:', !text.trim());
@@ -9030,7 +9030,7 @@ const REPORTES_ODOO_BASE='https://thorough-curiosity-production-098d.up.railway.
 // ── Proxy de Claude ──
 // Desde 2026-09-02 la app NO habla con api.anthropic.com. Habla con Railway, y Railway usa la API
 // key que vive en su variable de entorno. Antes la key se cargaba de Firestore al navegador de cada
-// AE, así que cualquiera con F12 abierto podía copiarla.
+// AE, así que cualquiera con las herramientas de desarrollador abiertas podía copiarla.
 // Lo que autoriza la llamada es el token de sesión de Firebase, el mismo que ya usan /searchLeads y
 // las cadencias. Si el AE no está logueado, no hay llamada — que es justo lo que queremos.
 const CLAUDE_PROXY_URL=REPORTES_ODOO_BASE+'/claude';
@@ -17265,7 +17265,7 @@ async function ninjaRunTurn(userText){
     // parte la respuesta en varios bloques `text`, y con .find() se perdían todos menos uno.
     const textos=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).filter(Boolean);
     if(textos.length) answerParts.push(textos.join(''));
-    // Diagnóstico en consola del navegador (F12) — mismo patrón que gcCallClaude[web_fetch].
+    // Diagnóstico en consola del navegador (⌥⌘J en Mac) — mismo patrón que gcCallClaude[web_fetch].
     // Sirve para distinguir en vivo un corte de la API (stop_reason) de un corte al pintar.
     console.log('ninja stop_reason:',data.stop_reason,'· bloques:',(data.content||[]).map(b=>b.type),'· chars recibidos:',textos.join('').length,'· acumulado:',answerParts.join('').length);
     if(data.stop_reason==='max_tokens'){
