@@ -1,0 +1,438 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Brochure Odoo · Construcción · versión larga</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   Kit de marca Odoo — artboards 16:9 para brochure
+   Un artboard = 1280x720 px = 13.333in x 7.5in a 96 dpi, que es el
+   mismo 16:9 del brochure de referencia (720x405 pt).
+   Colores muestreados del PDF de referencia, no inventados.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root{
+  --morado:#714B67;   --morado-osc:#5A3C53;  --morado-claro:#F5F0F3;
+  --tinta:#21272B;    --gris:#6B7280;        --gris-claro:#9CA3AF;
+  --amarillo:#F6AF31; --azul:#18B6FD;        --turquesa:#00D1B4;  --rosa:#FE797C;
+  --turquesa-txt:#00A09D;  /* el turquesa puro no pasa contraste en texto chico */
+  --cdn:'https://gacj-lang.github.io/outbound-mx/assets';
+}
+
+@font-face{font-family:'Inter';src:url('https://gacj-lang.github.io/outbound-mx/assets/fonts/Inter-Variable.ttf') format('truetype');font-weight:100 900;font-display:block}
+@font-face{font-family:'Caveat';src:url('https://gacj-lang.github.io/outbound-mx/assets/fonts/Caveat-Variable.ttf') format('truetype');font-weight:400 700;font-display:block}
+
+@page{ size:13.333in 7.5in; margin:0 }
+
+html,body{margin:0;padding:0;background:#525659}
+body{font-family:'Inter',system-ui,sans-serif;color:var(--tinta);-webkit-font-smoothing:antialiased}
+
+/* ── El artboard ──
+   El padding de abajo reserva la banda del pie: ningún bloque de contenido
+   puede entrar ahí. Es estructural a propósito — no depende de que quien
+   escriba el layout se acuerde de dejar el hueco.                        */
+.hoja{
+  position:relative; width:1280px; height:720px; overflow:hidden;
+  background:#fff; margin:0 auto 24px; box-sizing:border-box;
+  padding:52px 72px 88px;
+  break-after:page; page-break-after:always;
+}
+.hoja:last-child{break-after:auto;page-break-after:auto}
+/* .reparte: contenido distribuido en el alto útil, para que no quede
+   un hueco muerto a media hoja cuando el bloque de arriba es corto. */
+/* TODO layout va dentro de .contenido. Ocupa el alto útil y centra en
+   vertical, para que no quede un hueco muerto a media hoja. Tres modos:  */
+.hoja > .contenido{height:100%;display:flex;flex-direction:column;justify-content:center;gap:22px}
+.hoja > .contenido.arriba {justify-content:flex-start}
+.hoja > .contenido.reparte{justify-content:space-between}
+@media print{ .hoja{margin:0;box-shadow:none} }
+
+/* ── Tipografía ──
+   Caveat solo para encabezados. Inter para todo lo que se lee de corrido:
+   Caveat en párrafo es ilegible a tamaño chico.                          */
+.h1{font-family:'Caveat',cursive;font-weight:700;font-size:64px;line-height:1.05;color:var(--tinta);margin:0}
+.h1.morado{color:var(--morado)}
+.h2{font-family:'Caveat',cursive;font-weight:700;font-size:44px;line-height:1.1;color:var(--tinta);margin:0}
+.sub{font-size:21px;line-height:1.55;color:var(--gris);margin:14px 0 0;max-width:62ch}
+.cuerpo{font-size:17px;line-height:1.6;color:#374151;margin:0}
+.mini{font-size:13px;line-height:1.5;color:var(--gris-claro)}
+
+/* ── Marcador real (SVG de la carpeta de marca), no un rectángulo ──
+   DOS REGLAS, las dos salieron de ver el render:
+   1. Solo en encabezados Caveat. En cuerpo de 19px el trazo queda como un
+      pelo y parece un subrayado mal puesto.
+   2. De 1 a 3 palabras. En frases largas el SVG no se estira parejo y
+      termina pintando nada más el centro.                                */
+.mk{position:relative;display:inline-block;white-space:nowrap;padding:0 .12em;background-repeat:no-repeat;background-position:center 80%;background-size:100% .46em}
+.mk-amarillo {background-image:url('https://gacj-lang.github.io/outbound-mx/assets/highlights/yellow_highlight_bold_01.svg')}
+.mk-azul     {background-image:url('https://gacj-lang.github.io/outbound-mx/assets/highlights/blue_highlight_bold_01.svg')}
+.mk-turquesa {background-image:url('https://gacj-lang.github.io/outbound-mx/assets/highlights/green_highlight_bold_01.svg')}
+.mk-rosa     {background-image:url('https://gacj-lang.github.io/outbound-mx/assets/highlights/red_highlight_bold_01.svg')}
+.mk-garabato {background-image:url('https://gacj-lang.github.io/outbound-mx/assets/highlights/yellow_highlight_scribble_01.svg');background-size:100% .7em;background-position:center 70%}
+
+/* ── Tarjeta de reto: borde de color, esquinas muy redondeadas ── */
+.reto{border:3px solid var(--c);border-radius:26px;padding:24px 30px;background:#fff;position:relative}
+.reto .tit{font-weight:700;font-size:21px;color:var(--c);margin-bottom:4px;line-height:1.3}
+.reto .txt{font-size:17px;line-height:1.5;color:#374151}
+.c-amarillo{--c:var(--amarillo)} .c-azul{--c:var(--azul)}
+.c-turquesa{--c:var(--turquesa)} .c-rosa{--c:var(--rosa)}
+.c-turquesa .tit{color:var(--turquesa-txt)}
+
+/* ── Ícono de app sobre la pastilla gris de la referencia ── */
+.app{display:flex;align-items:center;gap:12px}
+.app .ico{width:60px;height:60px;border-radius:14px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.13);
+          display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.app .ico img{width:40px;height:40px;object-fit:contain}
+.app .nom{font-weight:700;font-size:20px;color:var(--morado);line-height:1.25}
+.app .como{font-size:16.5px;line-height:1.45;color:var(--gris);margin-top:2px}
+
+/* ── Doodle decorativo ── */
+.doodle{position:absolute;pointer-events:none;opacity:.95}
+
+/* ── Pie de hoja ── */
+.pie{position:absolute;left:72px;right:72px;bottom:30px;display:flex;align-items:center;
+     justify-content:space-between;font-size:12px;color:var(--gris-claro)}
+.pie img{height:22px;opacity:.9}
+
+/* ═══ Componentes por tipo de hoja ═══ */
+
+/* Portada: texto a la izquierda, foto real de la industria a la derecha.
+   El bloque de sector (ícono + nombre en Caveat + doodles) va abajo a la
+   izquierda, no como etiqueta arriba.                                    */
+.portada{padding:0}
+.portada .cara{position:absolute;left:0;top:0;bottom:0;right:42%;
+               padding:52px 56px 48px 72px;display:flex;flex-direction:column;justify-content:space-between}
+.portada .logo{height:46px;width:auto;align-self:flex-start}
+.portada .foto{position:absolute;right:0;top:0;bottom:0;width:42%;
+               background:var(--morado-claro);overflow:hidden}
+.portada .foto img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* Bloque de sector */
+.sector{display:flex;align-items:center;gap:18px;position:relative}
+.sector img.ico{width:72px;height:72px;object-fit:contain;flex-shrink:0}
+.sector .nom{font-family:'Caveat',cursive;font-weight:700;font-size:46px;
+             color:var(--morado);line-height:1}
+.sector .det{font-size:15px;color:var(--gris);line-height:1.4;margin-top:2px}
+
+
+/* Mosaico de íconos de app */
+.mosaico{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.mosaico .cel{width:82px;height:82px;border-radius:20px;background:#fff;box-shadow:0 3px 14px rgba(0,0,0,.12);
+              display:flex;align-items:center;justify-content:center}
+.mosaico .cel img{width:52px;height:52px;object-fit:contain}
+
+/* Datos clave */
+.datos{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.datos .d{background:var(--morado-claro);border-radius:16px;padding:18px 10px;text-align:center}
+.datos .n{font-family:'Caveat',cursive;font-weight:700;font-size:44px;color:var(--morado);line-height:1}
+.datos .l{font-size:13.5px;color:var(--gris);line-height:1.35;margin-top:4px}
+
+/* Caso de éxito real */
+.caso{border-left:5px solid var(--amarillo);padding:8px 0 8px 22px}
+.caso .quien{font-size:19px;font-weight:700;color:var(--tinta);line-height:1.3}
+.caso .donde{font-size:14px;color:var(--gris-claro);margin-top:1px}
+.caso .qué{font-size:16px;line-height:1.5;color:#374151;margin-top:7px}
+.caso a{display:inline-block;margin-top:9px;font-size:13.5px;font-weight:700;color:var(--morado);text-decoration:none}
+
+/* Precios */
+.precio{border:3px solid var(--c);border-radius:26px;padding:22px 26px;text-align:center;background:#fff}
+.precio .plan{font-size:19px;font-weight:700;color:var(--tinta)}
+.precio .n{font-family:'Caveat',cursive;font-weight:700;font-size:64px;color:var(--morado);line-height:1;margin:4px 0}
+.precio .n span{font-size:20px;font-weight:600;vertical-align:super;margin-left:3px}
+.precio .por{font-size:14px;color:var(--gris)}
+.precio .plat{font-size:14.5px;font-weight:600;color:#374151;margin-top:10px}
+.precio .extra{font-size:13.5px;color:var(--turquesa-txt);line-height:1.4;margin-top:6px}
+
+.planes{display:flex;align-items:stretch;gap:12px}
+.planes .p{flex:1;border-radius:16px;background:var(--morado-claro);padding:14px 16px;text-align:center}
+.planes .p .t{font-size:15px;font-weight:700;color:var(--morado)}
+.planes .p .v{font-size:13.5px;color:var(--gris);line-height:1.4;margin-top:3px}
+.planes .p.destaca{background:var(--morado);color:#fff}
+.planes .p.destaca .t{color:#fff} .planes .p.destaca .v{color:rgba(255,255,255,.85)}
+
+/* Bloque CTA */
+.cta{background:var(--morado);border-radius:24px;padding:30px 36px;color:#fff;display:flex;
+     align-items:center;justify-content:space-between;gap:28px}
+.cta .msg{font-size:22px;font-weight:600;line-height:1.4;flex:1}
+.cta .ae{text-align:right;border-left:1px solid rgba(255,255,255,.25);padding-left:26px;flex-shrink:0}
+.cta .ae .n{font-size:18px;font-weight:700}
+.cta .ae .r{font-size:14px;color:rgba(255,255,255,.7)}
+.cta .ae .c{font-size:14px;color:rgba(255,255,255,.6)}
+.cta .ae .a{font-size:14px;color:var(--amarillo);font-weight:700;margin-top:5px}
+
+/* Información útil */
+.links{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.links a{display:flex;align-items:center;gap:10px;border:2px solid #E9E4E8;border-radius:14px;
+         padding:13px 16px;text-decoration:none;color:var(--tinta);font-size:15px;font-weight:600}
+.links a .ic{font-size:19px}
+
+/* ═══ Componentes de la versión larga ═══ */
+
+/* Sub-verticales del sector. El segmento del prospecto va destacado; los otros
+   siguen visibles pero apagados — dicen "conocemos tu industria completa" sin
+   robarle la página al que sí es él. */
+.segmentos{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.seg{border:2px solid #E9E4E8;border-radius:20px;padding:16px 18px;background:#fff}
+.seg .t{font-size:15.5px;font-weight:700;color:var(--gris);line-height:1.25;margin-bottom:5px}
+.seg .d{font-size:13.5px;line-height:1.45;color:var(--gris-claro)}
+.seg.suyo{border-color:var(--morado);border-width:3px;background:var(--morado-claro)}
+.seg.suyo .t{color:var(--morado);font-size:17px}
+.seg.suyo .d{color:#4b5563}
+.seg.suyo .ins{display:inline-block;margin-top:9px;font-size:12px;font-weight:700;
+               letter-spacing:.06em;text-transform:uppercase;color:#fff;
+               background:var(--morado);border-radius:99px;padding:4px 11px}
+
+/* Hoja de feature: la captura manda, el texto la explica. */
+.feature{display:grid;grid-template-columns:400px 1fr;gap:44px;align-items:center}
+.feature .lado .app{margin-bottom:16px}
+.feature .lado .pts{display:flex;flex-direction:column;gap:11px;margin-top:16px}
+.feature .lado .pt{display:flex;gap:10px;font-size:16px;line-height:1.45;color:#374151}
+.feature .lado .pt b{color:var(--turquesa-txt);font-weight:700}
+.feature .toma{border-radius:16px;overflow:hidden;box-shadow:0 6px 30px rgba(0,0,0,.14);background:#fff}
+.feature .toma img{width:100%;height:auto;display:block}
+
+/* Pasos de arranque */
+.pasos{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.paso{position:relative;border-radius:20px;background:var(--morado-claro);padding:20px 20px 18px}
+.paso .n{font-family:'Caveat',cursive;font-weight:700;font-size:40px;color:var(--c,var(--morado));line-height:1}
+.paso .t{font-size:16.5px;font-weight:700;color:var(--tinta);margin-top:2px}
+.paso .d{font-size:14px;line-height:1.45;color:var(--gris);margin-top:5px}
+
+</style>
+<style>
+  .filas{display:flex;flex-direction:column;gap:20px}
+  .fila{display:grid;grid-template-columns:1fr 60px 1fr;align-items:center}
+  .flecha{display:flex;align-items:center;justify-content:center}
+  .flecha img{width:44px;height:auto;opacity:.9}
+</style></head><body>
+
+<!-- ══ 1 · PORTADA ══ -->
+<div class="hoja portada">
+  <div class="foto"><img src="https://gacj-lang.github.io/outbound-mx/assets/images/support/construccion/foto-portada.jpg" alt=""></div>
+  <div class="cara">
+    <img class="logo" src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg">
+    <div>
+      <h1 class="h1">La obra <span class="mk mk-amarillo">avanza</span>.<br>¿La información también?</h1>
+      <p class="sub">Proyectos, costos, materiales y facturación en un solo sistema.</p>
+    </div>
+    <div class="sector">
+      <img class="ico" src="https://gacj-lang.github.io/outbound-mx/assets/icons/industry-solo/industry_construction.svg">
+      <div><div class="nom">Construcción</div>
+        <div class="det">Constructoras, contratistas y desarrolladoras · México</div></div>
+      <img class="doodle" src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/yellow_pencil-ruler.svg" style="right:-6px;top:-14px;width:44px;transform:rotate(-12deg)">
+      <img class="doodle" src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/blue_ruler.svg" style="right:52px;bottom:-16px;width:38px;transform:rotate(8deg)">
+    </div>
+  </div>
+</div>
+
+<!-- ══ 2 · QUÉ ES ODOO ══ -->
+<div class="hoja">
+  <div class="contenido">
+    <div style="display:grid;grid-template-columns:1fr 400px;gap:56px;align-items:center">
+      <div>
+        <h1 class="h1 morado">¿Qué es Odoo?</h1>
+        <p class="cuerpo" style="margin-top:18px;font-size:19px">
+          Una suite de <strong>aplicaciones empresariales que se comunican entre ellas en tiempo real</strong>.
+          Activas solo las que necesitas hoy y agregas el resto conforme creces, sin cambiar de sistema
+          y sin sumar proveedores.</p>
+        <p class="cuerpo" style="margin-top:14px;font-size:19px">
+          Una sola base de datos: lo que registra la obra lo ve compras, y lo que compra
+          compras lo ve contabilidad. Sin volver a capturar nada.</p>
+      </div>
+      <div class="mosaico"><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/project.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/account.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/purchase.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/stock.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/sale.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/sign.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/documents.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/hr_timesheet.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/hr_expense.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/crm.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/maintenance.svg"></div><div class="cel"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/spreadsheet.svg"></div></div>
+    </div>
+    <div class="datos"><div class="d"><div class="n">12M+</div><div class="l">usuarios en el mundo</div></div><div class="d"><div class="n">175</div><div class="l">países</div></div><div class="d"><div class="n">70+</div><div class="l">apps integradas</div></div><div class="d"><div class="n">1</div><div class="l">sola base de datos</div></div></div>
+  </div>
+  <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Constructora de ejemplo · Odoo México 2026</span></div>
+</div>
+
+<!-- ══ 3 · CLIENTES DEL SECTOR ══ -->
+<div class="hoja">
+  <div class="contenido">
+    <div>
+      <h1 class="h1">Constructoras que ya <span class="mk mk-azul">operan</span> con Odoo</h1>
+      <p class="sub">Empresas mexicanas del sector. Los casos están publicados en odoo.com y se pueden leer completos.</p>
+    </div>
+    <img src="https://gacj-lang.github.io/outbound-mx/assets/images/support/construccion/clientes.png"
+         style="height:292px;object-fit:contain;display:block;margin:0 auto">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:30px"><div class="caso"><div class="quien">Odisa</div><div class="donde">Ciudad de México</div>
+        <div class="qué">centralizó operaciones fragmentadas y agilizó su gestión de inventario de maquinaria para concreto.</div><a href="https://www.odoo.com/es/blog/customer-reviews-6/odisa-and-odoo-transforming-the-concrete-machinery-industry-with-innovation-and-business-efficiency-1161">Ver el caso en odoo.com &#8599;</a></div><div class="caso"><div class="quien">CANTAB</div><div class="donde">Ciudad de México</div>
+        <div class="qué">fortaleció la gestión de cuentas por cobrar y optimizó el monitoreo de inventario con Odoo.</div><a href="https://www.odoo.com/es/blog/customer-reviews-6/cantab-raises-business-efficiency-with-odoo-1152">Ver el caso en odoo.com &#8599;</a></div><div class="caso"><div class="quien">Artdeko</div><div class="donde">México</div>
+        <div class="qué">logró visibilidad en tiempo real y mejor eficiencia operativa centralizando procesos con Odoo.</div><a href="https://www.odoo.com/es/blog/customer-reviews-6/artdeko-y-odoo-innovacion-que-construye-exito-1613">Ver el caso en odoo.com &#8599;</a></div></div>
+  </div>
+  <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Casos publicados en odoo.com · verificables</span></div>
+</div>
+
+<!-- ══ 4 · TU SEGMENTO ══ -->
+<div class="hoja">
+  <div class="contenido">
+    <div>
+      <h1 class="h1">Odoo cubre <span class="mk mk-turquesa">todo el ciclo</span> de la construcción</h1>
+      <p class="sub">Y dentro de ese ciclo, esto es lo que resuelve para una empresa como la tuya.</p>
+    </div>
+    <div class="segmentos"><div class="seg suyo"><div class="t">Constructoras y desarrolladoras</div><div class="d">Control de proyectos, costos, presupuestos y avance de obra.</div>
+      <span class="ins">Tu operación</span></div><div class="seg"><div class="t">Contratistas y subcontratistas</div><div class="d">Cotizaciones, órdenes de trabajo y facturación por avance.</div>
+      </div><div class="seg"><div class="t">Arquitectura e ingeniería</div><div class="d">Proyecto por horas, entregables y facturación profesional.</div>
+      </div><div class="seg"><div class="t">Mantenimiento y facilities</div><div class="d">Mantenimiento preventivo, órdenes de servicio y contratos.</div>
+      </div><div class="seg"><div class="t">Renta de maquinaria</div><div class="d">Contratos, disponibilidad, mantenimiento y facturación.</div>
+      </div><div class="seg"><div class="t">Comercializadora de materiales</div><div class="d">Inventarios, compras, ventas y logística.</div>
+      </div><div class="seg"><div class="t">Desarrollos inmobiliarios</div><div class="d">CRM, preventas, planes de pago y cobranza.</div>
+      </div><div class="seg"><div class="t">Obra civil y electromecánica</div><div class="d">Frentes de obra, destajos y control de subcontratos.</div>
+      </div></div>
+  </div>
+  <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Constructora de ejemplo · Odoo México 2026</span></div>
+</div>
+
+<!-- ══ 5 · RETOS ↔ ODOO ══ -->
+<div class="hoja">
+  <img class="doodle" src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/yellow_checklist.svg" style="right:64px;top:44px;width:52px;transform:rotate(9deg)">
+  <div class="contenido">
+    <div>
+      <h1 class="h1">Tus retos, y <span class="mk mk-turquesa">con qué</span> los resuelve Odoo</h1>
+      <p class="sub">Cada aplicación entra porque resuelve algo que ya te está costando. Nada más.</p>
+    </div>
+    <div class="filas"><div class="fila">
+        <div class="reto c-azul"><div class="tit">Cada obra vive en su propio archivo</div><div class="txt">El avance real se sabe cuando alguien pregunta, y la respuesta depende de quién conteste.</div></div>
+        <div class="flecha"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/blue_arrow-right.svg"></div>
+        <div class="app" style="padding-left:22px">
+          <div class="ico"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/project.svg"></div>
+          <div><div class="nom">Proyecto</div><div class="como">Un tablero por obra con avance, tareas y responsables. Todos ven lo mismo, al mismo tiempo.</div></div>
+        </div></div><div class="fila">
+        <div class="reto c-amarillo"><div class="tit">El costo real llega tarde</div><div class="txt">El presupuesto contra el gasto se cuadra al cierre, cuando la desviación ya no se puede corregir.</div></div>
+        <div class="flecha"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/yellow_arrow-right.svg"></div>
+        <div class="app" style="padding-left:22px">
+          <div class="ico"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/account.svg"></div>
+          <div><div class="nom">Contabilidad analítica</div><div class="como">Costo por obra en vivo: cada compra, hora y factura se carga sola al proyecto que le toca.</div></div>
+        </div></div><div class="fila">
+        <div class="reto c-rosa"><div class="tit">El material se pide por WhatsApp</div><div class="txt">Requisiciones sueltas, sin aprobación registrada y sin rastro de qué entró a la obra.</div></div>
+        <div class="flecha"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/doodles/red_arrow-right.svg"></div>
+        <div class="app" style="padding-left:22px">
+          <div class="ico"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/purchase.svg"></div>
+          <div><div class="nom">Compras e Inventario</div><div class="como">Requisición, aprobación y entrada a almacén en un solo hilo, trazable por obra.</div></div>
+        </div></div></div>
+  </div>
+  <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Constructora de ejemplo · Odoo México 2026</span></div>
+</div>
+
+<!-- ══ 6, 7 y 8 · FEATURES CON CAPTURA ══ -->
+<div class="hoja">
+  <div class="contenido">
+    <h1 class="h1">Cada obra, en su propio tablero</h1>
+    <div class="feature">
+      <div class="lado">
+        <div class="app"><div class="ico"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/project.svg"></div>
+          <div><div class="nom">Proyecto</div></div></div>
+        <div class="pts"><div class="pt"><b>·</b><div><b>Avance por etapa</b> — pendiente, en proceso y terminado, con el número de tareas de cada obra.</div></div><div class="pt"><b>·</b><div><b>Fechas y responsables</b> — quién tiene qué y para cuándo, sin perseguir a nadie por WhatsApp.</div></div><div class="pt"><b>·</b><div><b>Horas y costo pegados a la obra</b> — lo que se registra aquí llega solo a la contabilidad analítica.</div></div></div>
+      </div>
+      <!-- CAPTURA PROVISIONAL: viene del PDF de referencia, está en inglés y en
+           dólares. Reemplazar con una captura de la demo en español y MXN. -->
+      <div class="toma"><img src="https://gacj-lang.github.io/outbound-mx/assets/images/support/construccion/proyectos-kanban.png"></div>
+    </div>
+  </div>
+  <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Constructora de ejemplo · Odoo México 2026</span></div>
+</div>
+<div class="hoja">
+  <div class="contenido">
+    <h1 class="h1">Del material pedido al material recibido</h1>
+    <div class="feature">
+      <div class="lado">
+        <div class="app"><div class="ico"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/purchase.svg"></div>
+          <div><div class="nom">Compras</div></div></div>
+        <div class="pts"><div class="pt"><b>·</b><div><b>Requisición con aprobación</b> — cada pedido deja rastro de quién lo pidió y quién lo autorizó.</div></div><div class="pt"><b>·</b><div><b>Proveedor, monto y fecha de llegada</b> — en una sola vista, sin abrir el correo.</div></div><div class="pt"><b>·</b><div><b>Entrada a almacén ligada</b> — lo que llega se descarga contra la obra que lo pidió.</div></div></div>
+      </div>
+      <!-- CAPTURA PROVISIONAL: viene del PDF de referencia, está en inglés y en
+           dólares. Reemplazar con una captura de la demo en español y MXN. -->
+      <div class="toma"><img src="https://gacj-lang.github.io/outbound-mx/assets/images/support/construccion/compras-rfq.png"></div>
+    </div>
+  </div>
+  <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Constructora de ejemplo · Odoo México 2026</span></div>
+</div>
+<div class="hoja">
+  <div class="contenido">
+    <h1 class="h1">Contratos y autorizaciones sin imprimir nada</h1>
+    <div class="feature">
+      <div class="lado">
+        <div class="app"><div class="ico"><img src="https://gacj-lang.github.io/outbound-mx/assets/icons/apps/sign.svg"></div>
+          <div><div class="nom">Firma electrónica</div></div></div>
+        <div class="pts"><div class="pt"><b>·</b><div><b>Firma desde donde sea</b> — el residente firma en la obra, dirección firma desde la oficina.</div></div><div class="pt"><b>·</b><div><b>Versiones bajo control</b> — se acabó el "¿cuál era el bueno?" entre carpetas y correos.</div></div><div class="pt"><b>·</b><div><b>Ideal para flujos en campo</b> — aprobaciones que hoy tardan días se cierran el mismo día.</div></div></div>
+      </div>
+      <!-- CAPTURA PROVISIONAL: viene del PDF de referencia, está en inglés y en
+           dólares. Reemplazar con una captura de la demo en español y MXN. -->
+      <div class="toma"><img src="https://gacj-lang.github.io/outbound-mx/assets/images/support/construccion/firma-electronica.png"></div>
+    </div>
+  </div>
+  <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Constructora de ejemplo · Odoo México 2026</span></div>
+</div>
+
+<!-- ══ 9 · CÓMO SE VE EMPEZAR ══ -->
+<div class="hoja">
+  <div class="contenido">
+    <div>
+      <h1 class="h1">Cómo se ve <span class="mk mk-amarillo">empezar</span></h1>
+      <p class="sub">La metodología QuickStart prioriza llegar al Go-Live rápido, con control de presupuesto
+         y enfocada en la adopción real del usuario.</p>
+    </div>
+    <div class="pasos"><div class="paso" style="--c:var(--azul)"><div class="n">1</div>
+      <div class="t">Levantamiento</div><div class="d">Vemos tu operación real: obras, compras, nómina y cómo facturas hoy.</div></div><div class="paso" style="--c:var(--turquesa)"><div class="n">2</div>
+      <div class="t">Configuración</div><div class="d">Se arma Odoo con tus procesos, tu catálogo y tus centros de costo.</div></div><div class="paso" style="--c:var(--amarillo)"><div class="n">3</div>
+      <div class="t">Migración</div><div class="d">Catálogos y saldos entran desde tu sistema actual: Contpaq, Aspel o Microsip.</div></div><div class="paso" style="--c:var(--rosa)"><div class="n">4</div>
+      <div class="t">Go-Live</div><div class="d">Capacitación al equipo y arranque acompañado, con soporte incluido.</div></div></div>
+    <!-- PENDIENTE confirmar con GACJ el alcance real de migración -->
+    <div style="background:var(--morado-claro);border-radius:20px;padding:22px 28px">
+      <div class="cuerpo" style="font-size:17px">
+        <strong>¿Y lo que ya tengo?</strong> La migración de catálogos, clientes, proveedores y saldos
+        desde Contpaq, Aspel o Microsip entra en el alcance del arranque. No empiezas de cero ni capturas
+        tu histórico a mano.</div>
+    </div>
+  </div>
+  <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Constructora de ejemplo · Odoo México 2026</span></div>
+</div>
+
+<!-- ══ 10 · INVERSIÓN ══ -->
+<div class="hoja">
+  <div class="contenido">
+    <div>
+      <h1 class="h1">Lo que cuesta, y lo que <span class="mk mk-amarillo">incluye</span></h1>
+      <p class="sub">Todas las aplicaciones entran en el precio. Un proveedor, una base de datos, sin costo por módulo.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px">
+      <div class="precio c-rosa">
+        <div class="plan">Estándar</div><div class="n">180<span>MXN</span></div>
+        <div class="por">por usuario / mes · plan anual</div><div class="plat">Odoo en línea</div>
+      </div>
+      <div class="precio c-turquesa">
+        <div class="plan">Personalizado</div><div class="n">274<span>MXN</span></div>
+        <div class="por">por usuario / mes · plan anual</div>
+        <div class="plat">Odoo en línea · Odoo.sh · Local</div>
+        <div class="extra">+ Studio · Multiempresas · API externa</div>
+      </div>
+    </div>
+    <div class="planes">
+      <div class="p"><div class="t">Mensual</div><div class="v">$225 · $342 por usuario</div></div>
+      <div class="p destaca"><div class="t">Anual</div><div class="v">20% menos por usuario que el mensual</div></div>
+      <!-- PENDIENTE confirmar la lectura de ratesY2 antes de afirmar nada del multianual -->
+      <div class="p"><div class="t">Multianual</div><div class="v">De 24 a 60 meses</div></div>
+    </div>
+  </div>
+  <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Precios de referencia en MXN · odoo.com/pricing</span></div>
+</div>
+
+<!-- ══ 11 · CIERRE ══ -->
+<div class="hoja">
+  <div class="contenido">
+    <h1 class="h1">Antes de la demo, <span class="mk mk-turquesa">conócenos</span></h1>
+    <div class="cta">
+      <div class="msg" data-cta="prospeccion">Media hora para entender cómo trabajas hoy:
+        tus obras, tus procesos y dónde se te va el control.
+        Con eso sobre la mesa, lo que sigue se arma sobre tu operación.</div>
+      <div class="ae">
+        <div class="n">Ariel</div><div class="r">Account Executive</div>
+        <div class="c">gacj@odoo.com</div><div class="a">Agenda una sesión &#8594;</div>
+      </div>
+    </div>
+    <div>
+      <div class="h2" style="font-size:38px">Mientras tanto, conócelo <span class="mk mk-garabato">por tu cuenta</span></div>
+      <div class="links" style="margin-top:18px"><a href="https://www.odoo.com/blog/customer-reviews-6"><span class="ic">💬</span>Opiniones de clientes</a><a href="https://www.odoo.com/documentation/user"><span class="ic">📘</span>Documentación</a><a href="https://www.odoo.com/page/tour"><span class="ic">▶️</span>Odoo Tour (vídeos)</a><a href="https://www.odoo.com/security"><span class="ic">🛡️</span>Seguridad</a><a href="https://www.odoo.com/privacy"><span class="ic">👁️</span>Privacidad</a><a href="https://www.odoo.com/legal"><span class="ic">⚖️</span>Legal</a></div>
+    </div>
+  </div>
+  <div class="pie"><img src="https://gacj-lang.github.io/outbound-mx/assets/logos/odoo_logo.svg"><span>Odoo México 2026</span></div>
+</div>
+
+</body></html>

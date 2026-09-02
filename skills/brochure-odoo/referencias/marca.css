@@ -159,3 +159,35 @@ body{font-family:'Inter',system-ui,sans-serif;color:var(--tinta);-webkit-font-sm
 .links a{display:flex;align-items:center;gap:10px;border:2px solid #E9E4E8;border-radius:14px;
          padding:13px 16px;text-decoration:none;color:var(--tinta);font-size:15px;font-weight:600}
 .links a .ic{font-size:19px}
+
+/* ═══ Componentes de la versión larga ═══ */
+
+/* Sub-verticales del sector. El segmento del prospecto va destacado; los otros
+   siguen visibles pero apagados — dicen "conocemos tu industria completa" sin
+   robarle la página al que sí es él. */
+.segmentos{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.seg{border:2px solid #E9E4E8;border-radius:20px;padding:16px 18px;background:#fff}
+.seg .t{font-size:15.5px;font-weight:700;color:var(--gris);line-height:1.25;margin-bottom:5px}
+.seg .d{font-size:13.5px;line-height:1.45;color:var(--gris-claro)}
+.seg.suyo{border-color:var(--morado);border-width:3px;background:var(--morado-claro)}
+.seg.suyo .t{color:var(--morado);font-size:17px}
+.seg.suyo .d{color:#4b5563}
+.seg.suyo .ins{display:inline-block;margin-top:9px;font-size:12px;font-weight:700;
+               letter-spacing:.06em;text-transform:uppercase;color:#fff;
+               background:var(--morado);border-radius:99px;padding:4px 11px}
+
+/* Hoja de feature: la captura manda, el texto la explica. */
+.feature{display:grid;grid-template-columns:400px 1fr;gap:44px;align-items:center}
+.feature .lado .app{margin-bottom:16px}
+.feature .lado .pts{display:flex;flex-direction:column;gap:11px;margin-top:16px}
+.feature .lado .pt{display:flex;gap:10px;font-size:16px;line-height:1.45;color:#374151}
+.feature .lado .pt b{color:var(--turquesa-txt);font-weight:700}
+.feature .toma{border-radius:16px;overflow:hidden;box-shadow:0 6px 30px rgba(0,0,0,.14);background:#fff}
+.feature .toma img{width:100%;height:auto;display:block}
+
+/* Pasos de arranque */
+.pasos{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.paso{position:relative;border-radius:20px;background:var(--morado-claro);padding:20px 20px 18px}
+.paso .n{font-family:'Caveat',cursive;font-weight:700;font-size:40px;color:var(--c,var(--morado));line-height:1}
+.paso .t{font-size:16.5px;font-weight:700;color:var(--tinta);margin-top:2px}
+.paso .d{font-size:14px;line-height:1.45;color:var(--gris);margin-top:5px}
