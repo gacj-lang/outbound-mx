@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-02T03:12:49Z">
+<meta name="app-version" content="2026-09-02T03:26:26Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4689,10 +4689,15 @@ async function _discFetchClaude(body, intentos=4, meta={}){
 // porque el prefill (reenviar lo ya generado como turno del asistente) devuelve 400 a partir de la
 // generación 4.6. Hasta portar el patrón de "continúa" como mensaje de usuario —el que ya usa
 // Ninja— elegirlo aquí tronaría el análisis a media nota. Ver fase 4 del plan.
-const QCALL_MODELO_DEFAULT='claude-sonnet-4-5';
+// 2026-09-02: Haiku 4.5 pasa a ser el predeterminado. Medido sobre la misma sesión de Qcall, con
+// los mismos prompts: Haiku costó $0.24 contra $0.86 de Sonnet 4.5 (143,576 tokens de entrada
+// contra 165,890, y una reanudación menos), fue más rápido, y el usuario revisó el texto de las dos
+// corridas y se quedó con el de Haiku. Es UNA sesión, no una evaluación de 50 casos: por eso el
+// interruptor de abajo se queda, para que cualquiera pueda regresar a Sonnet sin desplegar.
+const QCALL_MODELO_DEFAULT='claude-haiku-4-5';
 const QCALL_MODELOS=[
-  {id:'claude-sonnet-4-5', label:'Sonnet 4.5 · actual'},
-  {id:'claude-haiku-4-5',  label:'Haiku 4.5 · prueba'},
+  {id:'claude-haiku-4-5',  label:'Haiku 4.5 · actual'},
+  {id:'claude-sonnet-4-5', label:'Sonnet 4.5 · anterior'},
 ];
 function qcallModelo(){
   const m=localStorage.getItem('outbound_qcall_model');
