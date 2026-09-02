@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-02T03:33:56Z">
+<meta name="app-version" content="2026-09-02T03:48:22Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2089,12 +2089,24 @@ async function aiRenderConsumo(){
     ${_aiTabla('Por modelo',_aiAgrupar(docs,'modelo'),'Modelo')}
     ${_aiTabla('Por función',_aiAgrupar(docs,'funcion').slice(0,12),'Función')}
     ${_aiTabla('Por persona',_aiAgrupar(docs,'ae'),'AE')}
-    <div style="margin:22px 0 6px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em">Modelo de Qcall en este navegador</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      ${QCALL_MODELOS.map(m=>`<button class="btn ${qcallModelo()===m.id?'btn-primary':''}" style="padding:5px 12px;font-size:12px"
-        onclick="qcallSetModelo('${m.id}')">${m.label}</button>`).join('')}
+    <div style="margin:22px 0 6px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em">Modelos en este navegador</div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+      <div>
+        <div style="font-size:11.5px;color:var(--gray-500);margin-bottom:5px">Qcall</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${QCALL_MODELOS.map(m=>`<button class="btn ${qcallModelo()===m.id?'btn-primary':''}" style="padding:5px 12px;font-size:12px"
+            onclick="qcallSetModelo('${m.id}')">${m.label}</button>`).join('')}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11.5px;color:var(--gray-500);margin-bottom:5px">Ninja IA</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${NINJA_MODELOS.map(m=>`<button class="btn ${ninjaModelo()===m.id?'btn-primary':''}" style="padding:5px 12px;font-size:12px"
+            onclick="ninjaSetModelo('${m.id}')">${m.label}</button>`).join('')}
+        </div>
+      </div>
     </div>
-    <p style="font-size:11.5px;color:var(--gray-400);margin-top:8px;line-height:1.5">Cambia el modelo solo en este navegador, para comparar sobre la misma sesión sin desplegar. El resto del equipo sigue con ${QCALL_MODELO_DEFAULT}.</p>
+    <p style="font-size:11.5px;color:var(--gray-400);margin-top:8px;line-height:1.5">Cambia el modelo solo en este navegador, para comparar sin desplegar. El resto del equipo usa ${QCALL_MODELO_DEFAULT} en Qcall y ${NINJA_MODELO_DEFAULT} en Ninja.</p>
     ${docs.length>=5000?`<p style="font-size:11.5px;color:var(--gray-400);margin-top:12px">Se alcanzó el tope de 5,000 registros leídos: los totales de arriba están recortados. Usa el rango de 7 días para ver una foto completa.</p>`:''}`;
 }
 
@@ -16312,6 +16324,13 @@ TUS HERRAMIENTAS Y A QUÉ MÓDULO DE LA APP PERTENECEN:
 - buscar_documentacion_odoo + leer_documentacion_odoo → DOCUMENTACIÓN OFICIAL de Odoo (versión saas-19.4, leída del repo oficial). Es tu fuente para CUALQUIER duda técnica de producto: si Odoo hace X, cómo se configura, qué es estándar y qué no, localización mexicana (CFDI, Carta Porte, complementos), contabilidad, inventario, manufactura, nómina, Studio. Flujo obligatorio: primero buscar_documentacion_odoo, luego leer_documentacion_odoo con la ruta que devolvió. NUNCA contestes una duda técnica solo con el título que salió en la búsqueda — hay que leer la página. Cita siempre la URL oficial que te devuelve. Esta pareja manda sobre web_search y sobre el Banco de Información para todo lo que sea funcionamiento del producto.
 - web_search → búsqueda real en internet. Úsala SOLO para lo que ninguna herramienta interna cubre: contexto público de una empresa/prospecto, términos o panorama de una industria, algo de coyuntura reciente — típicamente una duda que surge a media llamada de Qcall/Intromeet y que no está en el Banco de Información. Nunca la uses para algo que ya cubre una herramienta interna (wiki, apps, CRM, KPIs) — ahí esa herramienta manda siempre primero.
 
+CÓMO LEER obtener_desempeno_historico_icp — estas reglas viven aquí y no en la respuesta de la herramienta, porque son cómo interpretar los datos, no los datos:
+- El TAMAÑO DE EMPRESA es la señal de ICP más confiable del dataset: es la única que pasa un piso serio de ganados y se replica en el otro canal. Úsala ANTES que el ranking por industria.
+- Una industria solo se rankea si pasa los DOS pisos que la herramienta devuelve en "pisos" (mínimo de leads Y mínimo de ganados). Lo que viene en "industriasSinSenalEstadistica" pasa el volumen pero NO los ganados: su porcentaje sale de muy pocos tratos y NO sirve para decidir a quién prospectar.
+- Si "topIndustriasPorWinRate" viene vacío, la respuesta correcta es decir que en ese motion no hay volumen para rankear industrias. Nunca ofrezcas el mejor de una lista sin señal.
+- Si "fuentesSinClasificarPct" es alto, di que el desglose por fuente NO representa las fuentes que el equipo usa hoy (Apollo, DENUE, Outscraper, DIRIND), que no existen en ese histórico.
+- Toda recomendación que salga de aquí va con su n y su bandera de confianza.
+
 JERARQUÍA DE FUENTES para una duda técnica de Odoo: (1) documentación oficial vía leer_documentacion_odoo — es la única que te deja afirmar cómo funciona el producto; (2) el Banco de Información, para cómo lo vendemos en México y experiencia del equipo; (3) web_search, solo si las dos anteriores no lo cubren, y avisando que es externa. Si la documentación oficial y el Banco se contradicen, gana la documentación oficial y dilo.
 
 FUENTE DE LA RESPUESTA: cuando uses web_search, dile al usuario que esa parte viene de una búsqueda en internet (no de los datos de la app) y agrega la fuente. Es información externa, no verificada por el equipo — adviértelo si es sensible (cifras, fechas, datos financieros de un prospecto). Nunca mezcles dato interno y búsqueda externa sin dejar claro cuál es cuál.
@@ -16413,7 +16432,7 @@ function ninjaToolDefs(){
   // concurrencia sobre cientos de filas de un CSV. Aquí el patrón es distinto: chat interactivo,
   // 1 mensaje humano a la vez, ya acotado por NINJA_MAX_TOOL_ITERATIONS (6) + max_uses (3) — sin el
   // fan-out concurrente que causó el pico. Vale vigilar el consumo real las primeras semanas de todos modos.
-  tools.push({type:'web_search_20250305', name:'web_search', max_uses:3});
+  if(!_ninjaSinWebSearch) tools.push({type:'web_search_20250305', name:'web_search', max_uses:3});
   return tools;
 }
 
@@ -16836,16 +16855,15 @@ async function ninjaObtenerDesempenoHistorico(input){
     nota:incluirReciente?`Incluye cuartiles recientes que aún no maduran para ${motion} — el % ganado ahí puede estar subestimado.`:`Solo cuartiles maduros para ${motion} (hasta ${maxMaduro}) — los leads más nuevos no han tenido tiempo de cerrar, se excluyen para no subestimar el % ganado.`,
     // Señal más fuerte primero: el tamaño de empresa es lo único que aguanta estadísticamente.
     winRatePorTamanoEmpresa:tamanos,
-    lecturaTamano:`El tamaño de empresa es la señal de ICP más confiable de este dataset: es la única que pasa un piso serio de ganados y se replica en el otro canal. Úsala ANTES que el ranking por industria.`,
     topIndustriasPorWinRate:industrias.slice(0,8),
     industriasSinSenalEstadistica:industriasSinSenal,
-    reglaDeCorte:`Una industria solo se rankea con ${MIN_VOL}+ leads Y ${MIN_WON}+ ganados. Las de "industriasSinSenalEstadistica" pasan el volumen pero NO los ganados: su % viene de muy pocos tratos y NO se debe usar para decidir a quién prospectar. Si "topIndustriasPorWinRate" viene vacío, la respuesta correcta es decir que en ${motion} no hay volumen para rankear industrias — no ofrecer el mejor de la lista sin señal.`,
+    pisos:{minLeads:MIN_VOL, minGanados:MIN_WON},
     ...(industriaFiltro&&!indTodas.length?{avisoIndustria:`"${industriaFiltro}" no tiene suficiente volumen (mínimo ${MIN_VOL} leads) en ${motion} en esta ventana para dar un % confiable.`}:{}),
     topEstadosPorWinRate:estados,
     volumenPorFuente:fuentes,
-    coberturaFuente:sinClasificar?`Ojo: ${sinClasificar.volumen} de ${totalFuentes} leads (${(sinClasificar.volumen/totalFuentes*100).toFixed(0)}%) están en "Otro / sin dato". Este desglose NO es representativo de las fuentes que el equipo usa hoy (Apollo, DENUE, Outscraper, DIRIND), que no existen en este histórico. No lo presentes como el panorama de fuentes actual.`:'',
+    fuentesSinClasificarPct:sinClasificar?Number((sinClasificar.volumen/totalFuentes*100).toFixed(0)):0,
     topMotivosDePerdida:motivosPerdida,
-    motivosPerdidaPorEtapa,
+    ...(etapaFiltro?{motivosPerdidaPorEtapa}:{}),
     ...(etapaFiltro&&!motivosPerdidaPorEtapa.length?{avisoEtapa:`"${etapaFiltro}" no tiene datos de motivos de pérdida en ${motion} en esta ventana.`}:{}),
   };
 }
@@ -17074,20 +17092,55 @@ const NINJA_TOOL_EXECUTORS={
   obtener_historial_empresa:i=>ninjaObtenerHistorialEmpresa(i.empresa),
 };
 
+// Mismo patrón que el interruptor de Qcall: local, para poder comparar sin desplegar.
+const NINJA_MODELO_DEFAULT='claude-haiku-4-5';
+const NINJA_MODELOS=[
+  {id:'claude-haiku-4-5', label:'Haiku 4.5 · actual'},
+  {id:'claude-sonnet-5',  label:'Sonnet 5 · anterior'},
+];
+function ninjaModelo(){
+  const m=localStorage.getItem('outbound_ninja_model');
+  return NINJA_MODELOS.some(x=>x.id===m) ? m : NINJA_MODELO_DEFAULT;
+}
+window.ninjaSetModelo=function(m){
+  localStorage.setItem('outbound_ninja_model',m);
+  showNotif('Ninja usará '+m+' — solo en este navegador','success');
+  aiRenderConsumo();
+};
+
+// No pude confirmar en la documentación de Anthropic que Haiku 4.5 soporte web_search: la página
+// remite a una tabla de compatibilidad que no lo lista. En vez de apostar, Ninja lo intenta y, si
+// la API lo rechaza, reintenta sin búsqueda web y se acuerda para el resto de la sesión. Peor caso,
+// Ninja pierde la búsqueda web — que es su fuente de último recurso — en lugar de morirse entero.
+let _ninjaSinWebSearch=false;
+
 async function ninjaCallClaudeRaw(messages,tools){
   const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   if(!key||key==='CLAUDE_KEY_DEFAULT') throw new Error('Configura tu Claude API key en ⚙️ Configuración.');
+  const modelo=ninjaModelo();
+  const toolsFinal=_ninjaSinWebSearch
+    ? tools.filter(t=>!String(t?.type||'').startsWith('web_search'))
+    : tools;
   const res=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-5',max_tokens:4096,system:NINJA_SYSTEM_PROMPT,tools,messages}),
+    body:JSON.stringify({model:modelo,max_tokens:4096,system:NINJA_SYSTEM_PROMPT,tools:toolsFinal,messages}),
   });
   const data=await res.json();
   // Una vuelta = un registro. Es a propósito: el costo de Ninja no está en la pregunta, está en que
   // cada vuelta de herramienta reenvía el prompt de sistema, las 13 herramientas y toda la historia
   // acumulada. Registrando vuelta por vuelta, el panel muestra ese crecimiento en vez de esconderlo.
-  aiLogUsage('ninja','ninjaRunTurn','claude-sonnet-5',data,{vueltas:messages.length});
-  if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+  aiLogUsage('ninja','ninjaRunTurn',modelo,data,{vueltas:messages.length,pesoHerramientas:{..._ninjaPesoHerramientas}});
+  if(data.error){
+    const msg=String(data.error.message||JSON.stringify(data.error));
+    if(!_ninjaSinWebSearch && toolsFinal.some(t=>String(t?.type||'').startsWith('web_search'))
+       && /web_search|not support|unsupported|invalid.*tool/i.test(msg)){
+      _ninjaSinWebSearch=true;
+      console.warn('Ninja: '+modelo+' rechazó web_search, se reintenta sin búsqueda web —',msg);
+      return ninjaCallClaudeRaw(messages,tools);
+    }
+    throw new Error(msg);
+  }
   return data;
 }
 
@@ -17130,8 +17183,13 @@ function _ninjaExtractCitations(content){
   return [...urls].slice(0,5);
 }
 
+// Caracteres devueltos por cada herramienta en el turno actual — se manda al registro de consumo
+// junto con los tokens, para saber qué herramienta hay que poner a dieta.
+let _ninjaPesoHerramientas={};
+
 async function ninjaRunTurn(userText){
   const tools=ninjaToolDefs();
+  _ninjaPesoHerramientas={};
   let messages=[..._ninjaApiHistory,{role:'user',content:userText}];
   let answerParts=[]; // texto acumulado entre cortes por max_tokens (ver bug real abajo)
   // Dos contadores separados a propósito. Antes había uno solo y una respuesta larga (varias
@@ -17163,7 +17221,12 @@ async function ninjaRunTurn(userText){
         let result;
         try{ const exec=NINJA_TOOL_EXECUTORS[tu.name]; result=exec?await exec(tu.input||{}):{error:'Herramienta desconocida.'}; }
         catch(e){ result={error:e.message}; }
-        toolResults.push({type:'tool_result',tool_use_id:tu.id,content:JSON.stringify(result)});
+        const payload=JSON.stringify(result);
+        // El peso de Ninja está en los resultados de herramienta, no en el prompt de sistema: se
+        // acumulan vuelta tras vuelta y se quedan en la historia. Esto registra cuánto pesa cada
+        // uno para poder recortar el que de verdad importa, con dato y no de oído.
+        _ninjaPesoHerramientas[tu.name]=(_ninjaPesoHerramientas[tu.name]||0)+payload.length;
+        toolResults.push({type:'tool_result',tool_use_id:tu.id,content:payload});
       }
       messages.push({role:'user',content:toolResults});
       usosHerramienta++;
