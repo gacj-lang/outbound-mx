@@ -1,0 +1,70 @@
+{
+  "_nota": "BASE DE INDUSTRIA — esto es lo que produce el generador a partir del playbook, una sola vez, y lo que se guarda en brochureBases. NO lleva ningún dato de prospecto. Esta copia vive en el repo como referencia de la forma esperada y como respaldo si Firestore está vacío.",
+  "industria": "Construcción",
+  "playbookVersion": 1,
+  "generadoEl": "2026-09-02",
+  "modelo": "escrito a mano como referencia",
+
+  "portada": {
+    "titulo": "La obra avanza.",
+    "tituloResalta": "avanza",
+    "titulo2": "¿La información también?",
+    "sub": "Proyectos, costos, materiales y facturación en un solo sistema.",
+    "detalleSector": "Constructoras, contratistas y desarrolladoras · México"
+  },
+
+  "queEsOdoo": {
+    "p1": "Una suite de <strong>aplicaciones empresariales que se comunican entre ellas en tiempo real</strong>. Activas solo las que necesitas hoy y agregas el resto conforme creces, sin cambiar de sistema y sin sumar proveedores.",
+    "p2": "Una sola base de datos: lo que registra la obra lo ve compras, y lo que compra compras lo ve contabilidad. Sin volver a capturar nada."
+  },
+
+  "datosClave": [
+    { "n": "12M+", "l": "usuarios en el mundo" },
+    { "n": "175",  "l": "países" },
+    { "n": "70+",  "l": "apps integradas" },
+    { "n": "1",    "l": "sola base de datos" }
+  ],
+
+  "clientes": {
+    "titulo": "Constructoras que ya operan con Odoo",
+    "tituloResalta": "operan",
+    "sub": "Empresas mexicanas del sector. Los casos están publicados en odoo.com y se pueden leer completos."
+  },
+
+  "segmentos": {
+    "titulo": "Odoo cubre todo el ciclo de la construcción",
+    "tituloResalta": "todo el ciclo",
+    "sub": "Y dentro de ese ciclo, esto es lo que resuelve para una empresa como la tuya."
+  },
+
+  "retos": {
+    "titulo": "Tus retos, y con qué los resuelve Odoo",
+    "tituloResalta": "con qué",
+    "sub": "Cada aplicación entra porque resuelve algo que ya te está costando. Nada más."
+  },
+
+  "empezar": {
+    "titulo": "Cómo se ve empezar",
+    "tituloResalta": "empezar",
+    "sub": "La metodología QuickStart prioriza llegar al Go-Live rápido, con control de presupuesto y enfocada en la adopción real del usuario.",
+    "pasos": [
+      { "titulo": "Levantamiento",  "desc": "Vemos tu operación real: obras, compras, nómina y cómo facturas hoy." },
+      { "titulo": "Configuración",  "desc": "Se arma Odoo con tus procesos, tu catálogo y tus centros de costo." },
+      { "titulo": "Migración",      "desc": "Catálogos y saldos entran desde tu sistema actual: Contpaq, Aspel o Microsip." },
+      { "titulo": "Go-Live",        "desc": "Capacitación al equipo y arranque acompañado, con soporte incluido." }
+    ],
+    "migracion": "<strong>¿Y lo que ya tengo?</strong> La migración de catálogos, clientes, proveedores y saldos desde Contpaq, Aspel o Microsip entra en el alcance del arranque. No empiezas de cero ni capturas tu histórico a mano."
+  },
+
+  "inversion": {
+    "titulo": "Lo que cuesta, y lo que incluye",
+    "tituloResalta": "incluye",
+    "sub": "Todas las aplicaciones entran en el precio. Un proveedor, una base de datos, sin costo por módulo.",
+    "quickstart": "Te acompañamos de inicio a fin. La metodología prioriza llegar al <strong>Go-Live rápido</strong>, con control de presupuesto y enfocada en la adopción real del usuario."
+  },
+
+  "cierre": {
+    "titulo": "Antes de la demo, conócenos",
+    "tituloResalta": "conócenos"
+  }
+}
