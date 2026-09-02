@@ -6639,9 +6639,15 @@ async function gcCallClaude(prompt, fileAttachment=null, opts={}){
     const _origen=opts.origen||'desconocido';
     aiLogUsage(GC_MODULO_POR_ORIGEN[_origen]||'contenidos', _origen, body.model, data);
     if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
-    // Cuando se usa web_fetch, la respuesta incluye bloques de tipo web_fetch_tool_result antes del texto final —
-    // unimos SOLO los bloques de texto (puede haber más de uno si hay citas).
-    const chunk=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n\n')||'';
+    // Con herramientas server-side (web_fetch/web_search) la respuesta puede traer un bloque de texto
+    // ANTES de la llamada a la herramienta: el modelo narrando lo que va a hacer, a veces con el plan
+    // completo. Ese preámbulo no es contenido, así que nos quedamos solo con los bloques de texto
+    // POSTERIORES al último bloque de herramienta (pueden ser varios si la respuesta trae citas).
+    // Sin herramientas todos los bloques son de texto y esto se comporta igual que antes.
+    const bloques=data.content||[];
+    let desdeBloque=0;
+    for(let b=0;b<bloques.length;b++) if(bloques[b].type!=='text') desdeBloque=b+1;
+    const chunk=bloques.slice(desdeBloque).filter(b=>b.type==='text').map(b=>b.text).join('\n\n')||'';
     text+=chunk;
     if(!puedeContinuar||data.stop_reason!=='max_tokens'||!chunk.trim()) break;
     text=text.replace(/\s+$/,''); // la API rechaza un turno del asistente que termine en espacios
@@ -6689,17 +6695,27 @@ const _esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,
 
 // Separa el texto generado en variantes — tolera markdown (**VARIANTE 1:**), distintas
 // palabras (Variante/Opción/Versión/Mensaje), con/sin dos puntos, y marcador en línea propia o inline.
-function gcParseVariants(content){
-  const marker=/^[\s>*_#·•\-]*\**\s*(?:VARIANTE|VERSI[ÓO]N|OPCI[ÓO]N|MENSAJE|OPTION)\s*#?\s*[1-9]\b\s*[:.)\-–]*\s*\**\s*/i;
+function gcParseVariants(content, esperadas=0){
+  const marker=/^[\s>*_#·•\-]*\**\s*(?:VARIANTE|VERSI[ÓO]N|OPCI[ÓO]N|MENSAJE|OPTION)\s*#?\s*([1-9])\b\s*[:.)\-–]*\s*\**\s*/i;
   const parts=[]; let cur=null;
   for(const ln of String(content||'').split('\n')){
     const m=ln.match(marker);
-    if(m){ if(cur!==null) parts.push(cur); cur=ln.slice(m[0].length); }
-    else if(cur!==null){ cur+='\n'+ln; }
+    if(m){ if(cur!==null) parts.push(cur); cur={n:+m[1],txt:ln.slice(m[0].length)}; }
+    else if(cur!==null){ cur.txt+='\n'+ln; }
     // las líneas antes del primer marcador (texto introductorio) se ignoran
   }
   if(cur!==null) parts.push(cur);
-  const cleaned=parts.map(p=>p.replace(/\*+$/,'').trim()).filter(Boolean);
+  // Último reinicio de la numeración: cuando el modelo escribe un PLAN antes del contenido usando
+  // los mismos marcadores ("VARIANTE 1: ángulo operativo, VARIANTE 2: ángulo fiscal…" y luego las
+  // variantes de verdad), los números arrancan dos veces. Todo lo anterior al último arranque es
+  // preámbulo, no contenido — sin esto el plan se renderiza como tarjetas y las variantes buenas
+  // aparecen recorridas (reportado por un AE el 2026-09-01).
+  let ini=0;
+  for(let i=1;i<parts.length;i++) if(parts[i].n<=parts[i-1].n) ini=i;
+  let cleaned=parts.slice(ini).map(p=>p.txt.replace(/\*+$/,'').trim()).filter(Boolean);
+  // Aun sin reinicio pueden sobrar (un plan numerado 4,5,6 detrás de las reales): las buenas son
+  // siempre las últimas, porque el preámbulo va antes del contenido.
+  if(esperadas>0 && cleaned.length>esperadas) cleaned=cleaned.slice(-esperadas);
   return cleaned.length>=2 ? cleaned : [String(content||'').trim()];
 }
 // Divide una variante de correo en Asunto/Cuerpo — gcGenerateTemplate le pide a Claude el formato
@@ -6733,7 +6749,7 @@ function gcShowOutput(wrapId,content,variants=false,saveCtx=null){
   const wrap=document.getElementById(wrapId); if(!wrap) return;
   wrap.classList.add('show');
   if(variants){
-    const parts=gcParseVariants(content);
+    const parts=gcParseVariants(content, saveCtx?.esperadas||0);
     _gcVariants=parts;
     window._gcSaveCtx=saveCtx||{tipo:'mensaje'};
     const channel=saveCtx?.tipo;
@@ -7058,8 +7074,9 @@ Reglas generales:
 - Cada variante con un ángulo claramente distinto
 - Español de México natural, directo, sin sonar a vendedor de catálogo
 - NO uses markdown (nada de **negritas**, ## títulos ni viñetas con *)
+- Responde ÚNICAMENTE con las 3 variantes ya redactadas: nada de plan, análisis, lista de ángulos, consideraciones ni comentarios antes o después. Cada marcador "VARIANTE n" aparece UNA sola vez en toda la respuesta, seguido del mensaje completo — nunca de una descripción de lo que vas a escribir.
 - Formato EXACTO, cada marcador al inicio de su propia línea, sin adornos: "VARIANTE 1:\\n[texto]\\n\\nVARIANTE 2:\\n[texto]\\n\\nVARIANTE 3:\\n[texto]"`,null,{tools:evento.tools,toolChoice:evento.toolChoice,origen:'gcGenerateTemplate'});
-    gcShowOutput('gcTplOutput',text,true,{tipo:channel,momento,momLabel,regenerateFn:'gcGenerateTemplate'});
+    gcShowOutput('gcTplOutput',text,true,{tipo:channel,momento,momLabel,esperadas:3,regenerateFn:'gcGenerateTemplate'});
     gcPushHistory({icon:GC_CHANNELS.find(c=>c.id===channel)?.icon||'✉️',tipo:GC_CHANNELS.find(c=>c.id===channel)?.label||channel,company:cont.company?.nombre||'',subtitle:momLabel.split('—')[0].trim(),wrapId:'gcTplOutput',text});
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
       contenido:{tipo:channel,topic:ctx||momLabel,momento,contacto:cont.contact?.nombre||'',fecha:new Date().toISOString()},
