@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-08-31T22:59:19Z">
+<meta name="app-version" content="2026-09-02T02:50:44Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1215,6 +1215,75 @@ const ANTI_HALLUCINATION = `Eres un asistente de ventas de Odoo México. Reglas 
 
 ${ODOO_VERIFIED_FACTS}`;
 
+// ══════════════════════════════════════════
+// REGISTRO DE CONSUMO DE IA
+// ══════════════════════════════════════════
+// Fase 1 del plan de costos (2026-09-01). Antes, ninguna de las llamadas a Claude leía `usage` de la
+// respuesta, así que no había forma de saber qué módulo ni qué AE gastan. La consola de Anthropic
+// tampoco puede decirlo: los navegadores del equipo comparten una sola API key, así que ahí todo el
+// tráfico se ve como un solo bloque. Cada llamada escribe aquí un documento con sus tokens.
+//
+// Regla de diseño: esto NUNCA debe tirar la llamada que lo invoca. Si el registro falla, se traga el
+// error y la generación sigue como si nada. Pero sí avisa UNA vez en la consola del navegador, para
+// no repetir el bug de cadenceReplies (agosto 2026): una colección sin regla de Firestore falla con
+// permission-denied en silencio y nadie se entera durante meses.
+
+// USD por millón de tokens. Verificado el 2026-09-01 en platform.claude.com/docs/en/about-claude/pricing.
+// Sirve para que el panel muestre dinero sin depender de una Admin API key. Es precio de lista
+// calculado aquí, no el importe facturado: úsalo para comparar módulos entre sí, no para conciliar.
+const AI_PRECIOS = {
+  'claude-sonnet-4-5': { entrada:3, salida:15, lectura:0.30, escritura:3.75 },
+  'claude-sonnet-5':   { entrada:2, salida:10, lectura:0.20, escritura:2.50 },
+  'claude-haiku-4-5':  { entrada:1, salida:5,  lectura:0.10, escritura:1.25 },
+  'claude-opus-5':     { entrada:5, salida:25, lectura:0.50, escritura:6.25 },
+};
+// web_search se cobra aparte de los tokens: $10 por cada 1,000 búsquedas.
+const AI_USD_POR_BUSQUEDA = 0.01;
+
+function aiCostoUSD(modelo, u){
+  const p = AI_PRECIOS[modelo];
+  if(!p || !u) return 0;
+  const tokens = ((u.input_tokens||0)*p.entrada
+                + (u.output_tokens||0)*p.salida
+                + (u.cache_read_input_tokens||0)*p.lectura
+                + (u.cache_creation_input_tokens||0)*p.escritura) / 1e6;
+  return tokens + (u.server_tool_use?.web_search_requests||0)*AI_USD_POR_BUSQUEDA;
+}
+
+let _aiLogAvisado = false;
+function aiLogUsage(modulo, funcion, modelo, data, extra={}){
+  try{
+    const u = data?.usage;
+    if(!u || !db || !currentUser) return;
+    addDoc(collection(db,'aiUsage'), {
+      ts: serverTimestamp(),
+      // Día calendario de CDMX, no UTC — mismo criterio que quota.js en el backend, para que el
+      // panel agrupe por el día que vivió el AE y no por uno que se recorre a las 6 de la tarde.
+      dia: new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City'}).format(new Date()),
+      uid: currentUser.uid,
+      ae: currentUserData?.name || currentUser.email || '',
+      rol: currentUserData?.role || '',
+      modulo, funcion, modelo,
+      entrada: u.input_tokens||0,
+      salida: u.output_tokens||0,
+      cacheLectura: u.cache_read_input_tokens||0,
+      cacheEscritura: u.cache_creation_input_tokens||0,
+      busquedasWeb: u.server_tool_use?.web_search_requests||0,
+      stopReason: data.stop_reason||'',
+      costoUSD: Number(aiCostoUSD(modelo,u).toFixed(6)),
+      ...extra,
+    }).catch(_aiAvisarFallo);
+  }catch(e){ _aiAvisarFallo(e); }
+}
+
+function _aiAvisarFallo(e){
+  if(_aiLogAvisado) return;
+  _aiLogAvisado = true;
+  console.error('[aiUsage] No se pudo registrar el consumo de IA. Si el error dice "permission-denied", '
+    + 'falta publicar la regla de Firestore de la colección aiUsage — la app sigue funcionando, '
+    + 'pero el panel de consumo se queda vacío.', e);
+}
+
 // Recursos OFICIALES de Odoo — URLs reales y verificadas. NUNCA inventar enlaces específicos;
 // usar solo estas páginas índice (la de clientes es filtrable por industria).
 const ODOO_RESOURCES = [
@@ -1931,6 +2000,97 @@ function analyticsContent(canalTotals,rows){
      <div style="margin:18px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em">Por persona</div>${peopleRows}`);
 }
 
+// ══════════════════════════════════════════
+// PANEL DE CONSUMO DE IA (Manager)
+// ══════════════════════════════════════════
+// Lee lo que escribe aiLogUsage(). Responde las tres preguntas que la consola de Anthropic NO puede
+// contestar mientras el equipo comparta una sola API key: qué módulo gasta, qué función dentro de
+// ese módulo, y qué AE. El costo es cálculo propio a precio de lista (AI_PRECIOS), sirve para
+// comparar módulos entre sí — no para conciliar contra la factura.
+let _aiPanelDias=7;
+window.aiPanelSetRango=function(d){ _aiPanelDias=d; aiRenderConsumo(); };
+
+function _aiAgrupar(docs,campo){
+  const m=new Map();
+  docs.forEach(d=>{
+    const k=d[campo]||'—';
+    const a=m.get(k)||{llamadas:0,entrada:0,salida:0,cacheLectura:0,busquedasWeb:0,costoUSD:0};
+    a.llamadas++; a.entrada+=d.entrada||0; a.salida+=d.salida||0;
+    a.cacheLectura+=d.cacheLectura||0; a.busquedasWeb+=d.busquedasWeb||0; a.costoUSD+=d.costoUSD||0;
+    m.set(k,a);
+  });
+  return [...m.entries()].sort((x,y)=>y[1].costoUSD-x[1].costoUSD);
+}
+const _aiNum=n=>n.toLocaleString('es-MX');
+const _aiUSD=n=>'$'+n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function _aiTabla(titulo,filas,etiquetaCol){
+  const th='padding:6px 8px;text-align:right;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400);font-weight:700';
+  const td='padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px';
+  return `<div style="margin:18px 0 6px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em">${titulo}</div>
+  <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:520px">
+    <thead><tr>
+      <th style="${th};text-align:left">${etiquetaCol}</th><th style="${th}">Llamadas</th>
+      <th style="${th}">Entrada</th><th style="${th}">Salida</th><th style="${th}">Caché</th><th style="${th}">Costo</th>
+    </tr></thead><tbody>${filas.map(([k,a])=>`<tr style="border-top:1px solid var(--gray-100)">
+      <td style="${td};text-align:left;font-weight:600">${k}</td>
+      <td style="${td}">${_aiNum(a.llamadas)}</td><td style="${td}">${_aiNum(a.entrada)}</td>
+      <td style="${td}">${_aiNum(a.salida)}</td><td style="${td}">${_aiNum(a.cacheLectura)}</td>
+      <td style="${td};font-weight:600">${_aiUSD(a.costoUSD)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+async function aiRenderConsumo(){
+  const cont=document.getElementById('aiConsumoBody'); if(!cont) return;
+  cont.innerHTML='<div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div></div>';
+  const corte=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Mexico_City'})
+    .format(new Date(Date.now()-(_aiPanelDias-1)*86400000));
+  let docs=[];
+  try{
+    // Tope de 5,000 documentos por lectura: hoy csvBatchResumenes escribe uno por lead, así que un
+    // mes de CSV Builder puede ser mucho volumen. Si se topa, el aviso lo dice en vez de mentir.
+    const snap=await getDocs(query(collection(db,'aiUsage'),where('dia','>=',corte),orderBy('dia','desc'),limit(5000)));
+    docs=snap.docs.map(d=>d.data());
+  }catch(e){
+    cont.innerHTML=`<p style="font-size:12.5px;color:var(--danger,#b91c1c);line-height:1.6">No se pudo leer el consumo: ${e.message}<br>
+      Si el error dice <code>permission-denied</code>, falta publicar la regla de Firestore de la colección <code>aiUsage</code>.</p>`;
+    return;
+  }
+  if(!docs.length){
+    cont.innerHTML=`<p style="font-size:12.5px;color:var(--gray-500);line-height:1.6">Todavía no hay registros en este rango.
+      Si el equipo ya usó Qcall, Contenidos, CSV Builder o Ninja desde que se publicó este cambio y aquí sigue vacío,
+      lo más probable es que falte la regla de Firestore de <code>aiUsage</code> — revisa la consola del navegador (F12).</p>`;
+    return;
+  }
+  const t=docs.reduce((a,d)=>({
+    llamadas:a.llamadas+1, entrada:a.entrada+(d.entrada||0), salida:a.salida+(d.salida||0),
+    cacheLectura:a.cacheLectura+(d.cacheLectura||0), busquedasWeb:a.busquedasWeb+(d.busquedasWeb||0),
+    costoUSD:a.costoUSD+(d.costoUSD||0),
+  }),{llamadas:0,entrada:0,salida:0,cacheLectura:0,busquedasWeb:0,costoUSD:0});
+  const totalEntrada=t.entrada+t.cacheLectura;
+  const pctCache=totalEntrada?Math.round(t.cacheLectura/totalEntrada*100):0;
+  const tile=(v,l,extra='')=>`<div style="flex:1;min-width:130px;padding:12px 14px;background:var(--gray-50,#f8fafc);border-radius:8px">
+    <div style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">${v}</div>
+    <div style="font-size:10.5px;color:var(--gray-500);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">${l}</div>
+    ${extra?`<div style="font-size:10.5px;color:var(--gray-400);margin-top:3px">${extra}</div>`:''}</div>`;
+
+  cont.innerHTML=`
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      ${[7,30].map(d=>`<button class="btn ${_aiPanelDias===d?'btn-primary':''}" style="padding:5px 12px;font-size:12px"
+        onclick="aiPanelSetRango(${d})">${d} días</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+      ${tile(_aiUSD(t.costoUSD),'Costo estimado','precio de lista, no la factura')}
+      ${tile(_aiNum(t.llamadas),'Llamadas a Claude')}
+      ${tile(_aiNum(totalEntrada),'Tokens de entrada')}
+      ${tile(pctCache+'%','Entrada desde caché', pctCache===0?'la caché aún no se activa':'')}
+      ${tile(_aiNum(t.busquedasWeb),'Búsquedas web','se cobran aparte')}
+    </div>
+    ${_aiTabla('Por módulo',_aiAgrupar(docs,'modulo'),'Módulo')}
+    ${_aiTabla('Por función',_aiAgrupar(docs,'funcion').slice(0,12),'Función')}
+    ${_aiTabla('Por persona',_aiAgrupar(docs,'ae'),'AE')}
+    ${docs.length>=5000?`<p style="font-size:11.5px;color:var(--gray-400);margin-top:12px">Se alcanzó el tope de 5,000 registros leídos: los totales de arriba están recortados. Usa el rango de 7 días para ver una foto completa.</p>`:''}`;
+}
+
 function renderManagerPanel(){
   document.getElementById('moduleContent').innerHTML=`
     <div class="manager-wrap">
@@ -1938,6 +2098,10 @@ function renderManagerPanel(){
       <div class="manager-grid">
         <div class="card"><div class="card-header"><h3>⏳ Usuarios pendientes</h3></div><div id="pendingList"><div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div></div></div></div>
         <div class="card"><div class="card-header"><h3>👥 Equipo activo</h3></div><div id="teamList"><div class="skeleton-list"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><h3>📊 Consumo de IA</h3></div>
+        <div id="aiConsumoBody" style="padding:2px 0"></div>
       </div>
       <div class="card" style="margin-top:16px">
         <div class="card-header"><h3>🛠 Mantenimiento — creador de Qcall/Intromeet</h3></div>
@@ -1955,6 +2119,7 @@ function renderManagerPanel(){
       </div>
     </div>`;
   loadManagerPanel();
+  aiRenderConsumo();
 }
 
 // ══════════════════════════════════════════
@@ -4483,7 +4648,7 @@ Escribe en español de México, tono profesional pero directo. NO inventes datos
 // desde que los pasos corren en paralelo: tres llamadas simultáneas con la transcripción completa
 // pueden topar el límite de la cuenta, y sin esto el paso moría con un error rojo en vez de esperar
 // unos segundos y volver a intentar.
-async function _discFetchClaude(body, intentos=4){
+async function _discFetchClaude(body, intentos=4, meta={}){
   const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   let espera=2000;
   for(let i=0;;i++){
@@ -4499,7 +4664,11 @@ async function _discFetchClaude(body, intentos=4){
       espera*=2;
       continue;
     }
-    return res.json();
+    const data=await res.json();
+    // Se registra cada tramo por separado, no solo el último: una nota que se reanudó 3 veces
+    // costó 3 llamadas con el prompt completo, y el panel tiene que verlas todas.
+    aiLogUsage('qcall', meta.funcion||'discovery', body.model, data);
+    return data;
   }
 }
 
@@ -4508,7 +4677,7 @@ async function discClaudeText(prompt, opts={}){
   const messages=[{role:'user',content:prompt}];
   let full='', cortes=0;
   for(let i=0;i<DISC_MAX_CONT;i++){
-    const data=await _discFetchClaude({model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||8000,system:opts.system||ANTI_HALLUCINATION,messages});
+    const data=await _discFetchClaude({model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||8000,system:opts.system||ANTI_HALLUCINATION,messages},4,{funcion:opts.funcion||'discovery'});
     if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
     const chunk=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
     full+=chunk;
@@ -4621,7 +4790,7 @@ window.discMarkAllAnalisisRead=function(){ _discAnalisisCache.forEach(e=>e.read=
 // ── Recomendaciones (coaching sin transcripción) ──
 // ── Paso 1: Nota para CRM (usa transcripción si hay; si no, se basa en lo capturado en la app) ──
 async function discStepNota(ctx){
-  const text=stripMd(await discClaudeText(discBuildClaudePrompt(ctx),{maxTokens:8000}));
+  const text=stripMd(await discClaudeText(discBuildClaudePrompt(ctx),{maxTokens:8000,funcion:'nota'}));
   const n=ctx.recentSessions.length;
   ctx.job.results.geminiNote=text;
   ctx.job.results.engineLabel='⚡ Claude'+(n>0?` · ${n} sesiones de contexto`:'');
@@ -4681,7 +4850,7 @@ ${ctx.recentSessions.length>0?`📊 VS. HISTORIAL DEL EQUIPO
 
 Sé directo, específico y accionable. Habla de tú al AE. No repitas los datos del perfil.`;
 
-  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000}));
+  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000,funcion:'recomendaciones'}));
   ctx.job.results.recoNote=text;
   ctx.job.results.recoLabel=ctx.recentSessions.length>0?`Basado en ${ctx.recentSessions.length} sesiones del equipo`:'Basado en el perfil capturado';
   discJobPintar(ctx.job);
@@ -4719,7 +4888,7 @@ Y sugiere el ORDEN de presentación en la demo: primero Comercial, luego Operati
   "flujo":"1-2 frases sugiriendo cómo presentar la demo en ese orden (Comercial → Operativo → Administrativo/Contable) para ESTE prospecto, mencionando las apps elegidas por nombre"
 }`;
 
-  const raw=await discClaudeText(prompt,{maxTokens:4000})||'{}';
+  const raw=await discClaudeText(prompt,{maxTokens:4000,funcion:'apps'})||'{}';
   const jsonMatch=raw.match(/\{[\s\S]*\}/);
   let parsed={};
   try{ parsed=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ parsed={}; }
@@ -4774,7 +4943,7 @@ ${ctx.transcript?`- Transcripción completa de la llamada (úsala si aporta):\n$
 Elige entre 3 y 6 efectos del catálogo — los MÁS conectados al dolor real de ESTE prospecto, no una lista genérica de industria. Ordénalos del más al menos impactante para ESTE cliente. Responde SOLO con este JSON (sin markdown, sin texto fuera del JSON):
 [{"title":"Título EXACTO tal cual aparece en el catálogo","why":"por qué este efecto en particular le va a pegar a ESTE prospecto, en 1 frase, conectada a algo que dijo o hace"}]`;
 
-  const raw=await discClaudeText(prompt,{maxTokens:4000})||'[]';
+  const raw=await discClaudeText(prompt,{maxTokens:4000,funcion:'wow'})||'[]';
   const jsonMatch=raw.match(/\[[\s\S]*\]/);
   let picks=[];
   try{ picks=JSON.parse(jsonMatch?jsonMatch[0]:raw); }catch(e){ picks=[]; }
@@ -4811,7 +4980,7 @@ ${recoText?`RECOMENDACIONES PARA CERRAR:\n${recoText}`:''}
 
 Escribe en tercera persona, tono de bitácora de cuenta (no un mensaje al cliente). Sintetiza, no repitas las secciones tal cual. Si algo no se sabe, dilo brevemente en vez de omitirlo en silencio.`;
 
-  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000}));
+  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000,funcion:'resumen'}));
   ctx.job.results.resumenIntromeet=text;
   discJobPintar(ctx.job);
   return text;
@@ -4834,7 +5003,7 @@ ${ctx.transcript?`\nTRANSCRIPCIÓN COMPLETA DE LA LLAMADA (úsala para evaluar C
 
 Dale 2-4 puntos de mejora CONCRETOS (qué pregunta faltó, qué tema no se cerró, si habló de más) y qué debe resolver en la siguiente interacción con este cliente para terminar de conocerlo. Sé directo y breve — esto lo lee el AE, no el cliente. Si la sesión estuvo sólida, dilo también; no inventes problemas que no existen.`;
 
-  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000}));
+  const text=stripMd(await discClaudeText(prompt,{maxTokens:6000,funcion:'feedback'}));
   ctx.job.results.feedbackFinal=text;
   discJobPintar(ctx.job);
   return text;
@@ -6393,6 +6562,16 @@ function gcCompanyContext(overrideCompany=null){
 CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.correo||ct.email||'nd'}${ct.linkedin?` | LinkedIn: ${ct.linkedin}`:''}`: 'Sin contacto seleccionado'}${aeAppt?`\nLINK DE AGENDADO DEL AE: ${aeAppt}`:''}${odooInd?`\nCONTEXTO INDUSTRIA (${c.giro}): ${odooInd}`:''}${memCtx}`;
 }
 
+// A qué módulo de la app pertenece cada función que llama a gcCallClaude. Se mantiene aquí y no en
+// cada punto de llamada para que agregar un origen nuevo sea una línea, no una edición dispersa.
+const GC_MODULO_POR_ORIGEN={
+  gcGenerateTemplate:'contenidos', gcRunPubImageGen:'contenidos',
+  gcGenerateColdCalling:'contenidos', gcGenerateBrochure:'contenidos',
+  gcGenerateCadenceStepTemplate:'cadencias',
+  csvInterpretarInstrucciones:'csv', csvClassifyIndustryTags:'csv',
+  csvBatchResumenes:'csv', parseLeadRowsFromUpload:'csv',
+};
+
 async function gcCallClaude(prompt, fileAttachment=null, opts={}){
   const key=localStorage.getItem('outbound_claude_key')||CLAUDE_KEY_DEFAULT;
   if(!key||key==='CLAUDE_KEY_DEFAULT'){ showNotif('Configura tu API key en ⚙️ Configuración','error'); throw new Error('No API key'); }
@@ -6432,6 +6611,8 @@ async function gcCallClaude(prompt, fileAttachment=null, opts={}){
       body:JSON.stringify(body)
     });
     data=await res.json();
+    const _origen=opts.origen||'desconocido';
+    aiLogUsage(GC_MODULO_POR_ORIGEN[_origen]||'contenidos', _origen, body.model, data);
     if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
     // Cuando se usa web_fetch, la respuesta incluye bloques de tipo web_fetch_tool_result antes del texto final —
     // unimos SOLO los bloques de texto (puede haber más de uno si hay citas).
@@ -6852,7 +7033,7 @@ Reglas generales:
 - Cada variante con un ángulo claramente distinto
 - Español de México natural, directo, sin sonar a vendedor de catálogo
 - NO uses markdown (nada de **negritas**, ## títulos ni viñetas con *)
-- Formato EXACTO, cada marcador al inicio de su propia línea, sin adornos: "VARIANTE 1:\\n[texto]\\n\\nVARIANTE 2:\\n[texto]\\n\\nVARIANTE 3:\\n[texto]"`,null,{tools:evento.tools,toolChoice:evento.toolChoice});
+- Formato EXACTO, cada marcador al inicio de su propia línea, sin adornos: "VARIANTE 1:\\n[texto]\\n\\nVARIANTE 2:\\n[texto]\\n\\nVARIANTE 3:\\n[texto]"`,null,{tools:evento.tools,toolChoice:evento.toolChoice,origen:'gcGenerateTemplate'});
     gcShowOutput('gcTplOutput',text,true,{tipo:channel,momento,momLabel,regenerateFn:'gcGenerateTemplate'});
     gcPushHistory({icon:GC_CHANNELS.find(c=>c.id===channel)?.icon||'✉️',tipo:GC_CHANNELS.find(c=>c.id===channel)?.label||channel,company:cont.company?.nombre||'',subtitle:momLabel.split('—')[0].trim(),wrapId:'gcTplOutput',text});
     if(cont.company?.id) updateCompanyMemory(cont.company.id,'contenido',{
@@ -7030,7 +7211,7 @@ ${odooResourcesBlock()}
 Reglas:
 - NO inventes cifras ni estadísticas. Usa SOLO la ESTADÍSTICA proporcionada arriba; si dice 'ninguna', no incluyas ningún número inventado.
 - Puedes incluir en post_text UN enlace oficial de la lista de RECURSOS si aporta valor (URL EXACTA, nunca inventes un enlace específico). No lo fuerces.
-- Habla solo de capacidades reales de Odoo.`,null,{tools:evento.tools,toolChoice:evento.toolChoice});
+- Habla solo de capacidades reales de Odoo.`,null,{tools:evento.tools,toolChoice:evento.toolChoice,origen:'gcRunPubImageGen'});
   let parsed;
   try {
     let raw=copy.replace(/```json?\n?/g,'').replace(/```/g,'').trim();
@@ -7591,7 +7772,7 @@ Reglas:
 - NO inventes datos, cifras ni nombres de la empresa. Si NO hay info específica, mantén el hook a nivel de industria (genérico)
 - Revisa el historial de la empresa (memoria arriba): da continuidad, no repitas lo ya dicho
 - "nota" son indicaciones para el AE (no se dicen en voz alta): breves y opcionales
-- JSON válido, comillas dobles, sin comas finales, sin markdown`,null,{tools:evento.tools,toolChoice:evento.toolChoice});
+- JSON válido, comillas dobles, sin comas finales, sin markdown`,null,{tools:evento.tools,toolChoice:evento.toolChoice,origen:'gcGenerateColdCalling'});
     let data; try{ data=_parseJSON(raw); }catch(e){ data=null; }
     // Aunque el prompt pide "sin markdown", el guion es el único lugar de Contenidos donde se ha visto
     // que Claude aun así mete **negritas** dentro de un campo — se limpia campo por campo (JSON ya parseado).
@@ -7833,7 +8014,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin texto adicional, sin markdo
   "cta": "string — frase de cierre consultiva + llamada a acción"
 }
 NO generes testimonios ni nombres de clientes: el brochure inserta automáticamente un caso de éxito REAL de Odoo.
-Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de México. JSON válido, comillas dobles, sin comas finales.`);
+Incluye EXACTAMENTE una entrada en "apps" por cada app listada. Español de México. JSON válido, comillas dobles, sin comas finales.`,null,{origen:'gcGenerateBrochure'});
     let data;
     try{ data=_parseJSON(raw); }
     catch(err){ showNotif('La IA no devolvió un formato válido, reintenta','error'); btn.disabled=false; gcShowLoading('gcBrLoading',false); return; }
@@ -13881,7 +14062,7 @@ Devuelve EXCLUSIVAMENTE este objeto JSON (sin markdown):
 - extraTitles: 0-10 títulos de puesto específicos (inglés y español) SOLO si la petición pide roles que no cubren bien los roleGroups.
 - cantidad: número de leads pedidos (1-25, default 5).
 - Usa null/arrays vacíos/"" para lo que la petición no mencione.`,
-      null, {maxTokens:600, system:'Devuelves SIEMPRE y SOLO un objeto JSON válido, sin texto adicional.'});
+      null, {maxTokens:600, system:'Devuelves SIEMPRE y SOLO un objeto JSON válido, sin texto adicional.', origen:'csvInterpretarInstrucciones'});
     // Parseo de OBJETO dedicado — no usar _parseJSONArray aquí: ese helper está pensado para
     // arrays y, si le das un objeto con arrays adentro (estados, keywords...), extrae el primer
     // array interno en vez del objeto completo (bug encontrado en la prueba real del 2026-07-22).
@@ -14448,7 +14629,7 @@ EMPRESAS:
 ${JSON.stringify(items)}
 
 Devuelve EXCLUSIVAMENTE un array JSON, EN EL MISMO ORDEN Y LA MISMA CANTIDAD que las empresas de entrada (si hay ${items.length}, regresa exactamente ${items.length} objetos): [{"a":["A#","A#"],"b":"B#"},...] ("a" es un array con 1 a 3 códigos, "b" es un solo código). Los códigos deben venir EXACTAMENTE de las listas dadas (ej. "A12", "B37"). Sin markdown, sin explicaciones.`,
-      null, {maxTokens:4000, system:'Devuelves SIEMPRE y SOLO un array JSON válido, en el mismo orden y cantidad que la entrada, sin texto adicional.'});
+      null, {maxTokens:4000, system:'Devuelves SIEMPRE y SOLO un array JSON válido, en el mismo orden y cantidad que la entrada, sin texto adicional.', origen:'csvClassifyIndustryTags'});
     const arr=_parseJSONArray(raw);
     if(!Array.isArray(arr)||arr.length!==items.length) throw new Error('longitud de respuesta no coincide');
     return arr.map(o=>{
@@ -14589,7 +14770,7 @@ async function csvBatchResumenes(rows){
 Empresa: ${r.partner_name||'nd'} | Contacto: ${r.contact_name||'nd'} | Cargo: ${r.function||'nd'} | Ubicación: ${r.state_id||r.country_id||'nd'}
 ${contexto?`Contexto: ${contexto}`:''}
 Responde en español, SOLO el resumen final, sin markdown.`,
-        null, {maxTokens:300, system:`Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown. ${SPANISH_ORTHOGRAPHY_RULE}`});
+        null, {maxTokens:300, system:`Respondes siempre en texto plano, directo, máximo 140 caracteres, sin markdown. ${SPANISH_ORTHOGRAPHY_RULE}`, origen:'csvBatchResumenes'});
       r.resumen=String(raw||'').trim().slice(0,140);
     }catch(e){ console.warn('csvBatchResumenes:',r.partner_name,e); r.resumen=''; }
   }));
@@ -14721,7 +14902,7 @@ Para cada prospecto devuelve estos campos:
 - state_id: estado de México EXACTAMENTE de esta lista: ${MX_STATES.join(', ')}. Si no puedes determinar: dejar ""
 - notes: cualquier dato adicional (teléfonos extra, empleados, industria, LinkedIn, redes, etc.)
 
-Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, sin explicaciones, sin disclaimers. Si un campo no se conoce, usa cadena vacía "". Nunca escribas "No lo sé" ni texto fuera del JSON.`, fileAttachment||null, {maxTokens:16000, system:'Eres un extractor de datos preciso para CRM. Devuelves SIEMPRE y SOLO un array JSON válido (sin markdown, sin texto adicional). Para datos que no encuentres, usa cadena vacía "". No inventes datos, pero tampoco agregues disclaimers ni explicaciones: solo el JSON.'});
+Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, sin explicaciones, sin disclaimers. Si un campo no se conoce, usa cadena vacía "". Nunca escribas "No lo sé" ni texto fuera del JSON.`, fileAttachment||null, {maxTokens:16000, system:'Eres un extractor de datos preciso para CRM. Devuelves SIEMPRE y SOLO un array JSON válido (sin markdown, sin texto adicional). Para datos que no encuentres, usa cadena vacía "". No inventes datos, pero tampoco agregues disclaimers ni explicaciones: solo el JSON.', origen:'parseLeadRowsFromUpload'});
     try{ extracted=_parseJSONArray(result); }
     catch(err){ console.warn('CSV parse:',err,result?.slice?.(0,200)); throw new Error('No se pudo leer la respuesta de la IA. Revisa los datos pegados o intenta de nuevo.'); }
   }
@@ -15398,7 +15579,7 @@ Reglas generales:
 - NO menciones a Claude ni a ninguna IA
 - NO uses markdown (nada de **negritas** ni viñetas)
 - Español de México natural y directo
-- Responde ÚNICAMENTE con el correo en el formato pedido, sin texto adicional antes o después`,null,{maxTokens:1200});
+- Responde ÚNICAMENTE con el correo en el formato pedido, sin texto adicional antes o después`,null,{maxTokens:1200,origen:'gcGenerateCadenceStepTemplate'});
   return gcParseEmailParts(text);
 }
 
@@ -16875,6 +17056,10 @@ async function ninjaCallClaudeRaw(messages,tools){
     body:JSON.stringify({model:'claude-sonnet-5',max_tokens:4096,system:NINJA_SYSTEM_PROMPT,tools,messages}),
   });
   const data=await res.json();
+  // Una vuelta = un registro. Es a propósito: el costo de Ninja no está en la pregunta, está en que
+  // cada vuelta de herramienta reenvía el prompt de sistema, las 13 herramientas y toda la historia
+  // acumulada. Registrando vuelta por vuelta, el panel muestra ese crecimiento en vez de esconderlo.
+  aiLogUsage('ninja','ninjaRunTurn','claude-sonnet-5',data,{vueltas:messages.length});
   if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
   return data;
 }
