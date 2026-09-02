@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-02T02:50:44Z">
+<meta name="app-version" content="2026-09-02T03:12:49Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2086,8 +2086,15 @@ async function aiRenderConsumo(){
       ${tile(_aiNum(t.busquedasWeb),'Búsquedas web','se cobran aparte')}
     </div>
     ${_aiTabla('Por módulo',_aiAgrupar(docs,'modulo'),'Módulo')}
+    ${_aiTabla('Por modelo',_aiAgrupar(docs,'modelo'),'Modelo')}
     ${_aiTabla('Por función',_aiAgrupar(docs,'funcion').slice(0,12),'Función')}
     ${_aiTabla('Por persona',_aiAgrupar(docs,'ae'),'AE')}
+    <div style="margin:22px 0 6px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em">Modelo de Qcall en este navegador</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      ${QCALL_MODELOS.map(m=>`<button class="btn ${qcallModelo()===m.id?'btn-primary':''}" style="padding:5px 12px;font-size:12px"
+        onclick="qcallSetModelo('${m.id}')">${m.label}</button>`).join('')}
+    </div>
+    <p style="font-size:11.5px;color:var(--gray-400);margin-top:8px;line-height:1.5">Cambia el modelo solo en este navegador, para comparar sobre la misma sesión sin desplegar. El resto del equipo sigue con ${QCALL_MODELO_DEFAULT}.</p>
     ${docs.length>=5000?`<p style="font-size:11.5px;color:var(--gray-400);margin-top:12px">Se alcanzó el tope de 5,000 registros leídos: los totales de arriba están recortados. Usa el rango de 7 días para ver una foto completa.</p>`:''}`;
 }
 
@@ -4672,12 +4679,37 @@ async function _discFetchClaude(body, intentos=4, meta={}){
   }
 }
 
+// ── Interruptor local del modelo de Qcall ──
+// Sirve para comparar modelos sobre la MISMA sesión sin desplegar una versión por intento. Vive en
+// localStorage, así que afecta solo al navegador donde se prende: el resto del equipo sigue con el
+// modelo por defecto. No es una barrera de seguridad, es una perilla de laboratorio — desaparece
+// cuando el proxy de Railway permita cambiar el modelo desde configuración (fase 3 del plan).
+//
+// Sonnet 5 NO está en la lista a propósito: rompe la continuación automática de discClaudeText,
+// porque el prefill (reenviar lo ya generado como turno del asistente) devuelve 400 a partir de la
+// generación 4.6. Hasta portar el patrón de "continúa" como mensaje de usuario —el que ya usa
+// Ninja— elegirlo aquí tronaría el análisis a media nota. Ver fase 4 del plan.
+const QCALL_MODELO_DEFAULT='claude-sonnet-4-5';
+const QCALL_MODELOS=[
+  {id:'claude-sonnet-4-5', label:'Sonnet 4.5 · actual'},
+  {id:'claude-haiku-4-5',  label:'Haiku 4.5 · prueba'},
+];
+function qcallModelo(){
+  const m=localStorage.getItem('outbound_qcall_model');
+  return QCALL_MODELOS.some(x=>x.id===m) ? m : QCALL_MODELO_DEFAULT;
+}
+window.qcallSetModelo=function(m){
+  localStorage.setItem('outbound_qcall_model',m);
+  showNotif('Qcall usará '+m+' — solo en este navegador','success');
+  aiRenderConsumo();
+};
+
 const DISC_MAX_CONT=8; // tramos máximos por respuesta — red de seguridad contra bucles, no un límite de contenido
 async function discClaudeText(prompt, opts={}){
   const messages=[{role:'user',content:prompt}];
   let full='', cortes=0;
   for(let i=0;i<DISC_MAX_CONT;i++){
-    const data=await _discFetchClaude({model:'claude-sonnet-4-5',max_tokens:opts.maxTokens||8000,system:opts.system||ANTI_HALLUCINATION,messages},4,{funcion:opts.funcion||'discovery'});
+    const data=await _discFetchClaude({model:qcallModelo(),max_tokens:opts.maxTokens||8000,system:opts.system||ANTI_HALLUCINATION,messages},4,{funcion:opts.funcion||'discovery'});
     if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
     const chunk=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
     full+=chunk;
