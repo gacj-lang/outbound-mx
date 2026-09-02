@@ -1,0 +1,90 @@
+{
+  "_nota": "PLAYBOOK — fuente curada por una persona, no generada. De aquí sale la base de industria (una llamada al modelo, una sola vez). Los competidores y las cifras NUNCA los escribe el modelo.",
+  "industria": "Construcción",
+  "version": 1,
+  "revisadoPor": "PENDIENTE — GACJ",
+
+  "material": {
+    "icono": "industry-solo/industry_construction.svg",
+    "fotos": ["construccion/foto-portada.jpg"],
+    "logos": "construccion/clientes.png",
+    "logosCuantos": 15,
+    "doodles": ["yellow_pencil-ruler", "blue_ruler", "yellow_checklist", "green_home"]
+  },
+
+  "vocabulario": [
+    "obra", "frente de obra", "residente", "estimación", "avance de obra",
+    "destajo", "subcontrato", "requisición", "generador", "catálogo de conceptos",
+    "precio unitario", "anticipo", "retención", "finiquito"
+  ],
+
+  "subverticales": [
+    { "id": "constructoras",  "nombre": "Constructoras y desarrolladoras", "desc": "Control de proyectos, costos, presupuestos y avance de obra." },
+    { "id": "contratistas",   "nombre": "Contratistas y subcontratistas",  "desc": "Cotizaciones, órdenes de trabajo y facturación por avance." },
+    { "id": "arquitectura",   "nombre": "Arquitectura e ingeniería",       "desc": "Proyecto por horas, entregables y facturación profesional." },
+    { "id": "mantenimiento",  "nombre": "Mantenimiento y facilities",      "desc": "Mantenimiento preventivo, órdenes de servicio y contratos." },
+    { "id": "maquinaria",     "nombre": "Renta de maquinaria",             "desc": "Contratos, disponibilidad, mantenimiento y facturación." },
+    { "id": "materiales",     "nombre": "Comercializadora de materiales",  "desc": "Inventarios, compras, ventas y logística." },
+    { "id": "inmobiliario",   "nombre": "Desarrollos inmobiliarios",       "desc": "CRM, preventas, planes de pago y cobranza." },
+    { "id": "obracivil",      "nombre": "Obra civil y electromecánica",    "desc": "Frentes de obra, destajos y control de subcontratos." }
+  ],
+
+  "retos": [
+    { "color": "azul",     "titulo": "Cada obra vive en su propio archivo",
+      "texto": "El avance real se sabe cuando alguien pregunta, y la respuesta depende de quién conteste.",
+      "app": "project", "appNombre": "Proyecto",
+      "resuelve": "Un tablero por obra con avance, tareas y responsables. Todos ven lo mismo, al mismo tiempo." },
+    { "color": "amarillo", "titulo": "El costo real llega tarde",
+      "texto": "El presupuesto contra el gasto se cuadra al cierre, cuando la desviación ya no se puede corregir.",
+      "app": "account", "appNombre": "Contabilidad analítica",
+      "resuelve": "Costo por obra en vivo: cada compra, hora y factura se carga sola al proyecto que le toca." },
+    { "color": "rosa",     "titulo": "El material se pide por WhatsApp",
+      "texto": "Requisiciones sueltas, sin aprobación registrada y sin rastro de qué entró a la obra.",
+      "app": "purchase", "appNombre": "Compras e Inventario",
+      "resuelve": "Requisición, aprobación y entrada a almacén en un solo hilo, trazable por obra." },
+    { "color": "turquesa", "titulo": "Los contratos viven en correos",
+      "texto": "Versiones sueltas entre carpetas, y una autorización que tarda días porque el que firma anda en obra.",
+      "app": "sign", "appNombre": "Firma electrónica",
+      "resuelve": "Contratos y autorizaciones firmados desde donde estén, con la versión buena siempre identificada." },
+    { "color": "azul",     "titulo": "La nómina de eventuales se arma a mano",
+      "texto": "Listas de raya en papel o Excel por frente de obra, que alguien captura de nuevo en el sistema.",
+      "app": "hr_timesheet", "appNombre": "Hojas de horas",
+      "resuelve": "Las horas se capturan en campo y llegan solas a la nómina y al costo de la obra." }
+  ],
+
+  "features": [
+    { "app": "project",  "nombre": "Proyecto",            "titulo": "Cada obra, en su propio tablero",
+      "captura": "construccion/proyectos-kanban.png", "capturaProvisional": true,
+      "puntos": [
+        ["Avance por etapa", "pendiente, en proceso y terminado, con el número de tareas de cada obra."],
+        ["Fechas y responsables", "quién tiene qué y para cuándo, sin perseguir a nadie por WhatsApp."],
+        ["Horas y costo pegados a la obra", "lo que se registra aquí llega solo a la contabilidad analítica."]
+      ] },
+    { "app": "purchase", "nombre": "Compras",             "titulo": "Del material pedido al material recibido",
+      "captura": "construccion/compras-rfq.png", "capturaProvisional": true,
+      "puntos": [
+        ["Requisición con aprobación", "cada pedido deja rastro de quién lo pidió y quién lo autorizó."],
+        ["Proveedor, monto y fecha de llegada", "en una sola vista, sin abrir el correo."],
+        ["Entrada a almacén ligada", "lo que llega se descarga contra la obra que lo pidió."]
+      ] },
+    { "app": "sign",     "nombre": "Firma electrónica",   "titulo": "Contratos y autorizaciones sin imprimir nada",
+      "captura": "construccion/firma-electronica.png", "capturaProvisional": true,
+      "puntos": [
+        ["Firma desde donde sea", "el residente firma en la obra, dirección firma desde la oficina."],
+        ["Versiones bajo control", "se acabó el «¿cuál era el bueno?» entre carpetas y correos."],
+        ["Ideal para flujos en campo", "aprobaciones que hoy tardan días se cierran el mismo día."]
+      ] }
+  ],
+
+  "competidores": {
+    "_nota": "SOLO se escriben a mano. Un competidor alucinado se paga caro frente a alguien que sí conoce su mercado.",
+    "_estado": "PENDIENTE DE REVISIÓN — sale del cuadrante de la referencia, GACJ debe confirmarlo",
+    "sector": ["NeoData", "Construsoft", "Procore", "AutoCAD"],
+    "generalistas": ["SAP", "Oracle NetSuite", "Microsoft Dynamics 365"],
+    "ligeros": ["Asana", "Trello", "Monday"]
+  },
+
+  "sistemasQueReemplaza": ["Contpaq", "Aspel", "Microsip", "NeoData", "Excel"],
+
+  "casos": ["Odisa", "CANTAB", "Artdeko", "Proenergy"]
+}
