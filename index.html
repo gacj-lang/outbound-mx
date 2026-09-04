@@ -14128,7 +14128,7 @@ async function csvCrossMatchDenue(rows){
     const res=await fetch(DENUE_CROSSMATCH_API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
-      body:JSON.stringify({leads:withCompany.map(r=>({website:r.Website||'',empresa:r.partner_name||''}))}),
+      body:JSON.stringify({leads:withCompany.map(r=>({website:r.Website||'',empresa:r.partner_name||'',email:r.Email||''}))}),
     });
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
@@ -14148,7 +14148,7 @@ async function csvCrossMatchDirind(rows){
     const res=await fetch(DIRIND_CROSSMATCH_API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
-      body:JSON.stringify({leads:withCompany.map(r=>({website:r.Website||'',empresa:r.partner_name||''}))}),
+      body:JSON.stringify({leads:withCompany.map(r=>({website:r.Website||'',empresa:r.partner_name||'',email:r.Email||''}))}),
     });
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
@@ -14167,7 +14167,7 @@ async function csvCrossMatchAlimentaria(rows){
     const res=await fetch(ALIMENTARIA_CROSSMATCH_API_URL,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
-      body:JSON.stringify({leads:withCompany.map(r=>({website:r.Website||'',empresa:r.partner_name||''}))}),
+      body:JSON.stringify({leads:withCompany.map(r=>({website:r.Website||'',empresa:r.partner_name||'',email:r.Email||''}))}),
     });
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
