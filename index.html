@@ -13704,7 +13704,7 @@ function csvRenderResultadosTab(content){
                     </label>`).join('')}
                 </div>
               </div>
-              <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--gray-400);margin-top:10px;padding-top:10px;border-top:1px dashed var(--gray-200)">ⓘ Nivel y Función se combinan con <b>Y</b> entre grupos y <b>O</b> dentro del mismo grupo — ej. (Dueño <b>o</b> Director) <b>y</b> Operaciones. En DENUE/DIRIND no acotan qué empresas aparecen (ahí no hay dato de contacto) — solo eligen a la persona al cruzar con Apollo.</div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--gray-400);margin-top:10px;padding-top:10px;border-top:1px dashed var(--gray-200)">ⓘ Nivel y Función se combinan con <b>Y</b> entre grupos y <b>O</b> dentro del mismo grupo — ej. (Dueño <b>o</b> Director) <b>y</b> Operaciones. En los directorios (DENUE, DIRIND, ALIMENTARIA) no acotan qué empresas aparecen — ahí no hay dato de contacto, solo eligen a la persona al cruzar con Apollo.</div>
             </div>
           </div>
           </div>
@@ -13782,11 +13782,11 @@ function csvRenderResultadosTab(content){
 // se fuerza el selector de País a México y se bloquea (mismo patrón que "Fuente del lead" se
 // autocompleta/bloquea en modo búsqueda). Al volver a Apollo se libera.
 // Los filtros no significan lo mismo entre fuentes: Nivel/Función del contacto no filtran qué
-// EMPRESAS aparecen en DENUE/DIRIND (ahí no hay dato de contacto) — solo se usan para elegir
+// EMPRESAS aparecen en los directorios locales (ahí no hay dato de contacto) — solo se usan para elegir
 // mejor a la persona en el cruce con Apollo una vez que la empresa ya se identificó, así que se
 // quedan visibles pero con la aclaración puesta en csvContactoFiltroHint; Giro/Industria es la
-// taxonomía de Apollo/DENUE y no aplica a DIRIND (tiene su propia lista de 98 categorías, ver
-// csvLoadDirindCategorias) — se ocultan uno u otro según la fuente elegida. Municipio(s) y el
+// taxonomía de Apollo/DENUE y no aplica a DIRIND ni a ALIMENTARIA (cada uno trae su propia lista,
+// ver csvLoadDirindCategorias/csvLoadAlimentariaCategorias) — se ocultan según la fuente elegida. Municipio(s) y el
 // buscador de texto de DENUE (2026-08-12) solo aplican a DENUE, mismo criterio.
 // Fuente seleccionada en el radio. Antes esto era una cadena de ternarios sobre el id de cada
 // input, copiada en cuatro lugares distintos; con la 5a fuente (ALIMENTARIA) agregar una implicaba
