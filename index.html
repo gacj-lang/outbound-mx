@@ -13050,7 +13050,8 @@ const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Em
 // para que el AE decida en el importador de Odoo si las mapea a Notas u otro campo:
 // - datos_denue: se llena cuando la fuente primaria NO fue DENUE y hubo match contra DENUE.
 // - datos_dirind: se llena cuando la fuente primaria NO fue DIRIND y hubo match contra DIRIND.
-// - datos_apollo: se llena cuando la fuente primaria fue DENUE/DIRIND y hubo match/enrich de Apollo.
+// - datos_alimentaria: igual, contra el directorio ALIMENTARIA 2026 (industria alimentaria).
+// - datos_apollo: se llena cuando la primaria fue un directorio local y hubo match/enrich de Apollo.
 // - datos_outscraper (2026-08-18): se llena cuando la fuente primaria NO fue Outscraper y el
 //   cross-match contra Maps (finalizeSearchJob, backend) encontró redes sociales/teléfonos
 //   extra/dominio/correo nuevos — a diferencia de datos_denue/datos_dirind, este cross SÍ gasta
@@ -13062,6 +13063,7 @@ const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Em
 const CSV_EXTRA_COLUMNS=[
   {key:'datos_denue', label:'DATOS DENUE'},
   {key:'datos_dirind', label:'DATOS DIRIND'},
+  {key:'datos_alimentaria', label:'DATOS ALIMENTARIA'},
   {key:'datos_apollo', label:'DATOS APOLLO'},
   {key:'datos_outscraper', label:'DATOS OUTSCRAPER'},
   {key:'resumen', label:'Resumen'},
@@ -13352,6 +13354,18 @@ let csvInputMode='paste';
 // leads y se cachea; csvRenderQuotaHint la combina con la fuente seleccionada para pintar el texto
 // junto a "Cantidad de leads". Antes de esto (pedido 2026-08-10, después del pico de gasto de
 // Claude API) el AE no tenía forma de ver su consumo, solo el tope fijo por fuente.
+// Catálogo único de las fuentes del buscador: cómo se llaman de cara al AE, qué campo/límite les
+// corresponde en la cuota y su tope de AE por defecto (el que se usa mientras no llega el consumo
+// real del backend). Antes esto vivía como cadenas de ternarios repetidas en csvOnFuenteChange y
+// csvRenderQuotaHint; con la 5a fuente ya no eran legibles y se prestaban a que una se actualizara
+// sin la otra. Debe coincidir con FUENTES/DEFAULT_QUOTA de quota.js en el backend.
+const CSV_FUENTES={
+  apollo:{label:'Apollo', limite:'dailyApollo', campo:'dayApolloCount', topeAE:10},
+  denue:{label:'DENUE', limite:'dailyDenue', campo:'dayDenueCount', topeAE:25},
+  dirind:{label:'DIRIND', limite:'dailyDirind', campo:'dayDirindCount', topeAE:25},
+  alimentaria:{label:'ALIMENTARIA', limite:'dailyAlimentaria', campo:'dayAlimentariaCount', topeAE:25},
+  outscraper:{label:'Outscraper', limite:'dailyOutscraper', campo:'dayOutscraperCount', topeAE:15},
+};
 let _quotaStatusCache=null;
 async function csvFetchQuotaStatus(){
   if(!currentUser) return;
@@ -13371,17 +13385,15 @@ async function csvFetchQuotaStatus(){
 function csvRenderQuotaHint(){
   const cantHint=document.getElementById('csvSearchCantidadHint');
   const banner=document.getElementById('csvQuotaBanner');
-  const fuente=document.querySelector('input[name="csvSearchFuente"]:checked')?.value||'apollo';
-  const FUENTE_LABEL={apollo:'Apollo',denue:'DENUE',dirind:'DIRIND',outscraper:'Outscraper'};
-  const tope=fuente==='apollo'?10:fuente==='outscraper'?15:25; // tope de AE por defecto — se ajusta abajo si ya llegó el consumo real
+  const fuente=csvFuenteActual();
+  const info=CSV_FUENTES[fuente]||CSV_FUENTES.apollo;
   if(!_quotaStatusCache){
-    if(cantHint) cantHint.textContent=`Tope diario ${FUENTE_LABEL[fuente]}: ${tope} leads. Se aplica también tu tope semanal/mensual como AE.`;
+    if(cantHint) cantHint.textContent=`Tope diario ${info.label}: ${info.topeAE} leads. Se aplica también tu tope semanal/mensual como AE.`;
     return;
   }
   const {limits,current}=_quotaStatusCache;
-  const dailyField=fuente==='denue'?'dayDenueCount':fuente==='dirind'?'dayDirindCount':fuente==='outscraper'?'dayOutscraperCount':'dayApolloCount';
-  const dailyLimit=fuente==='denue'?limits.dailyDenue:fuente==='dirind'?limits.dailyDirind:fuente==='outscraper'?limits.dailyOutscraper:limits.dailyApollo;
-  if(cantHint) cantHint.textContent=`Hoy ${FUENTE_LABEL[fuente]}: ${current[dailyField]||0}/${dailyLimit} · Semana: ${current.weekCount||0}/${limits.weekly} · Mes: ${current.monthCount||0}/${limits.monthly}`;
+  const dailyLimit=limits[info.limite]??info.topeAE;
+  if(cantHint) cantHint.textContent=`Hoy ${info.label}: ${current[info.campo]||0}/${dailyLimit} · Semana: ${current.weekCount||0}/${limits.weekly} · Mes: ${current.monthCount||0}/${limits.monthly}`;
   if(banner){
     const stat=(label,used,max)=>{
       const pct=max?Math.min(100,Math.round(100*used/max)):0;
@@ -13392,10 +13404,7 @@ function csvRenderQuotaHint(){
       </div>`;
     };
     banner.innerHTML=
-      stat(FUENTE_LABEL.apollo+' hoy', current.dayApolloCount||0, limits.dailyApollo)+
-      stat(FUENTE_LABEL.denue+' hoy', current.dayDenueCount||0, limits.dailyDenue)+
-      stat(FUENTE_LABEL.dirind+' hoy', current.dayDirindCount||0, limits.dailyDirind)+
-      stat(FUENTE_LABEL.outscraper+' hoy', current.dayOutscraperCount||0, limits.dailyOutscraper)+
+      Object.values(CSV_FUENTES).map(f=>stat(f.label+' hoy', current[f.campo]||0, limits[f.limite]??f.topeAE)).join('')+
       stat('Semana', current.weekCount||0, limits.weekly)+
       stat('Mes', current.monthCount||0, limits.monthly);
   }
@@ -13508,21 +13517,24 @@ function csvRenderResultadosTab(content){
 
           <div class="form-group" style="margin-bottom:16px">
             <label>Fuente de la búsqueda</label>
-            <div style="display:flex;gap:10px;margin-top:6px">
-              <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
+              <label style="flex:1;min-width:150px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
                 <input type="radio" name="csvSearchFuente" id="csvSearchFuenteApollo" value="apollo" checked onchange="csvOnFuenteChange()"> 🚀 Apollo
               </label>
-              <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
+              <label style="flex:1;min-width:150px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
                 <input type="radio" name="csvSearchFuente" id="csvSearchFuenteDenue" value="denue" onchange="csvOnFuenteChange()"> 🇲🇽 DENUE
               </label>
-              <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
+              <label style="flex:1;min-width:150px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
                 <input type="radio" name="csvSearchFuente" id="csvSearchFuenteDirind" value="dirind" onchange="csvOnFuenteChange()"> 🏭 DIRIND
               </label>
-              <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
+              <label style="flex:1;min-width:150px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
+                <input type="radio" name="csvSearchFuente" id="csvSearchFuenteAlimentaria" value="alimentaria" onchange="csvOnFuenteChange()"> 🍽️ ALIMENTARIA
+              </label>
+              <label style="flex:1;min-width:150px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
                 <input type="radio" name="csvSearchFuente" id="csvSearchFuenteOutscraper" value="outscraper" onchange="csvOnFuenteChange()"> 🗺️ Outscraper
               </label>
             </div>
-            <span id="csvSearchFuenteHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE y DIRIND — si hay coincidencia, se agregan las columnas DATOS DENUE / DATOS DIRIND.</span>
+            <span id="csvSearchFuenteHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE, DIRIND y ALIMENTARIA — si hay coincidencia, se agregan esas columnas.</span>
           </div>
 
           <details class="csv-ai-details" style="border:1.5px solid var(--purple);border-radius:12px;padding:12px 16px;margin-bottom:18px;background:var(--purple-light)">
@@ -13620,6 +13632,23 @@ function csvRenderResultadosTab(content){
               <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchDirindTextoBox">
                 <label>Buscar en nombre/ciudad/descripción del anuncio DIRIND <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
                 <input type="text" class="input" id="csvSearchDirindTexto" placeholder="Ej. sand blast, refrigeración, Zapopan...">
+              </div>
+              <!-- ALIMENTARIA tiene taxonomía de dos niveles (5 secciones / 196 categorías del
+              propio directorio) — la sección separa al fabricante de alimentos de su proveedor de
+              insumos, maquinaria, empaque o servicios, que es justo la distinción que el AE quiere
+              hacer al prospectar. Ocultas salvo que ALIMENTARIA esté seleccionada. -->
+              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchAlimentariaSeccionBox">
+                <label>Sección del directorio <span style="font-weight:400;color:var(--gray-400)">(vacío = todas)</span></label>
+                <div id="csvSearchAlimentariaSeccionChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando secciones…</span></div>
+              </div>
+              <details style="margin:16px 0 0;display:none" id="csvSearchAlimentariaCategoriaBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Categoría(s) ALIMENTARIA <span style="font-weight:400;color:var(--gray-400)">(vacío = cualquiera)</span></summary>
+                <input type="text" class="input" style="margin:8px 0 6px" placeholder="Buscar categoría…" oninput="csvFilterChips(this,'csvSearchAlimentariaCategoriaChips')">
+                <div id="csvSearchAlimentariaCategoriaChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando categorías…</span></div>
+              </details>
+              <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchAlimentariaTextoBox">
+                <label>Buscar en nombre/ciudad/descripción del anuncio ALIMENTARIA <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
+                <input type="text" class="input" id="csvSearchAlimentariaTexto" placeholder="Ej. queso, tortillas, grado alimenticio, Zapopan...">
               </div>
               <div class="form-group" style="margin:16px 0 0;display:none" id="csvSearchDenueTextoBox">
                 <label>Buscar en nombre/actividad económica DENUE <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
@@ -13759,9 +13788,15 @@ function csvRenderResultadosTab(content){
 // taxonomía de Apollo/DENUE y no aplica a DIRIND (tiene su propia lista de 98 categorías, ver
 // csvLoadDirindCategorias) — se ocultan uno u otro según la fuente elegida. Municipio(s) y el
 // buscador de texto de DENUE (2026-08-12) solo aplican a DENUE, mismo criterio.
+// Fuente seleccionada en el radio. Antes esto era una cadena de ternarios sobre el id de cada
+// input, copiada en cuatro lugares distintos; con la 5a fuente (ALIMENTARIA) agregar una implicaba
+// tocar los cuatro y cualquier olvido dejaba esa fuente cayendo silenciosamente a 'apollo'.
+function csvFuenteActual(){
+  return document.querySelector('input[name="csvSearchFuente"]:checked')?.value||'apollo';
+}
 window.csvOnFuenteChange=function(){
-  const fuente=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':document.getElementById('csvSearchFuenteOutscraper')?.checked?'outscraper':'apollo';
-  const soloMx=fuente==='denue'||fuente==='dirind'||fuente==='outscraper'; // DENUE, DIRIND y Outscraper (piloto CDMX) solo cubren México
+  const fuente=csvFuenteActual();
+  const soloMx=fuente!=='apollo'; // DENUE, DIRIND, ALIMENTARIA y Outscraper solo cubren México
   const paisSel=document.getElementById('csvSearchPais');
   const hint=document.getElementById('csvSearchFuenteHint');
   const contactoHint=document.getElementById('csvContactoFiltroHint');
@@ -13769,6 +13804,9 @@ window.csvOnFuenteChange=function(){
   const empBox=document.getElementById('csvSearchEmpMin')?.closest('div[style*="grid-template-columns"]');
   const dirindCatBox=document.getElementById('csvSearchDirindCategoriaBox');
   const dirindTextoBox=document.getElementById('csvSearchDirindTextoBox');
+  const alimSeccionBox=document.getElementById('csvSearchAlimentariaSeccionBox');
+  const alimCatBox=document.getElementById('csvSearchAlimentariaCategoriaBox');
+  const alimTextoBox=document.getElementById('csvSearchAlimentariaTextoBox');
   const denueTextoBox=document.getElementById('csvSearchDenueTextoBox');
   const municipioBox=document.getElementById('csvSearchMunicipioBox');
   const apolloIndBox=document.getElementById('csvSearchApolloIndBox');
@@ -13787,6 +13825,7 @@ window.csvOnFuenteChange=function(){
     apollo:'Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE y DIRIND — si hay coincidencia, se agregan las columnas DATOS DENUE / DATOS DIRIND.',
     denue:'DENUE: directorio público de México (INEGI), teléfono y correo corporativo garantizados. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
     dirind:'DIRIND: directorio impreso Proveedores Industriales 2023 (5,256 empresas), teléfono y correo del propio anuncio. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
+    alimentaria:'ALIMENTARIA: directorio impreso de la industria alimentaria 2026 (4,026 empresas, 3,890 con correo y teléfono del propio anuncio). Filtra por sección (fabricante de alimentos, insumos, maquinaria, empaque, servicios) y categoría. Cada lead se cruza automáticamente contra Apollo para completar el nombre del contacto.',
     outscraper:'Outscraper: micro negocios en todo México (Google Maps). A diferencia del resto, aquí basta con correo O teléfono (no ambos) — la mayoría llega solo con teléfono, la línea general del negocio. Sin contacto con nombre (no se cruza con Apollo).',
   };
   if(hint) hint.textContent=HINTS[fuente];
@@ -13796,6 +13835,9 @@ window.csvOnFuenteChange=function(){
   if(giroBox) giroBox.style.display=fuente==='denue'?'':'none';
   if(dirindCatBox) dirindCatBox.style.display=fuente==='dirind'?'block':'none';
   if(dirindTextoBox) dirindTextoBox.style.display=fuente==='dirind'?'block':'none';
+  if(alimSeccionBox) alimSeccionBox.style.display=fuente==='alimentaria'?'block':'none';
+  if(alimCatBox) alimCatBox.style.display=fuente==='alimentaria'?'block':'none';
+  if(alimTextoBox) alimTextoBox.style.display=fuente==='alimentaria'?'block':'none';
   if(denueTextoBox) denueTextoBox.style.display=fuente==='denue'?'block':'none';
   if(apolloIndBox) apolloIndBox.style.display=fuente==='apollo'?'block':'none';
   if(apolloSegBox) apolloSegBox.style.display=fuente==='apollo'?'block':'none';
@@ -13809,26 +13851,66 @@ window.csvOnFuenteChange=function(){
   // implicaría que sí filtra o elige algo, y no es cierto.
   if(aQuienBox) aQuienBox.style.display=fuente==='outscraper'?'none':'block';
   if(fuente==='dirind') csvLoadDirindCategorias();
+  if(fuente==='alimentaria') csvLoadAlimentariaCategorias();
   if(fuente==='apollo') csvLoadApolloFiltros();
-  if(empBox) empBox.style.display=fuente==='dirind'?'none':'grid'; // DIRIND no trae dato de tamaño de empresa
+  // Ni DIRIND ni ALIMENTARIA publican tamaño de empresa en el anuncio impreso.
+  if(empBox) empBox.style.display=(fuente==='dirind'||fuente==='alimentaria')?'none':'grid';
   if(municipioBox){
     const hayEstados=document.querySelectorAll('.csv-estado-check:checked').length>0;
     municipioBox.style.display=(fuente==='denue'&&hayEstados)?'block':'none';
     if(fuente==='denue'&&hayEstados) csvLoadDenueMunicipios(); else document.getElementById('csvSearchMunicipiosBox').innerHTML='';
   }
-  if(contactoHint) contactoHint.textContent=(fuente==='denue'||fuente==='dirind')
-    ?`En ${fuente==='denue'?'DENUE':'DIRIND'} no filtra qué empresas aparecen (ahí no hay dato de contacto) — solo se usa para preferir ese tipo de persona al cruzar con Apollo.`
+  if(contactoHint) contactoHint.textContent=(fuente==='denue'||fuente==='dirind'||fuente==='alimentaria')
+    ?`En ${CSV_FUENTES[fuente].label} no filtra qué empresas aparecen (ahí no hay dato de contacto) — solo se usa para preferir ese tipo de persona al cruzar con Apollo.`
     :'';
-  // Tope diario por fuente: DENUE/DIRIND 25/día (gratis, en memoria), Apollo 10/día (gasta créditos
-  // reales), Outscraper 15/día (gasta créditos reales pero baratos) — el backend valida el mismo
-  // tope, esto solo evita pedir de más en la UI. Usa el tope real del rol del AE si ya llegó
-  // (_quotaStatusCache), si no cae al tope de AE por defecto.
+  // Tope diario por fuente: los directorios locales 25/día (gratis, en memoria), Apollo 10/día
+  // (gasta créditos reales), Outscraper 15/día (gasta créditos reales pero baratos) — el backend
+  // valida el mismo tope, esto solo evita pedir de más en la UI. Usa el tope real del rol del AE si
+  // ya llegó (_quotaStatusCache), si no cae al tope de AE por defecto.
   const cantIn=document.getElementById('csvSearchCantidad');
   const limits=_quotaStatusCache?.limits;
-  const tope=limits?(fuente==='denue'?limits.dailyDenue:fuente==='dirind'?limits.dailyDirind:fuente==='outscraper'?limits.dailyOutscraper:limits.dailyApollo):(fuente==='apollo'?10:fuente==='outscraper'?15:25);
+  const tope=limits?.[CSV_FUENTES[fuente].limite]??CSV_FUENTES[fuente].topeAE;
   if(cantIn){ cantIn.max=String(tope); if(Number(cantIn.value)>tope) cantIn.value=String(tope); }
   csvRenderQuotaHint();
 };
+// Catálogo real de ALIMENTARIA (5 secciones + 196 categorías) — se pide UNA vez al backend y se
+// cachea, igual que csvLoadDirindCategorias. Las secciones se pintan como chips propios porque son
+// el filtro grueso que el AE usa primero (fabricante de alimentos vs. su proveedor).
+let _alimentariaCatalogoCache=null;
+window.csvLoadAlimentariaCategorias=async function(){
+  const catBox=document.getElementById('csvSearchAlimentariaCategoriaChips');
+  const secBox=document.getElementById('csvSearchAlimentariaSeccionChips');
+  if(!catBox||!secBox) return;
+  if(_alimentariaCatalogoCache){ csvRenderAlimentariaChips(); return; }
+  try{
+    if(!currentUser) return;
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch('https://thorough-curiosity-production-098d.up.railway.app/alimentariaCategorias',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    _alimentariaCatalogoCache={categorias:data.categorias||[], secciones:data.secciones||[]};
+    csvRenderAlimentariaChips();
+  }catch(e){
+    console.warn('csvLoadAlimentariaCategorias:',e);
+    catBox.innerHTML='<span style="font-size:12px;color:var(--danger)">No se pudieron cargar las categorías</span>';
+    secBox.innerHTML='<span style="font-size:12px;color:var(--danger)">No se pudieron cargar las secciones</span>';
+  }
+};
+function csvRenderAlimentariaChips(){
+  const catBox=document.getElementById('csvSearchAlimentariaCategoriaChips');
+  const secBox=document.getElementById('csvSearchAlimentariaSeccionChips');
+  if(!catBox||!secBox||!_alimentariaCatalogoCache) return;
+  // Se conserva lo ya marcado: csvOnFuenteChange vuelve a llamar aquí cada vez que se re-selecciona
+  // la fuente, y perder la selección del AE a media búsqueda sería un bug silencioso.
+  const secPrev=new Set([...secBox.querySelectorAll('.csv-alim-sec-check:checked')].map(c=>c.value));
+  const catPrev=new Set([...catBox.querySelectorAll('.csv-alim-cat-check:checked')].map(c=>c.value));
+  const chip=(cls,v,checked)=>`
+    <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 11px;cursor:pointer">
+      <input type="checkbox" class="${cls}" value="${v.replace(/"/g,'&quot;')}" ${checked?'checked':''}> ${v}
+    </label>`;
+  secBox.innerHTML=_alimentariaCatalogoCache.secciones.map(sec=>chip('csv-alim-sec-check',sec,secPrev.has(sec))).join('');
+  catBox.innerHTML=_alimentariaCatalogoCache.categorias.map(c=>chip('csv-alim-cat-check',c,catPrev.has(c))).join('');
+}
 // Catálogo real de categorías DIRIND (98) — se pide UNA vez al backend y se cachea; se llama cada
 // vez que se selecciona la fuente DIRIND (csvOnFuenteChange) por si es la primera vez en la sesión.
 let _dirindCategoriasCache=null;
@@ -14074,6 +14156,25 @@ async function csvCrossMatchDirind(rows){
     csvRenderTable();
   }catch(e){ console.warn('csvCrossMatchDirind:',e); }
 }
+const ALIMENTARIA_CROSSMATCH_API_URL='https://thorough-curiosity-production-098d.up.railway.app/alimentariaCrossMatch';
+// Mismo patrón que csvCrossMatchDirind, contra el dataset ALIMENTARIA 2026 — llena la columna
+// DATOS ALIMENTARIA para filas que no vinieron ya del buscador con fuente primaria ALIMENTARIA.
+async function csvCrossMatchAlimentaria(rows){
+  const withCompany=(rows||[]).filter(r=>(r.partner_name||'').trim());
+  if(!withCompany.length||!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(ALIMENTARIA_CROSSMATCH_API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
+      body:JSON.stringify({leads:withCompany.map(r=>({website:r.Website||'',empresa:r.partner_name||''}))}),
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    (data.resultados||[]).forEach((datosAlim,i)=>{ if(datosAlim) withCompany[i].datos_alimentaria=datosAlim; });
+    csvRenderTable();
+  }catch(e){ console.warn('csvCrossMatchAlimentaria:',e); }
+}
 
 // ── Búsqueda por instrucciones ──
 // El AE describe en texto libre qué leads quiere; Claude lo traduce a los filtros existentes
@@ -14093,7 +14194,7 @@ window.csvInterpretarInstrucciones=async function(){
   if(btn){ btn.disabled=true; btn.textContent='Interpretando…'; }
   try{
     const paisActual=document.getElementById('csvSearchPais')?.value||'MX';
-    const fuenteActual=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':document.getElementById('csvSearchFuenteOutscraper')?.checked?'outscraper':'apollo';
+    const fuenteActual=csvFuenteActual();
     // Industria/Segmento de Apollo (catálogo real, ver csvLoadApolloFiltros) solo se ofrecen a
     // interpretar si ya se cargaron Y la fuente elegida es Apollo — en DENUE sigue mandando 'giro'
     // (más simple, y es lo que el backend traduce a industria SCIAN).
@@ -14331,6 +14432,7 @@ window.csvRetryLeadJob=function(jobId){
     setVal('csvSearchEmpMin', f.empMin); setVal('csvSearchEmpMax', f.empMax);
     setVal('csvSearchCantidad', job.solicitados||5);
     setVal('csvSearchDirindTexto', f.dirindTexto||'');
+    setVal('csvSearchAlimentariaTexto', f.alimentariaTexto||'');
     setVal('csvSearchDenueTexto', f.textoDenue||'');
     setVal('csvSearchOutscraperTexto', f.textoOutscraper||'');
     setTimeout(()=>{
@@ -14346,6 +14448,15 @@ window.csvRetryLeadJob=function(jobId){
         setTimeout(()=>{
           const catSel=new Set(f.categoriasDirind);
           document.querySelectorAll('.csv-dirind-cat-check').forEach(c=>{ c.checked=catSel.has(c.value); });
+        },400);
+      }
+      if(f.fuentePrimaria==='alimentaria'&&(f.seccionesAlimentaria?.length||f.categoriasAlimentaria?.length)){
+        csvLoadAlimentariaCategorias();
+        setTimeout(()=>{
+          const secSel=new Set(f.seccionesAlimentaria||[]);
+          document.querySelectorAll('.csv-alim-sec-check').forEach(c=>{ c.checked=secSel.has(c.value); });
+          const catSel=new Set(f.categoriasAlimentaria||[]);
+          document.querySelectorAll('.csv-alim-cat-check').forEach(c=>{ c.checked=catSel.has(c.value); });
         },400);
       }
       if(f.fuentePrimaria==='outscraper'&&f.estadoOutscraper){
@@ -14668,7 +14779,7 @@ async function csvClassifyIndustryTags(rows){
     empresa:r.partner_name||'',
     resumen:r.resumen||'',
     industria_fuente:r._industriaRaw||'',
-    contexto:[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo,r.datos_outscraper].filter(Boolean).join(' | ').slice(0,600),
+    contexto:[r.notes,r.datos_denue,r.datos_dirind,r.datos_alimentaria,r.datos_apollo,r.datos_outscraper].filter(Boolean).join(' | ').slice(0,600),
   }));
   const aList=QS_INDUSTRY_TYPES.map(a=>`${a.code}=${a.label}`).join(' | ');
   const bList=QS_PRODUCT_TYPES.map(b=>`${b.code}=${b.label}`).join(' | ');
@@ -14750,6 +14861,7 @@ function csvLoadJobIntoRows(job){
     if(fuentes.includes('Apollo')) tagsFila.push('ApolloMX');
     if(fuentes.includes('DENUE')) tagsFila.push('DenueMX');
     if(fuentes.includes('DIRIND')) tagsFila.push('DirindMX');
+    if(fuentes.includes('ALIMENTARIA')) tagsFila.push('AlimentariaMX');
     if(fuentes.includes('Outscraper')) tagsFila.push('OutscraperMX');
     if(tagsExtra) tagsFila.push(...tagsExtra.replace(/\s*,\s*/g,',').split(','));
     // fuentePrimaria: viene DIRECTO de job.filtros (lo que el AE eligió al lanzar la búsqueda), no
@@ -14772,10 +14884,11 @@ function csvLoadJobIntoRows(job){
       // CRM del AE. csvCountryIdFor() recién ahí decide si el país final queda con o sin acento.
       state_id:(row.country_id==='Mexico'?(_mxState(row.state_id||row.estado_raw)||row.state_id):row.state_id)||'',
       country_id:csvCountryIdFor(row.country_id)||'', notes:row.notes||'',
-      // En DENUE/DIRIND-primario la columna DATOS APOLLO nunca debe quedar vacía: si el cross-match
+      // Con un directorio local como primaria, la columna DATOS APOLLO nunca debe quedar vacía: si el cross-match
       // no encontró nada, se dice explícito (el backend nuevo ya manda el texto; esto cubre jobs
       // creados antes de ese cambio).
       datos_denue:row.datos_denue||'', datos_dirind:row.datos_dirind||'',
+      datos_alimentaria:row.datos_alimentaria||'',
       datos_apollo:row.datos_apollo||(fuentePrimaria!=='apollo'?'No hay datos en Apollo':''),
       datos_outscraper:row.datos_outscraper||'', resumen:'',
       _fuentePrimaria:fuentePrimaria,
@@ -14833,7 +14946,7 @@ async function csvBatchResumenes(rows){
     contacto:r.contact_name||'nd',
     cargo:r.function||'nd',
     ubicacion:r.state_id||r.country_id||'nd',
-    contexto:[r.notes,r.datos_denue,r.datos_dirind,r.datos_apollo,r.datos_outscraper].filter(Boolean).join(' | ').slice(0,600),
+    contexto:[r.notes,r.datos_denue,r.datos_dirind,r.datos_alimentaria,r.datos_apollo,r.datos_outscraper].filter(Boolean).join(' | ').slice(0,600),
   });
 
   for(let i=0;i<rows.length;i+=CSV_RESUMEN_LOTE){
@@ -14866,8 +14979,8 @@ Devuelve EXCLUSIVAMENTE un array JSON de ${items.length} cadenas, EN EL MISMO OR
 // teléfono tarda unos minutos y de que se le va a avisar por la campana, no un aviso que
 // desaparece solo a los 3.5s. Mismo overlay que showNavWarning (.disc-popup-overlay).
 window.csvShowSearchStartedPopup=function(fuentePrimaria){
-  const sinRondas=fuentePrimaria==='denue'||fuentePrimaria==='dirind'||fuentePrimaria==='outscraper'; // ya traen correo+teléfono propios, sin espera de reposición
-  const FUENTE_LABEL={apollo:'Apollo',denue:'DENUE',dirind:'DIRIND',outscraper:'Outscraper'};
+  const sinRondas=fuentePrimaria!=='apollo'; // los directorios propios y Outscraper ya traen correo+teléfono, sin espera de reposición
+  const FUENTE_LABEL=Object.fromEntries(Object.entries(CSV_FUENTES).map(([k,v])=>[k,v.label]));
   const existing=document.getElementById('leadSearchStartedPopup'); if(existing) existing.remove();
   const overlay=document.createElement('div');
   overlay.className='disc-popup-overlay'; overlay.id='leadSearchStartedPopup';
@@ -14910,9 +15023,13 @@ window.csvRunLeadSearch=async function(){
   const seniorities=[...document.querySelectorAll('.csv-seniority-check:checked')].map(c=>c.value);
   const roleGroups=[...document.querySelectorAll('.csv-rolegroup-check:checked')].map(c=>c.value);
   const cantidad=document.getElementById('csvSearchCantidad')?.value||5;
-  const fuentePrimaria=document.getElementById('csvSearchFuenteDenue')?.checked?'denue':document.getElementById('csvSearchFuenteDirind')?.checked?'dirind':document.getElementById('csvSearchFuenteOutscraper')?.checked?'outscraper':'apollo';
+  const fuentePrimaria=csvFuenteActual();
   const categoriasDirind=fuentePrimaria==='dirind'?[...document.querySelectorAll('.csv-dirind-cat-check:checked')].map(c=>c.value):[];
   const dirindTexto=fuentePrimaria==='dirind'?(document.getElementById('csvSearchDirindTexto')?.value.trim()||''):'';
+  const esAlim=fuentePrimaria==='alimentaria';
+  const seccionesAlimentaria=esAlim?[...document.querySelectorAll('.csv-alim-sec-check:checked')].map(c=>c.value):[];
+  const categoriasAlimentaria=esAlim?[...document.querySelectorAll('.csv-alim-cat-check:checked')].map(c=>c.value):[];
+  const alimentariaTexto=esAlim?(document.getElementById('csvSearchAlimentariaTexto')?.value.trim()||''):'';
   const textoDenue=fuentePrimaria==='denue'?(document.getElementById('csvSearchDenueTexto')?.value.trim()||''):'';
   const apolloIndustryIds=fuentePrimaria==='apollo'?[...document.querySelectorAll('.csv-apollo-ind-check:checked')].map(c=>c.value):[];
   const apolloMarketSegments=fuentePrimaria==='apollo'?[...document.querySelectorAll('.csv-apollo-seg-check:checked')].map(c=>c.value):[];
@@ -14921,6 +15038,7 @@ window.csvRunLeadSearch=async function(){
   const coloniasOutscraper=fuentePrimaria==='outscraper'?[...document.querySelectorAll('.csv-outscraper-colonia-check:checked')].map(c=>c.value):[];
   const textoOutscraper=fuentePrimaria==='outscraper'?(document.getElementById('csvSearchOutscraperTexto')?.value.trim()||''):'';
   const hayFiltro=fuentePrimaria==='dirind'?(estados.length||categoriasDirind.length||dirindTexto||instrucciones)
+    :esAlim?(estados.length||seccionesAlimentaria.length||categoriasAlimentaria.length||alimentariaTexto||instrucciones)
     :fuentePrimaria==='denue'?(estados.length||municipiosDenue.length||giro||textoDenue||instrucciones)
     :fuentePrimaria==='outscraper'?!!(estadoOutscraper&&municipioOutscraper) // estado+municipio obligatorios; colonia(s) y giro son opcionales
     :(estados.length||apolloIndustryIds.length||apolloMarketSegments.length||instrucciones||roleGroups.length);
@@ -14944,7 +15062,8 @@ window.csvRunLeadSearch=async function(){
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
       body:JSON.stringify({
         paisId, estados, municipiosDenue, seniorities, roleGroups, giroKeywords, giro, apolloIndustryIds, apolloMarketSegments, extraTitles:_csvSearchParsed.extraTitles, cantidad:Number(cantidad)||5,
-        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria, categoriasDirind, dirindTexto, textoDenue, estadoOutscraper, municipioOutscraper, coloniasOutscraper, textoOutscraper,
+        empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria, categoriasDirind, dirindTexto,
+        seccionesAlimentaria, categoriasAlimentaria, alimentariaTexto, textoDenue, estadoOutscraper, municipioOutscraper, coloniasOutscraper, textoOutscraper,
       }),
     });
     const data=await res.json().catch(()=>({}));
@@ -15018,7 +15137,7 @@ window.csvProcess=async function(){
         Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
         state_id:row.state_id||'', country_id:csvCountryIdFor('Mexico'), notes:row.notes||'',
         _origen:_csvGuessOrigen(fuente), _industriaRaw:row._industriaRaw||'',
-        datos_denue:'', datos_dirind:'', datos_apollo:'', datos_outscraper:'', resumen:'',
+        datos_denue:'', datos_dirind:'', datos_alimentaria:'', datos_apollo:'', datos_outscraper:'', resumen:'',
       };
     });
     _csvDirty=true; // prospectos recién extraídos: aún no descargados ni guardados
@@ -15030,11 +15149,12 @@ window.csvProcess=async function(){
     // Pegar/subir archivo se había quedado sin cross-match DENUE, tags de industria QS y columna
     // Resumen (solo corrían para el flujo de búsqueda Apollo/DENUE) — pedido explícito del usuario
     // 2026-07-29 para que TODA fuente llegue con los campos de salida completos. DIRIND (2026-08-03)
-    // se sumó al mismo cross-match gratis.
+    // y ALIMENTARIA (2026-09-04) se sumaron al mismo cross-match gratis.
     // Resumen ANTES de tags — csvClassifyIndustryTags usa r.resumen como contexto principal, así
     // que tiene que existir antes de clasificar (ver ajuste 2026-07-30 en csvClassifyIndustryTags).
     csvCrossMatchDenue(csvRows).catch(e=>console.warn('csvCrossMatchDenue:',e));
     csvCrossMatchDirind(csvRows).catch(e=>console.warn('csvCrossMatchDirind:',e));
+    csvCrossMatchAlimentaria(csvRows).catch(e=>console.warn('csvCrossMatchAlimentaria:',e));
     _csvStartIndustryTagging(csvRows);
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   btn.disabled=false; gcShowLoading('csvLoading',false);
@@ -15151,6 +15271,7 @@ window.csvReEnrichSelected=async function(){
     await csvApplyIndustryTags(rows);
     await csvCrossMatchDenue(rows);
     await csvCrossMatchDirind(rows);
+    await csvCrossMatchAlimentaria(rows);
     showNotif('Re-enriquecimiento listo ✓','success');
   }catch(e){ showNotif('Error al re-enriquecer: '+e.message,'error'); }
 };
