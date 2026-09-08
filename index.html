@@ -12895,6 +12895,7 @@ window.renderPricingRecords=async function(){
   const content=document.getElementById('moduleContent');
   content.style.padding='28px';
   const isMgr=currentUserData?.role==='manager';
+  const canReassign=isMgr||currentUserData?.role==='tl';   // reasignar dueño: manager y TL
   content.innerHTML=`<div style="max-width:1080px;margin:0 auto">
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="renderPricingHome()">← Volver</button>
@@ -12912,15 +12913,33 @@ window.renderPricingRecords=async function(){
   if(!db){ document.getElementById('pricingRecordsList').innerHTML='<div class="cdc-empty">Sin conexión a Firebase</div>'; return; }
   try{
     const role=currentUserData?.role;
-    const q=(role==='manager'||role==='tl')
-      ?query(collection(db,'pricingRecords'),orderBy('createdAt','desc'))
-      :query(collection(db,'pricingRecords'),where('aeUid','==',currentUserData.uid));
-    const snap=await getDocs(q);
+    let docs;
+    if(role==='manager'){
+      docs=(await getDocs(query(collection(db,'pricingRecords'),orderBy('createdAt','desc')))).docs;
+    } else if(role==='tl'){
+      // TL: lo suyo (aeUid) UNIDO a lo de su equipo (tlId), igual que loadDiscoverySessions. Pedir
+      // la colección completa NO funciona aquí: la regla de pricingRecords para un TL depende de
+      // resource.data (aeUid o tlId), y Firestore rechaza la query entera si no trae ese filtro
+      // — al TL le tronaba con "Missing or insufficient permissions" y no veía ningún registro.
+      // Van las dos consultas porque el tlId de un TL guarda a SU manager, no a sí mismo: sus
+      // propios registros no salen en where('tlId','==',su uid).
+      const [own,team]=await Promise.all([
+        getDocs(query(collection(db,'pricingRecords'),where('aeUid','==',currentUserData.uid))),
+        getDocs(query(collection(db,'pricingRecords'),where('tlId','==',currentUserData.uid))),
+      ]);
+      const byId=new Map(); [...own.docs,...team.docs].forEach(d=>byId.set(d.id,d)); docs=[...byId.values()];
+    } else {
+      docs=(await getDocs(query(collection(db,'pricingRecords'),where('aeUid','==',currentUserData.uid)))).docs;
+    }
+    if(role!=='manager'){   // el manager ya viene ordenado por la query; los demás se ordenan aquí
+      const ms=d=>{const c=d.data().createdAt; return c?.toMillis?.()??c?.seconds??0;};
+      docs=[...docs].sort((a,b)=>ms(b)-ms(a));
+    }
     const el=document.getElementById('pricingRecordsList');
-    if(snap.empty){ el.innerHTML='<div class="cdc-empty">Sin registros todavía</div>'; return; }
+    if(!docs.length){ el.innerHTML='<div class="cdc-empty">Sin registros todavía</div>'; return; }
     window._pricingRecordsCache={};
     const fmt=n=>n?'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:0}):'—';
-    el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">${snap.docs.map(d=>{
+    el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">${docs.map(d=>{
       const r=d.data(); window._pricingRecordsCache[d.id]=r;
       const date=r.createdAt?.toDate?r.createdAt.toDate().toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'—';
       const color=_pricingAvatarColor(r.companyName);
@@ -12932,6 +12951,7 @@ window.renderPricingRecords=async function(){
             <div style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.companyName||'Sin empresa'}</div>
             <div style="font-size:12px;color:var(--gray-400);margin-top:1px">${r.aeName||''} · ${date}</div>
           </div>
+          ${canReassign?`<button class="btn btn-ghost btn-sm" style="padding:4px 8px;flex-shrink:0" onclick="pricingOpenReassign('${d.id}')" title="Reasignar dueño">🔁</button>`:''}
           ${isMgr?`<button class="btn btn-ghost-danger btn-sm" style="padding:4px 8px;flex-shrink:0" onclick="deleteRecord('pricingRecords','${d.id}',renderPricingRecords)" title="Eliminar registro">🗑</button>`:''}
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -12952,6 +12972,70 @@ window.renderPricingRecords=async function(){
       </div>`;
     }).join('')}</div>`;
   } catch(e){ document.getElementById('pricingRecordsList').innerHTML=`<div class="cdc-empty">Error: ${e.message}</div>`; }
+};
+
+// ── Reasignar dueño de un registro de pricing — Manager/TL ──
+// A diferencia de companies (que tiene asignado* aparte de createdBy*), en pricingRecords el dueño
+// ES aeUid: es lo que decide quién lo ve (regla de Firestore: aeUid==uid, o tlId==uid si eres TL)
+// y quién lo cuenta en el Panel de Manager. Por eso aquí reasignar SÍ reescribe aeUid/aeName/aeGram
+// — y con ellos el tlId del NUEVO dueño, porque si no el registro se le desaparece a su TL.
+// Quién reasignó y cuándo queda guardado en reasignadoPor*/reasignadoAt.
+let _pricingReassignCandidates=[];
+window.pricingOpenReassign=async function(id){
+  const role=currentUserData?.role;
+  if(role!=='manager'&&role!=='tl'){ showNotif('Solo Manager/TL puede reasignar','error'); return; }
+  const r=window._pricingRecordsCache?.[id];
+  if(!r){ showNotif('Registro no encontrado','error'); return; }
+  let candidates=[];
+  try{
+    if(role==='manager'){
+      const snap=await getDocs(query(collection(db,'users'),where('status','==','active')));
+      candidates=snap.docs.map(d=>d.data()).filter(u=>u.role==='ae'||u.role==='tl');
+    } else {
+      // TL: solo su equipo (si no, reasignar hacia afuera le quitaría el registro de su propia vista)
+      const snap=await getDocs(query(collection(db,'users'),where('tlId','==',currentUserData.uid)));
+      candidates=snap.docs.map(d=>d.data()).filter(u=>u.status==='active');
+      candidates.push({uid:currentUserData.uid,name:currentUserData.name,gram:currentUserData.gram,tlId:currentUserData.tlId||null}); // el propio TL también puede ser dueño
+    }
+  } catch(e){ showNotif('Error cargando equipo: '+e.message,'error'); return; }
+  candidates.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  _pricingReassignCandidates=candidates;
+  document.getElementById('pricingReassignPopup')?.remove();
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='pricingReassignPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:420px">
+    <div class="disc-popup-header"><div class="disc-popup-title">🔁 Reasignar pricing — ${r.companyName||'Sin empresa'}</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('pricingReassignPopup').remove()">✕</button></div>
+    <div class="disc-popup-body">
+      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Dueño actual: <strong>${r.aeName||r.aeGram||'—'}</strong>. El nuevo dueño ve y edita este pricing; al anterior le deja de aparecer. Solo se mueve ESTE registro — la empresa, la sesión de Qcall y la propuesta no cambian de dueño.</p>
+      <div class="form-group"><label>Nuevo dueño</label>
+        <select class="input" id="pricingReassignSelect">
+          ${candidates.length?candidates.map(u=>`<option value="${u.uid}" ${u.uid===r.aeUid?'selected':''}>${u.name}${u.gram?' ('+u.gram+')':''}</option>`).join(''):'<option value="">Sin candidatos disponibles</option>'}
+        </select>
+      </div>
+      <button class="btn btn-primary btn-full" id="pricingReassignBtn" onclick="pricingSaveReassign('${id}')" ${candidates.length?'':'disabled'}>Reasignar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+};
+window.pricingSaveReassign=async function(id){
+  const sel=document.getElementById('pricingReassignSelect');
+  const uid=sel?.value; if(!uid){ showNotif('Elige a quién reasignar','error'); return; }
+  const u=_pricingReassignCandidates.find(c=>c.uid===uid);
+  if(!u){ showNotif('Usuario no válido','error'); return; }
+  const btn=document.getElementById('pricingReassignBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Reasignando…'; }
+  try{
+    await updateDoc(doc(db,'pricingRecords',id),{
+      aeUid:u.uid, aeName:u.name||'', aeGram:u.gram||'', tlId:u.tlId||null,
+      reasignadoPorUid:currentUserData?.uid||'', reasignadoPorNombre:currentUserData?.name||'', reasignadoAt:serverTimestamp()
+    });
+    document.getElementById('pricingReassignPopup')?.remove();
+    showNotif(`Reasignado a ${u.name} ✓`,'success');
+    await renderPricingRecords();   // re-fetch: el registro pudo salirse del alcance de quien reasignó
+  } catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='Reasignar'; }
+    showNotif('Error al reasignar: '+e.message,'error');
+  }
 };
 
 // Reabrir un registro guardado → abre el simulador (iframe) con TODO restaurado
