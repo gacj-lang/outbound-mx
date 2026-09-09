@@ -13972,7 +13972,11 @@ window.csvLoadAlimentariaCategorias=async function(){
     const res=await fetch('https://thorough-curiosity-production-098d.up.railway.app/alimentariaCategorias',{headers:{'Authorization':`Bearer ${idToken}`}});
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
-    _alimentariaCatalogoCache={categorias:data.categorias||[], secciones:data.secciones||[]};
+    // conteos/categoriasPorSeccion (backend 2026-09-08): cuántas empresas ENTREGABLES tiene cada
+    // chip y qué categorías conviven de verdad con cada sección. Sin esto los 196 chips se
+    // pintaban planos y el 54% de los pares sección+categoría (que se aplican con AND) no podía
+    // devolver nada — una de las formas en que un AE terminaba con "0 de 7 leads".
+    _alimentariaCatalogoCache={categorias:data.categorias||[], secciones:data.secciones||[], conteos:data.conteos||{categorias:{},secciones:{}}, categoriasPorSeccion:data.categoriasPorSeccion||{}};
     csvRenderAlimentariaChips();
   }catch(e){
     console.warn('csvLoadAlimentariaCategorias:',e);
@@ -13988,16 +13992,31 @@ function csvRenderAlimentariaChips(){
   // la fuente, y perder la selección del AE a media búsqueda sería un bug silencioso.
   const secPrev=new Set([...secBox.querySelectorAll('.csv-alim-sec-check:checked')].map(c=>c.value));
   const catPrev=new Set([...catBox.querySelectorAll('.csv-alim-cat-check:checked')].map(c=>c.value));
-  const chip=(cls,v,checked)=>`
+  const cont=_alimentariaCatalogoCache.conteos||{categorias:{},secciones:{}};
+  const chip=(cls,v,checked,n,onchange='')=>`
     <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 11px;cursor:pointer">
-      <input type="checkbox" class="${cls}" value="${v.replace(/"/g,'&quot;')}" ${checked?'checked':''}> ${v}
+      <input type="checkbox" class="${cls}" value="${v.replace(/"/g,'&quot;')}" ${checked?'checked':''}${onchange}> ${v}${n!=null?` <span style="color:var(--gray-400)">(${n})</span>`:''}
     </label>`;
-  secBox.innerHTML=_alimentariaCatalogoCache.secciones.map(sec=>chip('csv-alim-sec-check',sec,secPrev.has(sec))).join('');
-  catBox.innerHTML=_alimentariaCatalogoCache.categorias.map(c=>chip('csv-alim-cat-check',c,catPrev.has(c))).join('');
+  secBox.innerHTML=_alimentariaCatalogoCache.secciones.map(sec=>chip('csv-alim-sec-check',sec,secPrev.has(sec),(cont.secciones||{})[sec],' onchange="csvOnAlimentariaSeccionChange()"')).join('');
+  // Sección y categoría se aplican con AND sobre la MISMA empresa, así que solo tiene sentido
+  // ofrecer las categorías que de verdad conviven con la(s) sección(es) elegida(s) — antes se
+  // pintaban las 196 siempre y más de la mitad de las combinaciones devolvía 0 garantizado.
+  const mapa=_alimentariaCatalogoCache.categoriasPorSeccion||{};
+  const permitidas=secPrev.size
+    ? new Set([...secPrev].flatMap(sec=>mapa[sec]||[]))
+    : null;
+  const visibles=permitidas?_alimentariaCatalogoCache.categorias.filter(c=>permitidas.has(c)):_alimentariaCatalogoCache.categorias;
+  const descartadas=[...catPrev].filter(c=>permitidas&&!permitidas.has(c));
+  catBox.innerHTML=visibles.map(c=>chip('csv-alim-cat-check',c,catPrev.has(c),(cont.categorias||{})[c])).join('')
+    +(permitidas?`<div style="width:100%;font-size:11px;color:var(--gray-400);margin-top:6px">Mostrando las ${visibles.length} categorías que existen en la sección elegida${descartadas.length?` — se quitaron ${descartadas.length} que no aparecen ahí (${_esc(descartadas.slice(0,3).join(', '))}${descartadas.length>3?'…':''})`:''}.</div>`:'');
 }
+// Re-pinta las categorías cuando cambia la sección (el AND entre los dos filtros cambia qué
+// categorías pueden devolver algo). Se engancha por delegación sobre la caja de secciones.
+window.csvOnAlimentariaSeccionChange=function(){ csvRenderAlimentariaChips(); };
 // Catálogo real de categorías DIRIND (98) — se pide UNA vez al backend y se cachea; se llama cada
 // vez que se selecciona la fuente DIRIND (csvOnFuenteChange) por si es la primera vez en la sesión.
 let _dirindCategoriasCache=null;
+let _dirindConteosCache={};
 window.csvLoadDirindCategorias=async function(){
   const box=document.getElementById('csvSearchDirindCategoriaChips'); if(!box) return;
   if(_dirindCategoriasCache){ csvRenderDirindCategoriaChips(); return; }
@@ -14008,6 +14027,7 @@ window.csvLoadDirindCategorias=async function(){
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
     _dirindCategoriasCache=data.categorias||[];
+    _dirindConteosCache=(data.conteos||{}).categorias||{}; // cuántas empresas entregables tiene cada categoría
     csvRenderDirindCategoriaChips();
   }catch(e){ console.warn('csvLoadDirindCategorias:',e); box.innerHTML='<span style="font-size:12px;color:var(--danger)">No se pudieron cargar las categorías — reintenta</span>'; }
 };
@@ -14016,7 +14036,7 @@ function csvRenderDirindCategoriaChips(){
   const prevChecked=new Set([...box.querySelectorAll('.csv-dirind-cat-check:checked')].map(c=>c.value));
   box.innerHTML=_dirindCategoriasCache.map(c=>`
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
-      <input type="checkbox" class="csv-dirind-cat-check" value="${c.replace(/"/g,'&quot;')}" ${prevChecked.has(c)?'checked':''}> ${c}
+      <input type="checkbox" class="csv-dirind-cat-check" value="${c.replace(/"/g,'&quot;')}" ${prevChecked.has(c)?'checked':''}> ${c}${_dirindConteosCache[c]!=null?` <span style="color:var(--gray-400)">(${_dirindConteosCache[c]})</span>`:''}
     </label>`).join('');
 }
 // Estado→Municipio→Colonia(s) de Outscraper (catálogo SEPOMEX vía backend, abierto a todo México
@@ -14392,7 +14412,11 @@ function csvSetupLeadJobsListener(){
           csvNotifyLeadJobReady(job); // notificación nativa del navegador (requiere permiso)
           // Aviso visible dentro de la app en cualquier caso — aunque el AE no haya dado permiso
           // de notificaciones o esté en otro módulo, se entera sin abrir la campanita.
-          showNotif(`🔔 ${job.nombre||'Tu búsqueda'} — lista para descargar (${job.leads?.length||0} leads)`,'success');
+          const nLeads=job.leads?.length||0;
+          showNotif(nLeads
+            ?`🔔 ${job.nombre||'Tu búsqueda'} — lista para descargar (${nLeads} lead${nLeads!==1?'s':''})`
+            :`🟡 ${job.nombre||'Tu búsqueda'} terminó sin leads — ábrela en la campana para ver por qué`,
+            nLeads?'success':'info');
         }
       }
     }
@@ -14457,14 +14481,24 @@ function renderLeadJobsBell(){
       const n=j.leads?.length||0;
       const listo=j.status==='listo';
       const error=j.status==='error';
+      // Una búsqueda que termina sin leads NO es un éxito: decía "✅ Listo para descargar — 0 de 7"
+      // en verde y el AE no tenía forma de saber si fue un error de la app o sus filtros (reporte de
+      // un AE, 2026-09-08). El backend ahora manda j.diagnostico.motivo con el escalón del embudo
+      // que se llevó el faltante — se muestra tal cual, aquí y al abrir la búsqueda.
+      const vacio=listo&&!n;
+      const motivo=j.diagnostico?.motivo||'';
       // j.nombre (usuario_fechahora_consecutivo, lo pone el backend) identifica cada consulta;
       // los jobs previos a ese cambio no lo traen y caen al estatus como título. El estatus
       // "Listo para descargar" va en verde y resaltado (fondo) mientras no se haya abierto.
-      return `<div class="lead-bell-item" ${listo&&!j.read?'style="background:var(--success-light)"':''}>
+      const etiqueta=vacio?'🟡 Sin resultados':(statusLabel[j.status]||j.status);
+      const colorEstado=vacio?'color:var(--warning);font-weight:700':listo?'color:var(--success);font-weight:700':error?'color:var(--danger)':'color:var(--gray-400)';
+      return `<div class="lead-bell-item" ${listo&&!j.read?`style="background:var(--${vacio?'warning-light':'success-light'})"`:''}>
         <div style="display:flex;gap:8px;align-items:flex-start">
           <div style="flex:1;cursor:pointer" onclick="csvOpenLeadJob('${j.id}')">
             <div style="font-weight:600">${j.nombre||statusLabel[j.status]||j.status}</div>
-            <div style="font-size:11px;margin-top:3px;${listo?'color:var(--success);font-weight:700':error?'color:var(--danger)':'color:var(--gray-400)'}">${statusLabel[j.status]||j.status}${listo?` — ${n} de ${j.solicitados||n} lead${(j.solicitados||n)!==1?'s':''}`:` · ${j.solicitados||''} solicitados`}${listo&&!j.read?' · NUEVO':''}</div>
+            <div style="font-size:11px;margin-top:3px;${colorEstado}">${etiqueta}${listo?` — ${n} de ${j.solicitados||n} lead${(j.solicitados||n)!==1?'s':''}`:` · ${j.solicitados||''} solicitados`}${listo&&!j.read?' · NUEVO':''}</div>
+            ${listo&&motivo?`<div style="font-size:11px;color:var(--gray-500);margin-top:3px;line-height:1.35">${_esc(motivo)}</div>`:''}
+            ${vacio?`<a onclick="event.stopPropagation();csvRetryLeadJob('${j.id}')" style="font-size:11px;font-weight:700;color:var(--purple);cursor:pointer;display:inline-block;margin-top:4px">↻ Ajustar filtros y reintentar</a>`:''}
             ${error?`<a onclick="event.stopPropagation();csvRetryLeadJob('${j.id}')" style="font-size:11px;font-weight:700;color:var(--purple);cursor:pointer;display:inline-block;margin-top:4px">↻ Reintentar con los mismos filtros</a>`:''}
           </div>
           <button onclick="event.stopPropagation();csvDismissLeadJob('${j.id}')" title="Descartar" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:13px;flex-shrink:0;padding:2px">✕</button>
@@ -14581,7 +14615,9 @@ window.csvOpenLeadJob=async function(jobId){
   if(!job.read) await csvMarkJobReadApi(jobId);
   showModule('csv');
   csvSetInputMode('search');
-  if(!job.leads?.length){ showNotif('No se encontraron leads nuevos con esos filtros','info'); return; }
+  // El motivo lo calcula el backend (ver explicarDiagnostico en server.js) — dice cuál escalón
+  // del embudo se llevó el faltante: filtros, dedupe contra el CRM o la regla de correo+teléfono.
+  if(!job.leads?.length){ csvShowSinResultados(job); return; }
   csvLoadJobIntoRows(job);
   showNotif(`${job.leads.length} de ${job.solicitados} leads listos ✓`,'success');
 };
@@ -15062,6 +15098,63 @@ Devuelve EXCLUSIVAMENTE un array JSON de ${items.length} cadenas, EN EL MISMO OR
 // Popup (no toast) al lanzar una búsqueda — el AE necesita quedar bien enterado de que el
 // teléfono tarda unos minutos y de que se le va a avisar por la campana, no un aviso que
 // desaparece solo a los 3.5s. Mismo overlay que showNavWarning (.disc-popup-overlay).
+// Ventana de "esta búsqueda no trajo nada". Reemplaza al toast genérico ("No se encontraron leads
+// nuevos con esos filtros"), que no distinguía entre las tres causas reales y dejaba al AE sin saber
+// si reportar un error o cambiar sus filtros. El texto viene del backend (diagnostico.motivo) y trae
+// el escalón exacto del embudo; abajo se listan los filtros con los que se lanzó, para que el AE vea
+// de un vistazo cuál está de más.
+window.csvShowSinResultados=function(job){
+  const d=job.diagnostico||{};
+  const f=job.filtros||{};
+  const FUENTE_LABEL=Object.fromEntries(Object.entries(CSV_FUENTES).map(([k,v])=>[k,v.label]));
+  const filtros=[
+    ['Fuente', FUENTE_LABEL[f.fuentePrimaria]||f.fuentePrimaria||'Apollo'],
+    ['Estados', (f.estados||[]).join(', ')],
+    ['Municipios', (f.municipiosDenue||[]).join(', ')],
+    ['Secciones', (f.seccionesAlimentaria||[]).join(', ')],
+    ['Categorías', [...(f.categoriasAlimentaria||[]),...(f.categoriasDirind||[])].join(', ')],
+    ['Texto', f.alimentariaTexto||f.dirindTexto||f.textoDenue||f.textoOutscraper||''],
+    ['Giro', f.giro?(IND_NAMES[f.giro]||f.giro):''],
+    ['Tamaño', f.empMin||f.empMax?`${f.empMin||1} a ${f.empMax||'∞'} empleados`:''],
+    ['Roles', (f.roleGroups||[]).join(', ')],
+  ].filter(([,v])=>v);
+  // Embudo: solo los escalones que de verdad restaron algo — un renglón por cada uno.
+  const embudo=[
+    ['Empresas que cumplen los filtros', d.candidatos],
+    ['Nuevas (no estaban en el CRM ni en búsquedas previas)', d.nuevos],
+    ['Descartadas por no tener correo corporativo', d.sinCorreoCorporativo],
+    ['Descartadas por no tener teléfono', d.sinTelefono],
+    ['Descartadas por correo no verificable', d.correoNoVerificable],
+    ['Entregadas', d.entregados],
+  ].filter(([,v])=>v!=null);
+  const existing=document.getElementById('leadSearchEmptyPopup'); if(existing) existing.remove();
+  const overlay=document.createElement('div');
+  overlay.className='disc-popup-overlay'; overlay.id='leadSearchEmptyPopup';
+  overlay.innerHTML=`
+    <div style="background:white;border-radius:16px;width:100%;max-width:520px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+      <div style="font-size:40px;text-align:center;margin-bottom:12px">🟡</div>
+      <h3 style="font-size:17px;font-weight:700;text-align:center;margin-bottom:6px">Esta búsqueda no trajo leads</h3>
+      <p style="font-size:12px;color:var(--gray-400);text-align:center;margin-bottom:16px">No se consumió nada de tu cuota: solo se descuentan los leads entregados.</p>
+      <div style="background:var(--warning-light);border:1px solid #fde68a;border-radius:10px;padding:14px;font-size:14px;color:var(--gray-700);line-height:1.45;margin-bottom:16px">
+        ${_esc(d.motivo||'No se encontraron leads nuevos con esos filtros.')}
+      </div>
+      ${embudo.length?`<div style="font-size:12px;color:var(--gray-500);margin-bottom:14px">
+        <div style="font-weight:700;margin-bottom:6px">Qué pasó, paso a paso</div>
+        ${embudo.map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid var(--gray-100)"><span>${k}</span><strong>${v}</strong></div>`).join('')}
+      </div>`:''}
+      ${filtros.length?`<div style="font-size:12px;color:var(--gray-500);margin-bottom:18px">
+        <div style="font-weight:700;margin-bottom:6px">Filtros con los que se lanzó</div>
+        ${filtros.map(([k,v])=>`<div style="padding:2px 0">${k}: <strong>${_esc(String(v))}</strong></div>`).join('')}
+      </div>`:''}
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" style="flex:1" id="leadSearchEmptyClose">Cerrar</button>
+        <button class="btn btn-primary" style="flex:1" id="leadSearchEmptyRetry">Ajustar filtros</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('leadSearchEmptyClose').onclick=()=>overlay.remove();
+  document.getElementById('leadSearchEmptyRetry').onclick=()=>{ overlay.remove(); csvRetryLeadJob(job.id); };
+};
 window.csvShowSearchStartedPopup=function(fuentePrimaria){
   const sinRondas=fuentePrimaria!=='apollo'; // los directorios propios y Outscraper ya traen correo+teléfono, sin espera de reposición
   const FUENTE_LABEL=Object.fromEntries(Object.entries(CSV_FUENTES).map(([k,v])=>[k,v.label]));
