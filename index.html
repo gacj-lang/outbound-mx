@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-08 Buscador de leads: la búsqueda por texto de DENUE/DIRIND/ALIMENTARIA ya no distingue acentos ni plurales (escribir "talleres mecánicos" o "logística" devolvía 0 leads). Cuando una búsqueda no trae nada, la campana dice por qué y con qué filtros se lanzó. Los chips de categoría traen su conteo de empresas disponibles.';
+const APP_BUILD_STAMP='2026-09-09 Buscador de leads: ahora repone hasta completar el número que pediste — si un lead se cae por correo no verificable, sin teléfono o duplicado, se busca otro en su lugar. La campana sigue mostrando qué se descartó en el camino.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -15126,6 +15126,7 @@ window.csvShowSinResultados=function(job){
     ['Descartadas por no tener teléfono', d.sinTelefono],
     ['Descartadas por correo no verificable', d.correoNoVerificable],
     ['Entregadas', d.entregados],
+    ['Rondas de búsqueda', d.rondas],
   ].filter(([,v])=>v!=null);
   const existing=document.getElementById('leadSearchEmptyPopup'); if(existing) existing.remove();
   const overlay=document.createElement('div');
@@ -15167,9 +15168,8 @@ window.csvShowSearchStartedPopup=function(fuentePrimaria){
       <h3 style="font-size:17px;font-weight:700;text-align:center;margin-bottom:12px">Buscando tus leads en ${FUENTE_LABEL[fuentePrimaria]||'Apollo'}</h3>
       <ul style="font-size:14px;color:var(--gray-600);margin:0 0 20px;padding-left:20px;display:flex;flex-direction:column;gap:8px">
         <li><strong>Regla dura:</strong> solo se entregan contactos con correo corporativo Y teléfono.</li>
-        ${sinRondas
-          ?'<li>Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, se entrega igual solo con datos de la empresa.</li>'
-          :'<li>Si un lead sale duplicado, sin correo corporativo o sin teléfono, se descarta y <strong>se busca reposición automáticamente</strong> — por eso la búsqueda puede tardar de 2 a 15 minutos.</li>'}
+        <li>Si un lead sale duplicado, sin correo corporativo, sin teléfono o con un correo que no se puede verificar, se descarta y <strong>se busca reposición hasta completar el número que pediste</strong> — por eso la búsqueda puede tardar varios minutos.</li>
+        ${sinRondas?'<li>Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, se entrega igual solo con datos de la empresa.</li>':''}
         <li>Puedes seguir usando la app o cerrar esta ventana — te avisamos con la campana 🔔 en la esquina superior cuando la lista esté completa.</li>
       </ul>
       <button class="btn btn-primary btn-full" id="leadSearchStartedClose">Entendido</button>
