@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-09 Buscador de leads: ahora repone hasta completar el número que pediste — si un lead se cae por correo no verificable, sin teléfono o duplicado, se busca otro en su lugar. La campana sigue mostrando qué se descartó en el camino.';
+const APP_BUILD_STAMP='2026-09-09 Buscador de leads: repone hasta completar el número que pediste, y cuando una búsqueda no trae nada la campana dice de cuántas empresas salió y qué correos rechazó el validador.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -15142,6 +15142,11 @@ window.csvShowSinResultados=function(job){
       ${embudo.length?`<div style="font-size:12px;color:var(--gray-500);margin-bottom:14px">
         <div style="font-weight:700;margin-bottom:6px">Qué pasó, paso a paso</div>
         ${embudo.map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid var(--gray-100)"><span>${k}</span><strong>${v}</strong></div>`).join('')}
+      </div>`:''}
+      ${(d.rechazosCorreo||[]).length?`<div style="font-size:12px;color:var(--gray-500);margin-bottom:14px">
+        <div style="font-weight:700;margin-bottom:6px">Correos que rechazó el validador</div>
+        <div style="font-size:11px;color:var(--gray-400);margin-bottom:6px">Si aquí ves puros correos genéricos (info@, ventas@) de empresas reales, avísale a tu manager: puede que el validador esté siendo demasiado estricto con este directorio.</div>
+        ${d.rechazosCorreo.map(r=>`<div style="padding:2px 0;font-family:ui-monospace,monospace;font-size:11px">${_esc(r.correo)} <span style="color:var(--danger)">${_esc(r.status||'')}</span>${r.detalle?` <span style="color:var(--gray-400)">${_esc(r.detalle)}</span>`:''}</div>`).join('')}
       </div>`:''}
       ${filtros.length?`<div style="font-size:12px;color:var(--gray-500);margin-bottom:18px">
         <div style="font-weight:700;margin-bottom:6px">Filtros con los que se lanzó</div>
