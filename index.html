@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-11b Generación de leads: se quitó Pegar/subir archivo. El buscador es la única entrada del módulo.';
+const APP_BUILD_STAMP='2026-09-11c Buscar leads: filtros nuevos de Apollo (sector SCIAN, tecnología que usa o no usa, ingresos, antigüedad, crecimiento, tiempo en el puesto, correo verificado y vacantes) y un contador que dice cuántas personas cumplen antes de gastar cuota.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -13710,6 +13710,74 @@ function csvRenderResultadosTab(content){
                 <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Segmento de mercado (Apollo) <span style="font-weight:400;color:var(--gray-400)">(opcional, vacío = cualquiera)</span></summary>
                 <div id="csvSearchApolloSegChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando segmentos…</span></div>
               </details>
+
+              <!-- Filtros nuevos de Apollo (2026-09-11). Van PLEGADOS a propósito: el camino normal
+                   sigue siendo escribir las instrucciones en español arriba; esto es para el AE que
+                   quiere afinar. Todos salen de parámetros reales de mixed_people/api_search (ver
+                   _buildPeopleSearchBody en providers/apollo.js del backend) y solo aplican a Apollo:
+                   los directorios tienen sus propios filtros, que es justo lo que pidió el usuario
+                   ("filtros diferentes para una y otra herramienta"). -->
+              <details style="margin:16px 0 0" id="csvSearchApolloSectorBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Sector oficial SCIAN <span style="font-weight:400;color:var(--gray-400)">(el mismo catálogo de INEGI que usa DENUE)</span></summary>
+                <div id="csvSearchApolloSectorChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:170px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando sectores…</span></div>
+              </details>
+
+              <details style="margin:16px 0 0" id="csvSearchApolloTechBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Tecnología que usa <span style="font-weight:400;color:var(--gray-400)">(para desplazar un sistema, o para dejar fuera a quien ya trae Odoo)</span></summary>
+                <div style="margin-top:8px;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)">
+                  <label style="font-size:11.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.03em">Usa</label>
+                  <div id="csvSearchApolloTechUsaChips" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px"><span style="font-size:12px;color:var(--gray-400)">Cargando…</span></div>
+                  <label style="font-size:11.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.03em">No usa</label>
+                  <div id="csvSearchApolloTechNoChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div>
+                </div>
+              </details>
+
+              <details style="margin:16px 0 0" id="csvSearchApolloEmpresaBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Más de la empresa <span style="font-weight:400;color:var(--gray-400)">(ingresos, antigüedad, crecimiento)</span></summary>
+                <div style="margin-top:8px;padding:12px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50);display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <div class="form-group" style="margin:0"><label>Ingresos anuales desde (USD)</label><input type="number" class="input" id="csvSearchIngresosMin" min="0" placeholder="Ej. 500000"></div>
+                  <div class="form-group" style="margin:0"><label>Ingresos anuales hasta (USD)</label><input type="number" class="input" id="csvSearchIngresosMax" min="0" placeholder="Ej. 50000000"></div>
+                  <div class="form-group" style="margin:0"><label>Fundada desde</label><input type="number" class="input" id="csvSearchFundadaDesde" min="1900" max="2100" placeholder="Ej. 2015"></div>
+                  <div class="form-group" style="margin:0"><label>Fundada hasta</label><input type="number" class="input" id="csvSearchFundadaHasta" min="1900" max="2100" placeholder="Ej. 2024"></div>
+                  <div class="form-group" style="margin:0"><label>Creció al menos (%)</label><input type="number" class="input" id="csvSearchCrecimientoPct" min="0" placeholder="Ej. 10"></div>
+                  <div class="form-group" style="margin:0"><label>En los últimos</label>
+                    <select class="input" id="csvSearchCrecimientoMeses"><option value="">—</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
+                  <span style="grid-column:1/-1;font-size:11px;color:var(--gray-400)">El porcentaje necesita su periodo: si falta uno de los dos, no se manda ninguno.</span>
+                </div>
+              </details>
+
+              <details style="margin:16px 0 0" id="csvSearchApolloPersonaBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Más de la persona <span style="font-weight:400;color:var(--gray-400)">(puestos exactos, tiempo en el puesto, correo)</span></summary>
+                <div style="margin-top:8px;padding:12px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)">
+                  <div class="form-group" style="margin:0 0 12px"><label>Puestos <span style="font-weight:400;color:var(--gray-400)">(sepáralos con comas — se suman a los roles de abajo)</span></label>
+                    <input type="text" class="input" id="csvSearchTitulosLibres" placeholder="Ej. Contralor, Jefe de almacén, Encargado de sucursal"></div>
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:12px">
+                    <input type="checkbox" id="csvSearchTitulosEstrictos"> Solo estos puestos exactos <span style="color:var(--gray-400);font-size:11.5px">(sin puestos parecidos)</span>
+                  </label>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end">
+                    <div class="form-group" style="margin:0"><label>Tiempo en el puesto</label>
+                      <select class="input" id="csvSearchDiasEnPuesto"><option value="">Cualquiera</option><option value="90">Menos de 3 meses</option><option value="180">Menos de 6 meses</option><option value="365">Menos de 1 año</option></select></div>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding-bottom:8px">
+                      <input type="checkbox" id="csvSearchCorreoVerificado"> Solo correo verificado
+                    </label>
+                  </div>
+                  <span style="font-size:11px;color:var(--gray-400);display:block;margin-top:8px">Correo verificado deja fuera casi la mitad del universo, pero baja los descartes que sí gastan créditos.</span>
+                </div>
+              </details>
+
+              <details style="margin:16px 0 0" id="csvSearchApolloSenalesBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Señales <span style="font-weight:400;color:var(--gray-400)">(qué está contratando la empresa)</span></summary>
+                <div style="margin-top:8px;padding:12px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)">
+                  <div class="form-group" style="margin:0 0 12px"><label>Contratando para <span style="font-weight:400;color:var(--gray-400)">(puestos de sus vacantes, separados por comas)</span></label>
+                    <input type="text" class="input" id="csvSearchVacantesTitulos" placeholder="Ej. accountant, warehouse, customer service"></div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="form-group" style="margin:0"><label>Vacantes activas (mínimo)</label><input type="number" class="input" id="csvSearchVacantesMin" min="0" placeholder="Ej. 1"></div>
+                    <div class="form-group" style="margin:0"><label>Publicadas en</label>
+                      <select class="input" id="csvSearchVacantesDias"><option value="">Cualquier fecha</option><option value="30">Últimos 30 días</option><option value="60">Últimos 60 días</option><option value="90">Últimos 90 días</option></select></div>
+                  </div>
+                  <span style="font-size:11px;color:var(--gray-400);display:block;margin-top:8px">Apollo casi no ve vacantes escritas en español: medido el 11 sep, "auxiliar contable" y "almacenista" dan 26 resultados en todo México. Escríbelos en inglés mientras conectamos Google Jobs.</span>
+                </div>
+              </details>
             </div>
           </div>
 
@@ -13759,6 +13827,10 @@ function csvRenderResultadosTab(content){
             <span>🔔 Activa notificaciones del navegador para saber al instante cuando tu búsqueda esté lista.</span>
             <button class="btn btn-ghost btn-sm" style="white-space:nowrap" onclick="cfgRequestNotifPermission()">Activar</button>
           </div>`:''}
+          <!-- Contador de universo (2026-09-11): aparece solo con Apollo y solo cuando ya hay algún
+               filtro. Sale de POST /apolloConteo, que usa la misma búsqueda de personas de Apollo —
+               esa no cobra créditos, así que el AE puede tantear cuantas veces quiera. -->
+          <div id="csvSearchConteo" style="display:none;align-items:center;gap:10px;margin-top:16px;padding:12px 14px;background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--radius-sm)"></div>
           <button class="gc-generate-btn" style="margin-top:16px" id="csvSearchBtn" onclick="csvRunLeadSearch()"><span>🔍</span> Buscar leads</button>
           <div class="gc-loading" id="csvSearchLoading"><div class="gc-spinner"></div><span>Buscando...</span></div>
         </div>
@@ -13812,6 +13884,14 @@ function csvRenderResultadosTab(content){
   csvRenderEstadoChips();
   csvLoadApolloFiltros(); // Apollo es la fuente por defecto (radio checked arriba) — se cargan sus filtros nativos de una vez
   csvFetchQuotaStatus();  // el consumo pudo cambiar desde la última vez (otra búsqueda, otra pestaña)
+  // Un solo listener delegado alimenta el contador: cualquier cambio dentro del formulario (chip,
+  // número, texto, select) lo vuelve a pedir. Así no hay que acordarse de enganchar cada control
+  // nuevo por separado — con decenas de campos, ese olvido es el bug garantizado.
+  const cajaBusqueda=document.getElementById('csvSearchModeBox');
+  if(cajaBusqueda){
+    cajaBusqueda.addEventListener('change',()=>csvActualizarConteo());
+    cajaBusqueda.addEventListener('input',e=>{ if(e.target.matches('input[type="number"],input[type="text"]')) csvActualizarConteo(); });
+  }
 }
 
 // Repuebla los checkboxes de Estado según el País elegido (país domina estado) — se llama al
@@ -13880,6 +13960,14 @@ window.csvOnFuenteChange=function(){
   if(denueTextoBox) denueTextoBox.style.display=fuente==='denue'?'block':'none';
   if(apolloIndBox) apolloIndBox.style.display=fuente==='apollo'?'block':'none';
   if(apolloSegBox) apolloSegBox.style.display=fuente==='apollo'?'block':'none';
+  // Filtros nuevos de Apollo: se muestran solo con Apollo, igual que los de arriba. Los directorios
+  // llevan los suyos (categorías, secciones, municipios) — cada herramienta con su formulario.
+  ['csvSearchApolloSectorBox','csvSearchApolloTechBox','csvSearchApolloEmpresaBox','csvSearchApolloPersonaBox','csvSearchApolloSenalesBox']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=fuente==='apollo'?'block':'none'; });
+  // El contador solo tiene sentido en Apollo: es su búsqueda la que sabe contar sin cobrar.
+  const conteoBox=document.getElementById('csvSearchConteo');
+  if(conteoBox) conteoBox.style.display='none';
+  if(fuente==='apollo') csvActualizarConteo();
   if(estadosGroup) estadosGroup.style.display=fuente==='outscraper'?'none':'block'; // Outscraper usa su propio Estado→Municipio→Colonia en cascada
   if(outscraperEstadoBox) outscraperEstadoBox.style.display=fuente==='outscraper'?'block':'none';
   if(outscraperMunicipioBox) outscraperMunicipioBox.style.display=fuente==='outscraper'?'block':'none';
@@ -14058,7 +14146,7 @@ window.csvLoadApolloFiltros=async function(){
     const res=await fetch('https://thorough-curiosity-production-098d.up.railway.app/apolloFiltros',{headers:{'Authorization':`Bearer ${idToken}`}});
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
-    _apolloFiltrosCache={industrias:data.industrias||[],segmentos:data.segmentos||[]};
+    _apolloFiltrosCache={industrias:data.industrias||[],segmentos:data.segmentos||[],sectores:data.sectores||[],tecnologias:data.tecnologias||[]};
     csvRenderApolloFiltrosChips();
   }catch(e){
     console.warn('csvLoadApolloFiltros:',e);
@@ -14079,6 +14167,105 @@ function csvRenderApolloFiltrosChips(){
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
       <input type="checkbox" class="csv-apollo-seg-check" value="${s.id}" ${prevSeg.has(s.id)?'checked':''}> ${s.label}
     </label>`).join('');
+  // Sector SCIAN y tecnologías (2026-09-11). El chip de tecnología muestra el número de personas que
+  // Apollo tiene marcadas con ella en México — sale del catálogo del backend, que solo incluye uids
+  // verificados con una búsqueda real. Los mismos uids aparecen en "Usa" y en "No usa", con clases
+  // distintas para no confundir una lista con la otra al leer los checkboxes.
+  const chip=(cls,val,label,extra='',checked=false)=>`
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
+      <input type="checkbox" class="${cls}" value="${val}" ${checked?'checked':''} onchange="csvActualizarConteo()"> ${label}${extra}
+    </label>`;
+  const secBox=document.getElementById('csvSearchApolloSectorChips');
+  if(secBox){
+    const prevSec=new Set([...secBox.querySelectorAll('.csv-apollo-sector-check:checked')].map(c=>c.value));
+    secBox.innerHTML=(_apolloFiltrosCache.sectores||[]).map(s=>chip('csv-apollo-sector-check',s.scian,`${s.scian} · ${s.label}`,'',prevSec.has(s.scian))).join('');
+  }
+  const num=n=>Number(n||0).toLocaleString('es-MX');
+  const techUsaBox=document.getElementById('csvSearchApolloTechUsaChips');
+  if(techUsaBox){
+    const prev=new Set([...techUsaBox.querySelectorAll('.csv-apollo-tech-usa-check:checked')].map(c=>c.value));
+    techUsaBox.innerHTML=(_apolloFiltrosCache.tecnologias||[]).map(t=>chip('csv-apollo-tech-usa-check',t.uid,t.label,` <span style="font-size:10px;color:var(--gray-400)">${num(t.total)}</span>`,prev.has(t.uid))).join('');
+  }
+  const techNoBox=document.getElementById('csvSearchApolloTechNoChips');
+  if(techNoBox){
+    const prev=new Set([...techNoBox.querySelectorAll('.csv-apollo-tech-no-check:checked')].map(c=>c.value));
+    techNoBox.innerHTML=(_apolloFiltrosCache.tecnologias||[]).map(t=>chip('csv-apollo-tech-no-check',t.uid,t.label,'',prev.has(t.uid))).join('');
+  }
+}
+// Lee de UN solo lugar todos los filtros nuevos de Apollo. Lo usan la búsqueda y el contador: si
+// cada uno los leyera por su cuenta, el número que ve el AE dejaría de corresponder a lo que pide.
+function _csvApolloFiltrosExtra(){
+  const val=id=>document.getElementById(id)?.value.trim()||'';
+  const numOf=id=>{ const v=val(id); return v===''?null:Number(v); };
+  const lista=id=>val(id).split(',').map(s=>s.trim()).filter(Boolean).slice(0,10);
+  const marcados=cls=>[...document.querySelectorAll('.'+cls+':checked')].map(c=>c.value);
+  // El AE elige "últimos N días" y aquí se vuelve fecha ISO, que es lo que espera Apollo. Se guarda
+  // el número de días y no la fecha para que un filtro reusado mañana siga significando lo mismo.
+  const dias=numOf('csvSearchVacantesDias');
+  const vacantesDesde=dias?new Date(Date.now()-dias*86400000).toISOString().slice(0,10):'';
+  return {
+    scianSectores:marcados('csv-apollo-sector-check'),
+    tecnologiasUsa:marcados('csv-apollo-tech-usa-check'),
+    tecnologiasNoUsa:marcados('csv-apollo-tech-no-check'),
+    ingresosMin:numOf('csvSearchIngresosMin'), ingresosMax:numOf('csvSearchIngresosMax'),
+    fundadaDesde:numOf('csvSearchFundadaDesde'), fundadaHasta:numOf('csvSearchFundadaHasta'),
+    crecimientoMinPct:numOf('csvSearchCrecimientoPct'), crecimientoMeses:numOf('csvSearchCrecimientoMeses'),
+    diasEnPuestoMax:numOf('csvSearchDiasEnPuesto'),
+    soloCorreoVerificado:!!document.getElementById('csvSearchCorreoVerificado')?.checked,
+    titulosEstrictos:!!document.getElementById('csvSearchTitulosEstrictos')?.checked,
+    titulosLibres:lista('csvSearchTitulosLibres'),
+    vacantesTitulos:lista('csvSearchVacantesTitulos'),
+    vacantesMin:numOf('csvSearchVacantesMin'),
+    vacantesDesde,
+  };
+}
+
+// Contador de universo (2026-09-11): cuántas personas cumplen los filtros ANTES de lanzar. La
+// búsqueda de personas de Apollo cuesta 0 créditos, así que esto no gasta cuota ni créditos del AE
+// — lo único limitado son las llamadas por hora del plan, que el backend protege con una caché de
+// 60 s. Aquí se espera medio segundo antes de preguntar, porque el AE marca varios chips seguidos.
+const APOLLO_CONTEO_API_URL='https://thorough-curiosity-production-098d.up.railway.app/apolloConteo';
+let _conteoTimer=null, _conteoPeticion=0;
+window.csvActualizarConteo=function(){
+  clearTimeout(_conteoTimer);
+  _conteoTimer=setTimeout(_csvPedirConteo,500);
+};
+async function _csvPedirConteo(){
+  const caja=document.getElementById('csvSearchConteo'); if(!caja) return;
+  if(csvFuenteActual()!=='apollo'||!currentUser){ caja.style.display='none'; return; }
+  const extra=_csvApolloFiltrosExtra();
+  const empMinRaw=document.getElementById('csvSearchEmpMin')?.value||'';
+  const empMaxRaw=document.getElementById('csvSearchEmpMax')?.value||'';
+  const cuerpo={
+    paisId:document.getElementById('csvSearchPais')?.value||'MX',
+    estados:[...document.querySelectorAll('.csv-estado-check:checked')].map(c=>c.value),
+    empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null,
+    seniorities:[...document.querySelectorAll('.csv-seniority-check:checked')].map(c=>c.value),
+    roleGroups:[...document.querySelectorAll('.csv-rolegroup-check:checked')].map(c=>c.value),
+    extraTitles:[...new Set([...(_csvSearchParsed.extraTitles||[]),...extra.titulosLibres])].slice(0,15),
+    apolloIndustryIds:[...document.querySelectorAll('.csv-apollo-ind-check:checked')].map(c=>c.value),
+    apolloMarketSegments:[...document.querySelectorAll('.csv-apollo-seg-check:checked')].map(c=>c.value),
+    giroKeywords:_csvSearchParsed.keywords||[],
+    ...extra,
+  };
+  // Sin ningún filtro el conteo sería "todo México", un número que no ayuda a decidir nada.
+  const hayAlgo=cuerpo.estados.length||cuerpo.apolloIndustryIds.length||cuerpo.apolloMarketSegments.length||extra.scianSectores.length
+    ||extra.tecnologiasUsa.length||extra.tecnologiasNoUsa.length||cuerpo.roleGroups.length||cuerpo.extraTitles.length
+    ||cuerpo.seniorities.length||cuerpo.empMin||cuerpo.empMax||extra.vacantesTitulos.length;
+  if(!hayAlgo){ caja.style.display='none'; return; }
+  const mio=++_conteoPeticion; // solo pinta la respuesta de la ÚLTIMA petición: el AE sigue marcando chips
+  caja.style.display='flex';
+  caja.innerHTML='<span style="font-size:12.5px;color:var(--gray-500)">Contando cuántos cumplen…</span>';
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(APOLLO_CONTEO_API_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},body:JSON.stringify(cuerpo)});
+    const data=await res.json().catch(()=>({}));
+    if(mio!==_conteoPeticion) return;
+    if(!res.ok||data.total==null){ caja.style.display='none'; return; }
+    const n=Number(data.total||0);
+    caja.innerHTML=`<b style="font-size:19px;font-variant-numeric:tabular-nums;color:var(--accent)">${n.toLocaleString('es-MX')}</b>
+      <span style="font-size:12.5px;color:var(--gray-500)">${n===1?'persona cumple':'personas cumplen'} estos filtros · contar es gratis, no gasta cuota ni créditos${n===0?' · prueba quitando un filtro':''}</span>`;
+  }catch(e){ if(mio===_conteoPeticion) caja.style.display='none'; }
 }
 window.csvRenderEstadoChips=function(){
   const box=document.getElementById('csvSearchEstadosBox'); if(!box) return;
@@ -15141,6 +15328,9 @@ window.csvRunLeadSearch=async function(){
   const textoDenue=fuentePrimaria==='denue'?(document.getElementById('csvSearchDenueTexto')?.value.trim()||''):'';
   const apolloIndustryIds=fuentePrimaria==='apollo'?[...document.querySelectorAll('.csv-apollo-ind-check:checked')].map(c=>c.value):[];
   const apolloMarketSegments=fuentePrimaria==='apollo'?[...document.querySelectorAll('.csv-apollo-seg-check:checked')].map(c=>c.value):[];
+  // Filtros nuevos de Apollo (2026-09-11) — se leen de un solo lugar (_csvApolloFiltrosExtra) para
+  // que la búsqueda y el contador manden exactamente lo mismo.
+  const extraApollo=fuentePrimaria==='apollo'?_csvApolloFiltrosExtra():{};
   const estadoOutscraper=fuentePrimaria==='outscraper'?(document.getElementById('csvSearchOutscraperEstado')?.value||''):'';
   const municipioOutscraper=fuentePrimaria==='outscraper'?(document.getElementById('csvSearchOutscraperMunicipio')?.value||''):'';
   const coloniasOutscraper=fuentePrimaria==='outscraper'?[...document.querySelectorAll('.csv-outscraper-colonia-check:checked')].map(c=>c.value):[];
@@ -15169,9 +15359,18 @@ window.csvRunLeadSearch=async function(){
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
       body:JSON.stringify({
-        paisId, estados, municipiosDenue, seniorities, roleGroups, giroKeywords, giro, apolloIndustryIds, apolloMarketSegments, extraTitles:_csvSearchParsed.extraTitles, cantidad:Number(cantidad)||5,
+        paisId, estados, municipiosDenue, seniorities, roleGroups, giroKeywords, giro, apolloIndustryIds, apolloMarketSegments,
+        extraTitles:[...new Set([..._csvSearchParsed.extraTitles,...(extraApollo.titulosLibres||[])])].slice(0,15),
+        cantidad:Number(cantidad)||5,
         empMin:empMinRaw?Number(empMinRaw):null, empMax:empMaxRaw?Number(empMaxRaw):null, fuentePrimaria, categoriasDirind, dirindTexto,
         seccionesAlimentaria, categoriasAlimentaria, alimentariaTexto, textoDenue, estadoOutscraper, municipioOutscraper, coloniasOutscraper, textoOutscraper,
+        scianSectores:extraApollo.scianSectores||[], naicsExcluidos:[], tecnologiasUsa:extraApollo.tecnologiasUsa||[], tecnologiasNoUsa:extraApollo.tecnologiasNoUsa||[],
+        ingresosMin:extraApollo.ingresosMin??null, ingresosMax:extraApollo.ingresosMax??null,
+        fundadaDesde:extraApollo.fundadaDesde??null, fundadaHasta:extraApollo.fundadaHasta??null,
+        crecimientoMinPct:extraApollo.crecimientoMinPct??null, crecimientoMeses:extraApollo.crecimientoMeses??null,
+        diasEnPuestoMax:extraApollo.diasEnPuestoMax??null, soloCorreoVerificado:!!extraApollo.soloCorreoVerificado,
+        titulosEstrictos:!!extraApollo.titulosEstrictos, vacantesTitulos:extraApollo.vacantesTitulos||[],
+        vacantesMin:extraApollo.vacantesMin??null, vacantesDesde:extraApollo.vacantesDesde||'',
       }),
     });
     const data=await res.json().catch(()=>({}));
