@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-11 Pricing: el paquete de implementación de 12 horas pasa de $12,000 a $12,988.23 MXN, el precio real de la cotización en Odoo.';
+const APP_BUILD_STAMP='2026-09-11b Generación de leads: se quitó Pegar/subir archivo. El buscador es la única entrada del módulo.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -13433,7 +13433,6 @@ let _csvDirty=false;
 // un aviso de "esperando" hasta al descargar minutos después, cuando ya no había nada que esperar.
 let _csvIndustryTagsPromise=null;
 let _csvIndustryTagsSettled=true;
-let csvInputMode='paste';
 // Consumo de cuota del AE (semana/mes/diario por fuente) — se pide una vez al abrir el buscador de
 // leads y se cachea; csvRenderQuotaHint la combina con la fuente seleccionada para pintar el texto
 // junto a "Cantidad de leads". Antes de esto (pedido 2026-08-10, después del pico de gasto de
@@ -13522,7 +13521,7 @@ function renderCsvBuilder(){
   const content=document.getElementById('moduleContent');
   content.innerHTML=`
     <div style="max-width:1080px;margin:0 auto;padding:24px 24px 0">
-      <div class="page-header" style="margin-bottom:16px"><h2>📋 Generación de leads</h2><p>Convierte cualquier fuente de prospectos en un CSV listo para importar al CRM de Odoo.</p></div>
+      <div class="page-header" style="margin-bottom:16px"><h2>📋 Generación de leads</h2><p>Busca leads nuevos con correo corporativo y teléfono, y llévatelos en un CSV listo para el CRM de Odoo.</p></div>
       <div id="csvIdiomaBannerWrap"></div>
     </div>
     <div id="csvTabBody"></div>`;
@@ -13535,66 +13534,22 @@ function csvRenderResultadosTab(content){
   const userId=fullName?`${fullName} (${gram})`:'';
   content.innerHTML=`
     <div style="max-width:1080px;margin:0 auto;padding:20px 24px 24px">
-      <div class="card" style="padding:24px;margin-bottom:20px" id="csvConfigCard">
-        <h4 style="font-size:15px;font-weight:700;margin-bottom:4px">⚙️ Configuración de la carga</h4>
-        <p style="font-size:11.5px;color:var(--gray-400);margin:0 0 16px">Estos campos solo aplican al pegar/subir un archivo — en modo Buscar leads no hacen nada, por eso se ocultan.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-          <div class="form-group" style="margin:0"><label>Fuente del lead *</label>
-            <input type="text" class="input" id="csvFuente" placeholder="Ej. Apollo Ecommerce, Base LinkedIn..."></div>
-          <div class="form-group" style="margin:0"><label>Tags adicionales (opcional)</label>
-            <input type="text" class="input" id="csvTags" placeholder="Ej. Ecommerce,CDMX (sin espacios)"></div>
-        </div>
-        <div class="form-group" style="margin:0"><label>Account Executive</label>
-          <input type="text" class="input" id="csvAE" value="${userId}" readonly style="background:var(--gray-50)"></div>
-        <div class="form-group" style="margin-top:14px;margin-bottom:0">
-          <label>Instrucciones adicionales para la extracción <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
-          <textarea class="input" id="csvContexto" style="min-height:58px;resize:vertical;font-size:13px"
-            placeholder="Ej. Solo incluir empresas con email · Solo páginas 3–15 del PDF · Ignorar contactos sin cargo · Solo CDMX y Monterrey..."></textarea>
-          <span style="font-size:11px;color:var(--gray-400)">Útil para delimitar documentos grandes o filtrar lo que Claude debe extraer.</span>
-        </div>
-      </div>
+      <!-- Pegar/subir archivo se quitó el 2026-09-11 (nadie lo usaba): el buscador es la única
+           entrada del módulo. Estos tres campos siguen existiendo porque el flujo de búsqueda y el
+           guardado de sesión los leen (csvLoadJobIntoRows, csvPersist, csvFileName, csvReloadSession)
+           — ahora ocultos y con valor fijo. Los parsers de archivo (parseLeadRowsFromUpload,
+           readUploadedLeadFile, _csvMapLusha, _csvMapStructured) NO se borran: los usa la carga de
+           listas del módulo Cadencias. -->
+      <input type="hidden" id="csvFuente" value="App Outbound">
+      <input type="hidden" id="csvAE" value="${userId}">
+      <input type="hidden" id="csvTags" value="">
       <div class="card" style="padding:24px;margin-bottom:20px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px">
-          <h4 style="font-size:15px;font-weight:700;margin:0">📥 Datos de prospectos</h4>
+          <h4 style="font-size:15px;font-weight:700;margin:0">🔍 Buscar leads</h4>
           <button type="button" class="btn btn-ghost btn-sm" id="csvHistTrigger" onclick="csvOpenHistPanel()" style="border-radius:99px;white-space:nowrap">📁 Historial <span id="csvHistBadge" style="background:var(--purple);color:white;border-radius:99px;font-size:10.5px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
         </div>
 
-        <!-- Selector de modo: pegar/subir (actual) vs buscar leads (Lusha/Apollo, UI por ahora) -->
-        <div style="display:flex;gap:8px;margin-bottom:20px">
-          <button class="csv-mode-btn ${csvInputMode==='paste'?'active':''}" data-mode="paste" onclick="csvSetInputMode('paste')"
-            style="flex:1;padding:12px;border:1.5px solid ${csvInputMode==='paste'?'var(--purple)':'var(--gray-200)'};background:${csvInputMode==='paste'?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;color:${csvInputMode==='paste'?'var(--purple)':'var(--gray-700)'};transition:all .15s">
-            📥 Pegar / subir archivo
-          </button>
-          <button class="csv-mode-btn ${csvInputMode==='search'?'active':''}" data-mode="search" onclick="csvSetInputMode('search')"
-            style="flex:1;padding:12px;border:1.5px solid ${csvInputMode==='search'?'var(--purple)':'var(--gray-200)'};background:${csvInputMode==='search'?'var(--purple-light)':'white'};border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;color:${csvInputMode==='search'?'var(--purple)':'var(--gray-700)'};transition:all .15s">
-            🔍 Buscar leads
-          </button>
-        </div>
-
-        <div id="csvPasteModeBox" style="display:${csvInputMode==='paste'?'block':'none'}">
-          <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Pega texto libre o carga un archivo — Claude extrae y estructura todo automáticamente.</p>
-
-          <!-- File upload zone -->
-          <div id="csvDropZone" style="border:2px dashed var(--gray-200);border-radius:var(--radius);padding:16px;text-align:center;margin-bottom:12px;transition:border-color .15s;cursor:pointer;background:var(--gray-50)"
-            onclick="document.getElementById('csvFileInput').click()"
-            ondragover="event.preventDefault();this.style.borderColor='var(--purple)'"
-            ondragleave="this.style.borderColor='var(--gray-200)'"
-            ondrop="event.preventDefault();this.style.borderColor='var(--gray-200)';csvHandleFileDrop(event.dataTransfer.files[0])">
-            <input type="file" id="csvFileInput" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.csv,.txt,.xls,.xlsx" onchange="csvHandleFile(this.files[0])">
-            <div style="font-size:24px;margin-bottom:4px">📎</div>
-            <div style="font-size:13px;font-weight:600;color:var(--gray-700)">Arrastra un archivo o haz clic para seleccionar</div>
-            <div style="font-size:11px;color:var(--gray-400);margin-top:2px">PDF · Imagen (JPG/PNG) · CSV · TXT</div>
-          </div>
-          <div id="csvFileStatus" style="display:none;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:10px"></div>
-
-          <div style="text-align:center;font-size:12px;color:var(--gray-400);margin-bottom:8px">— o escribe/pega los datos directamente —</div>
-          <textarea class="input" id="csvRawData" style="min-height:120px;resize:vertical;font-family:'Inter',monospace;font-size:12px"
-            placeholder="Empresa: DGL LATAM&#10;Contacto: Gustavo Ramos&#10;Cargo: Senior Manager Ecommerce&#10;Email: gustavo.ramos@digicellmx.com&#10;Tel: +55 55 2122-8660&#10;Web: https://dgllatam.com&#10;Ciudad: CDMX&#10;---"></textarea>
-          <button class="gc-generate-btn" style="margin-top:12px" id="csvProcessBtn" onclick="csvProcess()"><span>🤖</span> Procesar con Claude</button>
-          <div class="gc-loading" id="csvLoading"><div class="gc-spinner"></div><span>Procesando prospectos...</span></div>
-        </div>
-
-        <div id="csvSearchModeBox" style="display:${csvInputMode==='search'?'block':'none'}">
+        <div id="csvSearchModeBox">
           <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Busca leads nuevos. Solo se entregan contactos con <strong>correo corporativo y teléfono</strong> — si alguno sale duplicado o incompleto, se busca reposición automáticamente. Te avisamos con la campana 🔔 cuando la lista esté lista.</p>
 
           <div id="csvQuotaBanner" style="display:flex;gap:22px;flex-wrap:wrap;padding:13px 16px;background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--radius-sm);margin-bottom:18px;font-size:12px;color:var(--gray-500)">Consultando tu cuota…</div>
@@ -13853,10 +13808,10 @@ function csvRenderResultadosTab(content){
       </div>
       <div id="csvHistory" style="flex:1;overflow-y:auto;padding:10px 12px 20px"><div class="cdc-empty">Cargando...</div></div>
     </div>`;
-  csvRows=[]; _csvFileAttachment=null; _csvSessionId=null; _csvDirty=false; csvLoadHistory();
+  csvRows=[]; _csvSessionId=null; _csvDirty=false; csvLoadHistory();
   csvRenderEstadoChips();
   csvLoadApolloFiltros(); // Apollo es la fuente por defecto (radio checked arriba) — se cargan sus filtros nativos de una vez
-  csvSetInputMode(csvInputMode); // reconcilia toggle/fuente si el módulo se reabre ya en modo búsqueda
+  csvFetchQuotaStatus();  // el consumo pudo cambiar desde la última vez (otra búsqueda, otra pestaña)
 }
 
 // Repuebla los checkboxes de Estado según el País elegido (país domina estado) — se llama al
@@ -14183,36 +14138,9 @@ window.csvFilterChips=function(input,boxId){
   });
 };
 
-window.csvSetInputMode=function(mode){
-  csvInputMode=mode;
-  document.querySelectorAll('.csv-mode-btn').forEach(b=>{
-    const active=b.dataset.mode===mode;
-    b.classList.toggle('active',active);
-    b.style.borderColor=active?'var(--purple)':'var(--gray-200)';
-    b.style.background=active?'var(--purple-light)':'white';
-    b.style.color=active?'var(--purple)':'var(--gray-700)';
-  });
-  const paste=document.getElementById('csvPasteModeBox'), search=document.getElementById('csvSearchModeBox');
-  if(paste) paste.style.display=mode==='paste'?'block':'none';
-  if(search) search.style.display=mode==='search'?'block':'none';
-  // Fuente del lead/Tags/Instrucciones (tarjeta "Configuración de la carga") solo aplican al pegar
-  // texto/archivo — antes se quedaban visibles (y sin efecto) en modo Buscar leads, confundiendo al
-  // AE. Ahora la tarjeta completa se oculta en modo búsqueda (2026-08-12).
-  const configCard=document.getElementById('csvConfigCard');
-  if(configCard) configCard.style.display=mode==='search'?'none':'block';
-  // En modo búsqueda la fuente siempre es "App Outbound" — se fija aunque la tarjeta esté oculta,
-  // para que csvProcess/csvRunLeadSearch siempre lean el valor correcto sin depender de qué tarjeta
-  // esté visible en ese momento.
-  const fuenteInput=document.getElementById('csvFuente');
-  if(fuenteInput){
-    if(mode==='search'){ fuenteInput.value='App Outbound'; fuenteInput.readOnly=true; fuenteInput.style.background='var(--gray-50)'; }
-    else if(fuenteInput.readOnly){ fuenteInput.value=''; fuenteInput.readOnly=false; fuenteInput.style.background=''; }
-  }
-  // El consumo de cuota puede haber cambiado desde la última vez que se abrió el buscador (otra
-  // búsqueda en curso, otra pestaña) — se repide cada vez que se entra a modo búsqueda, no solo una
-  // vez por sesión.
-  if(mode==='search') csvFetchQuotaStatus();
-};
+// csvSetInputMode se eliminó junto con Pegar/subir archivo (2026-09-11): ya no hay modos que
+// alternar. La fuente del CSV queda fija en "App Outbound" (input oculto, ver renderCsvBuilder) y
+// la cuota se repide al abrir el módulo (renderCsvBuilder → csvFetchQuotaStatus).
 // Buscador de leads (100% Apollo, con créditos) — backend en Railway, ver LEAD_SEARCH_API_URL.
 // La búsqueda ya no es síncrona: el backend crea un job y avisa por la campana 🔔 (ver
 // csvSetupLeadJobsListener) cuando el email+teléfono están listos, porque el teléfono de Apollo
@@ -14538,7 +14466,6 @@ window.csvRetryLeadJob=function(jobId){
   _leadBellOpen=false;
   showModule('csv');
   setTimeout(()=>{
-    csvSetInputMode('search');
     const f=job.filtros||{};
     const setVal=(id,v)=>{ const el=document.getElementById(id); if(el&&v!=null) el.value=v; };
     if(f.fuentePrimaria){
@@ -14614,7 +14541,6 @@ window.csvOpenLeadJob=async function(jobId){
   _leadBellOpen=false; renderLeadJobsBell();
   if(!job.read) await csvMarkJobReadApi(jobId);
   showModule('csv');
-  csvSetInputMode('search');
   // El motivo lo calcula el backend (ver explicarDiagnostico en server.js) — dice cuál escalón
   // del embudo se llevó el faltante: filtros, dedupe contra el CRM o la regla de correo+teléfono.
   if(!job.leads?.length){ csvShowSinResultados(job); return; }
@@ -15298,49 +15224,10 @@ Responde EXCLUSIVAMENTE con un array JSON válido: [{...},...]. Sin markdown, si
   return {extracted, usedLocal};
 }
 
-window.csvProcess=async function(){
-  const fuente=document.getElementById('csvFuente')?.value.trim();
-  const rawData=document.getElementById('csvRawData')?.value.trim();
-  const tags=document.getElementById('csvTags')?.value.trim();
-  const ae=document.getElementById('csvAE')?.value.trim();
-  const contexto=document.getElementById('csvContexto')?.value.trim();
-  if(!fuente){ showNotif('Indica la fuente del lead','error'); return; }
-  if(!rawData&&!_csvFileAttachment){ showNotif('Pega datos o carga un archivo','error'); return; }
-  const btn=document.getElementById('csvProcessBtn'); btn.disabled=true; gcShowLoading('csvLoading',true);
-  const tagsStr='Outbound-MX'+(tags?','+tags.replace(/\s*,\s*/g,','):'');
-  try{
-    const {extracted, usedLocal}=await parseLeadRowsFromUpload(fuente, rawData, _csvFileAttachment, {ae, tagsStr, contexto});
-    csvRows=extracted.map(row=>{
-      const nombreEmpresa=_csvCompanyNameFallback(row.partner_name, row.Website);
-      return {
-        name:`${fuente} - ${nombreEmpresa} - ${row.contact_name||''}`,
-        contact_name:row.contact_name||'', function:row.function||'',
-        partner_name:nombreEmpresa, Website:row.Website||'',
-        Email:row.Email||'', phone:row.phone||'', Tags_id:tagsStr, user_id:ae,
-        state_id:row.state_id||'', country_id:csvCountryIdFor('Mexico'), notes:row.notes||'',
-        _origen:_csvGuessOrigen(fuente), _industriaRaw:row._industriaRaw||'',
-        datos_denue:'', datos_dirind:'', datos_alimentaria:'', datos_apollo:'', datos_outscraper:'', resumen:'',
-      };
-    });
-    _csvDirty=true; // prospectos recién extraídos: aún no descargados ni guardados
-    csvRenderTable();
-    document.getElementById('csvPreviewSection').style.display='block';
-    document.getElementById('csvPreviewSection').scrollIntoView({behavior:'smooth',block:'start'});
-    showNotif(`${csvRows.length} prospecto${csvRows.length===1?'':'s'} extraído${csvRows.length===1?'':'s'}${usedLocal?' directo del CSV (sin IA)':''} ✓`,'success');
-    csvSyncRowsToCRM(csvRows).catch(e=>console.warn('csvSyncRowsToCRM:',e));
-    // Pegar/subir archivo se había quedado sin cross-match DENUE, tags de industria QS y columna
-    // Resumen (solo corrían para el flujo de búsqueda Apollo/DENUE) — pedido explícito del usuario
-    // 2026-07-29 para que TODA fuente llegue con los campos de salida completos. DIRIND (2026-08-03)
-    // y ALIMENTARIA (2026-09-04) se sumaron al mismo cross-match gratis.
-    // Resumen ANTES de tags — csvClassifyIndustryTags usa r.resumen como contexto principal, así
-    // que tiene que existir antes de clasificar (ver ajuste 2026-07-30 en csvClassifyIndustryTags).
-    csvCrossMatchDenue(csvRows).catch(e=>console.warn('csvCrossMatchDenue:',e));
-    csvCrossMatchDirind(csvRows).catch(e=>console.warn('csvCrossMatchDirind:',e));
-    csvCrossMatchAlimentaria(csvRows).catch(e=>console.warn('csvCrossMatchAlimentaria:',e));
-    _csvStartIndustryTagging(csvRows);
-  } catch(e){ showNotif('Error: '+e.message,'error'); }
-  btn.disabled=false; gcShowLoading('csvLoading',false);
-};
+// csvProcess (procesar texto/archivo pegado con Claude) se eliminó el 2026-09-11 junto con la
+// entrada de Pegar/subir archivo. Los cross-match gratis (DENUE/DIRIND/ALIMENTARIA), el sync al CRM
+// y el tagging de industria que disparaba siguen vivos: los llama csvLoadJobIntoRows (búsqueda) y
+// csvReEnrichSelected (botón "Re-enriquecer" de la tabla).
 
 // Los onchange inline de la tabla NO pueden referenciar `csvRows` directamente — csvRows vive en
 // el scope del <script type="module"> y un atributo onchange="..." corre en scope global clásico,
@@ -15659,18 +15546,10 @@ window.csvReloadSession=async function(id){
   showNotif('Sesión recargada ✓','success');
 };
 
-// ── CSV file handling ──
-let _csvFileAttachment=null;
-
-function csvSetFileStatus(msg, type='info'){
-  const el=document.getElementById('csvFileStatus'); if(!el) return;
-  const colors={info:'var(--accent-light)',success:'var(--success-light)',error:'var(--danger-light)',warn:'var(--warning-light)'};
-  const textColors={info:'var(--accent)',success:'var(--success)',error:'var(--danger)',warn:'var(--warning)'};
-  el.style.display='block';
-  el.style.background=colors[type]||colors.info;
-  el.style.color=textColors[type]||textColors.info;
-  el.textContent=msg;
-}
+// ── Lectura de archivos de prospectos ──
+// `_csvFileAttachment` y `csvSetFileStatus` se eliminaron con Pegar/subir archivo (2026-09-11).
+// readUploadedLeadFile (abajo) se queda: la usa la carga de listas del módulo Cadencias, que trae
+// su propio estado de archivo y su propia función de status.
 
 // Lectura de un archivo subido de prospectos (CSV/TXT/PDF/imagen) — extraído de csvHandleFile
 // (2026-08-14) para reusarlo también desde "Nueva cadencia" en el módulo Cadencias, que tiene su
@@ -15733,14 +15612,8 @@ async function readUploadedLeadFile(file, statusFn){
   }
 }
 
-window.csvHandleFileDrop=function(file){ if(file) csvHandleFile(file); };
-window.csvHandleFile=async function(file){
-  if(!file) return;
-  _csvFileAttachment=null;
-  const result=await readUploadedLeadFile(file, csvSetFileStatus);
-  if(result?.fileAttachment) _csvFileAttachment=result.fileAttachment;
-  if(result?.rawText){ const ta=document.getElementById('csvRawData'); if(ta) ta.value=result.rawText; }
-};
+// csvHandleFile/csvHandleFileDrop se eliminaron con Pegar/subir archivo (2026-09-11). El módulo
+// Cadencias no los usaba: tiene su propio manejador sobre readUploadedLeadFile.
 
 // ══════════════════════════════════════════
 // DELETE RECORD (manager only)
