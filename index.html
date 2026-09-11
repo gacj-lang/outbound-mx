@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-11c Buscar leads: filtros nuevos de Apollo (sector SCIAN, tecnología que usa o no usa, ingresos, antigüedad, crecimiento, tiempo en el puesto, correo verificado y vacantes) y un contador que dice cuántas personas cumplen antes de gastar cuota.';
+const APP_BUILD_STAMP='2026-09-11d Empresas: botón "Más contactos" — lista gratis a las personas que Apollo tiene en ese dominio y el buzón de los directorios, y solo revela (1 crédito) las que marques. Cupo propio de 20 al día, aparte del de leads nuevos.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -11331,6 +11331,7 @@ window.empOpenDetail=async function(id){
     <div class="disc-popup-header">
       <div class="disc-popup-title">🏢 ${co.nombre}</div>
       <div class="disc-popup-actions">
+        <button class="btn btn-ghost btn-sm" onclick="empMasContactos('${id}')" title="Buscar más personas de esta empresa">👥 Más contactos</button>
         <button class="btn btn-ghost btn-sm" onclick="empEdit('${id}');document.getElementById('empDetailPopup').remove()">✏️ Editar</button>
         ${(currentUserData?.role==='manager'||currentUserData?.role==='tl')?`<button class="btn btn-ghost btn-sm" onclick="empOpenReassign('${id}')">🔁 Reasignar</button>`:''}
         ${currentUserData?.role==='manager'?`<button class="btn btn-ghost-danger btn-sm" onclick="deleteCompany('${id}');document.getElementById('empDetailPopup').remove()">🗑 Eliminar</button>`:''}
@@ -11419,6 +11420,131 @@ window.empOpenDetail=async function(id){
 
 // ── Reasignar dueño de una empresa (asignado*, nunca createdBy*) — Manager/TL ──
 let _empReassignCandidates=[];
+// ── "Más contactos" de una empresa (2026-09-11) ──────────────────────────────────────────────────
+// Dos pasos, como el backend: primero se LISTA gratis a quien Apollo tenga en ese dominio (más el
+// buzón general que traigan los directorios) y solo después se REVELA lo que el AE marcó. El AE ve
+// el costo antes de decidir. El cupo diario (20 por AE, aparte del de leads nuevos) lo valida el
+// backend; aquí solo se evita que el botón lo use quien no puede tocar la cuenta.
+const MAS_CONTACTOS_API='https://thorough-curiosity-production-098d.up.railway.app/companyContacts';
+let _mcState={id:null,personas:[],buzones:[]};
+window.empMasContactos=async function(id){
+  const co=(typeof _allEmpresas!=='undefined'?_allEmpresas:[]).find(c=>c.id===id); if(!co) return;
+  const rol=currentUserData?.role;
+  if(!(_empAsignadoUid(co)===currentUserData?.uid||rol==='manager'||rol==='tl')){
+    showNotif('Solo el dueño de la cuenta, su TL o el Manager pueden agregar contactos','error'); return;
+  }
+  if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
+  _mcState={id,personas:[],buzones:[]};
+  document.getElementById('empMasContactosPopup')?.remove();
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='empMasContactosPopup';
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:860px">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title">👥 Más contactos · ${_esc(co.nombre||'')}</div>
+      <button class="disc-copy-btn" onclick="document.getElementById('empMasContactosPopup').remove()">✕ Cerrar</button>
+    </div>
+    <div class="disc-popup-body" id="empMcBody" style="font-family:'Inter',sans-serif">
+      <div class="cdc-empty">Consultando Apollo y los directorios…</div>
+    </div>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay) overlay.remove();});
+  document.body.appendChild(overlay);
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(MAS_CONTACTOS_API,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
+      body:JSON.stringify({dominio:co.website||'',empresa:co.nombre||'',paisId:'MX'})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    _mcState={id,personas:data.personas||[],buzones:data.buzones||[]};
+    _empMcRender(co,data);
+  }catch(e){
+    const body=document.getElementById('empMcBody');
+    if(body) body.innerHTML=`<div class="cdc-empty">No se pudo consultar: ${_esc(e.message)}</div>`;
+  }
+};
+function _empMcRender(co,data){
+  const body=document.getElementById('empMcBody'); if(!body) return;
+  // Contactos que ya están en la empresa: se muestran en gris para que el AE no pague por alguien
+  // que ya tiene, y se usan para no duplicar al guardar.
+  const yaTengo=(co.contacts||[]).filter(c=>c&&(c.nombre||c.correo));
+  const norm=s=>String(s||'').trim().toLowerCase();
+  const repetido=p=>yaTengo.some(c=>norm(c.nombre)===norm(p.contacto)||(p.correo&&norm(c.correo)===norm(p.correo)));
+  if(data.motivo==='sin_dominio'){
+    body.innerHTML=`<div class="cdc-empty" style="text-align:left">${_esc(data.mensaje||'')}<br><br>Agrega el sitio web en ✏️ Editar y vuelve a intentar.</div>`;
+    return;
+  }
+  const cuota=data.cuotaContactos||{};
+  const filaPersona=(p,i)=>`
+    <div style="display:grid;grid-template-columns:28px 1fr 150px 130px 90px;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--gray-100);${repetido(p)?'opacity:.5':''}">
+      <input type="checkbox" class="emp-mc-check" data-idx="${i}" ${repetido(p)?'disabled':''} style="cursor:pointer">
+      <div><div style="font-size:13px;font-weight:600">${_esc(p.contacto||'Sin nombre')}</div>
+        <div style="font-size:11px;color:var(--gray-500)">${_esc(p.cargo||'—')}</div></div>
+      <div style="font-size:11.5px;color:var(--gray-500)">${p.tieneCorreo?'✉️ correo disponible':'— sin correo'}</div>
+      <div style="font-size:11.5px;color:var(--gray-500)">${p.tieneTelefono?'☎️ teléfono directo':'— sin teléfono'}</div>
+      <div style="font-size:11.5px;color:var(--gray-500);text-align:right">${repetido(p)?'ya lo tienes':'1 crédito'}</div>
+    </div>`;
+  const filaBuzon=(b,i)=>`
+    <div style="display:grid;grid-template-columns:28px 1fr 280px 90px;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--gray-100)">
+      <input type="checkbox" class="emp-mc-buzon" data-idx="${i}" style="cursor:pointer">
+      <div><div style="font-size:13px;font-weight:600">Buzón general</div>
+        <div style="font-size:11px;color:var(--gray-500)">${_esc(b.fuente||'')}${b.prueba?` · ${_esc(b.prueba)}`:''}</div></div>
+      <div style="font-size:12px;color:var(--gray-700)">${_esc(b.correo||'')}${b.telefono?` · ${_esc(b.telefono)}`:''}</div>
+      <div style="font-size:11.5px;color:var(--success);text-align:right;font-weight:600">gratis</div>
+    </div>`;
+  body.innerHTML=`
+    <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px">
+      ${_esc(data.dominio||'')} · ${yaTengo.length} contacto${yaTengo.length===1?'':'s'} ya guardado${yaTengo.length===1?'':'s'}
+      ${cuota.limite!=null?` · cupo de hoy: ${cuota.usados||0} de ${cuota.limite}`:''}
+    </div>
+    ${(data.personas||[]).length?`<div style="border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">
+      ${(data.personas||[]).map(filaPersona).join('')}
+    </div>`:'<div class="cdc-empty">Apollo no tiene personas registradas en este dominio.</div>'}
+    ${(data.buzones||[]).length?`<div style="border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">
+      ${(data.buzones||[]).map(filaBuzon).join('')}
+    </div>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:12px;border-top:1px solid var(--gray-200)">
+      <span style="font-size:12px;color:var(--gray-500)">Listar no cuesta nada. Solo se cobra lo que reveles, y solo si trae correo. El teléfono todavía no se revela desde aquí.</span>
+      <button class="btn btn-primary btn-sm" onclick="empRevelarContactos('${co.id}')">Revelar y guardar</button>
+    </div>`;
+}
+window.empRevelarContactos=async function(id){
+  const co=(typeof _allEmpresas!=='undefined'?_allEmpresas:[]).find(c=>c.id===id); if(!co) return;
+  const idxs=[...document.querySelectorAll('.emp-mc-check:checked')].map(c=>Number(c.dataset.idx));
+  const buzIdxs=[...document.querySelectorAll('.emp-mc-buzon:checked')].map(c=>Number(c.dataset.idx));
+  if(!idxs.length&&!buzIdxs.length){ showNotif('Marca al menos un contacto','error'); return; }
+  const seleccion=idxs.map(i=>_mcState.personas[i]).filter(Boolean);
+  const contacts=[...(co.contacts||[])];
+  const norm=s=>String(s||'').trim().toLowerCase();
+  const yaEsta=ct=>contacts.some(c=>(ct.correo&&norm(c.correo)===norm(ct.correo))||(ct.nombre&&norm(c.nombre)===norm(ct.nombre)));
+  let revelados=[];
+  try{
+    if(seleccion.length){
+      const idToken=await currentUser.getIdToken();
+      const res=await fetch(MAS_CONTACTOS_API+'/reveal',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
+        body:JSON.stringify({personas:seleccion,empresa:co.nombre||'',dominio:co.website||''})});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+      revelados=data.revelados||[];
+    }
+  }catch(e){ showNotif('Error: '+e.message,'error'); return; }
+  // Mismo formato de contacto que ya usa la app (ver m2oSaveEditCt): nombre, cargo, correo, phone,
+  // linkedin. Nada de campos nuevos, para que Empresas y el m2o lo lean igual que siempre.
+  for(const r of revelados){
+    const ct={nombre:r.contacto||'',cargo:r.cargo||'',correo:r.correo||'',phone:'',linkedin:r.linkedinUrl||''};
+    if(ct.nombre&&!yaEsta(ct)) contacts.push(ct);
+  }
+  for(const i of buzIdxs){
+    const b=_mcState.buzones[i]; if(!b) continue;
+    const ct={nombre:'Buzón general',cargo:`Buzón (${b.fuente||''})`,correo:b.correo||'',phone:b.telefono||'',linkedin:''};
+    if((ct.correo||ct.phone)&&!yaEsta(ct)) contacts.push(ct);
+  }
+  const saved=await saveCompany({...co,contacts}); if(!saved) return;
+  const ei=_allEmpresas.findIndex(c=>c.id===id); if(ei>=0) _allEmpresas[ei]={..._allEmpresas[ei],contacts};
+  document.getElementById('empMasContactosPopup')?.remove();
+  const sinCorreo=revelados.filter(r=>!r.correo).length;
+  showNotif(`${contacts.length-(co.contacts||[]).length} contacto(s) agregado(s)${sinCorreo?` · ${sinCorreo} sin correo en Apollo, no se cobraron`:''} ✓`,'success');
+  document.getElementById('empDetailPopup')?.remove();
+  empOpenDetail(id);
+};
 window.empOpenReassign=async function(id){
   const role=currentUserData?.role;
   if(role!=='manager'&&role!=='tl'){ showNotif('Solo Manager/TL puede reasignar','error'); return; }
