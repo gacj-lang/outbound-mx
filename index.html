@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-11T16:49:55Z">
+<meta name="app-version" content="2026-09-12T01:23:06Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-11e Empresas · Más contactos ya trae teléfono y comité de compra: "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo sigue dando Apollo (1 crédito) y el teléfono lo da Lusha (10). Cada renglón dice lo que cuesta antes de que marques, y abajo ves cuántos créditos le quedan al equipo este mes.';
+const APP_BUILD_STAMP='2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
