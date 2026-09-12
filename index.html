@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-11d Empresas: botón "Más contactos" — lista gratis a las personas que Apollo tiene en ese dominio y el buzón de los directorios, y solo revela (1 crédito) las que marques. Cupo propio de 20 al día, aparte del de leads nuevos.';
+const APP_BUILD_STAMP='2026-09-11e Empresas · Más contactos ya trae teléfono y comité de compra: "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo sigue dando Apollo (1 crédito) y el teléfono lo da Lusha (10). Cada renglón dice lo que cuesta antes de que marques, y abajo ves cuántos créditos le quedan al equipo este mes.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -11426,7 +11426,7 @@ let _empReassignCandidates=[];
 // el costo antes de decidir. El cupo diario (20 por AE, aparte del de leads nuevos) lo valida el
 // backend; aquí solo se evita que el botón lo use quien no puede tocar la cuenta.
 const MAS_CONTACTOS_API='https://thorough-curiosity-production-098d.up.railway.app/companyContacts';
-let _mcState={id:null,personas:[],buzones:[]};
+let _mcState={id:null,personas:[],buzones:[],lusha:null,data:null};
 window.empMasContactos=async function(id){
   const co=(typeof _allEmpresas!=='undefined'?_allEmpresas:[]).find(c=>c.id===id); if(!co) return;
   const rol=currentUserData?.role;
@@ -11434,7 +11434,7 @@ window.empMasContactos=async function(id){
     showNotif('Solo el dueño de la cuenta, su TL o el Manager pueden agregar contactos','error'); return;
   }
   if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
-  _mcState={id,personas:[],buzones:[]};
+  _mcState={id,personas:[],buzones:[],lusha:null,data:null};
   document.getElementById('empMasContactosPopup')?.remove();
   const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='empMasContactosPopup';
   overlay.innerHTML=`<div class="disc-popup-box" style="max-width:860px">
@@ -11454,7 +11454,8 @@ window.empMasContactos=async function(id){
       body:JSON.stringify({dominio:co.website||'',empresa:co.nombre||'',paisId:'MX'})});
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
-    _mcState={id,personas:data.personas||[],buzones:data.buzones||[]};
+    _mcState={id,personas:data.personas||[],buzones:data.buzones||[],
+      lusha:{disponibles:data.lushaDisponible,limite:data.lushaTopeMes},data};
     _empMcRender(co,data);
   }catch(e){
     const body=document.getElementById('empMcBody');
@@ -11473,14 +11474,23 @@ function _empMcRender(co,data){
     return;
   }
   const cuota=data.cuotaContactos||{};
+  const lu=_mcState.lusha||{};
+  // La lista viva: lo que trajo Apollo más lo que Lusha haya agregado después con el comité.
+  const personas=_mcState.personas||[];
+  // El teléfono solo lo trae Lusha, y solo si puede identificar a la persona: con su id (si vino del
+  // comité de compra) o con su LinkedIn. Sin ninguno de los dos no se ofrece el botón, en vez de
+  // ofrecerlo y cobrar una búsqueda que no va a encontrar a nadie.
+  const puedeTel=p=>!!(p.lushaContactId||p.linkedinUrl);
+  // Por id Lusha cobra solo el dato; por LinkedIn cobra además la búsqueda. El AE ve el número real.
+  const costoTel=p=>p.lushaContactId?10:11;
   const filaPersona=(p,i)=>`
-    <div style="display:grid;grid-template-columns:28px 1fr 150px 130px 90px;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--gray-100);${repetido(p)?'opacity:.5':''}">
+    <div style="display:grid;grid-template-columns:28px 1fr 110px 145px 165px;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--gray-100);${repetido(p)?'opacity:.5':''}">
       <input type="checkbox" class="emp-mc-check" data-idx="${i}" ${repetido(p)?'disabled':''} style="cursor:pointer">
       <div><div style="font-size:13px;font-weight:600">${_esc(p.contacto||'Sin nombre')}</div>
         <div style="font-size:11px;color:var(--gray-500)">${_esc(p.cargo||'—')}</div></div>
-      <div style="font-size:11.5px;color:var(--gray-500)">${p.tieneCorreo?'✉️ correo disponible':'— sin correo'}</div>
-      <div style="font-size:11.5px;color:var(--gray-500)">${p.tieneTelefono?'☎️ teléfono directo':'— sin teléfono'}</div>
-      <div style="font-size:11.5px;color:var(--gray-500);text-align:right">${repetido(p)?'ya lo tienes':'1 crédito'}</div>
+      <div style="font-size:10.5px;color:var(--gray-500)">${p.fuente==='Lusha'?'Lusha':'Apollo'}${(p.roles||[]).includes('decision_maker')?' · decide':(p.roles||[]).includes('potential_champion')?' · aliado':''}</div>
+      <div style="font-size:11.5px;color:var(--gray-500)">${repetido(p)?'ya lo tienes':(p.fuente==='Lusha'?'✉️ lo busca Apollo · 1':(p.tieneCorreo?'✉️ correo · 1 crédito':'— sin correo'))}</div>
+      <div style="font-size:11.5px;color:var(--gray-500)">${repetido(p)?'':(puedeTel(p)?`<label style="cursor:pointer;display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="emp-mc-tel" data-idx="${i}" style="cursor:pointer"> ☎️ teléfono · ${costoTel(p)}</label>`:'— sin teléfono')}</div>
     </div>`;
   const filaBuzon=(b,i)=>`
     <div style="display:grid;grid-template-columns:28px 1fr 280px 90px;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--gray-100)">
@@ -11490,32 +11500,69 @@ function _empMcRender(co,data){
       <div style="font-size:12px;color:var(--gray-700)">${_esc(b.correo||'')}${b.telefono?` · ${_esc(b.telefono)}`:''}</div>
       <div style="font-size:11.5px;color:var(--success);text-align:right;font-weight:600">gratis</div>
     </div>`;
+  const saldoLusha=lu.limite?`Créditos de Lusha del equipo: ${Math.max(0,lu.disponibles??0)} de ${lu.limite} este mes`:'';
   body.innerHTML=`
     <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px">
       ${_esc(data.dominio||'')} · ${yaTengo.length} contacto${yaTengo.length===1?'':'s'} ya guardado${yaTengo.length===1?'':'s'}
       ${cuota.limite!=null?` · cupo de hoy: ${cuota.usados||0} de ${cuota.limite}`:''}
     </div>
-    ${(data.personas||[]).length?`<div style="border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">
-      ${(data.personas||[]).map(filaPersona).join('')}
+    ${personas.length?`<div style="border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">
+      ${personas.map(filaPersona).join('')}
     </div>`:'<div class="cdc-empty">Apollo no tiene personas registradas en este dominio.</div>'}
     ${(data.buzones||[]).length?`<div style="border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">
       ${(data.buzones||[]).map(filaBuzon).join('')}
     </div>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--gray-200)">
+      <span style="font-size:11.5px;color:var(--gray-500)">¿Falta gente? Lusha arma el comité de compra: quién decide y quién puede ser tu aliado adentro. Cuesta 1 crédito por persona, máximo 5, y no se vuelve a cobrar hoy por esta empresa.${saldoLusha?` · ${saldoLusha}`:''}</span>
+      <button class="btn btn-ghost btn-sm" id="empMcLushaBtn" onclick="empComiteLusha('${co.id}')">👥 Ver quién más decide</button>
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:12px;border-top:1px solid var(--gray-200)">
-      <span style="font-size:12px;color:var(--gray-500)">Listar no cuesta nada. Solo se cobra lo que reveles, y solo si trae correo. El teléfono todavía no se revela desde aquí.</span>
+      <span style="font-size:12px;color:var(--gray-500)">Ver la lista no cuesta nada. Solo se cobra lo que reveles: el correo lo da Apollo y el teléfono lo da Lusha, y solo si de verdad lo entregan.</span>
       <button class="btn btn-primary btn-sm" onclick="empRevelarContactos('${co.id}')">Revelar y guardar</button>
     </div>`;
 }
+// Comité de compra de Lusha: se pide aparte y a propósito, porque cuesta desde el primer clic (1
+// crédito por persona). Lo que devuelve es quién más manda ahí, con su LinkedIn — el correo de esa
+// gente lo sigue dando Apollo, que cobra 1 crédito y casi siempre lo tiene.
+window.empComiteLusha=async function(id){
+  const co=(typeof _allEmpresas!=='undefined'?_allEmpresas:[]).find(c=>c.id===id); if(!co) return;
+  if(!currentUser){ showNotif('Tu sesión expiró, vuelve a iniciar sesión','error'); return; }
+  const btn=document.getElementById('empMcLushaBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Consultando Lusha…'; }
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(MAS_CONTACTOS_API+'/lusha',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
+      body:JSON.stringify({dominio:co.website||''})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    // No se repite a quien Apollo ya listó: mismo LinkedIn, o mismo nombre.
+    const norm=s=>String(s||'').trim().toLowerCase();
+    const yaEnLista=p=>(_mcState.personas||[]).some(q=>(p.linkedinUrl&&norm(q.linkedinUrl)===norm(p.linkedinUrl))||(p.contacto&&norm(q.contacto)===norm(p.contacto)));
+    const nuevos=(data.contactos||[]).filter(p=>!yaEnLista(p));
+    _mcState.personas=[...(_mcState.personas||[]),...nuevos];
+    if(data.lusha) _mcState.lusha=data.lusha;
+    _empMcRender(co,_mcState.data||{});
+    showNotif(nuevos.length
+      ?`Lusha agregó ${nuevos.length} persona(s)${data.deCache?' · ya se había consultado hoy, sin costo':` · ${data.creditos} crédito(s)`}`
+      :'Lusha no encontró a nadie más en esta empresa','success');
+  }catch(e){
+    showNotif('Lusha: '+e.message,'error');
+    const b=document.getElementById('empMcLushaBtn'); if(b){ b.disabled=false; b.textContent='👥 Ver quién más decide'; }
+  }
+};
 window.empRevelarContactos=async function(id){
   const co=(typeof _allEmpresas!=='undefined'?_allEmpresas:[]).find(c=>c.id===id); if(!co) return;
   const idxs=[...document.querySelectorAll('.emp-mc-check:checked')].map(c=>Number(c.dataset.idx));
+  const telIdxs=new Set([...document.querySelectorAll('.emp-mc-tel:checked')].map(c=>Number(c.dataset.idx)));
   const buzIdxs=[...document.querySelectorAll('.emp-mc-buzon:checked')].map(c=>Number(c.dataset.idx));
-  if(!idxs.length&&!buzIdxs.length){ showNotif('Marca al menos un contacto','error'); return; }
-  const seleccion=idxs.map(i=>_mcState.personas[i]).filter(Boolean);
+  // Pedir el teléfono de alguien ya implica quererlo, aunque no se haya marcado su casilla.
+  const todos=[...new Set([...idxs,...telIdxs])];
+  if(!todos.length&&!buzIdxs.length){ showNotif('Marca al menos un contacto','error'); return; }
+  const seleccion=todos.map(i=>{const p=_mcState.personas[i]; return p?{...p,pedirTelefono:telIdxs.has(i)}:null;}).filter(Boolean);
   const contacts=[...(co.contacts||[])];
   const norm=s=>String(s||'').trim().toLowerCase();
   const yaEsta=ct=>contacts.some(c=>(ct.correo&&norm(c.correo)===norm(ct.correo))||(ct.nombre&&norm(c.nombre)===norm(ct.nombre)));
-  let revelados=[];
+  let revelados=[],creditosLusha=0;
   try{
     if(seleccion.length){
       const idToken=await currentUser.getIdToken();
@@ -11524,12 +11571,13 @@ window.empRevelarContactos=async function(id){
       const data=await res.json().catch(()=>({}));
       if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
       revelados=data.revelados||[];
+      creditosLusha=data.creditosLusha||0;
     }
   }catch(e){ showNotif('Error: '+e.message,'error'); return; }
   // Mismo formato de contacto que ya usa la app (ver m2oSaveEditCt): nombre, cargo, correo, phone,
   // linkedin. Nada de campos nuevos, para que Empresas y el m2o lo lean igual que siempre.
   for(const r of revelados){
-    const ct={nombre:r.contacto||'',cargo:r.cargo||'',correo:r.correo||'',phone:'',linkedin:r.linkedinUrl||''};
+    const ct={nombre:r.contacto||'',cargo:r.cargo||'',correo:r.correo||'',phone:r.telefono||'',linkedin:r.linkedinUrl||''};
     if(ct.nombre&&!yaEsta(ct)) contacts.push(ct);
   }
   for(const i of buzIdxs){
@@ -11540,8 +11588,8 @@ window.empRevelarContactos=async function(id){
   const saved=await saveCompany({...co,contacts}); if(!saved) return;
   const ei=_allEmpresas.findIndex(c=>c.id===id); if(ei>=0) _allEmpresas[ei]={..._allEmpresas[ei],contacts};
   document.getElementById('empMasContactosPopup')?.remove();
-  const sinCorreo=revelados.filter(r=>!r.correo).length;
-  showNotif(`${contacts.length-(co.contacts||[]).length} contacto(s) agregado(s)${sinCorreo?` · ${sinCorreo} sin correo en Apollo, no se cobraron`:''} ✓`,'success');
+  const sinNada=revelados.filter(r=>!r.correo&&!r.telefono).length;
+  showNotif(`${contacts.length-(co.contacts||[]).length} contacto(s) agregado(s)${creditosLusha?` · ${creditosLusha} crédito(s) de Lusha`:''}${sinNada?` · ${sinNada} sin dato nuevo, no se cobraron`:''} ✓`,'success');
   document.getElementById('empDetailPopup')?.remove();
   empOpenDetail(id);
 };
