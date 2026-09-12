@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-12T17:38:17Z">
+<meta name="app-version" content="2026-09-12T18:05:08Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
+const APP_BUILD_STAMP='2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -13806,7 +13806,9 @@ function csvRenderResultadosTab(content){
                 <input type="radio" name="csvSearchFuente" id="csvSearchFuenteAlimentaria" value="alimentaria" onchange="csvOnFuenteChange()"> 🍽️ ALIMENTARIA
               </label>
               <label style="flex:1;min-width:150px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
-                <input type="radio" name="csvSearchFuente" id="csvSearchFuenteOutscraper" value="outscraper" onchange="csvOnFuenteChange()"> 🗺️ Outscraper
+                <input type="radio" name="csvSearchFuente" id="csvSearchFuenteOutscraper" value="outscraper" onchange="csvOnFuenteChange()"> 🗺️ Outscraper</label>
+              <label style="flex:1;min-width:150px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 14px;cursor:pointer">
+                <input type="radio" name="csvSearchFuente" id="csvSearchFuenteLusha" value="lusha" onchange="csvOnFuenteChange()"> 💼 Lusha
               </label>
             </div>
             <span id="csvSearchFuenteHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE, DIRIND y ALIMENTARIA — si hay coincidencia, se agregan esas columnas.</span>
@@ -13945,6 +13947,26 @@ function csvRenderResultadosTab(content){
               <details style="margin:16px 0 0" id="csvSearchApolloSegBox">
                 <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Segmento de mercado (Apollo) <span style="font-weight:400;color:var(--gray-400)">(opcional, vacío = cualquiera)</span></summary>
                 <div id="csvSearchApolloSegChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando segmentos…</span></div>
+              </details>
+
+              <!-- Filtros propios de Lusha (2026-09-12). Catálogos reales de su API, consultados el
+                   mismo día: buckets de tamaño, 18 industrias madre y 16 departamentos. Son SUYOS y
+                   no se mezclan con los de Apollo — misma regla de siempre: cada herramienta con su
+                   formulario. La jerarquía (Nivel del contacto) sí se reusa: Lusha la entiende, se
+                   traduce a sus ids en el backend. -->
+              <details style="margin:16px 0 0" id="csvSearchLushaTamanoBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Tamaño de empresa <span style="font-weight:400;color:var(--gray-400)">(Lusha solo acepta estos rangos fijos)</span></summary>
+                <div id="csvSearchLushaTamanoChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
+              </details>
+
+              <details style="margin:16px 0 0" id="csvSearchLushaIndustriaBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Industria <span style="font-weight:400;color:var(--gray-400)">(catálogo propio de Lusha, no es el SCIAN)</span></summary>
+                <div id="csvSearchLushaIndustriaChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:170px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
+              </details>
+
+              <details style="margin:16px 0 0" id="csvSearchLushaPersonaBox">
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Área del contacto <span style="font-weight:400;color:var(--gray-400)">(departamento, como lo nombra Lusha)</span></summary>
+                <div id="csvSearchLushaDeptoChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:150px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
               </details>
 
               <!-- Filtros nuevos de Apollo (2026-09-11). Van PLEGADOS a propósito: el camino normal
@@ -14182,6 +14204,7 @@ window.csvOnFuenteChange=function(){
     dirind:'DIRIND: directorio impreso Proveedores Industriales 2023 (5,256 empresas), teléfono y correo del propio anuncio. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
     alimentaria:'ALIMENTARIA: directorio impreso de la industria alimentaria 2026 (4,026 empresas, 3,890 con correo y teléfono del propio anuncio). Filtra por sección (fabricante de alimentos, insumos, maquinaria, empaque, servicios) y categoría. Cada lead se cruza automáticamente contra Apollo para completar el nombre del contacto.',
     outscraper:'Outscraper: micro negocios en todo México (Google Maps). A diferencia del resto, aquí basta con correo O teléfono (no ambos) — la mayoría llega solo con teléfono, la línea general del negocio. Sin contacto con nombre (no se cruza con Apollo).',
+    lusha:'Lusha: contacto con nombre y correo de trabajo garantizado (se le exige desde la búsqueda). El teléfono lo ponen los directorios y la ficha de Maps, no Lusha — ahí el teléfono cuesta 10 créditos y no vale la pena por lead. No se cruza con Apollo. Gasta créditos del equipo: una búsqueda de 25 leads anda en unos 27 de los 300 del mes.',
   };
   if(hint) hint.textContent=HINTS[fuente];
   // Giro/Industria (catálogo nuestro de 15) ahora solo aplica a DENUE — Apollo tiene su propio
@@ -14198,6 +14221,10 @@ window.csvOnFuenteChange=function(){
   if(apolloSegBox) apolloSegBox.style.display=fuente==='apollo'?'block':'none';
   // Filtros nuevos de Apollo: se muestran solo con Apollo, igual que los de arriba. Los directorios
   // llevan los suyos (categorías, secciones, municipios) — cada herramienta con su formulario.
+  // Los de Lusha, igual: solo con Lusha. Se pintan la primera vez que se muestran.
+  ['csvSearchLushaTamanoBox','csvSearchLushaIndustriaBox','csvSearchLushaPersonaBox']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=fuente==='lusha'?'block':'none'; });
+  if(fuente==='lusha') _csvRenderLushaFiltros();
   ['csvSearchApolloSectorBox','csvSearchApolloTechBox','csvSearchApolloEmpresaBox','csvSearchApolloPersonaBox','csvSearchApolloSenalesBox']
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=fuente==='apollo'?'block':'none'; });
   // El contador solo tiene sentido en Apollo: es su búsqueda la que sabe contar sin cobrar.
@@ -14460,6 +14487,45 @@ function _csvApolloFiltrosExtra(){
 // búsqueda de personas de Apollo cuesta 0 créditos, así que esto no gasta cuota ni créditos del AE
 // — lo único limitado son las llamadas por hora del plan, que el backend protege con una caché de
 // 60 s. Aquí se espera medio segundo antes de preguntar, porque el AE marca varios chips seguidos.
+// ── Catálogos propios de Lusha (2026-09-12) ──────────────────────────────────────────────────────
+// Valores REALES que acepta su API, consultados a su catálogo el mismo día — no inventados ni
+// copiados de los de Apollo. Los buckets de tamaño son fijos: Lusha no acepta un rango libre como
+// Apollo, así que el AE elige de esta lista.
+const LUSHA_SIZES=[{min:1,max:10},{min:11,max:50},{min:51,max:200},{min:201,max:500},{min:501,max:1000},{min:1001,max:5000},{min:5001,max:10000},{min:10001,max:100000},{min:100001}];
+const LUSHA_INDUSTRIAS=[
+  {id:1,nombre:'Hospitalidad'},{id:3,nombre:'Construcción'},{id:5,nombre:'Organizaciones civiles y sin fines de lucro'},
+  {id:6,nombre:'Educación'},{id:7,nombre:'Entretenimiento'},{id:8,nombre:'Agricultura, ganadería y forestal'},
+  {id:9,nombre:'Finanzas'},{id:10,nombre:'Gobierno'},{id:11,nombre:'Salud'},{id:12,nombre:'Manufactura'},
+  {id:13,nombre:'Petróleo, gas y minería'},{id:14,nombre:'Servicios a empresas'},{id:15,nombre:'Inmobiliario'},
+  {id:16,nombre:'Comercio mayorista y minorista'},{id:17,nombre:'Tecnología, información y medios'},
+  {id:18,nombre:'Transporte y logística'},{id:19,nombre:'Servicios públicos'},
+];
+// Se mandan tal cual: son las etiquetas exactas que espera su API, traducirlas rompería el filtro.
+const LUSHA_DEPARTAMENTOS=['Business Development','Consulting','Customer Service','Engineering & Technical','Finance','General Management','Health Care & Medical','Human Resources','Information Technology','Legal','Marketing','Operations','Other','Product','Research & Analytics','Sales'];
+const LUSHA_DEPTO_ES={'Business Development':'Desarrollo de negocio','Consulting':'Consultoría','Customer Service':'Atención a clientes','Engineering & Technical':'Ingeniería y técnica','Finance':'Finanzas','General Management':'Dirección general','Health Care & Medical':'Salud','Human Resources':'Recursos Humanos','Information Technology':'Tecnología (TI)','Legal':'Legal','Marketing':'Marketing','Operations':'Operaciones','Other':'Otra','Product':'Producto','Research & Analytics':'Investigación y análisis','Sales':'Ventas'};
+let _csvLushaPintado=false;
+function _csvRenderLushaFiltros(){
+  if(_csvLushaPintado) return; // los catálogos son fijos: se pintan una sola vez
+  const chip=(cls,val,label)=>`<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;background:#fff;border:1px solid var(--gray-200);border-radius:999px;padding:5px 11px;cursor:pointer">
+    <input type="checkbox" class="${cls}" value="${val}" style="cursor:pointer"> ${label}</label>`;
+  const tam=document.getElementById('csvSearchLushaTamanoChips');
+  if(tam) tam.innerHTML=LUSHA_SIZES.map((s,i)=>chip('csv-lusha-size',i,s.max?`${s.min}–${s.max}`:`${s.min}+`)).join('');
+  const ind=document.getElementById('csvSearchLushaIndustriaChips');
+  if(ind) ind.innerHTML=LUSHA_INDUSTRIAS.map(x=>chip('csv-lusha-ind',x.id,_esc(x.nombre))).join('');
+  const dep=document.getElementById('csvSearchLushaDeptoChips');
+  if(dep) dep.innerHTML=LUSHA_DEPARTAMENTOS.map(d=>chip('csv-lusha-depto',_esc(d),_esc(LUSHA_DEPTO_ES[d]||d))).join('');
+  _csvLushaPintado=true;
+}
+// Lo que se manda al backend. Los tamaños viajan como {min,max} porque así los pide Lusha; el índice
+// del chip es solo para no repetir los números en el HTML.
+function _csvLushaFiltros(){
+  const marcados=cls=>[...document.querySelectorAll('.'+cls+':checked')].map(c=>c.value);
+  return {
+    lushaSizes:marcados('csv-lusha-size').map(i=>LUSHA_SIZES[Number(i)]).filter(Boolean),
+    lushaMainIndustrias:marcados('csv-lusha-ind').map(Number).filter(Boolean),
+    lushaDepartamentos:marcados('csv-lusha-depto'),
+  };
+}
 const APOLLO_CONTEO_API_URL='https://thorough-curiosity-production-098d.up.railway.app/apolloConteo';
 let _conteoTimer=null, _conteoPeticion=0;
 window.csvActualizarConteo=function(){
@@ -14944,6 +15010,14 @@ window.csvRetryLeadJob=function(jobId){
           const munSel=new Set(f.municipiosDenue);
           document.querySelectorAll('.csv-municipio-check').forEach(c=>{ c.checked=munSel.has(c.value); });
         },500);
+      }
+      if(f.fuentePrimaria==='lusha'){
+        _csvRenderLushaFiltros();
+        const marcar=(cls,vals)=>document.querySelectorAll('.'+cls).forEach(c=>{ c.checked=(vals||[]).some(v=>String(v)===c.value); });
+        // Los tamaños se guardaron como {min,max}: se vuelven a casar contra el catálogo por índice.
+        marcar('csv-lusha-size',(f.lushaSizes||[]).map(s=>LUSHA_SIZES.findIndex(x=>x.min===s.min&&x.max===s.max)).filter(i=>i>=0));
+        marcar('csv-lusha-ind',f.lushaMainIndustrias||[]);
+        marcar('csv-lusha-depto',f.lushaDepartamentos||[]);
       }
       if((!f.fuentePrimaria||f.fuentePrimaria==='apollo')&&(f.apolloIndustryIds?.length||f.apolloMarketSegments?.length)){
         csvLoadApolloFiltros();
@@ -15607,6 +15681,7 @@ window.csvRunLeadSearch=async function(){
         diasEnPuestoMax:extraApollo.diasEnPuestoMax??null, soloCorreoVerificado:!!extraApollo.soloCorreoVerificado,
         titulosEstrictos:!!extraApollo.titulosEstrictos, vacantesTitulos:extraApollo.vacantesTitulos||[],
         vacantesMin:extraApollo.vacantesMin??null, vacantesDesde:extraApollo.vacantesDesde||'',
+        ...(fuentePrimaria==='lusha'?_csvLushaFiltros():{}),
       }),
     });
     const data=await res.json().catch(()=>({}));
