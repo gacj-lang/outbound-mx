@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-12T01:23:06Z">
+<meta name="app-version" content="2026-09-12T17:38:17Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
+const APP_BUILD_STAMP='2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -2114,6 +2114,63 @@ async function aiRenderConsumo(){
     ${docs.length>=5000?`<p style="font-size:11.5px;color:var(--gray-400);margin-top:12px">Se alcanzó el tope de 5,000 registros leídos: los totales de arriba están recortados. Usa el rango de 7 días para ver una foto completa.</p>`:''}`;
 }
 
+// 💳 Gasto en fuentes de pago, por persona y por mes (2026-09-12).
+// Existe por un acuerdo concreto: se trabaja un tiempo con la regla "gana el dato de la persona"
+// (el correo y el teléfono que encuentra la app mandan sobre los del directorio) y después se evalúa
+// si el costo se justifica. Sin este tablero, esa evaluación sería a ojo.
+const GASTO_FUENTES_API='https://thorough-curiosity-production-098d.up.railway.app/gastoFuentes';
+async function gastoRenderFuentes(){
+  const cont=document.getElementById('gastoFuentesBody'); if(!cont) return;
+  if(!currentUser){ cont.innerHTML='<div class="cdc-empty">Tu sesión expiró, vuelve a iniciar sesión.</div>'; return; }
+  cont.innerHTML='<div class="cdc-empty">Leyendo el gasto del mes…</div>';
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(GASTO_FUENTES_API,{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    const t=data.total||{}, lu=data.lusha||{}, filas=data.detalle||[];
+    const n=v=>Number(v||0).toLocaleString('es-MX');
+    const tile=(v,l,extra='')=>`<div style="flex:1;min-width:130px;padding:12px 14px;background:var(--gray-50,#f8fafc);border-radius:8px">
+      <div style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">${v}</div>
+      <div style="font-size:10.5px;color:var(--gray-500);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">${l}</div>
+      ${extra?`<div style="font-size:10.5px;color:var(--gray-400);margin-top:3px">${extra}</div>`:''}</div>`;
+    cont.innerHTML=`
+      <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--gray-500)">Mes ${_esc(data.mes||'')}</span>
+        <button class="btn" style="padding:5px 12px;font-size:12px" onclick="gastoRenderFuentes()">↻ Actualizar</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        ${tile(`${n(lu.usados)} / ${n(lu.limite)}`,'Créditos de Lusha', lu.disponibles!=null?`quedan ${n(lu.disponibles)} este mes`:'')}
+        ${tile(n(t.apolloCorreos),'Correos de Apollo','1 crédito cada uno')}
+        ${tile(n(t.apolloTelefonos),'Teléfonos de Apollo','bolsa aparte en Apollo')}
+        ${tile(n(t.busquedas),'Búsquedas cerradas')}
+        ${tile(n(t.contactosRevelados),'Contactos revelados','desde Más contactos')}
+      </div>
+      ${filas.length?`<div style="overflow-x:auto;margin-top:16px">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+          <thead><tr style="text-align:left;color:var(--gray-400);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em">
+            <th style="padding:6px 8px">Persona</th><th style="padding:6px 8px;text-align:right">Correos Apollo</th>
+            <th style="padding:6px 8px;text-align:right">Tel. Apollo</th><th style="padding:6px 8px;text-align:right">Créditos Lusha</th>
+            <th style="padding:6px 8px;text-align:right">Búsquedas</th><th style="padding:6px 8px;text-align:right">Contactos</th>
+          </tr></thead>
+          <tbody>${filas.map(f=>`<tr style="border-top:1px solid var(--gray-100)">
+            <td style="padding:7px 8px">${_esc(f.nombre||f.uid||'')}</td>
+            <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.apolloCorreos)}</td>
+            <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.apolloTelefonos)}</td>
+            <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.lushaCreditos)}</td>
+            <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.busquedas)}</td>
+            <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.contactosRevelados)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>`:'<div class="cdc-empty">Nadie ha gastado créditos este mes.</div>'}
+      <p style="font-size:11.5px;color:var(--gray-400);margin-top:12px;line-height:1.5">
+        Se cuenta lo que las fuentes <strong>entregaron</strong>, no lo que se les pidió: un teléfono que Apollo no trajo no aparece aquí porque no se cobró.
+        La medición arrancó el 12 de septiembre de 2026, así que este primer mes va incompleto.
+        Outscraper no está en esta tabla: se cobra en dólares por llamada, no en créditos, y son centavos por lead.</p>`;
+  }catch(e){
+    cont.innerHTML=`<div class="cdc-empty">No se pudo leer el gasto: ${_esc(e.message)}</div>`;
+  }
+}
+
 function renderManagerPanel(){
   document.getElementById('moduleContent').innerHTML=`
     <div class="manager-wrap">
@@ -2125,6 +2182,10 @@ function renderManagerPanel(){
       <div class="card" style="margin-top:16px">
         <div class="card-header"><h3>📊 Consumo de IA</h3></div>
         <div id="aiConsumoBody" style="padding:2px 0"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><h3>💳 Gasto en Apollo y Lusha</h3></div>
+        <div id="gastoFuentesBody" style="padding:2px 0"></div>
       </div>
       <div class="card" style="margin-top:16px">
         <div class="card-header"><h3>🛠 Mantenimiento — creador de Qcall/Intromeet</h3></div>
@@ -2143,6 +2204,7 @@ function renderManagerPanel(){
     </div>`;
   loadManagerPanel();
   aiRenderConsumo();
+  gastoRenderFuentes();
 }
 
 // ══════════════════════════════════════════
