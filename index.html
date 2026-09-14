@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-14T20:46:06Z">
+<meta name="app-version" content="2026-09-14T21:18:23Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -8397,6 +8397,7 @@ window.gcExportBrochure=async function(format){
 // ══════════════════════════════════════════
 const WIKI_CATEGORIES=[
   {id:'proceso',      icon:'🧭', label:'Proceso de venta Outbound-MX',   desc:'Flujo completo: prospección, ICP, intromeet, demo, propuesta y cierre.'},
+  {id:'crm',          icon:'⚖️', label:'Reglas de CRM',                  desc:'Quién vende qué, duplicados, pases y splits, self, MMC, facturación y pagos. Se revisa cada mes contra el documento oficial.'},
   {id:'herramientas', icon:'🧰', label:'Herramientas y recursos',        desc:'CRM, Lusha, Dialpad y demás herramientas del día a día.'},
   {id:'apps',         icon:'🧩', label:'Funcionalidades por App',       desc:'Qué resuelve cada aplicación de Odoo, para armar demos con criterio.'},
   {id:'demos',        icon:'🎯', label:'Tips y checklist para demos',   desc:'Qué preparar y revisar sí o sí antes de una primera demo.'},
@@ -9195,6 +9196,7 @@ async function renderWiki(){
         </button>`).join('')}
       </div>
       <div id="wikiArticleList"><div class="cdc-empty">Cargando artículos...</div></div>
+      <div id="wikiCrmSection"></div>
       <div id="wikiCasosSection"></div>
     </div>`;
   await wikiLoad();
@@ -9233,6 +9235,123 @@ function wikiRenderCasos(q){
       </div>`).join('')}
     </div>`}`;
 }
+
+// ── Reglas de CRM y Ventas de Odoo México (categoría "Reglas de CRM" + herramienta de Ninja) ──
+// Fuente: el Google Doc oficial de DS. No vive en Firestore ni en un seed: vive en crm-rules.json, que
+// se regenera con scripts/build-crm-rules.js cuando la revisión mensual detecta cambios en el documento.
+// Así el Banco de Información y Ninja leen exactamente el mismo texto y ninguno se queda viejo.
+// cache:'no-cache' para que, tras una actualización del JSON, nadie siga con la versión anterior (el
+// navegador revalida con ETag y, si no cambió, no lo vuelve a bajar).
+let _crmRules=null, _crmRulesPromise=null;
+async function crmRulesLoad(){
+  if(_crmRules) return _crmRules;
+  if(!_crmRulesPromise){
+    _crmRulesPromise=fetch('crm-rules.json',{cache:'no-cache'})
+      .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(j=>{ _crmRules=j; return j; })
+      .catch(e=>{ _crmRulesPromise=null; throw e; });
+  }
+  return _crmRulesPromise;
+}
+const CRM_APLICA_LABEL={si:'Aplica a Outbound', referencia:'Regla de otro equipo'};
+const _crmNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function _crmFecha(iso){
+  if(!iso) return '—';
+  const [y,m,d]=iso.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'});
+}
+function _crmResumen(texto){
+  const t=(texto||'').split('\n').map(l=>l.replace(/^(## |- )/,'')).join(' ');
+  return t.length>170 ? t.slice(0,170).replace(/\s+\S*$/,'')+'…' : t;
+}
+function _crmRenderTexto(texto){
+  const e=_histEsc; let html='', items=[];
+  const cerrarLista=()=>{ if(items.length){ html+=`<ul style="margin:0 0 10px 18px">${items.map(i=>`<li style="margin-bottom:2px">${e(i)}</li>`).join('')}</ul>`; items=[]; } };
+  for(const linea of (texto||'').split('\n')){
+    if(linea.startsWith('- ')){ items.push(linea.slice(2)); continue; }
+    cerrarLista();
+    if(linea.startsWith('## ')) html+=`<h4 style="font-size:14px;font-weight:700;margin:16px 0 6px">${e(linea.slice(3))}</h4>`;
+    else if(linea.trim()) html+=`<p style="margin-bottom:10px">${e(linea)}</p>`;
+  }
+  cerrarLista();
+  return html;
+}
+function crmRulesMatch(secciones,q){
+  if(!q) return secciones;
+  const n=_crmNorm(q);
+  return secciones.filter(s=>_crmNorm(s.titulo+' '+s.grupo+' '+s.texto).includes(n));
+}
+function wikiRenderCrm(q){
+  const el=document.getElementById('wikiCrmSection'); if(!el) return;
+  const activa=wiki.activeCat==='crm';
+  // Sin la categoría activa solo aparece si hay búsqueda: así escribir "split" o "self" en el buscador
+  // general también encuentra la regla, que es justo lo que alguien busca a media llamada.
+  if(!activa && !q){ el.innerHTML=''; return; }
+  if(!_crmRules){
+    if(activa) el.innerHTML='<div class="cdc-empty">Cargando Reglas de CRM...</div>';
+    crmRulesLoad()
+      .then(()=>wikiRenderCrm((document.getElementById('wikiSearch')?.value||'').toLowerCase().trim()))
+      .catch(()=>{ if(activa) el.innerHTML='<div class="cdc-empty">No se pudieron cargar las Reglas de CRM. Intenta de nuevo en unos segundos.</div>'; });
+    return;
+  }
+  const j=_crmRules, e=_histEsc;
+  const list=crmRulesMatch(j.secciones,q);
+  if(!activa && !list.length){ el.innerHTML=''; return; }
+  const margen=document.getElementById('wikiArticleList')?.children.length?'24px':'0';
+  const cabecera=activa?`<div class="card" style="padding:18px;margin-bottom:8px;border-left:4px solid var(--purple)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">⚖️ Outbound se rige por las reglas de Direct Sales</div>
+      <div style="font-size:13px;color:var(--gray-500);line-height:1.6">${e(j.outbound.principio)}</div>
+      <details style="margin-top:10px">
+        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--purple)">Excepciones de Outbound (${j.outbound.excepciones.length})</summary>
+        <ul style="margin:10px 0 0 18px;font-size:13px;line-height:1.6">${j.outbound.excepciones.map(x=>`<li style="margin-bottom:6px"><b>${e(x.titulo)}.</b> ${e(x.texto)}</li>`).join('')}</ul>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:6px">Fuente: ${e(j.outbound.fuente)}</div>
+      </details>
+      <div style="font-size:11.5px;color:var(--gray-400);margin-top:12px">Revisado contra el documento oficial el ${_crmFecha(j.fuente.revisadoEn)} · última actualización del contenido: ${_crmFecha(j.fuente.actualizadoEn)} · <a href="${e(j.fuente.url)}" target="_blank" style="color:var(--purple);font-weight:600">Abrir documento oficial</a></div>
+    </div>`:'';
+  const grupos=[];
+  list.forEach(s=>{ const g=s.grupo||'Introducción'; let x=grupos.find(y=>y.g===g); if(!x){ x={g,items:[]}; grupos.push(x); } x.items.push(s); });
+  const pill=(txt,fuerte)=>`<span style="background:${fuerte?'var(--purple-light)':'var(--gray-200)'};color:${fuerte?'var(--purple)':'var(--gray-500)'};padding:2px 8px;border-radius:99px;font-size:10.5px">${e(txt)}</span>`;
+  el.innerHTML=`<div style="margin:${margen} 0 12px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400)">⚖️ Reglas de CRM y Ventas — Odoo México${q?` · ${list.length} coincidencia${list.length===1?'':'s'}`:''}</div>
+    </div>
+    ${cabecera}
+    ${!list.length?'<div class="cdc-empty">Ninguna regla coincide con tu búsqueda.</div>':grupos.map(x=>`
+      <div style="font-size:12.5px;font-weight:700;margin:18px 0 10px">${e(x.g)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+        ${x.items.map(s=>`<div class="card" style="padding:18px;cursor:pointer" onclick="wikiOpenCrmRule('${s.id}')">
+          <div style="font-size:14.5px;font-weight:700">${e(s.titulo)}</div>
+          <div style="font-size:12.5px;color:var(--gray-500);line-height:1.5;margin-top:6px">${e(_crmResumen(s.texto))}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px">
+            ${pill(CRM_APLICA_LABEL[s.aplicaOutbound]||'',s.aplicaOutbound==='si')}
+            ${(s.equipos||[]).map(t=>pill(t,false)).join('')}
+          </div>
+        </div>`).join('')}
+      </div>`).join('')}`;
+}
+window.wikiOpenCrmRule=function(id){
+  const j=_crmRules, s=j?.secciones.find(x=>x.id===id); if(!s) return;
+  const e=_histEsc, nota=j.outbound.notasPorSeccion?.[s.id];
+  document.getElementById('wikiArticlePopup')?.remove();
+  const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='wikiArticlePopup';
+  const aviso=t=>`<div style="background:var(--purple-light);color:var(--purple);border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px">${t}</div>`;
+  overlay.innerHTML=`<div class="disc-popup-box" style="max-width:720px">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title">⚖️ ${e(s.titulo)}</div>
+      <div class="disc-popup-actions"><button class="disc-copy-btn" onclick="document.getElementById('wikiArticlePopup').remove()">✕ Cerrar</button></div>
+    </div>
+    <div class="disc-popup-body" style="font-family:'Inter',sans-serif;font-size:13.5px;line-height:1.7">
+      <div style="font-size:11px;color:var(--gray-400);margin-bottom:14px">Reglas de CRM${s.grupo&&s.grupo!==s.titulo?' · '+e(s.grupo):''} · ${CRM_APLICA_LABEL[s.aplicaOutbound]||''}${(s.equipos||[]).length?' · Equipos marcados: '+e(s.equipos.join(', ')):''}</div>
+      ${s.aplicaOutbound==='referencia'?aviso('Esta regla es de otro equipo. A Outbound le sirve para saber qué pasa cuando le pasa o recibe un lead de ese equipo.'):''}
+      ${nota?aviso('⚠️ '+e(nota)):''}
+      ${s.mencionaOutbound?aviso('📌 Esta sección menciona a Outbound de forma explícita.'):''}
+      ${_crmRenderTexto(s.texto)}
+      ${s.imagenes?`<div style="font-size:12px;color:var(--gray-400);margin-top:8px">El documento original trae ${s.imagenes===1?'una imagen':s.imagenes+' imágenes'} en esta sección que no se muestra${s.imagenes===1?'':'n'} aquí.</div>`:''}
+      <div style="border-top:1px solid var(--gray-200);margin-top:16px;padding-top:14px;font-size:12px;color:var(--gray-400)">Revisado contra el documento oficial el ${_crmFecha(j.fuente.revisadoEn)} · <a href="${e(j.fuente.url)}" target="_blank" style="color:var(--purple);font-weight:600">🔗 Abrir documento oficial</a> (requiere tu cuenta corporativa)</div>
+    </div>
+  </div>`;
+  overlay.addEventListener('click',ev=>{ if(ev.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+};
 
 // Cuarto lote (2026-07-30, misma sesión): "Direct Sales process" — la metodología GLOBAL de
 // ventas dentro de DU Knowledge/DU Sales (no específica de MX). Complementa el proceso de
@@ -10696,10 +10815,14 @@ async function wikiLoad(){
     // (usa SUCCESS_STORIES_INDEX, local) — seguimos para que esa categoría funcione igual.
     if(listEl) listEl.innerHTML='<div class="cdc-empty">No se pudo cargar el resto del Banco de Información. Intenta de nuevo en unos segundos.</div>';
   }
+  // Las Reglas de CRM tampoco dependen de Firestore (crm-rules.json); si fallan, el resto sigue.
+  await crmRulesLoad().catch(e=>console.warn('reglas de CRM:',e));
   WIKI_CATEGORIES.forEach(c=>{
     let n=wiki.all.filter(a=>a.categoryId===c.id).length;
     if(c.id==='casos') n+=SUCCESS_STORIES_INDEX.length;
-    const el=document.getElementById('wikiCatCount-'+c.id); if(el) el.textContent=n+' artículo'+(n===1?'':'s');
+    if(c.id==='crm') n+=_crmRules?.secciones?.length||0;
+    const el=document.getElementById('wikiCatCount-'+c.id);
+    if(el) el.textContent=c.id==='crm' ? n+' secciones' : n+' artículo'+(n===1?'':'s');
   });
   wikiFilter();
 }
@@ -10719,6 +10842,7 @@ window.wikiFilter=function(){
     return hay.includes(q);
   });
   wikiRenderList(list);
+  wikiRenderCrm(q);
   wikiRenderCasos(q);
 };
 
@@ -10727,7 +10851,10 @@ function wikiRenderList(list){
   if(!list.length){
     // La categoría "casos" muestra su contenido real (verificado) en #wikiCasosSection —
     // no hace falta el mensaje de "todavía no hay artículos" ahí.
-    if(wiki.activeCat==='casos'){ el.innerHTML=''; return; }
+    if(wiki.activeCat==='casos'||wiki.activeCat==='crm'){ el.innerHTML=''; return; }
+    // Si la búsqueda sí encontró Reglas de CRM (se pintan abajo), "todavía no hay artículos" confunde.
+    const q=(document.getElementById('wikiSearch')?.value||'').toLowerCase().trim();
+    if(q && _crmRules && crmRulesMatch(_crmRules.secciones,q).length){ el.innerHTML=''; return; }
     el.innerHTML=`<div class="cdc-empty">Todavía no hay artículos aquí. ${currentUserData?.role==='manager'?'Usa "+ Nuevo artículo" para agregar el primero.':'Pronto vamos a sumar contenido.'}</div>`;
     return;
   }
@@ -17819,6 +17946,7 @@ PROACTIVIDAD: cuando una pregunta cruza varios módulos (p. ej. "¿cuál es un b
 
 TUS HERRAMIENTAS Y A QUÉ MÓDULO DE LA APP PERTENECEN:
 - buscar_banco_informacion → 📚 Banco de Información: argumentos de venta, pain points, objeciones, proceso comercial.
+- consultar_reglas_crm → 📚 Banco de Información › ⚖️ Reglas de CRM: el documento oficial "CRM & Sales Rules - Odoo Mexico". Quién puede vender qué, duplicados y a quién le toca una oportunidad, pases y splits con MMC/AM/PR/Customer Success, auto-suscripciones (self), appointments, aplicaciones de terceros, condiciones de venta, facturación, pagos, reembolsos, comisiones, decomisiones y referencias. Úsala para CUALQUIER pregunta de "¿puedo…?", "¿a quién le toca…?", "¿esto es para MMC o AM?", "¿me pueden decomisionar si…?" o de reglas de facturación y pagos. Nunca contestes una regla de memoria ni solo con el Banco de Información.
 - buscar_apps_odoo → 🗂️ Catálogo de apps: qué app de Odoo resuelve qué problema.
 - obtener_desempeno_historico_icp → 📈 Información Histórica: win-rate real por industria/estado/fuente de lead, y motivos de pérdida generales y por etapa del embudo (Territory/Nuevo, Qualified, Proposition, etc.). Por defecto es Outbound; pásale motion:"Inbound" si preguntan por Inbound, o llámala dos veces para comparar canales. Úsala para CUALQUIER pregunta sobre ICP, qué industria prospectar, qué ha convertido mejor, o por qué se pierde en una etapa — no contestes eso solo con el wiki.
 - obtener_mis_empresas_por_industria → 🏢 Empresas: cuántas empresas tiene hoy el usuario (o su equipo/organización) por industria. Combínala con obtener_desempeno_historico_icp para detectar huecos entre lo que ya se trabaja y lo que mejor convierte.
@@ -17837,6 +17965,14 @@ CÓMO LEER obtener_desempeno_historico_icp — estas reglas viven aquí y no en 
 - Si "topIndustriasPorWinRate" viene vacío, la respuesta correcta es decir que en ese motion no hay volumen para rankear industrias. Nunca ofrezcas el mejor de una lista sin señal.
 - Si "fuentesSinClasificarPct" es alto, di que el desglose por fuente NO representa las fuentes que el equipo usa hoy (Apollo, DENUE, Outscraper, DIRIND), que no existen en ese histórico.
 - Toda recomendación que salga de aquí va con su n y su bandera de confianza.
+
+CÓMO APLICAR LAS REGLAS DE CRM (consultar_reglas_crm):
+- Outbound se rige por las reglas de Direct Sales (DS). Una sección que dice "Aplica a Outbound" (regla general, de finanzas o que involucra a DS) aplica tal cual, salvo que una de las excepciones de Outbound que devuelve la herramienta diga otra cosa: ahí gana la excepción, y dilo.
+- Una sección "Regla de otro equipo" (PR, AM, Customer Success, MMC) no rige el día a día de Outbound. Úsala solo para explicar qué pasa cuando Outbound le pasa un lead a ese equipo o lo recibe de él.
+- Si la sección trae notaOutbound, repítela tal cual: es una duda abierta y no te toca resolverla.
+- Cita el nombre de la sección y la fecha en que se revisó el documento (revisadoEn). Si piden el texto exacto, da la URL del documento.
+- Si la regla no está escrita, dilo así: "El documento no lo cubre, y que no esté escrito no significa que esté permitido. Valídalo con tu TL." No rellenes con lo que suele pasar.
+- Nunca inventes porcentajes de split, plazos, montos ni nombres de responsables: solo los que vienen en el texto.
 
 JERARQUÍA DE FUENTES para una duda técnica de Odoo: (1) documentación oficial vía leer_documentacion_odoo — es la única que te deja afirmar cómo funciona el producto; (2) el Banco de Información, para cómo lo vendemos en México y experiencia del equipo; (3) web_search, solo si las dos anteriores no lo cubren, y avisando que es externa. Si la documentación oficial y el Banco se contradicen, gana la documentación oficial y dilo.
 
@@ -17866,6 +18002,7 @@ Cuando te pidan "áreas de oportunidad" o coaching de un AE en sus Qcalls, sinte
 
 const NINJA_TOOL_LABELS={
   buscar_banco_informacion:'Buscando en el Banco de Información',
+  consultar_reglas_crm:'Revisando las Reglas de CRM',
   buscar_apps_odoo:'Buscando en el catálogo de apps',
   buscar_documentacion_odoo:'Buscando en la documentación oficial de Odoo',
   leer_documentacion_odoo:'Leyendo la documentación oficial',
@@ -17884,6 +18021,12 @@ function ninjaToolDefs(){
     {name:'buscar_banco_informacion',
      description:'Busca artículos en el Banco de Información (wiki interna del equipo Outbound): argumentos de venta por industria, pain points, objeciones, proceso comercial. Úsala para cualquier pregunta sobre cómo vender, qué decir, o información de industrias/verticales.',
      input_schema:{type:'object',properties:{query:{type:'string',description:'Palabras clave de la búsqueda, en español'}},required:['query']}},
+    {name:'consultar_reglas_crm',
+     description:'Consulta las Reglas de CRM y Ventas de Odoo México (documento oficial de Direct Sales, revisado cada mes): quién puede vender qué, oportunidades duplicadas y a quién le tocan, pases y splits entre DS/Outbound y MMC, AM, PR o Customer Success, auto-suscripciones (self) y cómo reclamarlas, appointments, aplicaciones de terceros, condiciones de venta, facturación, pagos, reembolsos, comisiones, decomisiones y referencias. Devuelve el texto completo de las secciones que mejor coinciden, si cada una aplica a Outbound, las excepciones propias de Outbound y la fecha de revisión. Úsala para cualquier pregunta de reglas o de "¿puedo / a quién le toca / qué pasa si…?".',
+     input_schema:{type:'object',properties:{
+       consulta:{type:'string',description:'La duda en palabras clave, en español. Ej.: "lead con 300 empleados", "reclamar self", "split con AM", "pago en parcialidades".'},
+       seccion:{type:'string',description:'Opcional. id o título de una sección puntual (la herramienta los devuelve en otrasSecciones) para leerla completa.'}},
+       required:[]}},
     {name:'buscar_apps_odoo',
      description:'Busca en el catálogo de apps de Odoo (nombre, para qué sirve, descripción larga). Úsala cuando pregunten qué app de Odoo resuelve algo, o pidan detalle de una app específica.',
      input_schema:{type:'object',properties:{query:{type:'string',description:'Nombre de la app o palabras clave de lo que necesita resolver'}},required:['query']}},
@@ -17976,6 +18119,91 @@ async function ninjaBuscarWiki(queryText){
     ...matches.map(({a})=>({titulo:a.title, resumen:a.summary, contenido:(a.bodyRaw||'').slice(0,6000), fuente:a.source||''})),
     ...casos.map(({c})=>({titulo:'Caso de éxito: '+c.empresa, resumen:c.resumen, contenido:`${c.ubicacion} — giro: ${(c.giros||[]).join(', ')}`, fuente:c.url})),
   ]};
+}
+
+// Reglas de CRM: misma fuente que la categoría del Banco de Información (crm-rules.json, ver crmRulesLoad).
+// La gente pregunta con sus palabras ("self", "split", "decomisión") y el documento usa otras
+// ("auto-suscripción", "división", "desmantelamiento"), así que se expanden sinónimos antes de puntuar.
+const CRM_STOPWORDS=new Set(['que','como','cual','cuales','cuando','donde','para','por','con','una','uno','unos','unas','los','las','del','este','esta','eso','esto','puedo','puede','pueden','tengo','tiene','hay','hace','hacer','debo','debe','sobre','regla','reglas','crm','odoo','outbound','entre','algo','mas','muy','sin','son','sus','les','nos','pasa','caso','quien','toca']);
+const CRM_SINONIMOS={
+  self:['auto-suscripcion','autosuscripcion','self'], autosuscrip:['self','auto-suscripcion'],
+  split:['split','division','dividir'], divis:['split'], dividi:['split','division'],
+  decomision:['desmantelamiento','decomision','dado de baja'], desmantel:['decomision'],
+  comision:['comision'],
+  duplica:['duplicad','similar'], similar:['duplicad','similar leads'],
+  mmc:['mmc','250 empleados','potencial mmc'], empleado:['empleados','250','mmc'], grande:['250','mmc'],
+  socio:['partner'],
+  reembols:['reembolso','devolucion'], devoluc:['reembolso'],
+  pago:['pago','plazo','net30','net 30','enlace de pago'], pagar:['pago'], parcialidad:['parcialidades','ppd'],
+  factur:['factura','ppd'],
+  cita:['appointment','cita'], appointment:['appointment','cita'],
+  pase:['pase','pasar','transferi','reasign'], pasar:['pase','transferi','reasign'], transfer:['transferi','pase'], traspas:['pase','transferi'], reasign:['reasign','pase'],
+  churn:['churned','cancelada','cerrada'], cancelad:['churned','cancelacion'],
+  referid:['referral','referido','referencia'], referral:['referral','referido'], referencia:['referencia','referral'],
+  tercero:['aplicaciones de terceros','3pa','conector'], conector:['conector','3pa','terceros'], shopify:['shopify','conector'], woocommerce:['woocommerce','conector'],
+  premise:['on premise','on-premise'], onpremise:['on premise','on-premise'],
+  descuento:['descuento','fyid','cupon'], cupon:['cupon'],
+  grab:['grabar','grabad','grabacion'],
+  gobierno:['gobierno','grp','licitacion'], licitac:['licitacion'],
+  asignad:['asignad','asignacion'],
+};
+function crmRankSecciones(secciones,consulta){
+  const terms=_crmNorm(consulta).split(/[^a-z0-9]+/).filter(t=>t.length>=3&&!CRM_STOPWORDS.has(t));
+  if(!terms.length) return [];
+  const variantes=terms.map(t=>{
+    const v=new Set([t]);
+    for(const [k,syn] of Object.entries(CRM_SINONIMOS)) if(t.startsWith(k)) syn.forEach(x=>v.add(x));
+    return [...v];
+  });
+  return secciones.map(s=>{
+    const tit=_crmNorm(s.titulo), grp=_crmNorm(s.grupo), txt=_crmNorm(s.texto);
+    let score=0, cubiertos=0;
+    for(const vs of variantes){
+      let g=0;
+      for(const v of vs){ if(tit.includes(v)) g+=6; if(grp.includes(v)) g+=2; g+=Math.min(txt.split(v).length-1,6); }
+      if(g>0) cubiertos++;
+      score+=g;
+    }
+    // Cubrir más términos distintos de la duda pesa más que repetir uno solo muchas veces. El índice por
+    // equipo nombra casi todas las reglas, así que sin castigo ganaría búsquedas sin decir nada.
+    score*=cubiertos;
+    if(s.id.startsWith('indice-de-equipo')) score*=0.3;
+    return {s,score};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+}
+async function ninjaConsultarReglasCRM(input){
+  let j;
+  try{ j=await crmRulesLoad(); }catch(e){ return {error:'No se pudieron cargar las Reglas de CRM: '+e.message}; }
+  const base={
+    fuente:{documento:j.fuente.titulo, url:j.fuente.url, revisadoEn:j.fuente.revisadoEn, actualizadoEn:j.fuente.actualizadoEn},
+    outbound:{principio:j.outbound.principio, excepciones:j.outbound.excepciones, fuente:j.outbound.fuente},
+  };
+  const fmt=s=>({
+    id:s.id, titulo:s.titulo, grupo:s.grupo,
+    aplicaAOutbound:CRM_APLICA_LABEL[s.aplicaOutbound]||s.aplicaOutbound,
+    equiposMarcados:s.equipos, mencionaOutbound:!!s.mencionaOutbound,
+    notaOutbound:j.outbound.notasPorSeccion?.[s.id]||null,
+    // 8000 cubre la sección más larga completa (~7,300): una regla partida a la mitad es peor que ninguna.
+    texto:(s.texto||'').slice(0,8000)+(s.imagenes?`\n(En esta sección el documento original trae ${s.imagenes} imagen(es) que no están en este texto.)`:''),
+  });
+  let top=[];
+  if(input.seccion){
+    const k=_crmNorm(input.seccion);
+    const s=j.secciones.find(x=>x.id===input.seccion)||j.secciones.find(x=>_crmNorm(x.titulo).includes(k));
+    if(s) top=[s];
+  }
+  if(!top.length){
+    // Texto completo solo de las que de verdad compiten con la mejor: cada sección pesa hasta ~7,000
+    // caracteres y se queda en la historia del chat. Las demás van en otrasSecciones por si hacen falta.
+    const ranked=crmRankSecciones(j.secciones,[input.consulta,input.seccion].filter(Boolean).join(' '));
+    top=ranked.filter(x=>x.score>=ranked[0].score*0.35).slice(0,3).map(x=>x.s);
+  }
+  return {
+    ...base,
+    secciones:top.map(fmt),
+    otrasSecciones:j.secciones.filter(s=>!top.includes(s)).map(s=>({id:s.id,titulo:s.titulo})),
+    ...(top.length?{}:{mensaje:'Ninguna sección coincide con esa búsqueda. Revisa otrasSecciones y vuelve a llamar con el parámetro seccion; si ninguna trata el tema, el documento no lo cubre.'}),
+  };
 }
 
 // ── Documentación oficial de Odoo (repo github.com/odoo/documentation, rama saas-19.4) ──
@@ -18586,6 +18814,7 @@ async function ninjaObtenerBuenasPracticas(input){
 
 const NINJA_TOOL_EXECUTORS={
   buscar_banco_informacion:i=>ninjaBuscarWiki(i.query),
+  consultar_reglas_crm:i=>ninjaConsultarReglasCRM(i),
   buscar_apps_odoo:i=>ninjaBuscarApps(i.query),
   buscar_documentacion_odoo:i=>ninjaBuscarDocsOdoo(i.consulta),
   leer_documentacion_odoo:i=>ninjaLeerDocsOdoo(i),
@@ -18668,6 +18897,7 @@ const NINJA_MAX_REANUDACIONES=6;
 const NINJA_SUGGESTED_QUESTIONS=[
   '¿Qué tamaño de empresa me conviene prospectar?',
   '¿Por qué se pierden los leads en Territory?',
+  '¿Cuándo un lead se tiene que pasar a MMC?',
   'Busca en el Banco de Información objeciones de precio',
   '¿Qué app de Odoo resuelve control de inventario por lote?',
 ];
