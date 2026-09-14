@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-14T20:14:32Z">
+<meta name="app-version" content="2026-09-14T20:16:14Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11613,14 +11613,23 @@ function _laOnKey(e){
 // el export de Lusha), y si no, un rango de Excel/Sheets separado por tabulador. En el rango cada celda
 // se reconoce por su forma (correo, sitio, teléfono), así no importa el orden de las columnas.
 function _laParsear(texto){
+  // El lector genérico con encabezados solo conoce ciertos nombres de columna ("Website", no "Sitio"):
+  // con un encabezado en español perdía la columna del sitio sin avisar (visto en la prueba en vivo del
+  // 2026-09-14). Por eso se leen las dos formas y gana la que recupera más datos; el export de Lusha,
+  // que tiene firma exacta, siempre gana.
+  const porForma=_laPorForma(texto);
   try{
     const lusha=_csvMapLusha(texto);
     const mapeadas=lusha||_csvMapStructured(texto);
     if(mapeadas&&mapeadas.length){
       const out=mapeadas.map(r=>({empresa:r.partner_name||'', web:r.Website||'', correo:r.Email||'', contacto:r.contact_name||'', tel:r.phone||''})).filter(f=>f.empresa||f.correo);
-      if(out.length){ out.lusha=!!lusha; return out; }
+      const llenos=filas=>filas.reduce((n,f)=>n+LA_CAMPOS.filter(([k])=>String(f[k]||'').trim()).length,0);
+      if(out.length&&(lusha||llenos(out)>llenos(porForma))){ out.lusha=!!lusha; return out; }
     }
   }catch(e){ console.warn('leadsAlta: lectura con encabezados',e); }
+  return porForma;
+}
+function _laPorForma(texto){
   const out=[];
   for(const linea of texto.replace(/\r/g,'').split('\n')){
     const celdas=linea.split('\t').map(c=>c.trim()).filter(Boolean);
