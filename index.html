@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-14T20:16:14Z">
+<meta name="app-version" content="2026-09-14T20:46:06Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-14c ➕ Agregar leads: para los leads que conseguiste fuera de la app. Una fila por lead (empresa, sitio, correo, contacto y teléfono), con "+ Agregar otra" o pegando filas de Excel, Sheets o un export de Lusha. Antes de guardar avisa en cada fila si la empresa ya existe y de quién es; al guardar, cada empresa queda a tu nombre con su contacto y recibe su ficha. Está en Empresas y en Generación de leads. · Si Lusha no conoce a la empresa, industria, empleados y LinkedIn se completan con Apollo (Panel de Manager: nueva columna "Empresas Apollo"). · 2026-09-14b Cada lead nuevo llega con ficha consultiva, señales y prioridad, y se guardan en la empresa: qué hace, dolores probables, apps de Odoo que le aplican, preguntas de descubrimiento y un gancho para abrir la llamada. La prioridad (Alta/Media/Baja) dice en qué se basa y con cuántos casos del histórico. Al guardar leads en el CRM ya se llenan industria, tamaño, LinkedIn y sitio donde estaban vacíos, también en empresas que ya existían (nunca se pisa lo que ya había). En el detalle de cada empresa hay un botón para crear o actualizar la ficha, las empresas dadas de alta a mano con sitio web la obtienen solas, y el Panel de Manager tiene un botón para completar las que ya estaban. · 2026-09-14a "Reintentar" ya devuelve todos los filtros de Apollo: sector, tecnologías, ingresos, fundación, crecimiento, días en el puesto, títulos, vacantes y correo verificado (antes se perdían y la búsqueda salía más abierta). En Más contactos, si Apollo y Lusha traen a la misma persona se juntan en un solo renglón y Lusha solo aporta lo que faltaba, como el teléfono. Lusha ya deja afinar por subindustria. Sin tope de créditos de Lusha: se mide por persona en el Panel de Manager. · 2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
+const APP_BUILD_STAMP='2026-09-14d "Agregar leads" ya descarga el CSV para Odoo: el botón principal guarda las empresas, les liga sus contactos y descarga el CSV con la plantilla de siempre (tags de industria incluidos, el Resumen sale de la ficha). El CSV queda en el historial y aparece en el detalle de cada empresa. "Solo guardar" sigue disponible y luego se puede bajar el CSV. · 2026-09-14c ➕ Agregar leads: para los leads que conseguiste fuera de la app. Una fila por lead (empresa, sitio, correo, contacto y teléfono), con "+ Agregar otra" o pegando filas de Excel, Sheets o un export de Lusha. Antes de guardar avisa en cada fila si la empresa ya existe y de quién es; al guardar, cada empresa queda a tu nombre con su contacto y recibe su ficha. Está en Empresas y en Generación de leads. · Si Lusha no conoce a la empresa, industria, empleados y LinkedIn se completan con Apollo (Panel de Manager: nueva columna "Empresas Apollo"). · 2026-09-14b Cada lead nuevo llega con ficha consultiva, señales y prioridad, y se guardan en la empresa: qué hace, dolores probables, apps de Odoo que le aplican, preguntas de descubrimiento y un gancho para abrir la llamada. La prioridad (Alta/Media/Baja) dice en qué se basa y con cuántos casos del histórico. Al guardar leads en el CRM ya se llenan industria, tamaño, LinkedIn y sitio donde estaban vacíos, también en empresas que ya existían (nunca se pisa lo que ya había). En el detalle de cada empresa hay un botón para crear o actualizar la ficha, las empresas dadas de alta a mano con sitio web la obtienen solas, y el Panel de Manager tiene un botón para completar las que ya estaban. · 2026-09-14a "Reintentar" ya devuelve todos los filtros de Apollo: sector, tecnologías, ingresos, fundación, crecimiento, días en el puesto, títulos, vacantes y correo verificado (antes se perdían y la búsqueda salía más abierta). En Más contactos, si Apollo y Lusha traen a la misma persona se juntan en un solo renglón y Lusha solo aporta lo que faltaba, como el teléfono. Lusha ya deja afinar por subindustria. Sin tope de créditos de Lusha: se mide por persona en el Panel de Manager. · 2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -11506,6 +11506,7 @@ function _laCss(){
 .la-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 24px;border-top:1px solid var(--gray-200);background:var(--gray-50);border-radius:0 0 16px 16px}
 .la-resumen{font-size:12.5px;color:var(--gray-500);font-variant-numeric:tabular-nums}
 .la-costo{display:block;font-size:11px;color:var(--gray-400)}
+.la-acciones{display:flex;gap:8px;flex-wrap:wrap}
 @media (max-width:760px){
   .la-cab{display:none}
   .la-campos{grid-template-columns:1fr 1fr;padding:10px;border:1px solid var(--gray-200);border-radius:10px;position:relative}
@@ -11527,7 +11528,7 @@ window.leadsAltaAbrir=async function(){
       <button class="disc-copy-btn" onclick="leadsAltaCerrar()">✕ Cerrar</button>
     </div>
     <div class="disc-popup-body la-body">
-      <p class="la-intro">Para leads que conseguiste fuera de la app: un evento, LinkedIn, un referido. Cada empresa queda en Empresas a tu nombre, con su contacto, ficha, señales y prioridad.</p>
+      <p class="la-intro">Para leads que conseguiste fuera de la app: un evento, LinkedIn, un referido. Cada empresa queda en Empresas a tu nombre, con su contacto, ficha, señales y prioridad, y te llevas el CSV listo para subirlos a Odoo.</p>
       <div class="la-origen"><span class="la-lbl" id="laOrigenLbl">¿De dónde vienen?</span>
         <div class="la-chips" id="laOrigen" role="group" aria-labelledby="laOrigenLbl">${LA_ORIGENES.map(o=>`<button type="button" class="la-chip" data-origen="${o}" aria-pressed="false" onclick="leadsAltaOrigen('${o}')">${o}</button>`).join('')}</div>
       </div>
@@ -11540,7 +11541,10 @@ window.leadsAltaAbrir=async function(){
     </div>
     <div class="la-pie">
       <span class="la-resumen"><span id="laResumen"></span><span class="la-costo">La ficha usa créditos de Lusha y Apollo, que se anotan a tu nombre.</span></span>
-      <button type="button" class="btn btn-primary" id="laGuardar" onclick="leadsAltaGuardar()" disabled>Guardar</button>
+      <div class="la-acciones">
+        <button type="button" class="btn btn-ghost" id="laSoloGuardar" onclick="leadsAltaGuardar(false)" disabled>Solo guardar</button>
+        <button type="button" class="btn btn-primary" id="laGuardar" onclick="leadsAltaGuardar(true)" disabled>Guardar y descargar CSV</button>
+      </div>
     </div>
   </div>`;
   ov.addEventListener('click',e=>{ if(e.target===ov) leadsAltaCerrar(); });
@@ -11590,8 +11594,9 @@ function _laRevisarTodo(){
     if(el){ el.className=`la-estado la-${est.tipo}`; el.textContent=est.texto||''; }
   });
   if(_la.fase!=='editando') return;
-  const btn=document.getElementById('laGuardar'), res=document.getElementById('laResumen');
-  if(btn){ btn.disabled=!listos; btn.textContent=listos?`Guardar ${listos} lead${listos===1?'':'s'}`:'Guardar'; }
+  const btn=document.getElementById('laGuardar'), solo=document.getElementById('laSoloGuardar'), res=document.getElementById('laResumen');
+  if(btn){ btn.disabled=!listos; btn.textContent=listos?`Guardar ${listos} y descargar CSV`:'Guardar y descargar CSV'; }
+  if(solo) solo.disabled=!listos;
   if(res) res.textContent=[listos?`${listos} listo${listos===1?'':'s'}`:'Escribe o pega tus leads', fuera?`${fuera} no se ${fuera===1?'agrega':'agregan'}`:'', !_la.existentes?'revisando si ya existen…':''].filter(Boolean).join(' · ');
 }
 
@@ -11691,7 +11696,76 @@ window.leadsAltaCerrar=function(){
   if(refrescar&&document.getElementById('empresasList')) empLoad().catch(()=>{});
 };
 
-window.leadsAltaGuardar=async function(){
+// ── CSV para Odoo de los leads agregados a mano (pedido 2026-09-14) ──
+// Mismas columnas que el CSV del buscador (csvBuildText: la estructura es la plantilla de carga de Odoo
+// y no se toca) y las convenciones de una fila agregada a mano en el CSV Builder (csvAddRow): tag base
+// Outbound-MX, el AE como vendedor y país México. Encima, los tags QS de industria con la misma
+// clasificación del buscador, y el Resumen sale de la ficha, sin gastar una llamada extra.
+function _laFilaCsv(f,co,{origen='',vendedor=''}={}){
+  const intel=co.inteligencia||{};
+  const perfil=intel.empresaLusha||intel.empresaApollo||{};
+  const empresa=co.nombre||f.empresa.trim();
+  const contacto=f.contacto.trim();
+  const notas=[
+    origen?`Origen: ${origen}`:'',
+    'Lead agregado a mano en la app',
+    (co.industriaFuente||co.giro)?`Industria: ${co.industriaFuente||co.giro}`:'',
+    co.empleados?`Empleados: ${co.empleados}`:(co.tamaño?`Tamaño: ${co.tamaño}`:''),
+    intel.prioridad?.nivel?`Prioridad: ${intel.prioridad.nivel}`:'',
+    co.linkedin?`LinkedIn empresa: ${co.linkedin}`:'',
+  ].filter(Boolean).join(' | ');
+  return {
+    name:`App Outbound - ${empresa} - ${contacto}`,
+    contact_name:contacto, function:'', partner_name:empresa,
+    Website:_csvDomainKey(co.website), Email:f.correo.trim(), phone:f.tel.trim(),
+    Tags_id:'Outbound-MX', user_id:vendedor,
+    state_id:_mxState(perfil.estado||''), country_id:csvCountryIdFor('Mexico'),
+    notes:notas, resumen:intel.ficha?.queHace||'',
+    _industriaRaw:co.industriaFuente||co.giro||'',
+  };
+}
+
+// Queda en el historial de "CSV creados" como cualquier CSV del buscador, y ligado a las empresas: con
+// una sola empresa por companyId (lo que ya lee su detalle) y con varias por companyIds.
+async function _laGuardarHistorial(la){
+  if(!db||!la.csv) return;
+  const ids=[...new Set((la.guardadas||[]).map(({g})=>g.id).filter(Boolean))];
+  try{
+    await addDoc(collection(db,'csvSessions'),{
+      fuente:`Leads agregados a mano${la.origen?` · ${la.origen}`:''}`,
+      rowCount:la.csv.filas.length, rows:la.csv.filas, csvText:la.csv.texto,
+      companyId:ids.length===1?ids[0]:null, companyIds:ids,
+      aeUid:currentUserData.uid, aeName:currentUserData.name, aeGram:currentUserData.gram, tlId:currentUserData?.tlId||null,
+      updatedByUid:currentUserData.uid, updatedByName:currentUserData.name, updatedByGram:currentUserData.gram,
+      createdAt:serverTimestamp(), updatedAt:serverTimestamp(),
+    });
+    if(document.getElementById('csvHistBadge')) csvLoadHistory();
+  }catch(e){ console.warn('leadsAlta historial CSV:',e); }
+}
+
+async function _laDescargarCsv(la,{silencio=false}={}){
+  const guardadas=la.guardadas||[];
+  if(!guardadas.length){ showNotif('No hay leads guardados para el CSV.','error'); return; }
+  const btn=document.getElementById('laSoloGuardar');
+  if(btn){ btn.disabled=true; btn.textContent='Preparando CSV…'; }
+  try{
+    if(!la.csv){
+      const gram=currentUserData?.gram||'';
+      const nombreAE=gram===MANAGER.gram?MANAGER.name:(AE_LIST[gram]||currentUserData?.name||'');
+      const vendedor=nombreAE?`${nombreAE} (${gram})`:'';
+      const filas=guardadas.map(({i,g})=>_laFilaCsv(la.filas[i],g.co,{origen:la.origen,vendedor}));
+      const tags=await csvClassifyIndustryTags(filas);
+      filas.forEach((r,k)=>{ const {a,b}=tags[k]||{}; r.Tags_id=[r.Tags_id,...(a||[]),b].filter(Boolean).join(','); });
+      la.csv={texto:csvBuildText(filas), nombre:csvFileName('Leads agregados a mano',filas), filas};
+      await _laGuardarHistorial(la);
+    }
+    csvTriggerDownload(la.csv.texto, la.csv.nombre);
+    if(!silencio) showNotif('CSV para Odoo descargado ✓','success');
+  }catch(e){ showNotif('No se pudo armar el CSV: '+e.message,'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=la.csv?'Descargar CSV otra vez':'Descargar CSV para Odoo'; } }
+}
+
+window.leadsAltaGuardar=async function(conCsv=false){
   const la=_la; if(!la||la.fase!=='editando') return;
   if(!la.existentes&&!confirm('Todavía estoy revisando si alguna ya existe en Empresas. ¿Guardar de todos modos?')) return;
   const estados=la.filas.map((f,i)=>_laEstado(i));
@@ -11699,8 +11773,9 @@ window.leadsAltaGuardar=async function(){
   _laRenderFilas();
   const btn=document.getElementById('laGuardar'), res=document.getElementById('laResumen');
   if(btn){ btn.disabled=true; btn.textContent='Guardando…'; }
+  const solo=document.getElementById('laSoloGuardar'); if(solo) solo.style.display='none';
   const marcar=(i,tipo,texto)=>{ la.filas[i].res={tipo,texto}; const el=document.getElementById(`la_estado_${i}`); if(el){ el.className=`la-estado la-${tipo}`; el.textContent=texto; } };
-  const grupos=new Map();
+  const grupos=new Map(), guardadas=[];
   let nuevas=0, actualizadas=0, omitidas=0, errores=0;
 
   for(let i=0;i<la.filas.length;i++){
@@ -11738,6 +11813,7 @@ window.leadsAltaGuardar=async function(){
         marcar(i,'ok','Misma empresa y mismo contacto: no se duplicó.');
       }
       g.filas.push(i);
+      guardadas.push({i,g});
     }catch(e){ errores++; marcar(i,'bloq',`No se guardó: ${e.message}.`); }
   }
 
@@ -11775,8 +11851,18 @@ window.leadsAltaGuardar=async function(){
     conFicha?`${conFicha} con ficha${altas?` (${altas} de prioridad Alta)`:''}`:'',
     omitidas||errores?`${omitidas+errores} sin guardar`:'',
   ].filter(Boolean).join(' · ')||'Nada que guardar';
+  la.guardadas=guardadas;
+  if(conCsv&&guardadas.length){
+    if(btn) btn.textContent='Preparando CSV…';
+    await _laDescargarCsv(la,{silencio:true});
+  }
   if(btn){ btn.disabled=false; btn.textContent='Listo'; btn.onclick=()=>leadsAltaCerrar(); }
-  showNotif(`➕ ${nuevas+actualizadas} lead${nuevas+actualizadas===1?'':'s'} en Empresas${conFicha?`, ${conFicha} con ficha`:''}${omitidas+errores?` · ${omitidas+errores} sin guardar (el motivo está en su fila)`:''}`,'success');
+  if(solo&&guardadas.length){
+    solo.style.display=''; solo.disabled=false;
+    solo.textContent=la.csv?'Descargar CSV otra vez':'Descargar CSV para Odoo';
+    solo.onclick=()=>_laDescargarCsv(la);
+  }
+  showNotif(`➕ ${nuevas+actualizadas} lead${nuevas+actualizadas===1?'':'s'} en Empresas${conFicha?`, ${conFicha} con ficha`:''}${omitidas+errores?` · ${omitidas+errores} sin guardar (el motivo está en su fila)`:''}${la.csv?' · CSV para Odoo descargado':''}`,'success');
   if(document.getElementById('empresasList')) empLoad().catch(()=>{});
 };
 
@@ -11974,7 +12060,11 @@ window.empOpenDetail=async function(id){
       const byDate=(a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0);
       const [discR,csvR,priceR,freshCo]=await Promise.all([
         getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',id))).catch(e=>{console.warn('disc:',e);return{docs:[]};}),
-        getDocs(query(collection(db,'csvSessions'),where('companyId','==',id))).catch(e=>{console.warn('csv:',e);return{docs:[]};}),
+        // companyIds (2026-09-14): un CSV de "Agregar leads" puede traer varias empresas y se liga a todas.
+        Promise.all([
+          getDocs(query(collection(db,'csvSessions'),where('companyId','==',id))).catch(e=>{console.warn('csv:',e);return{docs:[]};}),
+          getDocs(query(collection(db,'csvSessions'),where('companyIds','array-contains',id))).catch(()=>({docs:[]})),
+        ]).then(([a,b])=>({docs:[...new Map([...a.docs,...b.docs].map(d=>[d.id,d])).values()]})),
         getDocs(query(collection(db,'pricingRecords'),where('companyId','==',id))).catch(e=>{console.warn('price:',e);return{docs:[]};}),
         getDoc(doc(db,'companies',id)).catch(()=>null),
       ]);
