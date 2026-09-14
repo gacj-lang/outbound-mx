@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-14T17:46:44Z">
+<meta name="app-version" content="2026-09-14T20:14:32Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-14b Cada lead nuevo llega con ficha consultiva, señales y prioridad, y se guardan en la empresa: qué hace, dolores probables, apps de Odoo que le aplican, preguntas de descubrimiento y un gancho para abrir la llamada. La prioridad (Alta/Media/Baja) dice en qué se basa y con cuántos casos del histórico. Al guardar leads en el CRM ya se llenan industria, tamaño, LinkedIn y sitio donde estaban vacíos, también en empresas que ya existían (nunca se pisa lo que ya había). En el detalle de cada empresa hay un botón para crear o actualizar la ficha, las empresas dadas de alta a mano con sitio web la obtienen solas, y el Panel de Manager tiene un botón para completar las que ya estaban. · 2026-09-14a "Reintentar" ya devuelve todos los filtros de Apollo: sector, tecnologías, ingresos, fundación, crecimiento, días en el puesto, títulos, vacantes y correo verificado (antes se perdían y la búsqueda salía más abierta). En Más contactos, si Apollo y Lusha traen a la misma persona se juntan en un solo renglón y Lusha solo aporta lo que faltaba, como el teléfono. Lusha ya deja afinar por subindustria. Sin tope de créditos de Lusha: se mide por persona en el Panel de Manager. · 2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
+const APP_BUILD_STAMP='2026-09-14c ➕ Agregar leads: para los leads que conseguiste fuera de la app. Una fila por lead (empresa, sitio, correo, contacto y teléfono), con "+ Agregar otra" o pegando filas de Excel, Sheets o un export de Lusha. Antes de guardar avisa en cada fila si la empresa ya existe y de quién es; al guardar, cada empresa queda a tu nombre con su contacto y recibe su ficha. Está en Empresas y en Generación de leads. · Si Lusha no conoce a la empresa, industria, empleados y LinkedIn se completan con Apollo (Panel de Manager: nueva columna "Empresas Apollo"). · 2026-09-14b Cada lead nuevo llega con ficha consultiva, señales y prioridad, y se guardan en la empresa: qué hace, dolores probables, apps de Odoo que le aplican, preguntas de descubrimiento y un gancho para abrir la llamada. La prioridad (Alta/Media/Baja) dice en qué se basa y con cuántos casos del histórico. Al guardar leads en el CRM ya se llenan industria, tamaño, LinkedIn y sitio donde estaban vacíos, también en empresas que ya existían (nunca se pisa lo que ya había). En el detalle de cada empresa hay un botón para crear o actualizar la ficha, las empresas dadas de alta a mano con sitio web la obtienen solas, y el Panel de Manager tiene un botón para completar las que ya estaban. · 2026-09-14a "Reintentar" ya devuelve todos los filtros de Apollo: sector, tecnologías, ingresos, fundación, crecimiento, días en el puesto, títulos, vacantes y correo verificado (antes se perdían y la búsqueda salía más abierta). En Más contactos, si Apollo y Lusha traen a la misma persona se juntan en un solo renglón y Lusha solo aporta lo que faltaba, como el teléfono. Lusha ya deja afinar por subindustria. Sin tope de créditos de Lusha: se mide por persona en el Panel de Manager. · 2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -2143,6 +2143,7 @@ async function gastoRenderFuentes(){
         ${tile(lu.limite!=null?`${n(lu.usados)} / ${n(lu.limite)}`:n(lu.usados),'Créditos de Lusha usados', lu.limite!=null&&lu.disponibles!=null?`quedan ${n(lu.disponibles)} este mes`:'todo el equipo, este mes · sin tope')}
         ${tile(n(t.apolloCorreos),'Correos de Apollo','1 crédito cada uno')}
         ${tile(n(t.apolloTelefonos),'Teléfonos de Apollo','bolsa aparte en Apollo')}
+        ${tile(n(t.apolloEmpresas),'Empresas de Apollo','1 crédito por empresa encontrada')}
         ${tile(n(t.busquedas),'Búsquedas cerradas')}
         ${tile(n(t.contactosRevelados),'Contactos revelados','desde Más contactos')}
       </div>
@@ -2150,13 +2151,14 @@ async function gastoRenderFuentes(){
         <table style="width:100%;border-collapse:collapse;font-size:12.5px">
           <thead><tr style="text-align:left;color:var(--gray-400);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em">
             <th style="padding:6px 8px">Persona</th><th style="padding:6px 8px;text-align:right">Correos Apollo</th>
-            <th style="padding:6px 8px;text-align:right">Tel. Apollo</th><th style="padding:6px 8px;text-align:right">Créditos Lusha</th>
+            <th style="padding:6px 8px;text-align:right">Tel. Apollo</th><th style="padding:6px 8px;text-align:right">Empresas Apollo</th><th style="padding:6px 8px;text-align:right">Créditos Lusha</th>
             <th style="padding:6px 8px;text-align:right">Búsquedas</th><th style="padding:6px 8px;text-align:right">Contactos</th>
           </tr></thead>
           <tbody>${filas.map(f=>`<tr style="border-top:1px solid var(--gray-100)">
             <td style="padding:7px 8px">${_esc(f.nombre||f.uid||'')}</td>
             <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.apolloCorreos)}</td>
             <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.apolloTelefonos)}</td>
+            <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.apolloEmpresas)}</td>
             <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.lushaCreditos)}</td>
             <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.busquedas)}</td>
             <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums">${n(f.contactosRevelados)}</td>
@@ -11242,9 +11244,10 @@ async function renderEmpresas(){
     <div style="max-width:1100px;margin:0 auto;padding:24px">
       <div class="page-header" style="margin-bottom:20px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
         <div><h2>🏢 Empresas</h2><p>Directorio de empresas con sus documentos y actividad relacionada. <span id="empScopeLabel" style="color:var(--gray-400)"></span></p></div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-ghost" onclick="empShowCreateContact()">👤 Nuevo contacto</button>
-          <button class="btn btn-primary" onclick="empShowCreate()">+ Nueva empresa</button>
+          <button class="btn btn-ghost" onclick="empShowCreate()">+ Nueva empresa</button>
+          <button class="btn btn-primary" onclick="leadsAltaAbrir()" title="Varios leads a la vez, con su contacto y su ficha">➕ Agregar leads</button>
         </div>
       </div>
       <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
@@ -11393,6 +11396,381 @@ window.empFilter=function(){
   if(_empMineOnly) filtered=filtered.filter(c=>_empAsignadoUid(c)?_empAsignadoUid(c)===currentUserData?.uid:_empAsignadoNombre(c)===currentUserData?.name);
   empRender(filtered);
 };
+// ── Agregar leads conseguidos fuera de la app (2026-09-14) ──
+// Pedido del usuario: un lugar fácil para cargar leads que el AE consiguió por su cuenta (un evento,
+// LinkedIn, un referido), varios a la vez. Antes eran dos ventanas por lead —Nueva empresa y luego
+// Nuevo contacto, buscando la empresa en una lista— y ninguna recibía ficha. Aquí va una fila por lead
+// con lo mínimo; se puede pegar un rango de Excel/Sheets o un export de Lusha; se avisa en la fila si
+// la empresa ya existe (y de quién es) antes de guardar; y cada empresa recibe su ficha al final.
+// Ojo al editar: nada de este bloque puede leer a nivel superior constantes declaradas más abajo en
+// el archivo (_CSV_FREE_MAIL_DOMAINS, _csvNorm…): se evalúan después y romperían todo el módulo.
+const LA_MAX_FILAS=50;
+const LA_ORIGENES=['LinkedIn','Ferias comerciales','Networking','Lusha','Apollo','Google','Otro'];
+const LA_REDES=/(^|\.)(facebook|instagram|linkedin|twitter|x|tiktok|youtube|wa|whatsapp)\.(com|me)$/;
+const LA_CAMPOS=[['empresa','Empresa *','Nombre de la empresa'],['web','Sitio web','empresa.mx'],['correo','Correo','nombre@empresa.mx'],['contacto','Contacto','Nombre y apellido'],['tel','Teléfono','33 1234 5678']];
+let _la=null;
+
+function _laFilaVacia(){ return {empresa:'',web:'',correo:'',contacto:'',tel:'',res:null}; }
+function _laTieneAlgo(f){ return LA_CAMPOS.some(([k])=>String(f[k]||'').trim()); }
+function _laCorreoPersonal(dominio){
+  return _CSV_FREE_MAIL_DOMAINS.has(dominio)||['hotmail.es','hotmail.com.mx','outlook.es','prodigy.net.mx','yahoo.es','gmx.com','proton.me','zoho.com','terra.com.mx','infinitum.com.mx'].includes(dominio);
+}
+// Dominio que identifica a la empresa: el del sitio, o el del correo si es corporativo. Una red social
+// o un correo de Gmail no prueban de qué empresa se trata.
+function _laDominioDe(f){
+  const web=_csvDomainKey(f.web);
+  if(web&&web.includes('.')&&!LA_REDES.test(web)) return {dominio:web, de:'sitio'};
+  const m=String(f.correo||'').trim().toLowerCase().match(/^[^@\s]+@([a-z0-9.-]+\.[a-z]{2,})$/);
+  if(m&&!_laCorreoPersonal(m[1])) return {dominio:m[1], de:'correo'};
+  return {dominio:'', de:''};
+}
+function _laExistente(dominio,nombre){
+  if(!_la?.existentes) return null;
+  return (dominio&&_la.existentes.porDominio.get(dominio))||_la.existentes.porNombre.get(_csvNameKey(nombre))||null;
+}
+// Mismo contacto: por correo si los dos lo tienen; si no, por nombre; si no, por teléfono. Dos contactos
+// sin nombre ni correo NO son el mismo solo por estar vacíos (a diferencia de _csvContactMatches).
+function _laMismoContacto(a,b){
+  const ca=String(a.correo||'').toLowerCase().trim(), cb=String(b.correo||'').toLowerCase().trim();
+  if(ca&&cb) return ca===cb;
+  const na=_csvNameKey(a.nombre||''), nb=_csvNameKey(b.nombre||'');
+  if(na&&nb) return na===nb;
+  const ta=String(a.phone||'').replace(/\D/g,'').slice(-10), tb=String(b.phone||'').replace(/\D/g,'').slice(-10);
+  return !!ta&&ta===tb;
+}
+
+// Qué va a pasar con la fila i si se guarda ahora. tipo: vacia | ok | info | warn | bloq (no se guarda).
+function _laEstado(i){
+  const f=_la.filas[i];
+  if(!_laTieneAlgo(f)) return {tipo:'vacia',texto:''};
+  if(!f.empresa.trim()) return {tipo:'bloq',texto:'Falta el nombre de la empresa.'};
+  const correo=f.correo.trim();
+  if(correo&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(correo)) return {tipo:'bloq',texto:'El correo no tiene un formato válido.'};
+  const {dominio,de}=_laDominioDe(f);
+  const clave=dominio||('n:'+_csvNameKey(f.empresa));
+  for(let k=0;k<i;k++){
+    const o=_la.filas[k];
+    if(!o.empresa.trim()) continue;
+    const d2=_laDominioDe(o).dominio;
+    if((dominio&&d2===dominio)||_csvNameKey(o.empresa)===_csvNameKey(f.empresa)){
+      const previa=_laEstado(k);
+      if(previa.tipo==='bloq') return {...previa,texto:`Misma empresa que la fila ${k+1}. ${previa.texto}`};
+      return {tipo:'info',texto:`Misma empresa que la fila ${k+1}: se agrega como otro contacto.`,dominio,clave:previa.clave||clave};
+    }
+  }
+  const ex=_laExistente(dominio,f.empresa);
+  if(ex){
+    const dueno=_empAsignadoUid(ex), yo=currentUserData?.uid, rol=currentUserData?.role;
+    if(dueno&&dueno!==yo&&rol!=='manager'&&rol!=='tl') return {tipo:'bloq',texto:`Ya existe en Empresas y es de ${_empAsignadoNombre(ex)||'otra persona'}: no se agrega.`,dominio,clave,existente:ex};
+    return {tipo:'info',texto:`Ya está en Empresas${dueno&&dueno!==yo?` (de ${_empAsignadoNombre(ex)})`:''}: se agrega el contacto y se completa lo que falte.`,dominio,clave,existente:ex};
+  }
+  if(!dominio){
+    const avisos=[];
+    if(f.web.trim()&&LA_REDES.test(_csvDomainKey(f.web))) avisos.push('Eso es una red social, no el sitio de la empresa.');
+    else if(correo) avisos.push('Es un correo personal: no ayuda a encontrar la empresa.');
+    avisos.push('Sin sitio ni correo de la empresa, la ficha sale solo con el nombre.');
+    return {tipo:'warn',texto:avisos.join(' '),dominio,clave};
+  }
+  return {tipo:'ok',texto:de==='correo'?`Empresa nueva · sitio ${dominio} (sale del correo).`:`Empresa nueva · sitio ${dominio}.`,dominio,clave};
+}
+
+function _laCss(){
+  if(document.getElementById('laCss')) return;
+  const s=document.createElement('style'); s.id='laCss';
+  s.textContent=`
+.la-box{max-width:1000px;max-height:88vh}
+.la-body{font-family:'Inter',sans-serif;font-size:13px;line-height:1.5;display:flex;flex-direction:column;gap:14px}
+.la-intro{margin:0;color:var(--gray-500);font-size:13px;max-width:72ch}
+.la-origen{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.la-lbl{font-size:12px;font-weight:600;color:var(--gray-700)}
+.la-chips{display:flex;flex-wrap:wrap;gap:6px}
+.la-chip{font:inherit;font-size:12px;padding:4px 11px;border-radius:99px;border:1.5px solid var(--gray-200);background:white;color:var(--gray-500);cursor:pointer}
+.la-chip:hover{border-color:var(--purple-mid)}
+.la-chip.on{background:var(--purple-light);border-color:var(--purple);color:var(--purple-dark);font-weight:600}
+.la-chip:focus-visible,.la-quitar:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.la-cab,.la-campos{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr) minmax(0,.85fr) 30px;gap:8px;align-items:center}
+.la-cab{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400);padding:0 2px;margin-bottom:-6px}
+#laFilas{display:flex;flex-direction:column;gap:8px}
+.la-fila{display:flex;flex-direction:column;gap:2px}
+.la-campo{display:flex;flex-direction:column;gap:3px;min-width:0;margin:0}
+.la-campo-lbl{display:none;font-size:11px;font-weight:600;color:var(--gray-500)}
+.la-in{padding:7px 10px;font-size:13px}
+.la-in:disabled{background:var(--gray-50);color:var(--gray-700)}
+.la-quitar{width:30px;height:30px;border:0;border-radius:6px;background:transparent;color:var(--gray-400);cursor:pointer;font-size:13px}
+.la-quitar:hover:not(:disabled){background:var(--danger-light);color:var(--danger)}
+.la-quitar:disabled{visibility:hidden}
+.la-estado{font-size:11.5px;min-height:17px;padding-left:2px}
+.la-ok{color:#166534}.la-info{color:var(--accent)}.la-warn{color:#92400e}.la-bloq{color:var(--danger)}
+.la-mas{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.la-tip{font-size:12px;color:var(--gray-500)}
+.la-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 24px;border-top:1px solid var(--gray-200);background:var(--gray-50);border-radius:0 0 16px 16px}
+.la-resumen{font-size:12.5px;color:var(--gray-500);font-variant-numeric:tabular-nums}
+.la-costo{display:block;font-size:11px;color:var(--gray-400)}
+@media (max-width:760px){
+  .la-cab{display:none}
+  .la-campos{grid-template-columns:1fr 1fr;padding:10px;border:1px solid var(--gray-200);border-radius:10px;position:relative}
+  .la-campo-lbl{display:block}
+  .la-campo:first-child{grid-column:1/-1;padding-right:30px}
+  .la-quitar{position:absolute;top:6px;right:6px}
+}`;
+  document.head.appendChild(s);
+}
+
+window.leadsAltaAbrir=async function(){
+  document.getElementById('laPopup')?.remove();
+  _la={filas:[_laFilaVacia(),_laFilaVacia(),_laFilaVacia()], origen:'', existentes:null, fase:'editando'};
+  _laCss();
+  const ov=document.createElement('div'); ov.className='disc-popup-overlay'; ov.id='laPopup';
+  ov.innerHTML=`<div class="disc-popup-box la-box" role="dialog" aria-modal="true" aria-labelledby="laTitulo">
+    <div class="disc-popup-header">
+      <div class="disc-popup-title" id="laTitulo">➕ Agregar leads</div>
+      <button class="disc-copy-btn" onclick="leadsAltaCerrar()">✕ Cerrar</button>
+    </div>
+    <div class="disc-popup-body la-body">
+      <p class="la-intro">Para leads que conseguiste fuera de la app: un evento, LinkedIn, un referido. Cada empresa queda en Empresas a tu nombre, con su contacto, ficha, señales y prioridad.</p>
+      <div class="la-origen"><span class="la-lbl" id="laOrigenLbl">¿De dónde vienen?</span>
+        <div class="la-chips" id="laOrigen" role="group" aria-labelledby="laOrigenLbl">${LA_ORIGENES.map(o=>`<button type="button" class="la-chip" data-origen="${o}" aria-pressed="false" onclick="leadsAltaOrigen('${o}')">${o}</button>`).join('')}</div>
+      </div>
+      <div class="la-cab" aria-hidden="true">${LA_CAMPOS.map(([,lbl])=>`<span>${lbl}</span>`).join('')}<span></span></div>
+      <div id="laFilas"></div>
+      <div class="la-mas">
+        <button type="button" class="btn btn-ghost btn-sm" id="laMasBtn" onclick="leadsAltaAgregarFila()">＋ Agregar otra</button>
+        <span class="la-tip">¿Los tienes en Excel, Sheets o un export de Lusha? Copia las filas y pégalas en cualquier campo: se reparten solas.</span>
+      </div>
+    </div>
+    <div class="la-pie">
+      <span class="la-resumen"><span id="laResumen"></span><span class="la-costo">La ficha usa créditos de Lusha y Apollo, que se anotan a tu nombre.</span></span>
+      <button type="button" class="btn btn-primary" id="laGuardar" onclick="leadsAltaGuardar()" disabled>Guardar</button>
+    </div>
+  </div>`;
+  ov.addEventListener('click',e=>{ if(e.target===ov) leadsAltaCerrar(); });
+  document.body.appendChild(ov);
+  const filasEl=document.getElementById('laFilas');
+  filasEl.addEventListener('input',_laOnInput);
+  filasEl.addEventListener('paste',_laOnPaste);
+  filasEl.addEventListener('keydown',_laOnKey);
+  _laRenderFilas();
+  document.getElementById('la_empresa_0')?.focus();
+  // Para avisar ANTES de guardar si la empresa ya existe y de quién es. Mismo alcance que usa el
+  // guardado de leads del buscador (csvSyncRowsToCRM).
+  const la=_la;
+  try{
+    const todas=await searchCompanies('',{all:true});
+    const porDominio=new Map(), porNombre=new Map();
+    todas.forEach(c=>{
+      const d=_csvDomainKey(c.website); if(d&&!porDominio.has(d)) porDominio.set(d,c);
+      const n=_csvNameKey(c.nombre); if(n&&!porNombre.has(n)) porNombre.set(n,c);
+    });
+    la.existentes={porDominio,porNombre};
+  }catch(e){ console.warn('leadsAlta existentes:',e); la.existentes={porDominio:new Map(),porNombre:new Map()}; }
+  if(_la===la) _laRevisarTodo();
+};
+
+function _laRenderFilas(){
+  const el=document.getElementById('laFilas'); if(!el||!_la) return;
+  const bloq=_la.fase!=='editando';
+  el.innerHTML=_la.filas.map((f,i)=>`<div class="la-fila">
+    <div class="la-campos">
+      ${LA_CAMPOS.map(([k,lbl,ph])=>`<label class="la-campo"><span class="la-campo-lbl">${lbl}</span><input class="input la-in" id="la_${k}_${i}" data-k="${k}" data-i="${i}" value="${_esc(f[k]||'')}" placeholder="${ph}" autocomplete="off" aria-label="${lbl.replace(' *','')} (fila ${i+1})" ${k==='correo'?'inputmode="email"':k==='tel'?'inputmode="tel"':''} ${bloq?'disabled':''}></label>`).join('')}
+      <button type="button" class="la-quitar" aria-label="Quitar fila ${i+1}" title="Quitar fila" onclick="leadsAltaQuitarFila(${i})" ${bloq?'disabled':''}>✕</button>
+    </div>
+    <div class="la-estado" id="la_estado_${i}" aria-live="polite"></div>
+  </div>`).join('');
+  const mas=document.getElementById('laMasBtn'); if(mas) mas.disabled=bloq;
+  _laRevisarTodo();
+}
+
+function _laRevisarTodo(){
+  if(!_la) return;
+  let listos=0, fuera=0;
+  _la.filas.forEach((f,i)=>{
+    const est=f.res||_laEstado(i);
+    if(!f.res){ if(est.tipo==='bloq') fuera++; else if(est.tipo!=='vacia') listos++; }
+    const el=document.getElementById(`la_estado_${i}`);
+    if(el){ el.className=`la-estado la-${est.tipo}`; el.textContent=est.texto||''; }
+  });
+  if(_la.fase!=='editando') return;
+  const btn=document.getElementById('laGuardar'), res=document.getElementById('laResumen');
+  if(btn){ btn.disabled=!listos; btn.textContent=listos?`Guardar ${listos} lead${listos===1?'':'s'}`:'Guardar'; }
+  if(res) res.textContent=[listos?`${listos} listo${listos===1?'':'s'}`:'Escribe o pega tus leads', fuera?`${fuera} no se ${fuera===1?'agrega':'agregan'}`:'', !_la.existentes?'revisando si ya existen…':''].filter(Boolean).join(' · ');
+}
+
+function _laOnInput(e){
+  const t=e.target; if(!_la||!t.classList?.contains('la-in')) return;
+  _la.filas[+t.dataset.i][t.dataset.k]=t.value;
+  _laRevisarTodo();
+}
+// Enter pasa a la siguiente fila (y en la última abre una nueva): así se capturan varios sin mouse.
+function _laOnKey(e){
+  const t=e.target; if(!_la||e.key!=='Enter'||e.isComposing||!t.classList?.contains('la-in')) return;
+  e.preventDefault();
+  const i=+t.dataset.i;
+  if(i>=_la.filas.length-1) leadsAltaAgregarFila();
+  else document.getElementById(`la_empresa_${i+1}`)?.focus();
+}
+
+// Lo pegado: primero un export con encabezados (los mismos lectores que usa Cadencias, que reconocen
+// el export de Lusha), y si no, un rango de Excel/Sheets separado por tabulador. En el rango cada celda
+// se reconoce por su forma (correo, sitio, teléfono), así no importa el orden de las columnas.
+function _laParsear(texto){
+  try{
+    const lusha=_csvMapLusha(texto);
+    const mapeadas=lusha||_csvMapStructured(texto);
+    if(mapeadas&&mapeadas.length){
+      const out=mapeadas.map(r=>({empresa:r.partner_name||'', web:r.Website||'', correo:r.Email||'', contacto:r.contact_name||'', tel:r.phone||''})).filter(f=>f.empresa||f.correo);
+      if(out.length){ out.lusha=!!lusha; return out; }
+    }
+  }catch(e){ console.warn('leadsAlta: lectura con encabezados',e); }
+  const out=[];
+  for(const linea of texto.replace(/\r/g,'').split('\n')){
+    const celdas=linea.split('\t').map(c=>c.trim()).filter(Boolean);
+    if(!celdas.length) continue;
+    const f=_laFilaVacia(), textos=[];
+    for(const c of celdas){
+      if(!f.correo&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c)) f.correo=c;
+      else if(!f.web&&!/\s/.test(c)&&/^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(c)) f.web=c;
+      else if(!f.tel&&/^[+()\d\s.-]+$/.test(c)&&(c.match(/\d/g)||[]).length>=8) f.tel=c;
+      else textos.push(c);
+    }
+    if(!f.correo&&/^(empresa|compa[ñn][ií]a|company( name)?|nombre( de la empresa)?|raz[oó]n social|cliente|prospecto)$/i.test(textos[0]||'')) continue; // encabezado
+    f.empresa=textos[0]||''; f.contacto=textos[1]||'';
+    if(f.empresa||f.correo||f.web) out.push(f);
+  }
+  return out;
+}
+
+function _laOnPaste(e){
+  const t=e.target; if(!_la||_la.fase!=='editando'||!t.classList?.contains('la-in')) return;
+  const texto=(e.clipboardData||window.clipboardData)?.getData('text')||'';
+  if(!/[\t\n]/.test(texto.trim())) return; // un solo dato: pegado normal en el campo
+  const filas=_laParsear(texto);
+  if(!filas.length) return;
+  e.preventDefault();
+  const i=+t.dataset.i;
+  const nuevas=filas.map(f=>({..._laFilaVacia(),...f,res:null}));
+  _la.filas.splice(_laTieneAlgo(_la.filas[i])?i+1:i, _laTieneAlgo(_la.filas[i])?0:1, ...nuevas);
+  _la.filas=_la.filas.filter(_laTieneAlgo);
+  let recortadas=0;
+  if(_la.filas.length>LA_MAX_FILAS){ recortadas=_la.filas.length-LA_MAX_FILAS; _la.filas.length=LA_MAX_FILAS; }
+  if(_la.filas.length<LA_MAX_FILAS) _la.filas.push(_laFilaVacia());
+  if(filas.lusha&&!_la.origen) leadsAltaOrigen('Lusha');
+  _laRenderFilas();
+  showNotif(`${nuevas.length} lead${nuevas.length===1?'':'s'} pegado${nuevas.length===1?'':'s'}${recortadas?` (se tomaron los primeros ${LA_MAX_FILAS})`:''}. Revisa que cada dato haya caído en su columna.`,'success');
+}
+
+window.leadsAltaAgregarFila=function(){
+  if(!_la||_la.fase!=='editando') return;
+  if(_la.filas.length>=LA_MAX_FILAS){ showNotif(`Máximo ${LA_MAX_FILAS} leads por vez.`,'error'); return; }
+  _la.filas.push(_laFilaVacia()); _laRenderFilas();
+  document.getElementById(`la_empresa_${_la.filas.length-1}`)?.focus();
+};
+window.leadsAltaQuitarFila=function(i){
+  if(!_la||_la.fase!=='editando') return;
+  _la.filas.splice(i,1); if(!_la.filas.length) _la.filas.push(_laFilaVacia());
+  _laRenderFilas();
+};
+window.leadsAltaOrigen=function(o){
+  if(!_la||_la.fase!=='editando') return;
+  _la.origen=_la.origen===o?'':o;
+  document.querySelectorAll('#laOrigen .la-chip').forEach(b=>{ const on=b.dataset.origen===_la.origen; b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false'); });
+};
+window.leadsAltaCerrar=function(){
+  if(_la?.fase==='editando'&&_la.filas.some(_laTieneAlgo)&&!confirm('Tienes leads sin guardar. ¿Cerrar de todos modos?')) return;
+  const refrescar=_la&&_la.fase!=='editando';
+  document.getElementById('laPopup')?.remove();
+  _la=null;
+  if(refrescar&&document.getElementById('empresasList')) empLoad().catch(()=>{});
+};
+
+window.leadsAltaGuardar=async function(){
+  const la=_la; if(!la||la.fase!=='editando') return;
+  if(!la.existentes&&!confirm('Todavía estoy revisando si alguna ya existe en Empresas. ¿Guardar de todos modos?')) return;
+  const estados=la.filas.map((f,i)=>_laEstado(i));
+  la.fase='guardando';
+  _laRenderFilas();
+  const btn=document.getElementById('laGuardar'), res=document.getElementById('laResumen');
+  if(btn){ btn.disabled=true; btn.textContent='Guardando…'; }
+  const marcar=(i,tipo,texto)=>{ la.filas[i].res={tipo,texto}; const el=document.getElementById(`la_estado_${i}`); if(el){ el.className=`la-estado la-${tipo}`; el.textContent=texto; } };
+  const grupos=new Map();
+  let nuevas=0, actualizadas=0, omitidas=0, errores=0;
+
+  for(let i=0;i<la.filas.length;i++){
+    const f=la.filas[i], est=estados[i];
+    if(est.tipo==='vacia') continue;
+    if(est.tipo==='bloq'){ omitidas++; marcar(i,'bloq',`No se guardó. ${est.texto}`); continue; }
+    const contacto=(f.contacto.trim()||f.correo.trim()||f.tel.trim())?{nombre:f.contacto.trim(),cargo:'',correo:f.correo.trim(),phone:f.tel.trim(),linkedin:''}:null;
+    const web=est.dominio?`https://${est.dominio}`:'';
+    try{
+      let g=grupos.get(est.clave);
+      if(!g){
+        const ex=est.existente;
+        if(ex){
+          const patch={};
+          if(contacto&&!(ex.contacts||[]).some(c=>_laMismoContacto(c,contacto))) patch.contacts=[...(ex.contacts||[]),contacto];
+          if(!ex.website&&web) patch.website=web;
+          if(!ex.origen&&la.origen) patch.origen=la.origen;
+          if(Object.keys(patch).length&&!await saveCompany({id:ex.id,...patch})) throw new Error('Firestore no aceptó el cambio');
+          Object.assign(ex,patch);
+          g={co:ex,id:ex.id,filas:[]}; actualizadas++;
+          marcar(i,'ok',patch.contacts?'Contacto agregado a la empresa que ya estaba.':'Ya estaba en Empresas, sin nada nuevo que agregar.');
+        } else {
+          const co={nombre:f.empresa.trim(),giro:'',tamaño:'',origen:la.origen||'',website:web,linkedin:'',contacts:contacto?[contacto]:[]};
+          const id=await saveCompany(co); if(!id) throw new Error('Firestore no aceptó la empresa');
+          co.id=id; g={co,id,filas:[]}; nuevas++;
+          marcar(i,'ok','Guardada en Empresas.');
+        }
+        grupos.set(est.clave,g);
+      } else if(contacto&&!(g.co.contacts||[]).some(c=>_laMismoContacto(c,contacto))){
+        const contacts=[...(g.co.contacts||[]),contacto];
+        if(!await saveCompany({id:g.id,contacts})) throw new Error('Firestore no aceptó el contacto');
+        g.co.contacts=contacts;
+        marcar(i,'ok','Agregado como otro contacto de la misma empresa.');
+      } else {
+        marcar(i,'ok','Misma empresa y mismo contacto: no se duplicó.');
+      }
+      g.filas.push(i);
+    }catch(e){ errores++; marcar(i,'bloq',`No se guardó: ${e.message}.`); }
+  }
+
+  // Ficha, señales y prioridad: mismo motor que el buscador, de 10 en 10. Las empresas que ya tenían
+  // ficha no se vuelven a pagar.
+  const porFicha=[...grupos.values()].filter(g=>!g.co.inteligencia?.actualizada);
+  la.fase='fichas';
+  let conFicha=0, altas=0, sinFicha=0;
+  for(let k=0;k<porFicha.length;k+=10){
+    const lote=porFicha.slice(k,k+10);
+    if(btn) btn.textContent='Armando fichas…';
+    if(res) res.textContent=`Guardado · armando fichas ${Math.min(k+lote.length,porFicha.length)} de ${porFicha.length}…`;
+    try{
+      const data=await _empPedirInteligencia(lote.map(g=>g.co));
+      for(let m=0;m<lote.length;m++){
+        const g=lote[m], patch=_empPatchInteligencia(g.co,(data.empresas||[])[m]);
+        if(Object.keys(patch).length&&await saveCompany({id:g.id,...patch})) Object.assign(g.co,patch);
+        const nivel=g.co.inteligencia?.prioridad?.nivel;
+        if(g.co.inteligencia?.ficha) conFicha++; else sinFicha++;
+        if(nivel==='Alta') altas++;
+        const extra=[nivel?`Prioridad ${nivel}`:'', g.co.inteligencia?.ficha?'ficha lista':'sin ficha: créala desde el detalle'].filter(Boolean).join(' · ');
+        g.filas.forEach(i=>{ const r=la.filas[i].res; if(r) marcar(i,r.tipo,`${r.texto} ${extra}.`); });
+      }
+    }catch(e){
+      console.warn('leadsAlta fichas:',e);
+      sinFicha+=lote.length;
+      lote.forEach(g=>g.filas.forEach(i=>{ const r=la.filas[i].res; if(r) marcar(i,r.tipo,`${r.texto} La ficha no se pudo armar (${e.message}); créala desde el detalle de la empresa.`); }));
+    }
+  }
+
+  la.fase='listo';
+  if(res) res.textContent=[
+    nuevas?`${nuevas} empresa${nuevas===1?'':'s'} nueva${nuevas===1?'':'s'}`:'',
+    actualizadas?`${actualizadas} ya estaba${actualizadas===1?'':'n'}`:'',
+    conFicha?`${conFicha} con ficha${altas?` (${altas} de prioridad Alta)`:''}`:'',
+    omitidas||errores?`${omitidas+errores} sin guardar`:'',
+  ].filter(Boolean).join(' · ')||'Nada que guardar';
+  if(btn){ btn.disabled=false; btn.textContent='Listo'; btn.onclick=()=>leadsAltaCerrar(); }
+  showNotif(`➕ ${nuevas+actualizadas} lead${nuevas+actualizadas===1?'':'s'} en Empresas${conFicha?`, ${conFicha} con ficha`:''}${omitidas+errores?` · ${omitidas+errores} sin guardar (el motivo está en su fila)`:''}`,'success');
+  if(document.getElementById('empresasList')) empLoad().catch(()=>{});
+};
+
 // ── Ficha consultiva, señales y prioridad de la empresa (2026-09-14) ──
 // Las arma el backend (Lusha + histórico propio + Claude) al crear cada lead o bajo demanda con
 // POST /empresaInteligencia. Aquí solo se guardan en companies y se muestran.
@@ -11412,10 +11790,10 @@ function _empPatchInteligencia(co, r){
   if(!co.linkedin&&r.linkedin) patch.linkedin=r.linkedin;
   if(!co.empleados&&Number(r.empleados)>0) patch.empleados=Number(r.empleados);
   if(!co.industriaFuente&&r.industria) patch.industriaFuente=String(r.industria).slice(0,200);
-  if(r.ficha||r.prioridad||r.senales||r.empresaLusha){
+  if(r.ficha||r.prioridad||r.senales||r.empresaLusha||r.empresaApollo){
     patch.inteligencia={
       ficha:r.ficha||co.inteligencia?.ficha||null, prioridad:r.prioridad||null,
-      senales:r.senales||null, empresaLusha:r.empresaLusha||null,
+      senales:r.senales||null, empresaLusha:r.empresaLusha||null, empresaApollo:r.empresaApollo||null,
       actualizada:r.inteligenciaEn||new Date().toISOString(),
     };
   }
@@ -11443,7 +11821,7 @@ function _empPrioridadBadge(nivel){
 
 function _empIntelHtml(co){
   const i=co.inteligencia||{};
-  const f=i.ficha, p=i.prioridad, s=i.senales, e=i.empresaLusha;
+  const f=i.ficha, p=i.prioridad, s=i.senales, e=i.empresaLusha, ea=i.empresaApollo;
   const head=(t,extra='')=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400)">${t}</div>${extra}</div>`;
   const btn=(txt)=>`<button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:11px" onclick="empActualizarFicha('${co.id}')">${txt}</button>`;
   const lista=arr=>(arr||[]).length?`<ul style="margin:4px 0 0 18px;padding:0;font-size:12.5px;line-height:1.55;color:var(--gray-700)">${arr.map(x=>`<li>${_esc(x)}</li>`).join('')}</ul>`:'';
@@ -11476,11 +11854,18 @@ function _empIntelHtml(co){
   if((e?.empleadosPorArea||[]).length) perfil.push(`Por área: ${e.empleadosPorArea.slice(0,6).map(a=>`${a.area} ${a.n}`).join(' · ')}`);
   if(e?.anioFundacion) perfil.push(`Fundada en ${e.anioFundacion}`);
   if((e?.tecnologias||[]).length) perfil.push(`Tecnologías: ${e.tecnologias.slice(0,8).join(', ')}`);
+  // Si Lusha no la conoce pero Apollo sí, el perfil sale de Apollo (respaldo del 2026-09-14).
+  const perfilDe=perfil.length?'Lusha':(ea?'Apollo':'');
+  if(!perfil.length&&ea){
+    if(ea.descripcion) perfil.push(ea.descripcion);
+    if(ea.anioFundacion) perfil.push(`Fundada en ${ea.anioFundacion}`);
+    if((ea.palabrasClave||[]).length) perfil.push(`Palabras clave: ${ea.palabrasClave.slice(0,8).join(', ')}`);
+  }
   const prioHtml=`<div style="${caja};margin-bottom:20px">
     ${head('📈 Señales y prioridad',p?.nivel?_empPrioridadBadge(p.nivel):'')}
     ${(p?.motivos||[]).length?`<div style="display:flex;flex-direction:column;gap:3px">${p.motivos.map(m=>`<div style="font-size:12.5px;line-height:1.5;color:var(--gray-700)">${_esc(m.texto)} <span style="font-size:11px;color:var(--gray-400)">(${m.n?`n=${Number(m.n).toLocaleString('es-MX')} · `:''}confianza: ${_esc(m.confianza||'')})</span></div>`).join('')}</div>`:''}
     ${senalesItems.length?`${sub('Señales recientes (Lusha)')}${lista(senalesItems)}`:`<div style="font-size:12px;color:var(--gray-400);margin-top:8px">${e?'Lusha no reporta señales activas para esta empresa.':'Lusha no tiene a esta empresa: no hay señales.'}</div>`}
-    ${perfil.length?`${sub('Perfil (Lusha)')}${lista(perfil)}`:''}
+    ${perfil.length?`${sub(`Perfil (${perfilDe})`)}${lista(perfil)}`:''}
     ${fecha?`<div style="font-size:10.5px;color:var(--gray-400);margin-top:10px">Actualizada el ${fecha}</div>`:''}
   </div>`;
   return fichaHtml+prioHtml;
@@ -11564,7 +11949,7 @@ window.empOpenDetail=async function(id){
     </div>
     <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--gray-200)">
-        ${[['Asignado a',_empAsignadoNombre(co)||'—'],['Industria',co.giro?`${co.giro}${co.industriaFuente?`<div style="font-size:11px;color:var(--gray-400)">${_esc(co.industriaFuente)}</div>`:''}`:''],['Tamaño',co.tamaño?`${co.tamaño}${co.empleados?` <span style="color:var(--gray-400)">(${co.empleados}${co.inteligencia?.empresaLusha?.empleadosRango?` · rango Lusha ${_esc(co.inteligencia.empresaLusha.empleadosRango)}`:''})</span>`:''}`:''],['Prioridad',co.inteligencia?.prioridad?.nivel?_empPrioridadBadge(co.inteligencia.prioridad.nivel):''],['Origen',co.origen],['Sitio web',co.website?`<a href="${co.website}" target="_blank">${co.website}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank">${co.linkedin}</a>`:'—'],['Creada por',co.createdBy||'—']].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
+        ${[['Asignado a',_empAsignadoNombre(co)||'—'],['Industria',co.giro?`${co.giro}${co.industriaFuente?`<div style="font-size:11px;color:var(--gray-400)">${_esc(co.industriaFuente)}</div>`:''}`:''],['Tamaño',co.tamaño?`${co.tamaño}${co.empleados?` <span style="color:var(--gray-400)">(${co.empleados}${co.inteligencia?.empresaLusha?.empleadosRango?` · rango Lusha ${_esc(co.inteligencia.empresaLusha.empleadosRango)}`:''})</span>`:''}`:''],['Prioridad',co.inteligencia?.prioridad?.nivel?_empPrioridadBadge(co.inteligencia.prioridad.nivel):''],['Origen',co.origen],['Sitio web',co.website?`<a href="${/^https?:\/\//i.test(co.website)?co.website:'https://'+co.website}" target="_blank" rel="noopener">${co.website}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank">${co.linkedin}</a>`:'—'],['Creada por',co.createdBy||'—']].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
       </div>
       <div id="empIntel">${_empIntelHtml(co)}</div>
       <div id="empDetailDocs"><div class="cdc-empty">Cargando documentos...</div></div>
@@ -13965,7 +14350,8 @@ function renderCsvBuilder(){
   const content=document.getElementById('moduleContent');
   content.innerHTML=`
     <div style="max-width:1080px;margin:0 auto;padding:24px 24px 0">
-      <div class="page-header" style="margin-bottom:16px"><h2>📋 Generación de leads</h2><p>Busca leads nuevos con correo corporativo y teléfono, y llévatelos en un CSV listo para el CRM de Odoo.</p></div>
+      <div class="page-header" style="margin-bottom:16px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h2>📋 Generación de leads</h2><p>Busca leads nuevos con correo corporativo y teléfono, y llévatelos en un CSV listo para el CRM de Odoo.</p></div>
+        <button type="button" class="btn btn-ghost" onclick="leadsAltaAbrir()" title="Para leads que conseguiste fuera de la app">➕ Agregar leads de fuera</button></div>
       <div id="csvIdiomaBannerWrap"></div>
     </div>
     <div id="csvTabBody"></div>`;
@@ -15501,7 +15887,7 @@ async function csvSyncRowsToCRM(rows){
         giro:row._giroSugerido||'', industria:row._industriaRaw||'', empleados:row._empleadosRaw,
         denuePersonalOcupado:row._denuePersonalOcupadoRaw||'', website:row.Website||'',
         linkedin:row._linkedinEmpresaRaw||_csvExtractFromNotes(row.notes,['LinkedIn empresa']),
-        ficha:row._ficha, prioridad:row._prioridad, senales:row._senales, empresaLusha:row._empresaLusha, inteligenciaEn:row._inteligenciaEn,
+        ficha:row._ficha, prioridad:row._prioridad, senales:row._senales, empresaLusha:row._empresaLusha, empresaApollo:row._empresaApollo, inteligenciaEn:row._inteligenciaEn,
       };
       if(co){
         // Antes (hasta 2026-09-14) a una empresa que ya existía solo se le agregaba el contacto, y por
@@ -15727,7 +16113,7 @@ function csvLoadJobIntoRows(job){
       // bajo porque NO son columnas del CSV de Odoo (csvBuildText solo lee CSV_COLUMNS); su destino
       // es la ficha de la empresa en el CRM (csvSyncRowsToCRM).
       _giroSugerido:row.giro_sugerido||'', _ficha:row.ficha||null, _prioridad:row.prioridad||null,
-      _senales:row.senales||null, _empresaLusha:row.empresa_lusha||null, _inteligenciaEn:row.inteligenciaEn||'',
+      _senales:row.senales||null, _empresaLusha:row.empresa_lusha||null, _empresaApollo:row.empresa_apollo||null, _inteligenciaEn:row.inteligenciaEn||'',
     };
   });
   csvRenderTable();
@@ -16195,7 +16581,7 @@ async function csvPersist(opts={}){
   const rec={
     // Ficha, señales y datos de Lusha no se copian al historial de CSV: ya viven en la empresa, y con
     // 25 filas harían crecer el documento hacia el límite de 1 MB de Firestore.
-    fuente, rowCount:csvRows.length, rows:csvRows.map(({_ficha,_senales,_empresaLusha,...r})=>r), csvText:csvBuildText(csvRows),
+    fuente, rowCount:csvRows.length, rows:csvRows.map(({_ficha,_senales,_empresaLusha,_empresaApollo,...r})=>r), csvText:csvBuildText(csvRows),
     updatedByUid:currentUserData.uid, updatedByName:currentUserData.name, updatedByGram:currentUserData.gram,
     updatedAt:serverTimestamp() };
   try{
