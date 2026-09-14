@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-12T18:20:13Z">
+<meta name="app-version" content="2026-09-14T17:20:40Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
+const APP_BUILD_STAMP='2026-09-14a "Reintentar" ya devuelve todos los filtros de Apollo: sector, tecnologías, ingresos, fundación, crecimiento, días en el puesto, títulos, vacantes y correo verificado (antes se perdían y la búsqueda salía más abierta). En Más contactos, si Apollo y Lusha traen a la misma persona se juntan en un solo renglón y Lusha solo aporta lo que faltaba, como el teléfono. Lusha ya deja afinar por subindustria. Sin tope de créditos de Lusha: se mide por persona en el Panel de Manager. · 2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -2140,7 +2140,7 @@ async function gastoRenderFuentes(){
         <button class="btn" style="padding:5px 12px;font-size:12px" onclick="gastoRenderFuentes()">↻ Actualizar</button>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">
-        ${tile(`${n(lu.usados)} / ${n(lu.limite)}`,'Créditos de Lusha', lu.disponibles!=null?`quedan ${n(lu.disponibles)} este mes`:'')}
+        ${tile(lu.limite!=null?`${n(lu.usados)} / ${n(lu.limite)}`:n(lu.usados),'Créditos de Lusha usados', lu.limite!=null&&lu.disponibles!=null?`quedan ${n(lu.disponibles)} este mes`:'todo el equipo, este mes · sin tope')}
         ${tile(n(t.apolloCorreos),'Correos de Apollo','1 crédito cada uno')}
         ${tile(n(t.apolloTelefonos),'Teléfonos de Apollo','bolsa aparte en Apollo')}
         ${tile(n(t.busquedas),'Búsquedas cerradas')}
@@ -11517,20 +11517,41 @@ window.empMasContactos=async function(id){
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
     _mcState={id,personas:data.personas||[],buzones:data.buzones||[],
-      lusha:{disponibles:data.lushaDisponible,limite:data.lushaTopeMes},data};
+      lusha:{disponibles:data.lushaDisponible,limite:data.lushaTopeMes,usados:data.lushaUsados},data};
     _empMcRender(co,data);
   }catch(e){
     const body=document.getElementById('empMcBody');
     if(body) body.innerHTML=`<div class="cdc-empty">No se pudo consultar: ${_esc(e.message)}</div>`;
   }
 };
+// ¿Es la misma persona? Primero por LinkedIn (lo más confiable); si no calza o falta, por nombre,
+// tolerando la máscara de Apollo: en la lista Apollo enmascara el apellido ("Mariana Ag***e") y por
+// eso nunca casaba con "Mariana Aguirre" de Lusha — el AE veía a la misma persona dos veces y podía
+// pagarla dos veces. Casa si el nombre de pila es igual y el apellido visible coincide al inicio y
+// al final. Sin acentos ni mayúsculas.
+function _mcMismaPersona(a,b){
+  const plano=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+  const li=s=>plano(s).replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/+$/,'');
+  if(a?.linkedinUrl&&b?.linkedinUrl&&li(a.linkedinUrl)===li(b.linkedinUrl)) return true;
+  const pa=plano(a?.contacto).split(/\s+/).filter(Boolean), pb=plano(b?.contacto).split(/\s+/).filter(Boolean);
+  if(pa.length<2||pb.length<2||pa[0]!==pb[0]) return false;
+  const apA=pa.slice(1).join(' '), apB=pb.slice(1).join(' ');
+  const mascara=/\*/.test(apA)?apA:(/\*/.test(apB)?apB:null);
+  if(!mascara) return apA===apB;
+  const completo=mascara===apA?apB:apA;
+  if(/\*/.test(completo)) return apA===apB; // las dos enmascaradas: solo si son idénticas
+  const partes=mascara.split(/\*+/); const ini=partes[0]||''; const fin=partes[partes.length-1]||'';
+  return completo.length>=ini.length+fin.length&&completo.startsWith(ini)&&completo.endsWith(fin);
+}
 function _empMcRender(co,data){
   const body=document.getElementById('empMcBody'); if(!body) return;
   // Contactos que ya están en la empresa: se muestran en gris para que el AE no pague por alguien
   // que ya tiene, y se usan para no duplicar al guardar.
   const yaTengo=(co.contacts||[]).filter(c=>c&&(c.nombre||c.correo));
   const norm=s=>String(s||'').trim().toLowerCase();
-  const repetido=p=>yaTengo.some(c=>norm(c.nombre)===norm(p.contacto)||(p.correo&&norm(c.correo)===norm(p.correo)));
+  // Misma tolerancia a la máscara que la fusión de Apollo + Lusha: si ya guardaste a "Mariana Aguirre",
+  // el renglón "Mariana Ag***e" tiene que salir como "ya lo tienes", no como alguien nuevo por pagar.
+  const repetido=p=>yaTengo.some(c=>_mcMismaPersona({contacto:c.nombre,linkedinUrl:c.linkedin},p)||(p.correo&&norm(c.correo)===norm(p.correo)));
   if(data.motivo==='sin_dominio'){
     body.innerHTML=`<div class="cdc-empty" style="text-align:left">${_esc(data.mensaje||'')}<br><br>Agrega el sitio web en ✏️ Editar y vuelve a intentar.</div>`;
     return;
@@ -11550,7 +11571,7 @@ function _empMcRender(co,data){
       <input type="checkbox" class="emp-mc-check" data-idx="${i}" ${repetido(p)?'disabled':''} style="cursor:pointer">
       <div><div style="font-size:13px;font-weight:600">${_esc(p.contacto||'Sin nombre')}</div>
         <div style="font-size:11px;color:var(--gray-500)">${_esc(p.cargo||'—')}</div></div>
-      <div style="font-size:10.5px;color:var(--gray-500)">${p.fuente==='Lusha'?'Lusha':'Apollo'}${(p.roles||[]).includes('decision_maker')?' · decide':(p.roles||[]).includes('potential_champion')?' · aliado':''}</div>
+      <div style="font-size:10.5px;color:var(--gray-500)">${_esc(p.fuente||'Apollo')}${(p.roles||[]).includes('decision_maker')?' · decide':(p.roles||[]).includes('potential_champion')?' · aliado':''}</div>
       <div style="font-size:11.5px;color:var(--gray-500)">${repetido(p)?'ya lo tienes':(p.fuente==='Lusha'?'✉️ lo busca Apollo · 1':(p.tieneCorreo?'✉️ correo · 1 crédito':'— sin correo'))}</div>
       <div style="font-size:11.5px;color:var(--gray-500)">${repetido(p)?'':(puedeTel(p)?`<label style="cursor:pointer;display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="emp-mc-tel" data-idx="${i}" style="cursor:pointer"> ☎️ teléfono · ${costoTel(p)}</label>`:'— sin teléfono')}</div>
     </div>`;
@@ -11562,7 +11583,8 @@ function _empMcRender(co,data){
       <div style="font-size:12px;color:var(--gray-700)">${_esc(b.correo||'')}${b.telefono?` · ${_esc(b.telefono)}`:''}</div>
       <div style="font-size:11.5px;color:var(--success);text-align:right;font-weight:600">gratis</div>
     </div>`;
-  const saldoLusha=lu.limite?`Créditos de Lusha del equipo: ${Math.max(0,lu.disponibles??0)} de ${lu.limite} este mes`:'';
+  // Sin tope desde el 2026-09-14: ya no se muestra "X de 300", solo lo usado — la medición se queda.
+  const saldoLusha=lu.limite?`Créditos de Lusha del equipo: ${Math.max(0,lu.disponibles??0)} de ${lu.limite} este mes`:(lu.usados!=null?`Créditos de Lusha usados este mes por el equipo: ${lu.usados}`:'');
   body.innerHTML=`
     <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px">
       ${_esc(data.dominio||'')} · ${yaTengo.length} contacto${yaTengo.length===1?'':'s'} ya guardado${yaTengo.length===1?'':'s'}
@@ -11575,7 +11597,7 @@ function _empMcRender(co,data){
       ${(data.buzones||[]).map(filaBuzon).join('')}
     </div>`:''}
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--gray-200)">
-      <span style="font-size:11.5px;color:var(--gray-500)">¿Falta gente? Lusha arma el comité de compra: quién decide y quién puede ser tu aliado adentro. Cuesta 1 crédito por persona, máximo 5, y no se vuelve a cobrar hoy por esta empresa.${saldoLusha?` · ${saldoLusha}`:''}</span>
+      <span style="font-size:11.5px;color:var(--gray-500)">¿Falta gente? Lusha arma el comité de compra: quién decide y quién puede ser tu aliado adentro. Cuesta 1 crédito por persona, hasta 10 por clic, y no se vuelve a cobrar hoy por esta empresa. Si Apollo ya tenía a alguien, se junta en su mismo renglón.${saldoLusha?` · ${saldoLusha}`:''}</span>
       <button class="btn btn-ghost btn-sm" id="empMcLushaBtn" onclick="empComiteLusha('${co.id}')">👥 Ver quién más decide</button>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:12px;border-top:1px solid var(--gray-200)">
@@ -11597,15 +11619,31 @@ window.empComiteLusha=async function(id){
       body:JSON.stringify({dominio:co.website||''})});
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
-    // No se repite a quien Apollo ya listó: mismo LinkedIn, o mismo nombre.
-    const norm=s=>String(s||'').trim().toLowerCase();
-    const yaEnLista=p=>(_mcState.personas||[]).some(q=>(p.linkedinUrl&&norm(q.linkedinUrl)===norm(p.linkedinUrl))||(p.contacto&&norm(q.contacto)===norm(p.contacto)));
-    const nuevos=(data.contactos||[]).filter(p=>!yaEnLista(p));
+    // Regla del usuario (2026-09-14): si Apollo ya dio a esa persona, NO se duplica con la de Lusha —
+    // se FUSIONA en su mismo renglón, y Lusha solo aporta lo que Apollo no tenía: su id (con el que
+    // el teléfono cuesta 10 en vez de 11), el LinkedIn, el nombre sin máscara y su rol en la decisión.
+    // El correo lo sigue dando Apollo. Así, "Apollo trae nombre y correo pero no teléfono" se resuelve
+    // en un solo renglón pidiendo el teléfono a Lusha.
+    let fusionados=0;
+    const nuevos=[];
+    for(const p of (data.contactos||[])){
+      const q=(_mcState.personas||[]).find(x=>_mcMismaPersona(x,p));
+      if(!q){ nuevos.push(p); continue; }
+      if(!q.lushaContactId){ q.lushaContactId=p.lushaContactId; fusionados++; }
+      if(!q.linkedinUrl&&p.linkedinUrl) q.linkedinUrl=p.linkedinUrl;
+      if(p.contacto&&/\*/.test(q.contacto||'')) q.contacto=p.contacto;
+      if(!(q.roles||[]).length&&(p.roles||[]).length) q.roles=p.roles;
+      if(p.tieneTelefono) q.tieneTelefono=true;
+      if(q.fuente!=='Apollo + Lusha') q.fuente='Apollo + Lusha';
+    }
     _mcState.personas=[...(_mcState.personas||[]),...nuevos];
     if(data.lusha) _mcState.lusha=data.lusha;
     _empMcRender(co,_mcState.data||{});
-    showNotif(nuevos.length
-      ?`Lusha agregó ${nuevos.length} persona(s)${data.deCache?' · ya se había consultado hoy, sin costo':` · ${data.creditos} crédito(s)`}`
+    const partes=[];
+    if(nuevos.length) partes.push(`agregó ${nuevos.length} persona(s) nueva(s)`);
+    if(fusionados) partes.push(`completó ${fusionados} que ya tenía Apollo`);
+    showNotif(partes.length
+      ?`Lusha ${partes.join(' y ')}${data.deCache?' · ya se había consultado hoy, sin costo':` · ${data.creditos} crédito(s)`}`
       :'Lusha no encontró a nadie más en esta empresa','success');
   }catch(e){
     showNotif('Lusha: '+e.message,'error');
@@ -13962,6 +14000,10 @@ function csvRenderResultadosTab(content){
               <details style="margin:16px 0 0" id="csvSearchLushaIndustriaBox">
                 <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Industria <span style="font-weight:400;color:var(--gray-400)">(catálogo propio de Lusha, no es el SCIAN)</span></summary>
                 <div id="csvSearchLushaIndustriaChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:170px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"></div>
+                <div id="csvSearchLushaSubIndBox" style="display:none;margin-top:10px">
+                  <label style="font-size:11.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.03em">Afinar por subindustria <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--gray-400)">(opcional; salen las de las industrias que marcaste)</span></label>
+                  <div id="csvSearchLushaSubIndChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;max-height:210px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:#fff"></div>
+                </div>
               </details>
 
               <details style="margin:16px 0 0" id="csvSearchLushaPersonaBox">
@@ -14204,7 +14246,7 @@ window.csvOnFuenteChange=function(){
     dirind:'DIRIND: directorio impreso Proveedores Industriales 2023 (5,256 empresas), teléfono y correo del propio anuncio. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
     alimentaria:'ALIMENTARIA: directorio impreso de la industria alimentaria 2026 (4,026 empresas, 3,890 con correo y teléfono del propio anuncio). Filtra por sección (fabricante de alimentos, insumos, maquinaria, empaque, servicios) y categoría. Cada lead se cruza automáticamente contra Apollo para completar el nombre del contacto.',
     outscraper:'Outscraper: micro negocios en todo México (Google Maps). A diferencia del resto, aquí basta con correo O teléfono (no ambos) — la mayoría llega solo con teléfono, la línea general del negocio. Sin contacto con nombre (no se cruza con Apollo).',
-    lusha:'Lusha: contacto con nombre y correo de trabajo garantizado (se le exige desde la búsqueda). El teléfono lo ponen los directorios y la ficha de Maps, no Lusha — ahí el teléfono cuesta 10 créditos y no vale la pena por lead. No se cruza con Apollo. Gasta créditos del equipo: una búsqueda de 25 leads anda en unos 27 de los 300 del mes.',
+    lusha:'Lusha: contacto con nombre y correo de trabajo garantizado (se le exige desde la búsqueda). El teléfono lo ponen los directorios y la ficha de Maps, no Lusha — ahí el teléfono cuesta 10 créditos y no vale la pena por lead. No se cruza con Apollo. Gasta créditos de Lusha: una búsqueda de 25 leads anda en unos 27, y se ven por persona en el Panel de Manager.',
   };
   if(hint) hint.textContent=HINTS[fuente];
   // Giro/Industria (catálogo nuestro de 15) ahora solo aplica a DENUE — Apollo tiene su propio
@@ -14503,6 +14545,41 @@ const LUSHA_INDUSTRIAS=[
 // Se mandan tal cual: son las etiquetas exactas que espera su API, traducirlas rompería el filtro.
 const LUSHA_DEPARTAMENTOS=['Business Development','Consulting','Customer Service','Engineering & Technical','Finance','General Management','Health Care & Medical','Human Resources','Information Technology','Legal','Marketing','Operations','Other','Product','Research & Analytics','Sales'];
 const LUSHA_DEPTO_ES={'Business Development':'Desarrollo de negocio','Consulting':'Consultoría','Customer Service':'Atención a clientes','Engineering & Technical':'Ingeniería y técnica','Finance':'Finanzas','General Management':'Dirección general','Health Care & Medical':'Salud','Human Resources':'Recursos Humanos','Information Technology':'Tecnología (TI)','Legal':'Legal','Marketing':'Marketing','Operations':'Operaciones','Other':'Otra','Product':'Producto','Research & Analytics':'Investigación y análisis','Sales':'Ventas'};
+// Subindustrias reales de Lusha por industria madre (catálogo consultado a su API el 2026-09-12),
+// traducidas para el AE. Se manda el id, nunca el texto, así que la traducción no afecta el filtro.
+// "Otros" también es un valor válido de su catálogo, por eso se conserva.
+const LUSHA_SUBINDUSTRIAS={
+  1:[[2,'Restaurantes'],[1,'Servicios de alimentos y bebidas'],[3,'Hoteles y hospedaje'],[5,'Servicios de eventos'],[11,'Viajes y reservaciones'],[778,'Otros']],
+  3:[[15,'Construcción de edificios'],[16,'Ingeniería civil'],[13,'Contratistas especializados'],[791,'Otros']],
+  5:[[21,'Organizaciones cívicas y sociales'],[7,'Recaudación de fondos'],[18,'Servicios de filantropía'],[20,'Organizaciones políticas'],[22,'Instituciones religiosas'],[793,'Otros']],
+  6:[[27,'Preescolares y kínderes'],[25,'Primaria y secundaria'],[24,'Educación superior'],[23,'Educación en línea'],[26,'Capacitación'],[140,'Educación extracurricular'],[50,'Administración educativa'],[794,'Otros']],
+  7:[[28,'Entretenimiento'],[32,'Deportes'],[35,'Bienestar y gimnasios'],[33,'Instalaciones recreativas'],[31,'Artes escénicas'],[30,'Arte y creadores culturales'],[29,'Museos, sitios históricos y zoológicos'],[34,'Casinos y apuestas'],[795,'Otros']],
+  8:[[36,'Agricultura, ganadería y forestal']],
+  9:[[92,'Contabilidad'],[37,'Servicios financieros'],[44,'Seguros'],[42,'Banca'],[40,'Inversión'],[41,'Capital de riesgo y privado'],[38,'Mercados de capitales'],[43,'Comercio internacional'],[797,'Otros']],
+  10:[[45,'Administración pública'],[56,'Oficinas de gobierno'],[49,'Seguridad pública'],[46,'Impartición de justicia'],[52,'Vivienda y desarrollo comunitario'],[54,'Asuntos internacionales'],[53,'Militar'],[779,'Otros']],
+  11:[[59,'Hospitales y clínicas'],[65,'Consultorios médicos'],[108,'Veterinarias'],[60,'Salud en casa y comunitaria'],[66,'Asilos y residencias'],[64,'Salud mental'],[62,'Medicina alternativa'],[106,'Biotecnología'],[780,'Otros']],
+  12:[[76,'Alimentos y bebidas'],[79,'Maquinaria y equipo industrial'],[75,'Productos metálicos'],[82,'Plásticos y hule'],[69,'Químicos'],[87,'Vehículos y autopartes'],[84,'Textil y confección'],[77,'Muebles'],[81,'Papel y productos forestales'],[78,'Vidrio, cerámica y concreto'],[68,'Electrónica y cómputo'],[80,'Equipo médico'],[71,'Farmacéutica'],[70,'Cuidado personal'],[89,'Equipo de transporte'],[83,'Artículos deportivos'],[86,'Aeroespacial y defensa'],[74,'Semiconductores y energía renovable'],[781,'Otros']],
+  13:[[90,'Minería'],[91,'Petróleo y gas'],[782,'Otros']],
+  14:[[97,'Consultoría de negocios'],[104,'Despachos y servicios legales'],[93,'Publicidad, RP y marketing'],[9,'Reclutamiento'],[99,'Servicios de Recursos Humanos'],[100,'Outsourcing'],[101,'Diseño'],[96,'Arquitectura'],[98,'Servicios ambientales'],[8,'Seguridad privada'],[10,'Traducción'],[12,'Redacción y edición'],[105,'Fotografía'],[783,'Otros']],
+  15:[[143,'Inmobiliarias'],[142,'Administración de inmuebles'],[144,'Inversión y desarrollo inmobiliario'],[6,'Servicios a instalaciones'],[796,'Otros']],
+  16:[[139,'Mayoreo, importación y exportación'],[138,'Materiales de construcción y jardín'],[146,'Autos, refacciones y llantas'],[111,'Alimentos y bebidas (menudeo)'],[114,'Equipo para hogar y oficina'],[115,'Tiendas de mercancía general'],[113,'Ropa y moda'],[145,'Farmacias y cuidado personal'],[147,'Deportes, música, libros y pasatiempos'],[110,'Lujo y joyería'],[785,'Otros']],
+  17:[[129,'Desarrollo de software'],[103,'Consultoría y servicios de TI'],[124,'Comercio electrónico y marketplaces'],[148,'Sistemas de cómputo'],[128,'Ciberseguridad'],[119,'Telecomunicaciones'],[120,'Información y datos digitales'],[122,'Servicios de información'],[123,'Publicación en internet'],[116,'Editoriales y periódicos'],[117,'Radio y televisión'],[118,'Cine, video y sonido'],[126,'Videojuegos'],[786,'Otros']],
+  18:[[134,'Autotransporte de carga'],[131,'Carga y paquetería'],[135,'Almacenamiento'],[132,'Transporte de pasajeros'],[133,'Transporte marítimo'],[130,'Aerolíneas y aeropuertos'],[787,'Otros']],
+  19:[[136,'Servicios públicos']],
+};
+// Pinta las subindustrias SOLO de las industrias madre marcadas: las ~140 juntas serían ilegibles.
+// `conservar` permite restaurar una selección guardada (Reintentar) antes de que existan los chips.
+function _csvRenderLushaSubInd(conservar){
+  const box=document.getElementById('csvSearchLushaSubIndBox'), cont=document.getElementById('csvSearchLushaSubIndChips');
+  if(!box||!cont) return;
+  const previas=new Set((conservar||[...document.querySelectorAll('.csv-lusha-subind:checked')].map(c=>c.value)).map(String));
+  const madres=[...document.querySelectorAll('.csv-lusha-ind:checked')].map(c=>Number(c.value));
+  const grupos=madres.map(id=>({madre:(LUSHA_INDUSTRIAS.find(x=>x.id===id)||{}).nombre||'',subs:LUSHA_SUBINDUSTRIAS[id]||[]})).filter(g=>g.subs.length);
+  box.style.display=grupos.length?'block':'none';
+  cont.innerHTML=grupos.map(g=>`<div style="width:100%;font-size:11px;font-weight:700;color:var(--gray-500);margin:4px 0 0">${_esc(g.madre)}</div>`
+    +g.subs.map(([id,nombre])=>`<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:999px;padding:5px 11px;cursor:pointer">
+      <input type="checkbox" class="csv-lusha-subind" value="${id}" ${previas.has(String(id))?'checked':''} style="cursor:pointer"> ${_esc(nombre)}</label>`).join('')).join('');
+}
 let _csvLushaPintado=false;
 function _csvRenderLushaFiltros(){
   if(_csvLushaPintado) return; // los catálogos son fijos: se pintan una sola vez
@@ -14511,7 +14588,10 @@ function _csvRenderLushaFiltros(){
   const tam=document.getElementById('csvSearchLushaTamanoChips');
   if(tam) tam.innerHTML=LUSHA_SIZES.map((s,i)=>chip('csv-lusha-size',i,s.max?`${s.min}–${s.max}`:`${s.min}+`)).join('');
   const ind=document.getElementById('csvSearchLushaIndustriaChips');
-  if(ind) ind.innerHTML=LUSHA_INDUSTRIAS.map(x=>chip('csv-lusha-ind',x.id,_esc(x.nombre))).join('');
+  if(ind){
+    ind.innerHTML=LUSHA_INDUSTRIAS.map(x=>chip('csv-lusha-ind',x.id,_esc(x.nombre))).join('');
+    ind.addEventListener('change',()=>_csvRenderLushaSubInd());
+  }
   const dep=document.getElementById('csvSearchLushaDeptoChips');
   if(dep) dep.innerHTML=LUSHA_DEPARTAMENTOS.map(d=>chip('csv-lusha-depto',_esc(d),_esc(LUSHA_DEPTO_ES[d]||d))).join('');
   _csvLushaPintado=true;
@@ -14523,6 +14603,7 @@ function _csvLushaFiltros(){
   return {
     lushaSizes:marcados('csv-lusha-size').map(i=>LUSHA_SIZES[Number(i)]).filter(Boolean),
     lushaMainIndustrias:marcados('csv-lusha-ind').map(Number).filter(Boolean),
+    lushaSubIndustrias:marcados('csv-lusha-subind').map(Number).filter(Boolean),
     lushaDepartamentos:marcados('csv-lusha-depto'),
   };
 }
@@ -15017,16 +15098,39 @@ window.csvRetryLeadJob=function(jobId){
         // Los tamaños se guardaron como {min,max}: se vuelven a casar contra el catálogo por índice.
         marcar('csv-lusha-size',(f.lushaSizes||[]).map(s=>LUSHA_SIZES.findIndex(x=>x.min===s.min&&x.max===s.max)).filter(i=>i>=0));
         marcar('csv-lusha-ind',f.lushaMainIndustrias||[]);
+        _csvRenderLushaSubInd((f.lushaSubIndustrias||[]).map(String));
         marcar('csv-lusha-depto',f.lushaDepartamentos||[]);
       }
-      if((!f.fuentePrimaria||f.fuentePrimaria==='apollo')&&(f.apolloIndustryIds?.length||f.apolloMarketSegments?.length)){
+      if(!f.fuentePrimaria||f.fuentePrimaria==='apollo'){
         csvLoadApolloFiltros();
-        setTimeout(()=>{
-          const indSel=new Set(f.apolloIndustryIds||[]);
-          document.querySelectorAll('.csv-apollo-ind-check').forEach(c=>{ c.checked=indSel.has(c.value); });
-          const segSel=new Set(f.apolloMarketSegments||[]);
-          document.querySelectorAll('.csv-apollo-seg-check').forEach(c=>{ c.checked=segSel.has(c.value); });
-        },400);
+        // Antes solo se restauraban industria y segmento: sector SCIAN, tecnologías, ingresos,
+        // fundación, crecimiento, días en el puesto, títulos, vacantes y correo verificado se perdían
+        // al reintentar, y la búsqueda se relanzaba más abierta de lo que el AE había pedido — sin
+        // avisar. Los campos simples se ponen de una vez; los chips esperan a que llegue su catálogo.
+        setVal('csvSearchIngresosMin', f.ingresosMin); setVal('csvSearchIngresosMax', f.ingresosMax);
+        setVal('csvSearchFundadaDesde', f.fundadaDesde); setVal('csvSearchFundadaHasta', f.fundadaHasta);
+        setVal('csvSearchCrecimientoPct', f.crecimientoMinPct); setVal('csvSearchCrecimientoMeses', f.crecimientoMeses);
+        setVal('csvSearchDiasEnPuesto', f.diasEnPuestoMax);
+        setVal('csvSearchVacantesMin', f.vacantesMin);
+        if((f.vacantesTitulos||[]).length) setVal('csvSearchVacantesTitulos', f.vacantesTitulos.join(', '));
+        if((f.extraTitles||[]).length) setVal('csvSearchTitulosLibres', f.extraTitles.join(', '));
+        // Se guardó la FECHA (lo que pide Apollo) pero el campo pide días: se vuelve a días desde hoy.
+        if(f.vacantesDesde){ const d=Math.round((Date.now()-new Date(f.vacantesDesde).getTime())/86400000); if(d>0) setVal('csvSearchVacantesDias', d); }
+        const chk=(id,v)=>{ const el=document.getElementById(id); if(el) el.checked=!!v; };
+        chk('csvSearchCorreoVerificado', f.soloCorreoVerificado);
+        chk('csvSearchTitulosEstrictos', f.titulosEstrictos);
+        // Espera activa y no un setTimeout fijo: con red lenta, 400 ms no alcanzaban y los chips
+        // quedaban sin marcar. Revisa cada 150 ms, hasta 3 s.
+        const cuandoExista=(sel,fn,intentos=20)=>{ if(document.querySelector(sel)||intentos<=0) return fn(); setTimeout(()=>cuandoExista(sel,fn,intentos-1),150); };
+        cuandoExista('.csv-apollo-sector-check',()=>{
+          const marcar=(cls,vals)=>{ const s=new Set((vals||[]).map(String)); document.querySelectorAll('.'+cls).forEach(c=>{ c.checked=s.has(c.value); }); };
+          marcar('csv-apollo-ind-check', f.apolloIndustryIds);
+          marcar('csv-apollo-seg-check', f.apolloMarketSegments);
+          marcar('csv-apollo-sector-check', f.scianSectores);
+          marcar('csv-apollo-tech-usa-check', f.tecnologiasUsa);
+          marcar('csv-apollo-tech-no-check', f.tecnologiasNoUsa);
+          if(typeof csvActualizarConteo==='function') csvActualizarConteo();
+        });
       }
     },100);
     showNotif('Filtros de la búsqueda anterior cargados — revísalos y dale a "Buscar leads"','info');
