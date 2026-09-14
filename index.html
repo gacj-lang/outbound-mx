@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-14T17:20:40Z">
+<meta name="app-version" content="2026-09-14T17:46:44Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-14a "Reintentar" ya devuelve todos los filtros de Apollo: sector, tecnologías, ingresos, fundación, crecimiento, días en el puesto, títulos, vacantes y correo verificado (antes se perdían y la búsqueda salía más abierta). En Más contactos, si Apollo y Lusha traen a la misma persona se juntan en un solo renglón y Lusha solo aporta lo que faltaba, como el teléfono. Lusha ya deja afinar por subindustria. Sin tope de créditos de Lusha: se mide por persona en el Panel de Manager. · 2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
+const APP_BUILD_STAMP='2026-09-14b Cada lead nuevo llega con ficha consultiva, señales y prioridad, y se guardan en la empresa: qué hace, dolores probables, apps de Odoo que le aplican, preguntas de descubrimiento y un gancho para abrir la llamada. La prioridad (Alta/Media/Baja) dice en qué se basa y con cuántos casos del histórico. Al guardar leads en el CRM ya se llenan industria, tamaño, LinkedIn y sitio donde estaban vacíos, también en empresas que ya existían (nunca se pisa lo que ya había). En el detalle de cada empresa hay un botón para crear o actualizar la ficha, las empresas dadas de alta a mano con sitio web la obtienen solas, y el Panel de Manager tiene un botón para completar las que ya estaban. · 2026-09-14a "Reintentar" ya devuelve todos los filtros de Apollo: sector, tecnologías, ingresos, fundación, crecimiento, días en el puesto, títulos, vacantes y correo verificado (antes se perdían y la búsqueda salía más abierta). En Más contactos, si Apollo y Lusha traen a la misma persona se juntan en un solo renglón y Lusha solo aporta lo que faltaba, como el teléfono. Lusha ya deja afinar por subindustria. Sin tope de créditos de Lusha: se mide por persona en el Panel de Manager. · 2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -2186,6 +2186,14 @@ function renderManagerPanel(){
       <div class="card" style="margin-top:16px">
         <div class="card-header"><h3>💳 Gasto en Apollo y Lusha</h3></div>
         <div id="gastoFuentesBody" style="padding:2px 0"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><h3>🧭 Fichas de empresa</h3></div>
+        <div style="padding:2px 0">
+          <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:10px;line-height:1.5">Las empresas nuevas ya llegan con ficha consultiva, señales y prioridad. Este botón se las arma a las que ya estaban en el CRM, y de paso llena industria, tamaño, LinkedIn y sitio donde estén vacíos (nunca pisa lo que ya hay). Primero cuenta cuántas faltan; luego trabaja de 10 en 10. Lusha gasta créditos por cada empresa que conoce (se anotan a tu nombre en 💳 Gasto) y Claude hace una llamada cada 8 empresas.</p>
+          <button id="maintFichasBtn" class="btn btn-primary btn-full" onclick="maintFichasEmpresas()">🧭 Contar empresas sin ficha</button>
+          <div id="maintFichasLog" style="font-size:12px;color:var(--gray-500);margin-top:8px;line-height:1.5"></div>
+        </div>
       </div>
       <div class="card" style="margin-top:16px">
         <div class="card-header"><h3>🛠 Mantenimiento — creador de Qcall/Intromeet</h3></div>
@@ -11342,7 +11350,7 @@ function empRender(companies){
         <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
           <div style="width:40px;height:40px;background:var(--purple-light);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🏢</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:15px;font-weight:700;color:var(--gray-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${co.nombre}</div>
+            <div style="display:flex;align-items:center;gap:6px;min-width:0"><div style="font-size:15px;font-weight:700;color:var(--gray-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${co.nombre}</div>${co.inteligencia?.prioridad?.nivel?_empPrioridadBadge(co.inteligencia.prioridad.nivel):''}</div>
             <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${[co.giro,co.tamaño].filter(Boolean).join(' · ')||'Sin industria'}</div>
           </div>
         </div>
@@ -11385,6 +11393,160 @@ window.empFilter=function(){
   if(_empMineOnly) filtered=filtered.filter(c=>_empAsignadoUid(c)?_empAsignadoUid(c)===currentUserData?.uid:_empAsignadoNombre(c)===currentUserData?.name);
   empRender(filtered);
 };
+// ── Ficha consultiva, señales y prioridad de la empresa (2026-09-14) ──
+// Las arma el backend (Lusha + histórico propio + Claude) al crear cada lead o bajo demanda con
+// POST /empresaInteligencia. Aquí solo se guardan en companies y se muestran.
+const EMPRESA_INTEL_API='https://thorough-curiosity-production-098d.up.railway.app/empresaInteligencia';
+
+// Traduce el resultado del backend a campos de companies. Los campos que un AE pudo capturar a mano
+// (giro, tamaño, sitio, LinkedIn) solo se llenan si están vacíos; la inteligencia sí se reemplaza,
+// salvo la ficha, que se conserva si esta vez Claude no respondió.
+function _empPatchInteligencia(co, r){
+  const patch={};
+  if(!r) return patch;
+  const giro=r.giro||_csvIndustriaToGiro(r.industria);
+  if(!co.giro&&giro) patch.giro=giro;
+  const tam=_csvEmpleadosToTamano(r.empleados,r.denuePersonalOcupado);
+  if(!co.tamaño&&tam) patch.tamaño=tam;
+  if(!co.website&&r.website) patch.website=r.website;
+  if(!co.linkedin&&r.linkedin) patch.linkedin=r.linkedin;
+  if(!co.empleados&&Number(r.empleados)>0) patch.empleados=Number(r.empleados);
+  if(!co.industriaFuente&&r.industria) patch.industriaFuente=String(r.industria).slice(0,200);
+  if(r.ficha||r.prioridad||r.senales||r.empresaLusha){
+    patch.inteligencia={
+      ficha:r.ficha||co.inteligencia?.ficha||null, prioridad:r.prioridad||null,
+      senales:r.senales||null, empresaLusha:r.empresaLusha||null,
+      actualizada:r.inteligenciaEn||new Date().toISOString(),
+    };
+  }
+  return patch;
+}
+
+async function _empPedirInteligencia(cos){
+  if(!currentUser) throw new Error('Tu sesión expiró, vuelve a iniciar sesión.');
+  const idToken=await currentUser.getIdToken();
+  const res=await fetch(EMPRESA_INTEL_API,{method:'POST',headers:{'Authorization':`Bearer ${idToken}`,'Content-Type':'application/json'},
+    body:JSON.stringify({empresas:cos.map(co=>{
+      const ct=(co.contacts||[]).find(c=>c.correo)||(co.contacts||[])[0]||{};
+      return {nombre:co.nombre||'', website:co.website||'', correo:ct.correo||'', industria:co.industriaFuente||'',
+        empleados:co.empleados||null, linkedin:co.linkedin||'', contacto:ct.nombre||'', cargo:ct.cargo||''};
+    })})});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+  return data;
+}
+
+function _empPrioridadBadge(nivel){
+  const c={Alta:['#dcfce7','#166534'],Media:['#fef9c3','#713f12'],Baja:['#f3f4f6','#4b5563']}[nivel]||['#f3f4f6','#4b5563'];
+  return `<span style="background:${c[0]};color:${c[1]};padding:1px 8px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap;flex-shrink:0">Prioridad ${_esc(nivel)}</span>`;
+}
+
+function _empIntelHtml(co){
+  const i=co.inteligencia||{};
+  const f=i.ficha, p=i.prioridad, s=i.senales, e=i.empresaLusha;
+  const head=(t,extra='')=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400)">${t}</div>${extra}</div>`;
+  const btn=(txt)=>`<button class="btn btn-ghost btn-sm" style="padding:3px 10px;font-size:11px" onclick="empActualizarFicha('${co.id}')">${txt}</button>`;
+  const lista=arr=>(arr||[]).length?`<ul style="margin:4px 0 0 18px;padding:0;font-size:12.5px;line-height:1.55;color:var(--gray-700)">${arr.map(x=>`<li>${_esc(x)}</li>`).join('')}</ul>`:'';
+  const sub=t=>`<div style="font-size:11.5px;font-weight:600;color:var(--gray-500);margin-top:10px">${t}</div>`;
+  const caja='margin-bottom:16px;padding:12px 14px;background:var(--gray-50);border-radius:8px';
+  if(!f&&!p&&!s&&!e){
+    return `<div style="${caja};margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:12.5px;color:var(--gray-500)">Esta empresa todavía no tiene ficha consultiva ni prioridad.</span>${btn('🧭 Crear ficha')}</div>`;
+  }
+  const fecha=i.actualizada?new Date(i.actualizada).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'';
+  const fichaHtml=f?`<div style="${caja}">
+    ${head('🧭 Ficha consultiva',btn('↻ Actualizar'))}
+    ${f.queHace?`<div style="font-size:13px;color:var(--gray-800);line-height:1.55">${_esc(f.queHace)}</div>`:''}
+    ${(f.apps||[]).length?`${sub('Apps de Odoo que le aplican')}<div style="display:flex;flex-direction:column;gap:3px;margin-top:4px">${f.apps.map(a=>`<div style="font-size:12.5px;line-height:1.5"><span style="font-weight:600;color:var(--purple)">${_esc(a.app)}</span>${a.porque?` <span style="color:var(--gray-600)">— ${_esc(a.porque)}</span>`:''}</div>`).join('')}</div>`:''}
+    ${(f.dolores||[]).length?`${sub('Dolores probables')}${lista(f.dolores)}`:''}
+    ${(f.preguntas||[]).length?`${sub('Preguntas de descubrimiento')}${lista(f.preguntas)}`:''}
+    ${f.gancho?`${sub('Para abrir la llamada')}<div style="font-size:12.5px;color:var(--gray-700);line-height:1.55;margin-top:4px">${_esc(f.gancho)}</div>`:''}
+    ${(f.validar||[]).length?`${sub('Por confirmar en la llamada')}${lista(f.validar)}`:''}
+  </div>`:`<div style="${caja};display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:12.5px;color:var(--gray-500)">Sin ficha consultiva todavía.</span>${btn('🧭 Crear ficha')}</div>`;
+
+  const senalesItems=[];
+  if(s?.contratacion) senalesItems.push(`Publicó ${s.contratacion.vacantesSemana} vacante${s.contratacion.vacantesSemana===1?'':'s'} la última semana (${s.contratacion.cambioPct>0?'+':''}${s.contratacion.cambioPct}% sobre su promedio)`);
+  if((s?.areasContratando||[]).length) senalesItems.push(`Contratando en: ${s.areasContratando.join(', ')}`);
+  if(s?.plantilla12m&&s.plantilla12m.cambioPct) senalesItems.push(`Plantilla en 12 meses: ${s.plantilla12m.cambioPct>0?'+':''}${s.plantilla12m.cambioPct}%${s.plantilla12m.de&&s.plantilla12m.a?` (${s.plantilla12m.de} → ${s.plantilla12m.a})`:''}`);
+  if((s?.intencion?.temas||[]).length) senalesItems.push(`Temas en LinkedIn: ${s.intencion.temas.join(', ')}`);
+  (s?.noticias||[]).forEach(n=>senalesItems.push(`Noticia: ${n.titulo}`));
+  if(e?.vacantesAbiertas) senalesItems.push(`${e.vacantesAbiertas} vacante${e.vacantesAbiertas===1?'':'s'} abierta${e.vacantesAbiertas===1?'':'s'}`);
+  const perfil=[];
+  if(e?.descripcion) perfil.push(e.descripcion);
+  if((e?.empleadosPorArea||[]).length) perfil.push(`Por área: ${e.empleadosPorArea.slice(0,6).map(a=>`${a.area} ${a.n}`).join(' · ')}`);
+  if(e?.anioFundacion) perfil.push(`Fundada en ${e.anioFundacion}`);
+  if((e?.tecnologias||[]).length) perfil.push(`Tecnologías: ${e.tecnologias.slice(0,8).join(', ')}`);
+  const prioHtml=`<div style="${caja};margin-bottom:20px">
+    ${head('📈 Señales y prioridad',p?.nivel?_empPrioridadBadge(p.nivel):'')}
+    ${(p?.motivos||[]).length?`<div style="display:flex;flex-direction:column;gap:3px">${p.motivos.map(m=>`<div style="font-size:12.5px;line-height:1.5;color:var(--gray-700)">${_esc(m.texto)} <span style="font-size:11px;color:var(--gray-400)">(${m.n?`n=${Number(m.n).toLocaleString('es-MX')} · `:''}confianza: ${_esc(m.confianza||'')})</span></div>`).join('')}</div>`:''}
+    ${senalesItems.length?`${sub('Señales recientes (Lusha)')}${lista(senalesItems)}`:`<div style="font-size:12px;color:var(--gray-400);margin-top:8px">${e?'Lusha no reporta señales activas para esta empresa.':'Lusha no tiene a esta empresa: no hay señales.'}</div>`}
+    ${perfil.length?`${sub('Perfil (Lusha)')}${lista(perfil)}`:''}
+    ${fecha?`<div style="font-size:10.5px;color:var(--gray-400);margin-top:10px">Actualizada el ${fecha}</div>`:''}
+  </div>`;
+  return fichaHtml+prioHtml;
+}
+
+window.empActualizarFicha=async function(id){
+  const co=_allEmpresas.find(c=>c.id===id); if(!co) return;
+  const el=document.getElementById('empIntel');
+  if(el) el.innerHTML='<div class="cdc-empty" style="margin-bottom:20px">Armando la ficha con Lusha y Claude, tarda unos segundos…</div>';
+  try{
+    const data=await _empPedirInteligencia([co]);
+    const r=(data.empresas||[])[0]||{};
+    const patch=_empPatchInteligencia(co,r);
+    if(Object.keys(patch).length){ const ok=await saveCompany({id,...patch}); if(ok) Object.assign(co,patch); }
+    if(document.getElementById('empDetailPopup')) empOpenDetail(id);
+    if(data.sinDominio) showNotif('Sin sitio web ni correo corporativo no se puede buscar en Lusha: la ficha salió solo con lo que ya había.','success');
+  }catch(e){
+    showNotif('No se pudo armar la ficha: '+e.message,'error');
+    if(el) el.innerHTML=_empIntelHtml(co);
+  }
+};
+
+// Backfill del Panel de Manager: primero cuenta (no gasta), luego arma de 10 en 10. Si se corta, volver
+// a correrlo retoma solo con las que siguen sin ficha.
+let _maintFichasPendientes=null;
+window.maintFichasEmpresas=async function(){
+  const btn=document.getElementById('maintFichasBtn'), log=document.getElementById('maintFichasLog');
+  if(!btn||!log) return;
+  if(!_maintFichasPendientes){
+    btn.disabled=true; log.textContent='Leyendo empresas…';
+    try{
+      const todas=await searchCompanies('',{all:true});
+      _maintFichasPendientes=todas.filter(c=>!c.inteligencia?.actualizada);
+      const sinDominio=_maintFichasPendientes.filter(c=>!c.website&&!(c.contacts||[]).some(ct=>ct.correo)).length;
+      log.textContent=`${_maintFichasPendientes.length} de ${todas.length} empresas no tienen ficha.${sinDominio?` ${sinDominio} no tienen sitio ni correo corporativo: esas salen solo con Claude, sin datos de Lusha.`:''}`;
+      btn.textContent=_maintFichasPendientes.length?`🧭 Armar fichas para ${_maintFichasPendientes.length} empresas`:'✓ Todas tienen ficha';
+      btn.disabled=!_maintFichasPendientes.length;
+      if(!_maintFichasPendientes.length) _maintFichasPendientes=null;
+    }catch(e){ log.textContent='No se pudieron leer las empresas: '+e.message; btn.disabled=false; _maintFichasPendientes=null; }
+    return;
+  }
+  const lista=_maintFichasPendientes;
+  if(!confirm(`Se van a armar ${lista.length} fichas. Gasta créditos de Lusha y llamadas a Claude. ¿Seguimos?`)) return;
+  btn.disabled=true;
+  const LOTE=10, lotes=Math.ceil(lista.length/LOTE);
+  let hechas=0, creditos=0, conError=0;
+  for(let i=0;i<lista.length;i+=LOTE){
+    const lote=lista.slice(i,i+LOTE);
+    log.textContent=`Lote ${i/LOTE+1} de ${lotes} · ${hechas} listas · ${creditos} créditos de Lusha…`;
+    try{
+      const data=await _empPedirInteligencia(lote);
+      creditos+=data.creditosLusha||0;
+      for(let k=0;k<lote.length;k++){
+        const patch=_empPatchInteligencia(lote[k],(data.empresas||[])[k]);
+        if(Object.keys(patch).length&&await saveCompany({id:lote[k].id,...patch})) hechas++;
+      }
+    }catch(e){
+      conError+=lote.length; console.warn('maintFichasEmpresas:',e);
+      if(/sesión|401|403|token/i.test(e.message)){ log.textContent='Se cortó por la sesión: '+e.message; break; }
+    }
+  }
+  log.textContent=`Listo: ${hechas} empresas con ficha, ${creditos} créditos de Lusha.${conError?` ${conError} dieron error; vuelve a correrlo y retoma con las que faltan.`:''}`;
+  _maintFichasPendientes=null; btn.disabled=false; btn.textContent='🧭 Contar empresas sin ficha';
+  if(typeof empLoad==='function') empLoad().catch(()=>{});
+};
+
 window.empOpenDetail=async function(id){
   const co=_allEmpresas.find(c=>c.id===id); if(!co) return;
   document.getElementById('empDetailPopup')?.remove();  // evita popups duplicados al re-renderizar (p.ej. tras eliminar)
@@ -11402,8 +11564,9 @@ window.empOpenDetail=async function(id){
     </div>
     <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--gray-200)">
-        ${[['Asignado a',_empAsignadoNombre(co)||'—'],['Industria',co.giro],['Tamaño',co.tamaño],['Origen',co.origen],['Sitio web',co.website?`<a href="${co.website}" target="_blank">${co.website}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank">${co.linkedin}</a>`:'—'],['Creada por',co.createdBy||'—']].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
+        ${[['Asignado a',_empAsignadoNombre(co)||'—'],['Industria',co.giro?`${co.giro}${co.industriaFuente?`<div style="font-size:11px;color:var(--gray-400)">${_esc(co.industriaFuente)}</div>`:''}`:''],['Tamaño',co.tamaño?`${co.tamaño}${co.empleados?` <span style="color:var(--gray-400)">(${co.empleados}${co.inteligencia?.empresaLusha?.empleadosRango?` · rango Lusha ${_esc(co.inteligencia.empresaLusha.empleadosRango)}`:''})</span>`:''}`:''],['Prioridad',co.inteligencia?.prioridad?.nivel?_empPrioridadBadge(co.inteligencia.prioridad.nivel):''],['Origen',co.origen],['Sitio web',co.website?`<a href="${co.website}" target="_blank">${co.website}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank">${co.linkedin}</a>`:'—'],['Creada por',co.createdBy||'—']].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
       </div>
+      <div id="empIntel">${_empIntelHtml(co)}</div>
       <div id="empDetailDocs"><div class="cdc-empty">Cargando documentos...</div></div>
     </div>
   </div>`;
@@ -11831,6 +11994,13 @@ window.empSaveCreate=async function(){
   document.getElementById('empCreatePopup')?.remove();
   showNotif('Empresa creada ✓','success');
   await empLoad(); empRender(_allEmpresas);
+  // Con sitio web se puede buscar en Lusha: la ficha se arma sola en segundo plano y llena lo que el
+  // AE dejó vacío. Sin sitio queda el botón "Crear ficha" en el detalle.
+  if(company.website){
+    _empPedirInteligencia([{...company,id}])
+      .then(async d=>{ const patch=_empPatchInteligencia(company,(d.empresas||[])[0]||{}); if(Object.keys(patch).length&&await saveCompany({id,...patch})){ await empLoad(); empRender(_allEmpresas); } })
+      .catch(e=>console.warn('ficha de empresa nueva:',e));
+  }
 };
 
 window.empShowCreateContact=function(){
@@ -15327,22 +15497,29 @@ async function csvSyncRowsToCRM(rows){
         nombre:row.contact_name.trim(), cargo:row.function||'', correo:row.Email||'',
         phone:row.phone||'', linkedin:row._linkedinContactoRaw||_csvExtractFromNotes(row.notes,['LinkedIn contacto','LinkedIn']),
       }:null;
+      const intel={
+        giro:row._giroSugerido||'', industria:row._industriaRaw||'', empleados:row._empleadosRaw,
+        denuePersonalOcupado:row._denuePersonalOcupadoRaw||'', website:row.Website||'',
+        linkedin:row._linkedinEmpresaRaw||_csvExtractFromNotes(row.notes,['LinkedIn empresa']),
+        ficha:row._ficha, prioridad:row._prioridad, senales:row._senales, empresaLusha:row._empresaLusha, inteligenciaEn:row._inteligenciaEn,
+      };
       if(co){
-        if(contact&&!(co.contacts||[]).some(c=>_csvContactMatches(c,contact))){
-          const contacts=[...(co.contacts||[]),contact];
-          const saved=await saveCompany({...co,contacts}); if(!saved) continue;
-          co.contacts=contacts;
+        // Antes (hasta 2026-09-14) a una empresa que ya existía solo se le agregaba el contacto, y por
+        // eso tantas se quedaban con industria, tamaño o LinkedIn vacíos para siempre. Ahora se llena lo
+        // vacío —nunca se pisa lo que alguien ya capturó— y se actualiza la ficha.
+        const patch=_empPatchInteligencia(co,intel);
+        if(contact&&!(co.contacts||[]).some(c=>_csvContactMatches(c,contact))) patch.contacts=[...(co.contacts||[]),contact];
+        if(Object.keys(patch).length){
+          const saved=await saveCompany({id:co.id,...patch}); if(!saved) continue;
+          Object.assign(co,patch);
           actualizadas++;
         }
       } else {
         const nuevo={
-          nombre:row.partner_name.trim(),
-          giro:_csvIndustriaToGiro(row._industriaRaw),
-          tamaño:_csvEmpleadosToTamano(row._empleadosRaw,row._denuePersonalOcupadoRaw),
-          origen:row._origen||'',
-          website:row.Website||'', linkedin:row._linkedinEmpresaRaw||_csvExtractFromNotes(row.notes,['LinkedIn empresa']),
+          nombre:row.partner_name.trim(), giro:'', tamaño:'', origen:row._origen||'', website:'', linkedin:'',
           contacts:contact?[contact]:[],
         };
+        Object.assign(nuevo,_empPatchInteligencia(nuevo,intel));
         const id=await saveCompany(nuevo); if(!id) continue;
         nuevo.id=id;
         if(dk) byDomain.set(dk,nuevo);
@@ -15353,7 +15530,7 @@ async function csvSyncRowsToCRM(rows){
     }catch(e){ console.warn('csvSyncRowsToCRM row:',row.partner_name,e); }
   }
   if(creadas||actualizadas){
-    showNotif(`🏢 CRM: ${creadas} empresa${creadas===1?'':'s'} nueva${creadas===1?'':'s'}${actualizadas?`, ${actualizadas} actualizada${actualizadas===1?'':'s'} con contacto nuevo`:''}`,'success');
+    showNotif(`🏢 CRM: ${creadas} empresa${creadas===1?'':'s'} nueva${creadas===1?'':'s'}${actualizadas?`, ${actualizadas} actualizada${actualizadas===1?'':'s'} (contacto, ficha o datos que faltaban)`:''}`,'success');
     if(document.getElementById('empresasList')) empLoad().then(()=>empRender(_allEmpresas)).catch(()=>{});
   }
 }
@@ -15546,6 +15723,11 @@ function csvLoadJobIntoRows(job){
       // terminaba creando la empresa con giro/tamaño/LinkedIn vacíos aunque el dato ya existía.
       _linkedinContactoRaw:row.linkedin_contacto||'', _linkedinEmpresaRaw:row.linkedin_empresa||'',
       _empleadosRaw:row.empleados||null, _denuePersonalOcupadoRaw:row.denue_personal_ocupado||'',
+      // Inteligencia de empresa (2026-09-14): la arma el backend al cerrar la búsqueda. Van con guion
+      // bajo porque NO son columnas del CSV de Odoo (csvBuildText solo lee CSV_COLUMNS); su destino
+      // es la ficha de la empresa en el CRM (csvSyncRowsToCRM).
+      _giroSugerido:row.giro_sugerido||'', _ficha:row.ficha||null, _prioridad:row.prioridad||null,
+      _senales:row.senales||null, _empresaLusha:row.empresa_lusha||null, _inteligenciaEn:row.inteligenciaEn||'',
     };
   });
   csvRenderTable();
@@ -16011,7 +16193,9 @@ async function csvPersist(opts={}){
   // que discSaveRecord/pricingUpsertRecord: antes se reenviaban en cada updateDoc y se reasignaban
   // solos si otra persona abría y guardaba esta sesión de CSV.
   const rec={
-    fuente, rowCount:csvRows.length, rows:csvRows, csvText:csvBuildText(csvRows),
+    // Ficha, señales y datos de Lusha no se copian al historial de CSV: ya viven en la empresa, y con
+    // 25 filas harían crecer el documento hacia el límite de 1 MB de Firestore.
+    fuente, rowCount:csvRows.length, rows:csvRows.map(({_ficha,_senales,_empresaLusha,...r})=>r), csvText:csvBuildText(csvRows),
     updatedByUid:currentUserData.uid, updatedByName:currentUserData.name, updatedByGram:currentUserData.gram,
     updatedAt:serverTimestamp() };
   try{
