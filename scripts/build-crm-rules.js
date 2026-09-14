@@ -7,14 +7,17 @@
 //
 // Uso:
 //   node scripts/build-crm-rules.js --check captura.json
-//        No escribe nada. Compara huellas contra crm-rules.json e imprime qué cambió y qué textos
-//        faltan. Sale con 0 si no hay cambios y con 3 si los hay.
+//        No escribe nada. Compara contra crm-rules.json e imprime qué cambió, qué textos faltan y qué
+//        imágenes hay que revisar. Sale con 0 si no hay cambios y con 3 si los hay.
 //   node scripts/build-crm-rules.js captura.json
 //        Aplica la captura: reusa el texto de las secciones que no cambiaron, exige el texto de las
 //        nuevas o modificadas, anota el historial y sella la fecha de revisión.
 //
-// Lo que NO toca nunca: el bloque "outbound" (excepciones de Outbound y notas por sección). Ese se
-// mantiene a mano porque no sale del documento de DS, sale de Odoo Knowledge / OUTBOUND-MX.
+// Lo que NO toca nunca, porque se mantiene a mano:
+//   · "outbound": excepciones de Outbound, notas por sección y secciones que no le aplican. Sale de
+//     Odoo Knowledge / OUTBOUND-MX y de lo que define la gerencia de Outbound, no del documento de DS.
+//   · "imagenes": los archivos de assets/crm-rules/ con su interpretación. Alguien tiene que ver la imagen.
+//     Si una imagen del documento cambia (se detecta por sus dimensiones), esto lo reporta; no la reemplaza.
 const fs = require('fs');
 const path = require('path');
 
@@ -32,13 +35,15 @@ const huella = t => {
 
 // A quién aplica cada sección. Outbound se rige por las reglas de DS, así que "si" = regla general,
 // de finanzas o que involucra a DS; "referencia" = regla de otro equipo que solo le importa a Outbound
-// cuando le pasan o pasa un lead. Se calcula aquí (y no a mano) para que una sección nueva del
-// documento quede clasificada sola en la revisión mensual.
-function clasificar(s) {
+// cuando le pasan o pasa un lead; "no" = la gerencia de Outbound dijo que no le aplica
+// (outbound.seccionesNoAplican). Se calcula aquí para que una sección nueva quede clasificada sola.
+function clasificar(s, outbound) {
   const equipos = [...new Set([...s.texto.matchAll(/\[(DS|AM|PR|MMC|CST|CSTD|CSTI|GROWTH)\]/g)].map(m => m[1]))];
+  const mencionaOutbound = /outbound/i.test(s.texto);
+  if (outbound?.seccionesNoAplican?.[s.id]) return { equipos, aplicaOutbound: 'no', mencionaOutbound };
   const general = s.id === 'objetivo-y-alcance' || /para todos los equipos|finanzas|índice de equipo/i.test(s.grupo);
   const ds = equipos.includes('DS') || /ventas directas|direct sales/i.test(s.titulo + ' ' + s.grupo);
-  return { equipos, aplicaOutbound: general || ds ? 'si' : 'referencia', mencionaOutbound: /outbound/i.test(s.texto) };
+  return { equipos, aplicaOutbound: general || ds ? 'si' : 'referencia', mencionaOutbound };
 }
 
 function main() {
@@ -53,8 +58,9 @@ function main() {
   }
   const actual = fs.existsSync(DESTINO) ? JSON.parse(fs.readFileSync(DESTINO, 'utf8')) : {};
   const previas = new Map((actual.secciones || []).map(s => [s.id, s]));
+  const imagenes = actual.imagenes || {};
 
-  const nuevas = [], modificadas = [], faltanTextos = [], errores = [];
+  const nuevas = [], modificadas = [], imagenesCambiadas = [], faltanTextos = [], errores = [];
   const secciones = captura.secciones.map(c => {
     const previa = previas.get(c.id);
     let texto = c.texto != null ? limpiar(c.texto) : null;
@@ -69,14 +75,22 @@ function main() {
       if (previa && previa.huella === h) texto = previa.texto;
       else faltanTextos.push(c.id);
     }
-    return { id: c.id, grupo: limpiar(c.grupo), titulo, huella: h, imagenes: c.imagenes || 0, texto };
+    // La firma solo se compara cuando ya había una guardada: la primera captura desde el navegador la llena.
+    const firma = Array.isArray(c.imagenesFirma) ? c.imagenesFirma : (previa?.imagenesFirma || []);
+    if (previa && Array.isArray(c.imagenesFirma) && (previa.imagenesFirma || []).length
+        && previa.imagenesFirma.join(',') !== c.imagenesFirma.join(',')) imagenesCambiadas.push(c.id);
+    return { id: c.id, grupo: limpiar(c.grupo), titulo, huella: h, imagenes: c.imagenes || 0, imagenesFirma: firma, texto };
   });
   const idsCaptura = new Set(secciones.map(s => s.id));
   const eliminadas = [...previas.keys()].filter(id => !idsCaptura.has(id));
-  const hayCambios = nuevas.length + modificadas.length + eliminadas.length > 0;
+  const imagenesSinInterpretar = secciones.filter(s => s.imagenes > (imagenes[s.id] || []).length).map(s => s.id);
+  const referencias = [...Object.keys(actual.outbound?.notasPorSeccion || {}), ...Object.keys(actual.outbound?.seccionesNoAplican || {}), ...Object.keys(imagenes)];
+  const referenciasHuerfanas = [...new Set(referencias)].filter(id => !idsCaptura.has(id));
+  const hayCambios = nuevas.length + modificadas.length + eliminadas.length + imagenesCambiadas.length > 0;
 
   if (soloCheck) {
-    console.log(JSON.stringify({ hayCambios, nuevas, modificadas, eliminadas, textosQueHayQuePedir: [...nuevas, ...modificadas], errores }, null, 2));
+    console.log(JSON.stringify({ hayCambios, nuevas, modificadas, eliminadas, textosQueHayQuePedir: [...nuevas, ...modificadas],
+      imagenesCambiadas, imagenesSinInterpretar, referenciasHuerfanas, errores }, null, 2));
     process.exit(errores.length ? 1 : hayCambios ? 3 : 0);
   }
   if (errores.length) { errores.forEach(e => console.error('✗ ' + e)); process.exit(1); }
@@ -90,7 +104,11 @@ function main() {
   const fecha = (captura.fuente?.capturadoEn || new Date().toISOString()).slice(0, 10);
   const titulos = ids => ids.map(id => (secciones.find(s => s.id === id) || previas.get(id)).titulo);
   const historial = actual.historial || [];
-  if (hayCambios) historial.unshift({ fecha, nuevas: titulos(nuevas), modificadas: titulos(modificadas), eliminadas: titulos(eliminadas) });
+  if (hayCambios) {
+    const entrada = { fecha, nuevas: titulos(nuevas), modificadas: titulos(modificadas), eliminadas: titulos(eliminadas) };
+    if (imagenesCambiadas.length) entrada.imagenesCambiadas = titulos(imagenesCambiadas);
+    historial.unshift(entrada);
+  }
 
   const salida = {
     fuente: {
@@ -100,12 +118,16 @@ function main() {
       actualizadoEn: hayCambios ? fecha : (actual.fuente?.actualizadoEn || fecha),
     },
     outbound: actual.outbound,
-    secciones: secciones.map(s => ({ ...s, ...clasificar(s) })),
+    imagenes,
+    secciones: secciones.map(s => ({ ...s, ...clasificar(s, actual.outbound) })),
     historial,
   };
   fs.writeFileSync(DESTINO, JSON.stringify(salida, null, 1) + '\n');
   console.log(`✓ crm-rules.json · ${secciones.length} secciones · revisado ${fecha}` +
-    (hayCambios ? ` · ${nuevas.length} nuevas, ${modificadas.length} modificadas, ${eliminadas.length} eliminadas` : ' · sin cambios'));
+    (hayCambios ? ` · ${nuevas.length} nuevas, ${modificadas.length} modificadas, ${eliminadas.length} eliminadas, ${imagenesCambiadas.length} con imágenes cambiadas` : ' · sin cambios'));
+  if (imagenesCambiadas.length) console.log('⚠ Imágenes cambiadas (hay que reemplazar el archivo y su interpretación a mano): ' + imagenesCambiadas.join(', '));
+  if (imagenesSinInterpretar.length) console.log('⚠ Secciones con imágenes sin interpretar: ' + imagenesSinInterpretar.join(', '));
+  if (referenciasHuerfanas.length) console.log('⚠ Ids del bloque outbound/imagenes que ya no existen en el documento: ' + referenciasHuerfanas.join(', '));
 }
 
 main();

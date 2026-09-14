@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-14T21:18:23Z">
+<meta name="app-version" content="2026-09-14T21:38:52Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -9253,7 +9253,7 @@ async function crmRulesLoad(){
   }
   return _crmRulesPromise;
 }
-const CRM_APLICA_LABEL={si:'Aplica a Outbound', referencia:'Regla de otro equipo'};
+const CRM_APLICA_LABEL={si:'Aplica a Outbound', referencia:'Regla de otro equipo', no:'No aplica a Outbound'};
 const _crmNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 function _crmFecha(iso){
   if(!iso) return '—';
@@ -9264,22 +9264,61 @@ function _crmResumen(texto){
   const t=(texto||'').split('\n').map(l=>l.replace(/^(## |- )/,'')).join(' ');
   return t.length>170 ? t.slice(0,170).replace(/\s+\S*$/,'')+'…' : t;
 }
-function _crmRenderTexto(texto){
+// Imágenes del documento (bloque "imagenes" de crm-rules.json, archivos en assets/crm-rules/): cada una
+// va después de la línea del texto que contiene su "despuesDe", comparando sin acentos ni comillas. Si la
+// línea cambió en el documento, la imagen no se pierde: se va al final de la sección.
+function _crmUbicarImagenes(lineas,imgs){
+  const limpio=t=>_crmNorm(t).replace(/[“”"«»]/g,'');
+  const pos=new Map(), inicio=[], sobrantes=[];
+  (imgs||[]).forEach(img=>{
+    if(img.alInicio){ inicio.push(img); return; }
+    const k=limpio(img.despuesDe||'');
+    const i=k?lineas.findIndex(l=>limpio(l).includes(k)):-1;
+    if(i<0) sobrantes.push(img); else { if(!pos.has(i)) pos.set(i,[]); pos.get(i).push(img); }
+  });
+  return {pos,inicio,sobrantes};
+}
+function _crmFigura(img){
+  const e=_histEsc;
+  return `<figure style="margin:12px 0 16px">
+      <img src="assets/crm-rules/${e(img.archivo)}" alt="${e(img.interpretacion.slice(0,140))}" loading="lazy" style="max-width:100%;height:auto;display:block;border:1px solid var(--gray-200);border-radius:8px">
+      <figcaption style="font-size:12.5px;color:var(--gray-500);line-height:1.55;margin-top:6px"><b>Qué muestra:</b> ${e(img.interpretacion)}</figcaption>
+    </figure>`;
+}
+function _crmRenderTexto(texto,imgs){
   const e=_histEsc; let html='', items=[];
   const cerrarLista=()=>{ if(items.length){ html+=`<ul style="margin:0 0 10px 18px">${items.map(i=>`<li style="margin-bottom:2px">${e(i)}</li>`).join('')}</ul>`; items=[]; } };
-  for(const linea of (texto||'').split('\n')){
-    if(linea.startsWith('- ')){ items.push(linea.slice(2)); continue; }
-    cerrarLista();
-    if(linea.startsWith('## ')) html+=`<h4 style="font-size:14px;font-weight:700;margin:16px 0 6px">${e(linea.slice(3))}</h4>`;
-    else if(linea.trim()) html+=`<p style="margin-bottom:10px">${e(linea)}</p>`;
-  }
+  const lineas=(texto||'').split('\n');
+  const {pos,inicio,sobrantes}=_crmUbicarImagenes(lineas,imgs);
+  html+=inicio.map(_crmFigura).join('');
+  lineas.forEach((linea,i)=>{
+    if(linea.startsWith('- ')) items.push(linea.slice(2));
+    else {
+      cerrarLista();
+      if(linea.startsWith('## ')) html+=`<h4 style="font-size:14px;font-weight:700;margin:16px 0 6px">${e(linea.slice(3))}</h4>`;
+      else if(linea.trim()) html+=`<p style="margin-bottom:10px">${e(linea)}</p>`;
+    }
+    if(pos.has(i)){ cerrarLista(); html+=pos.get(i).map(_crmFigura).join(''); }
+  });
   cerrarLista();
-  return html;
+  return html+sobrantes.map(_crmFigura).join('');
+}
+// Lo mismo en texto plano para Ninja: la interpretación entra en el lugar donde está la imagen.
+function _crmTextoConImagenes(texto,imgs){
+  const lineas=(texto||'').split('\n');
+  const {pos,inicio,sobrantes}=_crmUbicarImagenes(lineas,imgs);
+  const nota=img=>`[Imagen del documento — qué muestra: ${img.interpretacion}]`;
+  const out=inicio.map(nota);
+  lineas.forEach((l,i)=>{ out.push(l); (pos.get(i)||[]).forEach(img=>out.push(nota(img))); });
+  return out.concat(sobrantes.map(nota)).join('\n');
 }
 function crmRulesMatch(secciones,q){
   if(!q) return secciones;
   const n=_crmNorm(q);
-  return secciones.filter(s=>_crmNorm(s.titulo+' '+s.grupo+' '+s.texto).includes(n));
+  return secciones.filter(s=>{
+    const imgs=(_crmRules?.imagenes?.[s.id]||[]).map(i=>i.interpretacion).join(' ');
+    return _crmNorm(s.titulo+' '+s.grupo+' '+s.texto+' '+imgs).includes(n);
+  });
 }
 function wikiRenderCrm(q){
   const el=document.getElementById('wikiCrmSection'); if(!el) return;
@@ -9303,9 +9342,13 @@ function wikiRenderCrm(q){
       <div style="font-size:13px;color:var(--gray-500);line-height:1.6">${e(j.outbound.principio)}</div>
       <details style="margin-top:10px">
         <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--purple)">Excepciones de Outbound (${j.outbound.excepciones.length})</summary>
-        <ul style="margin:10px 0 0 18px;font-size:13px;line-height:1.6">${j.outbound.excepciones.map(x=>`<li style="margin-bottom:6px"><b>${e(x.titulo)}.</b> ${e(x.texto)}</li>`).join('')}</ul>
-        <div style="font-size:11px;color:var(--gray-400);margin-top:6px">Fuente: ${e(j.outbound.fuente)}</div>
+        <ul style="margin:10px 0 0 18px;font-size:13px;line-height:1.6">${j.outbound.excepciones.map(x=>`<li style="margin-bottom:6px"><b>${e(x.titulo)}.</b> ${e(x.texto)}${x.fuente?` <span style="font-size:11.5px;color:var(--gray-400)">(${e(x.fuente)})</span>`:''}</li>`).join('')}</ul>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:6px">Fuente: ${e(j.outbound.fuente)}, salvo donde se indica otra.</div>
       </details>
+      ${(j.outbound.interpretacionesConfirmadas||[]).length?`<details style="margin-top:8px">
+        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--purple)">Reglas confirmadas por la gerencia de Outbound (${j.outbound.interpretacionesConfirmadas.length})</summary>
+        <ul style="margin:10px 0 0 18px;font-size:13px;line-height:1.6">${j.outbound.interpretacionesConfirmadas.map(x=>`<li style="margin-bottom:6px"><b>${e(x.tema)}.</b> ${e(x.regla)}</li>`).join('')}</ul>
+      </details>`:''}
       <div style="font-size:11.5px;color:var(--gray-400);margin-top:12px">Revisado contra el documento oficial el ${_crmFecha(j.fuente.revisadoEn)} · última actualización del contenido: ${_crmFecha(j.fuente.actualizadoEn)} · <a href="${e(j.fuente.url)}" target="_blank" style="color:var(--purple);font-weight:600">Abrir documento oficial</a></div>
     </div>`:'';
   const grupos=[];
@@ -9331,6 +9374,8 @@ function wikiRenderCrm(q){
 window.wikiOpenCrmRule=function(id){
   const j=_crmRules, s=j?.secciones.find(x=>x.id===id); if(!s) return;
   const e=_histEsc, nota=j.outbound.notasPorSeccion?.[s.id];
+  const imgs=j.imagenes?.[s.id]||[], faltan=(s.imagenes||0)-imgs.length;
+  const confirmadas=(j.outbound.interpretacionesConfirmadas||[]).filter(x=>(x.secciones||[]).includes(s.id));
   document.getElementById('wikiArticlePopup')?.remove();
   const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='wikiArticlePopup';
   const aviso=t=>`<div style="background:var(--purple-light);color:var(--purple);border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px">${t}</div>`;
@@ -9342,10 +9387,12 @@ window.wikiOpenCrmRule=function(id){
     <div class="disc-popup-body" style="font-family:'Inter',sans-serif;font-size:13.5px;line-height:1.7">
       <div style="font-size:11px;color:var(--gray-400);margin-bottom:14px">Reglas de CRM${s.grupo&&s.grupo!==s.titulo?' · '+e(s.grupo):''} · ${CRM_APLICA_LABEL[s.aplicaOutbound]||''}${(s.equipos||[]).length?' · Equipos marcados: '+e(s.equipos.join(', ')):''}</div>
       ${s.aplicaOutbound==='referencia'?aviso('Esta regla es de otro equipo. A Outbound le sirve para saber qué pasa cuando le pasa o recibe un lead de ese equipo.'):''}
+      ${s.aplicaOutbound==='no'?aviso('🚫 No aplica a Outbound. '+e(j.outbound.seccionesNoAplican?.[s.id]||'')):''}
       ${nota?aviso('⚠️ '+e(nota)):''}
+      ${confirmadas.map(x=>aviso('✅ Confirmado por la gerencia de Outbound: '+e(x.regla))).join('')}
       ${s.mencionaOutbound?aviso('📌 Esta sección menciona a Outbound de forma explícita.'):''}
-      ${_crmRenderTexto(s.texto)}
-      ${s.imagenes?`<div style="font-size:12px;color:var(--gray-400);margin-top:8px">El documento original trae ${s.imagenes===1?'una imagen':s.imagenes+' imágenes'} en esta sección que no se muestra${s.imagenes===1?'':'n'} aquí.</div>`:''}
+      ${_crmRenderTexto(s.texto,imgs)}
+      ${faltan>0?`<div style="font-size:12px;color:var(--gray-400);margin-top:8px">El documento trae ${faltan===1?'una imagen más':faltan+' imágenes más'} en esta sección que todavía no se muestra${faltan===1?'':'n'} aquí.</div>`:''}
       <div style="border-top:1px solid var(--gray-200);margin-top:16px;padding-top:14px;font-size:12px;color:var(--gray-400)">Revisado contra el documento oficial el ${_crmFecha(j.fuente.revisadoEn)} · <a href="${e(j.fuente.url)}" target="_blank" style="color:var(--purple);font-weight:600">🔗 Abrir documento oficial</a> (requiere tu cuenta corporativa)</div>
     </div>
   </div>`;
@@ -17967,12 +18014,15 @@ CÓMO LEER obtener_desempeno_historico_icp — estas reglas viven aquí y no en 
 - Toda recomendación que salga de aquí va con su n y su bandera de confianza.
 
 CÓMO APLICAR LAS REGLAS DE CRM (consultar_reglas_crm):
-- Outbound se rige por las reglas de Direct Sales (DS). Una sección que dice "Aplica a Outbound" (regla general, de finanzas o que involucra a DS) aplica tal cual, salvo que una de las excepciones de Outbound que devuelve la herramienta diga otra cosa: ahí gana la excepción, y dilo.
-- Una sección "Regla de otro equipo" (PR, AM, Customer Success, MMC) no rige el día a día de Outbound. Úsala solo para explicar qué pasa cuando Outbound le pasa un lead a ese equipo o lo recibe de él.
-- Si la sección trae notaOutbound, repítela tal cual: es una duda abierta y no te toca resolverla.
-- Cita el nombre de la sección y la fecha en que se revisó el documento (revisadoEn). Si piden el texto exacto, da la URL del documento.
-- Si la regla no está escrita, dilo así: "El documento no lo cubre, y que no esté escrito no significa que esté permitido. Valídalo con tu TL." No rellenes con lo que suele pasar.
+- Primero revisa outbound.interpretacionesConfirmadas: son reglas ya confirmadas por la gerencia de Outbound. Si una cubre la duda, contesta con ella; manda sobre tu propia lectura del texto.
+- Outbound se rige por las reglas de Direct Sales (DS). Una sección que dice "Aplica a Outbound" aplica tal cual, salvo que una excepción de Outbound diga otra cosa: ahí gana la excepción, y dilo.
+- Cuando la duda involucra a otro equipo (AM, PR, MMC, Customer Success), mandan las reglas entre ese equipo y DS, NO el principio general de "la oportunidad es de quien la recibió primero". No contestes con ese principio sin haber leído esas secciones; si la herramienta no te las devolvió, vuelve a llamarla con el parámetro seccion.
+- Una sección "Regla de otro equipo" no rige el día a día de Outbound: úsala solo para explicar qué pasa cuando Outbound pasa o recibe un lead de ese equipo. Una sección "No aplica a Outbound" no se usa; si sale, dilo con su motivoNoAplica.
+- Si la sección trae notaOutbound, repítela tal cual.
+- Las imágenes del documento llegan como "[Imagen del documento — qué muestra: …]". Es la lectura del equipo: si contradice el texto, gana el texto.
+- Si los datos del caso no alcanzan para decidir, no decidas por el account: dile qué sección aplica y que lo valide con su TL. Si la regla no está escrita, dilo así: "El documento no lo cubre, y que no esté escrito no significa que esté permitido. Valídalo con tu TL." No rellenes con lo que suele pasar.
 - Nunca inventes porcentajes de split, plazos, montos ni nombres de responsables: solo los que vienen en el texto.
+- Termina SIEMPRE una respuesta de reglas con esta línea: "Revisa la regla completa: <url del documento> (sección: <título de la sección>)". El account tiene que poder ir al documento oficial.
 
 JERARQUÍA DE FUENTES para una duda técnica de Odoo: (1) documentación oficial vía leer_documentacion_odoo — es la única que te deja afirmar cómo funciona el producto; (2) el Banco de Información, para cómo lo vendemos en México y experiencia del equipo; (3) web_search, solo si las dos anteriores no lo cubren, y avisando que es externa. Si la documentación oficial y el Banco se contradicen, gana la documentación oficial y dilo.
 
@@ -18124,14 +18174,22 @@ async function ninjaBuscarWiki(queryText){
 // Reglas de CRM: misma fuente que la categoría del Banco de Información (crm-rules.json, ver crmRulesLoad).
 // La gente pregunta con sus palabras ("self", "split", "decomisión") y el documento usa otras
 // ("auto-suscripción", "división", "desmantelamiento"), así que se expanden sinónimos antes de puntuar.
-const CRM_STOPWORDS=new Set(['que','como','cual','cuales','cuando','donde','para','por','con','una','uno','unos','unas','los','las','del','este','esta','eso','esto','puedo','puede','pueden','tengo','tiene','hay','hace','hacer','debo','debe','sobre','regla','reglas','crm','odoo','outbound','entre','algo','mas','muy','sin','son','sus','les','nos','pasa','caso','quien','toca']);
+const CRM_STOPWORDS=new Set(['que','como','cual','cuales','cuando','donde','para','por','con','una','uno','unos','unas','los','las','del','este','esta','eso','esto','puedo','puede','pueden','tengo','tiene','hay','hace','hacer','debo','debe','sobre','regla','reglas','crm','odoo','outbound','entre','algo','mas','muy','sin','son','sus','les','nos','pasa','caso','quien','toca','oportunidad','oportunidades','cliente','clientes','lead','leads','trabajando','trabajar','misma','mismo','estoy','esta','ese','esa','yo','me']);
+// Siglas de equipo: se buscan como palabra completa ("am" no cuenta dentro de "cambio").
+const CRM_EQUIPOS={
+  am:['am','account manager','canal','partner'], ds:['ds','ventas directas','direct sales'],
+  pr:['pr','partnership','reclutamiento de partners'], cs:['cs','cst','customer success'], cst:['cst','customer success'],
+  csti:['csti'], cstd:['cstd'], mmc:['mmc','250 empleados','potencial mmc'], growth:['growth'],
+};
+const CRM_SIGLAS=new Set(['am','ds','pr','cs','cst','csti','cstd','mmc']);
 const CRM_SINONIMOS={
   self:['auto-suscripcion','autosuscripcion','self'], autosuscrip:['self','auto-suscripcion'],
   split:['split','division','dividir'], divis:['split'], dividi:['split','division'],
   decomision:['desmantelamiento','decomision','dado de baja'], desmantel:['decomision'],
   comision:['comision'],
   duplica:['duplicad','similar'], similar:['duplicad','similar leads'],
-  mmc:['mmc','250 empleados','potencial mmc'], empleado:['empleados','250','mmc'], grande:['250','mmc'],
+  empleado:['empleados','250','mmc'], grande:['250','mmc'],
+  notific:['notific','informar','avisar'], avis:['avis','informar','notific'], inform:['informar','notific'],
   socio:['partner'],
   reembols:['reembolso','devolucion'], devoluc:['reembolso'],
   pago:['pago','plazo','net30','net 30','enlace de pago'], pagar:['pago'], parcialidad:['parcialidades','ppd'],
@@ -18148,19 +18206,24 @@ const CRM_SINONIMOS={
   asignad:['asignad','asignacion'],
 };
 function crmRankSecciones(secciones,consulta){
-  const terms=_crmNorm(consulta).split(/[^a-z0-9]+/).filter(t=>t.length>=3&&!CRM_STOPWORDS.has(t));
+  // Las siglas de equipo tienen 2 letras: antes el filtro de longitud las tiraba y "AM me notificó que
+  // trabaja mi oportunidad" se buscaba sin "AM", así que caía en el principio general de duplicados.
+  const terms=_crmNorm(consulta).split(/[^a-z0-9]+/).filter(t=>CRM_EQUIPOS[t]||(t.length>=3&&!CRM_STOPWORDS.has(t)));
+  // Outbound se rige por DS: si la duda nombra a otro equipo, la regla que importa es la de ese equipo con DS.
+  if(terms.some(t=>CRM_EQUIPOS[t]&&t!=='ds') && !terms.includes('ds')) terms.push('ds');
   if(!terms.length) return [];
   const variantes=terms.map(t=>{
-    const v=new Set([t]);
+    const v=new Set(CRM_EQUIPOS[t]||[t]);
     for(const [k,syn] of Object.entries(CRM_SINONIMOS)) if(t.startsWith(k)) syn.forEach(x=>v.add(x));
     return [...v];
   });
+  const cuenta=(hay,v)=>CRM_SIGLAS.has(v) ? (hay.match(new RegExp('\\b'+v+'\\b','g'))||[]).length : hay.split(v).length-1;
   return secciones.map(s=>{
     const tit=_crmNorm(s.titulo), grp=_crmNorm(s.grupo), txt=_crmNorm(s.texto);
     let score=0, cubiertos=0;
     for(const vs of variantes){
       let g=0;
-      for(const v of vs){ if(tit.includes(v)) g+=6; if(grp.includes(v)) g+=2; g+=Math.min(txt.split(v).length-1,6); }
+      for(const v of vs){ if(cuenta(tit,v)) g+=6; if(cuenta(grp,v)) g+=2; g+=Math.min(cuenta(txt,v),6); }
       if(g>0) cubiertos++;
       score+=g;
     }
@@ -18176,16 +18239,22 @@ async function ninjaConsultarReglasCRM(input){
   try{ j=await crmRulesLoad(); }catch(e){ return {error:'No se pudieron cargar las Reglas de CRM: '+e.message}; }
   const base={
     fuente:{documento:j.fuente.titulo, url:j.fuente.url, revisadoEn:j.fuente.revisadoEn, actualizadoEn:j.fuente.actualizadoEn},
-    outbound:{principio:j.outbound.principio, excepciones:j.outbound.excepciones, fuente:j.outbound.fuente},
+    outbound:{principio:j.outbound.principio, excepciones:j.outbound.excepciones, fuente:j.outbound.fuente,
+      interpretacionesConfirmadas:j.outbound.interpretacionesConfirmadas||[]},
   };
-  const fmt=s=>({
-    id:s.id, titulo:s.titulo, grupo:s.grupo,
-    aplicaAOutbound:CRM_APLICA_LABEL[s.aplicaOutbound]||s.aplicaOutbound,
-    equiposMarcados:s.equipos, mencionaOutbound:!!s.mencionaOutbound,
-    notaOutbound:j.outbound.notasPorSeccion?.[s.id]||null,
-    // 8000 cubre la sección más larga completa (~7,300): una regla partida a la mitad es peor que ninguna.
-    texto:(s.texto||'').slice(0,8000)+(s.imagenes?`\n(En esta sección el documento original trae ${s.imagenes} imagen(es) que no están en este texto.)`:''),
-  });
+  const fmt=s=>{
+    const imgs=j.imagenes?.[s.id]||[], faltan=(s.imagenes||0)-imgs.length;
+    return {
+      id:s.id, titulo:s.titulo, grupo:s.grupo,
+      aplicaAOutbound:CRM_APLICA_LABEL[s.aplicaOutbound]||s.aplicaOutbound,
+      motivoNoAplica:j.outbound.seccionesNoAplican?.[s.id]||null,
+      equiposMarcados:s.equipos, mencionaOutbound:!!s.mencionaOutbound,
+      notaOutbound:j.outbound.notasPorSeccion?.[s.id]||null,
+      // 9000 cubre la sección más larga completa (~7,300) más la interpretación de sus imágenes: una regla
+      // partida a la mitad es peor que ninguna.
+      texto:_crmTextoConImagenes(s.texto,imgs).slice(0,9000)+(faltan>0?`\n(El documento trae ${faltan} imagen(es) más en esta sección sin interpretar.)`:''),
+    };
+  };
   let top=[];
   if(input.seccion){
     const k=_crmNorm(input.seccion);

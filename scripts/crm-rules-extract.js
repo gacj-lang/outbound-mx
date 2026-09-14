@@ -5,16 +5,20 @@
 // sesión, así que no se puede bajar con curl):
 //   https://docs.google.com/document/d/1hD0eI6A7WWH9XQWx7BInpER6J9fSQZnTvSLBkPzGeuo/mobilebasic
 //
-// Pegar este archivo completo en la consola (o en javascript_tool) y luego llamar:
-//   extraerReglasCRM()                          → solo huellas: liviano, sirve para saber si algo cambió
-//   extraerReglasCRM({texto:true})              → con el texto de todas las secciones
-//   extraerReglasCRM({texto:['id-1','id-2']})   → con el texto solo de esas secciones
+// Pegar este archivo completo en la consola (o en javascript_tool) y luego llamar (es async):
+//   await extraerReglasCRM()                          → solo huellas: liviano, sirve para saber si algo cambió
+//   await extraerReglasCRM({texto:true})              → con el texto de todas las secciones
+//   await extraerReglasCRM({texto:['id-1','id-2']})   → con el texto solo de esas secciones
 //
 // El resultado es la "captura" que entiende scripts/build-crm-rules.js.
 //
+// Imágenes: no se extraen (Google las sirve sin CORS, no se pueden copiar desde la página). Se anota su
+// "firma" (ancho x alto, en orden) para que el build detecte si alguna cambió y lo reporte; los archivos y
+// su interpretación viven en assets/crm-rules/ y en el bloque "imagenes" de crm-rules.json, a mano.
+//
 // OJO: limpiar(), slug(), palabras() y huella() tienen que ser IDÉNTICAS a las de build-crm-rules.js.
 // Si difieren, todas las secciones van a salir "modificadas" cada mes aunque nadie haya tocado el doc.
-function extraerReglasCRM(opts){
+async function extraerReglasCRM(opts){
   opts=opts||{};
   const limpiar=t=>String(t||'').replace(/​/g,'').replace(/[ \t ]+/g,' ').replace(/ *\n */g,'\n').replace(/\n{2,}/g,'\n').trim();
   const slug=t=>limpiar(t).replace(/^\d+(\.\d+)*\.?\s*/,'').normalize('NFD').replace(/[̀-ͯ]/g,'')
@@ -26,9 +30,12 @@ function extraerReglasCRM(opts){
 
   const root=document.querySelector('.doc-content');
   if(!root) throw new Error('No encontré .doc-content. ¿La pestaña está en /mobilebasic y con la sesión de Odoo iniciada?');
+  // Sin esto, una imagen que aún no termina de bajar da 0x0 y parecería "cambiada".
+  // Con tope de 3 s por imagen: en una pestaña de fondo decode() puede no resolver nunca y congelar la llamada.
+  await Promise.all([...root.querySelectorAll('img')].map(i=>Promise.race([i.decode().catch(()=>{}),new Promise(r=>setTimeout(r,3000))])));
 
   const crudas=[]; let grupo='', actual=null, vistoH1=false, intro=null;
-  const abrir=(titulo,grp)=>{ actual={titulo,grupo:grp,lineas:[],imagenes:0}; crudas.push(actual); };
+  const abrir=(titulo,grp)=>{ actual={titulo,grupo:grp,lineas:[],firmas:[]}; crudas.push(actual); };
   for(const el of root.children){
     const tag=el.tagName;
     if(tag==='P' && el.classList.contains('title')) continue;
@@ -37,12 +44,12 @@ function extraerReglasCRM(opts){
     if(tag==='H2'||tag==='H3'){ if(!txt||!vistoH1) continue; abrir(txt,grupo); continue; }
     if(!vistoH1){
       // Antes del primer título solo sirve la introducción (primer párrafo con texto); lo demás es el índice.
-      if(tag==='P' && txt && !intro) intro={titulo:'Objetivo y alcance del documento',grupo:'',lineas:[txt],imagenes:0};
+      if(tag==='P' && txt && !intro) intro={titulo:'Objetivo y alcance del documento',grupo:'',lineas:[txt],firmas:[]};
       continue;
     }
     if(!actual) continue;
-    const imgs=el.querySelectorAll?el.querySelectorAll('img').length:0;
-    if(tag==='IMG') actual.imagenes++; else actual.imagenes+=imgs;
+    const imgs=tag==='IMG'?[el]:[...(el.querySelectorAll?el.querySelectorAll('img'):[])];
+    imgs.forEach(i=>actual.firmas.push(i.naturalWidth+'x'+i.naturalHeight));
     if(tag==='H4'||tag==='H5'||tag==='H6'){ if(txt) actual.lineas.push('## '+txt); continue; }
     if(tag==='UL'||tag==='OL'){
       for(const li of el.querySelectorAll('li')){ const t=limpiar(li.innerText); if(t) actual.lineas.push('- '+t); }
@@ -57,7 +64,8 @@ function extraerReglasCRM(opts){
     let id=s===intro?'objetivo-y-alcance':slug(s.titulo);
     if(vistos[id]){ vistos[id]++; id=id+'-'+vistos[id]; } else vistos[id]=1;
     const texto=s.lineas.join('\n');
-    const out={id,grupo:s.grupo,titulo:s.titulo,huella:huella(s.titulo+'\n'+texto),palabras:palabras(texto).length,imagenes:s.imagenes};
+    const out={id,grupo:s.grupo,titulo:s.titulo,huella:huella(s.titulo+'\n'+texto),palabras:palabras(texto).length,
+      imagenes:s.firmas.length,imagenesFirma:s.firmas};
     if(opts.texto===true || (Array.isArray(opts.texto) && opts.texto.includes(id))) out.texto=texto;
     return out;
   });
