@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-14T21:38:52Z">
+<meta name="app-version" content="2026-09-15T18:06:49Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-14d "Agregar leads" ya descarga el CSV para Odoo: el botón principal guarda las empresas, les liga sus contactos y descarga el CSV con la plantilla de siempre (tags de industria incluidos, el Resumen sale de la ficha). El CSV queda en el historial y aparece en el detalle de cada empresa. "Solo guardar" sigue disponible y luego se puede bajar el CSV. · 2026-09-14c ➕ Agregar leads: para los leads que conseguiste fuera de la app. Una fila por lead (empresa, sitio, correo, contacto y teléfono), con "+ Agregar otra" o pegando filas de Excel, Sheets o un export de Lusha. Antes de guardar avisa en cada fila si la empresa ya existe y de quién es; al guardar, cada empresa queda a tu nombre con su contacto y recibe su ficha. Está en Empresas y en Generación de leads. · Si Lusha no conoce a la empresa, industria, empleados y LinkedIn se completan con Apollo (Panel de Manager: nueva columna "Empresas Apollo"). · 2026-09-14b Cada lead nuevo llega con ficha consultiva, señales y prioridad, y se guardan en la empresa: qué hace, dolores probables, apps de Odoo que le aplican, preguntas de descubrimiento y un gancho para abrir la llamada. La prioridad (Alta/Media/Baja) dice en qué se basa y con cuántos casos del histórico. Al guardar leads en el CRM ya se llenan industria, tamaño, LinkedIn y sitio donde estaban vacíos, también en empresas que ya existían (nunca se pisa lo que ya había). En el detalle de cada empresa hay un botón para crear o actualizar la ficha, las empresas dadas de alta a mano con sitio web la obtienen solas, y el Panel de Manager tiene un botón para completar las que ya estaban. · 2026-09-14a "Reintentar" ya devuelve todos los filtros de Apollo: sector, tecnologías, ingresos, fundación, crecimiento, días en el puesto, títulos, vacantes y correo verificado (antes se perdían y la búsqueda salía más abierta). En Más contactos, si Apollo y Lusha traen a la misma persona se juntan en un solo renglón y Lusha solo aporta lo que faltaba, como el teléfono. Lusha ya deja afinar por subindustria. Sin tope de créditos de Lusha: se mide por persona en el Panel de Manager. · 2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
+const APP_BUILD_STAMP='2026-09-15a Cadencias: el 2º correo de una cadencia ya no se confunde con una respuesta del prospecto. Antes la cadencia se detenía sola y la campana mostraba el propio correo del AE con código de la firma. {{nombre}} ya pone el primer nombre del contacto (salía "Hola ,"). El historial por empresa muestra y copia texto limpio. Panel de Manager: botón para reactivar las cadencias que se cortaron por este error. · 2026-09-14d "Agregar leads" ya descarga el CSV para Odoo: el botón principal guarda las empresas, les liga sus contactos y descarga el CSV con la plantilla de siempre (tags de industria incluidos, el Resumen sale de la ficha). El CSV queda en el historial y aparece en el detalle de cada empresa. "Solo guardar" sigue disponible y luego se puede bajar el CSV. · 2026-09-14c ➕ Agregar leads: para los leads que conseguiste fuera de la app. Una fila por lead (empresa, sitio, correo, contacto y teléfono), con "+ Agregar otra" o pegando filas de Excel, Sheets o un export de Lusha. Antes de guardar avisa en cada fila si la empresa ya existe y de quién es; al guardar, cada empresa queda a tu nombre con su contacto y recibe su ficha. Está en Empresas y en Generación de leads. · Si Lusha no conoce a la empresa, industria, empleados y LinkedIn se completan con Apollo (Panel de Manager: nueva columna "Empresas Apollo"). · 2026-09-14b Cada lead nuevo llega con ficha consultiva, señales y prioridad, y se guardan en la empresa: qué hace, dolores probables, apps de Odoo que le aplican, preguntas de descubrimiento y un gancho para abrir la llamada. La prioridad (Alta/Media/Baja) dice en qué se basa y con cuántos casos del histórico. Al guardar leads en el CRM ya se llenan industria, tamaño, LinkedIn y sitio donde estaban vacíos, también en empresas que ya existían (nunca se pisa lo que ya había). En el detalle de cada empresa hay un botón para crear o actualizar la ficha, las empresas dadas de alta a mano con sitio web la obtienen solas, y el Panel de Manager tiene un botón para completar las que ya estaban. · 2026-09-14a "Reintentar" ya devuelve todos los filtros de Apollo: sector, tecnologías, ingresos, fundación, crecimiento, días en el puesto, títulos, vacantes y correo verificado (antes se perdían y la búsqueda salía más abierta). En Más contactos, si Apollo y Lusha traen a la misma persona se juntan en un solo renglón y Lusha solo aporta lo que faltaba, como el teléfono. Lusha ya deja afinar por subindustria. Sin tope de créditos de Lusha: se mide por persona en el Panel de Manager. · 2026-09-12b Lusha ya es una fuente más del buscador (💼 Lusha), con sus propios filtros: tamaño, industria y área del contacto. Trae contacto con nombre y correo de trabajo garantizado; el teléfono lo ponen los directorios y Maps. Además, cuando buscas por directorio y Apollo no encuentra a nadie en esa empresa, Lusha entra de respaldo en vez de entregarte el lead sin contacto. · 2026-09-12a Buscador de leads: ahora manda el dato de la PERSONA. Cuando la app encuentra a alguien con nombre en la empresa, su correo y su teléfono directo pasan a ser los del lead, y el conmutador y el buzón general del directorio quedan en Notas. Si ese correo no verifica, se regresa solo al del directorio. · Panel de Manager: nueva tarjeta 💳 Gasto en Apollo y Lusha, por persona y por mes, para poder evaluar si el costo se justifica. · 2026-09-11f Arreglado el aviso de "hay una versión nueva": salía sin parar aunque ya tuvieras la última, y en la mayoría de las actualizaciones no salía nunca. Eran dos fechas que debían coincidir y se mantenían a mano. Ya hay un solo paso que las sella juntas. · Más contactos (2026-09-11e): "Ver quién más decide" le pregunta a Lusha quién manda en esa empresa (1 crédito por persona, máximo 5), el correo lo da Apollo (1 crédito) y el teléfono lo da Lusha (10); cada renglón dice lo que cuesta antes de que marques.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -2211,6 +2211,13 @@ function renderManagerPanel(){
           <button id="maintCoAsignadoBtn" class="btn btn-primary btn-full" onclick="maintBackfillEmpresaAsignado()">🏢 Aplicar asignado = creador (empresas sin asignado)</button>
         </div>
       </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><h3>🛠 Mantenimiento — cadencias cortadas por error</h3></div>
+        <div style="padding:2px 0">
+          <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:10px;line-height:1.5">Hasta el 15 de septiembre, el 2º correo de una cadencia se tomaba como "respuesta del prospecto": la cadencia se detenía sola y la campana mostraba el correo del propio AE. Esto encuentra esas cadencias, quita la respuesta falsa y las reactiva. Los correos que faltaban se recorren los días hábiles que estuvo detenida, para que no salgan de golpe. Antes de reactivar revisa el Gmail del AE: si el prospecto sí contestó mientras tanto, la deja detenida.</p>
+          <button id="maintFalseRepliesBtn" class="btn btn-primary btn-full" onclick="maintFalseReplies(false)">🔍 Analizar (vista previa, no escribe nada)</button>
+        </div>
+      </div>
     </div>`;
   loadManagerPanel();
   aiRenderConsumo();
@@ -2328,6 +2335,43 @@ window.maintBackfillEmpresaAsignado=async function(){
     showNotif(`Asignado corregido en ${ok}/${pending.length} empresa(s) ✓`,'success');
   } catch(e){ showNotif('Error: '+e.message,'error'); }
   finally{ if(btn){ btn.disabled=false; btn.textContent='🏢 Aplicar asignado = creador (empresas sin asignado)'; } }
+};
+
+// Cadencias que el detector de respuestas cortó por error (bug corregido el 2026-09-15). El trabajo
+// lo hace el backend (POST /cadences/maintenance/false-replies) porque cadenceReplies no se lee
+// desde el cliente. Vista previa primero; aplicar reactiva cadencias, así que va con confirmación.
+window.maintFalseReplies=async function(apply){
+  if(currentUserData?.role!=='manager'){ showNotif('Solo manager','error'); return; }
+  const btn=document.getElementById('maintFalseRepliesBtn');
+  if(btn){ btn.disabled=true; btn.textContent=apply?'Aplicando…':'Analizando…'; }
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/maintenance/false-replies',{method:'POST',headers:{'Authorization':`Bearer ${idToken}`,'Content-Type':'application/json'},body:JSON.stringify({apply:!!apply})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    const fmt=s=>{ try{return s?new Date(s).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—';}catch(e){return s||'—';} };
+    const row=(x,extra)=>`<div style="padding:8px 10px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;font-size:12.5px">
+        <strong>${_esc(x.empresa||'—')}</strong>${x.contacto?' · '+_esc(x.contacto):''} <span style="color:var(--gray-400)">(${_esc(x.leadEmail||'')})</span><br>
+        <span style="color:var(--gray-500)">AE: ${_esc(x.aeEmail||'—')} · detenida ${fmt(x.detenidaEl)} · ${extra}</span>
+      </div>`;
+    const reactivar=data.reactivar||[], soloDescartar=data.soloDescartar||[];
+    const envios=reactivar.reduce((n,x)=>n+(x.correosPendientes||0),0);
+    document.getElementById('maintReportPopup')?.remove();
+    const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='maintReportPopup';
+    overlay.innerHTML=`<div class="disc-popup-box" style="max-width:680px;max-height:80vh;overflow:auto">
+      <div class="disc-popup-header"><div class="disc-popup-title">${data.aplicado?'✅ Cadencias corregidas':'🔍 Cadencias cortadas por error — vista previa'}</div>
+        <button class="disc-copy-btn" onclick="document.getElementById('maintReportPopup').remove()">✕</button></div>
+      <div class="disc-popup-body">
+        <div style="font-size:13px;margin-bottom:10px">${reactivar.length} cadencia(s) ${data.aplicado?'reactivadas':'se reactivarían'} (${envios} correo(s) pendientes por mandar). ${soloDescartar.length} solo ${data.aplicado?'quedaron':'quedarían'} sin la respuesta falsa, detenidas.</div>
+        ${reactivar.map(x=>row(x,x.correosPendientes?`${x.correosPendientes} correo(s) pendientes, el próximo ${fmt(x.proximoEnvio)}`:'ya no le quedaban correos por mandar')).join('')||'<div style="font-size:13px;color:var(--gray-400)">Ninguna cadencia por reactivar.</div>'}
+        ${soloDescartar.length?`<div style="font-size:12px;font-weight:700;margin:12px 0 6px">Siguen detenidas</div>${soloDescartar.map(x=>row(x,_esc(x.motivo))).join('')}`:''}
+        ${!data.aplicado&&(reactivar.length||soloDescartar.length)?`<button class="btn btn-primary btn-full" style="margin-top:12px" onclick="if(confirm('Se van a reactivar ${reactivar.length} cadencia(s) y seguirán mandando correos a esos prospectos. ¿Aplicar?')){document.getElementById('maintReportPopup').remove();maintFalseReplies(true)}">Aplicar a estas ${reactivar.length+soloDescartar.length} cadencia(s)</button>`:''}
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    if(data.aplicado){ cadFetchReplies(); }
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='🔍 Analizar (vista previa, no escribe nada)'; } }
 };
 
 window.openEditUserPopup=async function(uid){
@@ -17733,11 +17777,22 @@ async function cadLoadCompanyHistory(companyKey){
 // Agrupado por cadenceId — pedido del usuario 2026-08-14: antes cada mensaje (enviado o respuesta)
 // tenía su propio botón de copiar, por separado. Para documentar en Odoo se quiere UN solo bloque
 // copiable con el hilo completo (todo lo enviado + la respuesta, en orden), no mensajes sueltos.
-// El texto copiado reusa item.html/item.subject tal cual (incluye el HTML crudo del correo, mismo
-// criterio "mejor esfuerzo" que ya tenía el copiado individual — no se intenta limpiar a texto).
+// El correo enviado y las respuestas guardadas antes del 2026-09-15 traen HTML (tablas de la firma,
+// estilos inline): se muestran y copian como texto, que es lo que sirve para documentar en Odoo.
+// DOMParser arma un documento inerte: no ejecuta scripts ni carga imágenes.
+function _cadHtmlToText(s){
+  s=String(s||'');
+  if(!/<[a-z][^>]*>/i.test(s)) return s;
+  try{
+    const d=new DOMParser().parseFromString(s.replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|tr|li|table|h[1-6]|blockquote)>/gi,'$&\n'),'text/html');
+    d.querySelectorAll('style,script,img').forEach(n=>n.remove());
+    return (d.body.textContent||'').replace(/[ \t]*\n[ \t]*/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  }catch(e){ return s; }
+}
 function cadHistoryTimelineHtml(timeline){
   if(!timeline.length) return '<div class="cdc-empty">Sin actividad de cadencias para esta empresa todavía.</div>';
   const fmt=s=>{ try{return new Date(s).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return s||'';} };
+  const txt=_cadHtmlToText;
   const groups=[]; const byId=new Map();
   timeline.forEach(item=>{
     const key=item.cadenceId||'sin-cadencia';
@@ -17746,19 +17801,19 @@ function cadHistoryTimelineHtml(timeline){
   });
   return groups.map(items=>{
     const threadText=items.map(item=>item.type==='enviado'
-      ? `ENVIADO (${fmt(item.at)}) — ${item.label||''}\nAsunto: ${item.subject||''}\n${item.html||''}`
-      : `RESPUESTA (${fmt(item.at)})${item.fromEmail?` — ${item.fromEmail}`:''}\n${item.bodyText||item.snippet||''}`
+      ? `ENVIADO (${fmt(item.at)}) — ${item.label||''}\nAsunto: ${item.subject||''}\n${txt(item.html)}`
+      : `RESPUESTA (${fmt(item.at)})${item.fromEmail?` — ${item.fromEmail}`:''}\n${txt(item.bodyText||item.snippet)}`
     ).join('\n\n---\n\n');
     const hasReply=items.some(x=>x.type==='respuesta');
     const itemsHtml=items.map((item,i)=>item.type==='enviado'
       ? `<div style="margin-bottom:10px;${i<items.length-1?'padding-bottom:10px;border-bottom:1px dashed var(--gray-200)':''}">
           <div style="font-size:12px;font-weight:700;color:var(--purple)">📤 Enviado — ${_esc(item.label||'')} <span style="font-weight:400;color:var(--gray-400)">· ${fmt(item.at)}</span></div>
           <div style="font-size:13px;font-weight:600;margin:4px 0">${_esc(item.subject||'')}</div>
-          <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap">${_esc(item.html||'')}</div>
+          <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap">${_esc(txt(item.html))}</div>
         </div>`
       : `<div style="margin-bottom:4px">
           <div style="font-size:12px;font-weight:700;color:var(--success)">📥 Respuesta${item.fromEmail?(' · '+_esc(item.fromEmail)):''} <span style="font-weight:400;color:var(--gray-400)">· ${fmt(item.at)}</span></div>
-          <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap">${_esc(item.bodyText||item.snippet||'')}</div>
+          <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap">${_esc(txt(item.bodyText||item.snippet))}</div>
         </div>`
     ).join('');
     return `<div class="card" style="padding:14px;margin-bottom:12px;border-left:3px solid ${hasReply?'var(--success)':'var(--purple)'}">
