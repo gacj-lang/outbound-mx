@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-15T22:13:42Z">
+<meta name="app-version" content="2026-09-15T22:30:14Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-15b Intromeet / Qcall: la pregunta de apertura de Situación ya no pregunta a qué se dedica la empresa (eso lo investigas antes). Ahora confirmas que entendiste su negocio y preguntas cuántas personas trabajan ahí y qué sistemas usan.';
+const APP_BUILD_STAMP='2026-09-15c Intromeet / Qcall: las preguntas de Dolor, Budget y Timeline están reescritas para leads en frío. Ya no dan por hecho que el prospecto anda buscando un sistema ni que tiene presupuesto: ahora se pregunta qué pagan hoy, quién decidiría un cambio y qué volvería esto prioridad.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -4160,24 +4160,24 @@ function dgBuildSections(){
 
     {id:'dolor',icon:'🎯',title:'Dolor',goal:'Que ELLOS prioricen lo que más les duele. Aquí nace el ángulo de la propuesta.',
       opener:'De todo lo que hemos platicado, ¿qué es lo que más les quita tiempo o les cuesta dinero hoy?',
-      tip:'No sugieras el dolor — deja que lo nombren con sus palabras.',
+      tip:'No sugieras el dolor: deja que lo nombren. En frío muchos dirán que todo funciona — regresa a lo que te contaron que hacen a mano o en Excel.',
       guide:[{t:'El dolor #1 en sus propias palabras'},{t:'Impacto',s:'dinero, tiempo o clientes'},{t:'Quién lo sufre y con qué frecuencia'},{t:'Qué han intentado para resolverlo'}],crit:[],
       dolorText:true, fields:[{one:{id:'dol-impacto',l:'Impacto cuantificado',ph:'Ej. $40,000/mes en reprocesos, o 20 hrs/semana'}}],
       chips:['Dolor alto','Impacto en ventas','Afecta varias áreas','Ya intentaron resolverlo','Urgente']},
 
-    {id:'budget',icon:'💰',title:'Budget',goal:(s.sinFines?'Cómo asignan presupuesto por fondo/proyecto y quién aprueba en el consejo.':'Cuánto invierten hoy y cómo deciden una compra de software.'),
-      opener:(s.sinFines?'¿Cómo asignan su presupuesto — por proyecto, fondo o donante — y quién lo aprueba en el consejo?':'¿Cuánto destinan hoy a sus sistemas, y cómo evalúan una nueva inversión de este tipo?'),
+    {id:'budget',icon:'💰',title:'Budget',goal:(s.sinFines?'Cómo asignan presupuesto por fondo/proyecto y quién aprueba en el consejo.':'Cuánto les cuesta hoy operar así y quién decidiría un cambio. En frío casi nunca hay presupuesto asignado: no lo des por hecho.'),
+      opener:(s.sinFines?'¿Cómo asignan su presupuesto — por proyecto, fondo o donante — y quién lo aprueba en el consejo?':'Hoy, entre licencias, despacho contable y desarrollos, ¿cuánto pagan al mes por sus sistemas? Y si decidieran cambiar algo, ¿quién tomaría esa decisión?'),
       tip:'Conecta el costo del dolor con la inversión: no es gasto, es ahorro.',
-      guide:[{t:(s.sinFines?'Presupuesto disponible por fondo/proyecto':'Cuánto invierten hoy en sistemas / mes')},{t:'Quién decide y quién aprueba'},{t:'Cómo es su proceso de compra/aprobación'}],crit:[],
+      guide:[{t:(s.sinFines?'Presupuesto disponible por fondo/proyecto':'Cuánto pagan hoy por sus sistemas / mes'),s:'licencias, despacho, desarrollos'},{t:'Quién decidiría un cambio y quién lo aprueba'},{t:'Cómo compran software',s:'¿ya lo han hecho antes?'}],crit:[],
       picks:[{group:'budget',label:'Estado del presupuesto',opts:['Tienen presupuesto','En evaluación','No definido','Pendiente aprobación']},{group:'decisor',label:'¿Con quién hablas?',opts:['El que decide','Influenciador','No sé quién decide']}],
       fields:[{one:{id:'bud-monto',l:(s.sinFines?'Presupuesto / fondo':'Presupuesto sistemas / mes'),sel:['—','Menos de $5,000 MXN','$5,000 – $15,000 MXN','$15,000 – $30,000 MXN','$30,000 – $60,000 MXN','$60,000 – $120,000 MXN','Más de $120,000 MXN','Aún no tienen monto definido']}},{one:{id:'eb-nombre',l:'Comprador económico — nombre y puesto',ph:'Ej. María López, Directora de Finanzas'}},{one:{id:'proceso-desc',l:'Proceso de aprobación/compra',ph:'Ej. cotización → visto bueno de Finanzas → firma del dueño'}}],
       quals:[{k:'champion',l:'Champion identificado'},{k:'criterios',l:'Criterios de decisión claros'}]},
 
-    {id:'timeline',icon:'📅',title:'Timeline',goal:'Define urgencia y siguientes pasos. Cierra con un compromiso concreto.',
-      opener:'¿Para cuándo les gustaría tener esto resuelto, y hay algo en el calendario que los presione a moverse?',
-      tip:'Sin fecha no hay urgencia. Acuerda un próximo paso antes de colgar.',
-      guide:[{t:'Para cuándo quieren resolverlo'},{t:'Qué evento los presiona',s:'temporada, auditoría, crecimiento'},{t:'Próximo paso acordado',s:'demo, propuesta, 2ª reunión'}],crit:[],
-      picks:[{group:'timeline',label:'¿Cuándo arrancan?',opts:['Menos de 1 mes','1 – 3 meses','3 – 6 meses','Más de 6 meses']},{group:'fit',label:'¿Odoo resuelve su caso?',opts:['Obvio — es perfecto para ellos','Probable — con algunos ajustes','Incierto — hay gaps importantes']},{group:'competencia',label:'¿Qué más está evaluando?',opts:['Solo Odoo','Otro ERP (SAP, NetSuite, etc.)','Sistema local (CONTPAQi, Aspel, etc.)','Seguir en Excel/manual','No sabemos aún']}],
+    {id:'timeline',icon:'📅',title:'Timeline',goal:'Encuentra qué haría que lo revisen ahora y cierra con un compromiso concreto.',
+      opener:'Sé que no estaban buscando un sistema hoy. Si lo que platicamos les hace sentido, ¿hay algo en los próximos meses que lo volvería prioridad? Por ejemplo una temporada fuerte, una auditoría o abrir otra sucursal.',
+      tip:'En frío la urgencia no viene sola: amárrala al dolor que te dieron. Acuerda la demo con fecha antes de colgar.',
+      guide:[{t:'Para cuándo lo podrían revisar en serio'},{t:'Qué lo volvería prioridad',s:'temporada, auditoría, crecimiento, cambio de sistema'},{t:'Próximo paso acordado',s:'demo, propuesta, 2ª reunión'}],crit:[],
+      picks:[{group:'timeline',label:'¿Cuándo podrían arrancar?',opts:['Menos de 1 mes','1 – 3 meses','3 – 6 meses','Más de 6 meses']},{group:'fit',label:'¿Odoo resuelve su caso?',opts:['Obvio — es perfecto para ellos','Probable — con algunos ajustes','Incierto — hay gaps importantes']},{group:'competencia',label:'¿Evalúan o evaluaron otra opción?',opts:['Solo Odoo','Otro ERP (SAP, NetSuite, etc.)','Sistema local (CONTPAQi, Aspel, etc.)','Seguir en Excel/manual','No sabemos aún']}],
       fields:[{one:{id:'tl-next',l:'Próximo paso',ph:'Ej. Demo el martes'}}]}
   ];
 }
