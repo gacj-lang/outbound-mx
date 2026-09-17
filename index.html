@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-15T22:30:14Z">
+<meta name="app-version" content="2026-09-17T21:27:25Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-15c Intromeet / Qcall: las preguntas de Dolor, Budget y Timeline están reescritas para leads en frío. Ya no dan por hecho que el prospecto anda buscando un sistema ni que tiene presupuesto: ahora se pregunta qué pagan hoy, quién decidiría un cambio y qué volvería esto prioridad.';
+const APP_BUILD_STAMP='2026-09-17a CSV para Odoo: la información extra ya no sale en seis columnas sueltas. El resumen, tus notas y los datos de DENUE, DIRIND, ALIMENTARIA, Apollo y Outscraper van juntos en el campo Notes, cada uno con su etiqueta. En el importador de Odoo mapeas una sola columna en vez de seis. En la app los sigues viendo y editando por separado en el detalle de cada fila.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -11915,8 +11915,9 @@ window.leadsAltaCerrar=function(){
 };
 
 // ── CSV para Odoo de los leads agregados a mano (pedido 2026-09-14) ──
-// Mismas columnas que el CSV del buscador (csvBuildText: la estructura es la plantilla de carga de Odoo
-// y no se toca) y las convenciones de una fila agregada a mano en el CSV Builder (csvAddRow): tag base
+// Mismas columnas que el CSV del buscador (csvBuildText, el único armador de la plantilla de carga
+// de Odoo: lo que cambie ahí cambia aquí solo) y las convenciones de una fila agregada a mano en
+// el CSV Builder (csvAddRow): tag base
 // Outbound-MX, el AE como vendedor y país México. Encima, los tags QS de industria con la misma
 // clasificación del buscador, y el Resumen sale de la ficha, sin gastar una llamada extra.
 function _laFilaCsv(f,co,{origen='',vendedor=''}={}){
@@ -14276,8 +14277,11 @@ window.pricingDeleteSelected=async function(){
 // CSV BUILDER
 // ══════════════════════════════════════════
 const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Email','phone','Tags_id','user_id','state_id','country_id'];
-// Columnas adicionales (además de Notes) — no son campos nativos de Odoo, son texto consolidado
-// para que el AE decida en el importador de Odoo si las mapea a Notas u otro campo:
+// Bloques de información extra. Hasta 2026-09-17 salían como una columna cada uno y el AE tenía
+// que mapear seis columnas a mano en el importador de Odoo; a pedido del equipo ahora los seis se
+// funden en el único campo Notes al exportar (csvNotasUnificadas). DENTRO de la app siguen siendo
+// campos separados —drawer de la tabla, historial, re-enriquecimiento, sync al CRM—: separados se
+// editan y se vuelven a llenar por fuente; juntos solo se leen. Qué trae cada uno:
 // - datos_denue: se llena cuando la fuente primaria NO fue DENUE y hubo match contra DENUE.
 // - datos_dirind: se llena cuando la fuente primaria NO fue DIRIND y hubo match contra DIRIND.
 // - datos_alimentaria: igual, contra el directorio ALIMENTARIA 2026 (industria alimentaria).
@@ -14722,7 +14726,7 @@ function csvRenderResultadosTab(content){
                 <input type="radio" name="csvSearchFuente" id="csvSearchFuenteLusha" value="lusha" onchange="csvOnFuenteChange()"> 💼 Lusha
               </label>
             </div>
-            <span id="csvSearchFuenteHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE, DIRIND y ALIMENTARIA — si hay coincidencia, se agregan esas columnas.</span>
+            <span id="csvSearchFuenteHint" style="font-size:11px;color:var(--gray-400);display:block;margin-top:6px">Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE, DIRIND y ALIMENTARIA — si hay coincidencia, esos datos se suman a las notas del CSV.</span>
           </div>
 
           <details class="csv-ai-details" style="border:1.5px solid var(--purple);border-radius:12px;padding:12px 16px;margin-bottom:18px;background:var(--purple-light)">
@@ -15114,7 +15118,7 @@ window.csvOnFuenteChange=function(){
     if(soloMx&&paisSel.value!=='MX'){ paisSel.value='MX'; csvRenderEstadoChips(); }
   }
   const HINTS={
-    apollo:'Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE y DIRIND — si hay coincidencia, se agregan las columnas DATOS DENUE / DATOS DIRIND.',
+    apollo:'Apollo: base global, contacto con nombre garantizado. Cada lead se cruza automáticamente contra DENUE y DIRIND — si hay coincidencia, esos datos se suman a las notas del CSV.',
     denue:'DENUE: directorio público de México (INEGI), teléfono y correo corporativo garantizados. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
     dirind:'DIRIND: directorio impreso Proveedores Industriales 2023 (5,256 empresas), teléfono y correo del propio anuncio. Cada lead se cruza automáticamente contra Apollo para intentar completar el nombre del contacto — si no se encuentra, el lead se entrega igual sin contacto.',
     alimentaria:'ALIMENTARIA: directorio impreso de la industria alimentaria 2026 (4,026 empresas, 3,890 con correo y teléfono del propio anuncio). Filtra por sección (fabricante de alimentos, insumos, maquinaria, empaque, servicios) y categoría. Cada lead se cruza automáticamente contra Apollo para completar el nombre del contacto.',
@@ -16863,10 +16867,26 @@ window.csvAddRow=function(){
   csvRenderTable();
 };
 let _csvSessionId=null;   // sesión CSV actual (para actualizar en vez de duplicar)
+// Toda la información extra de una fila en UN solo texto, el que va al campo Notes del CSV
+// (pedido del equipo 2026-09-17). Un bloque por dato, cada uno con su etiqueta y separados por un
+// renglón en blanco: así se lee ordenado dentro de la nota en Odoo aunque un bloque traiga saltos
+// de línea propios. El resumen va primero porque es lo que el AE lee de un vistazo al abrir el
+// lead; los bloques vacíos no se escriben (nada de etiquetas huérfanas). Los saltos se normalizan
+// a \n: el \r\n queda reservado al fin de registro del CSV, y un bloque que trajera el suyo
+// propio partiría el renglón en dos.
+function csvNotasUnificadas(r){
+  const limpio=v=>String(v==null?'':v).replace(/\r\n?/g,'\n').trim();
+  const bloques=[
+    ['RESUMEN', r.resumen],
+    ['NOTAS', r.notes],
+    ...CSV_EXTRA_COLUMNS.filter(c=>c.key!=='resumen').map(c=>[c.label, r[c.key]]),
+  ];
+  return bloques.map(([etiqueta,valor])=>{ const t=limpio(valor); return t?`${etiqueta}: ${t}`:''; }).filter(Boolean).join('\n\n');
+}
 function csvBuildText(rows){
-  const headers=[...CSV_COLUMNS,'Notes',...CSV_EXTRA_COLUMNS.map(c=>c.label)];
-  const esc=v=>'"'+(v||'').replace(/"/g,'""')+'"';
-  return [headers.join(','),...rows.map(r=>[...CSV_COLUMNS.map(c=>esc(r[c]||'')),esc(r.notes||''),...CSV_EXTRA_COLUMNS.map(c=>esc(r[c.key]||''))].join(','))].join('\r\n');
+  const headers=[...CSV_COLUMNS,'Notes'];
+  const esc=v=>'"'+String(v==null?'':v).replace(/\r\n?/g,'\n').replace(/"/g,'""')+'"';
+  return [headers.join(','),...rows.map(r=>[...CSV_COLUMNS.map(c=>esc(r[c])),esc(csvNotasUnificadas(r))].join(','))].join('\r\n');
 }
 // Nomenclatura corta: gram-año-mes-día-hora-minuto-fuente. Para búsquedas de la app, el campo
 // fuente trae el nombre de consulta del backend ("App Outbound · gram_YYYY-MM-DD HH:MM_seq") —
@@ -16946,7 +16966,10 @@ window.csvDownloadSaved=async function(id){
   try{
     const snap=await getDoc(doc(db,'csvSessions',id)); if(!snap.exists()){ showNotif('Documento no encontrado','error'); return; }
     const r=snap.data();
-    csvTriggerDownload(r.csvText||csvBuildText(r.rows||[]), csvFileName(r.fuente, r.rows));
+    // Se re-arma desde las filas en vez de servir el csvText guardado: así una sesión creada antes
+    // del 2026-09-17 también se descarga con la información extra ya unificada en Notes. El csvText
+    // guardado queda de respaldo por si un documento viejo no trae filas.
+    csvTriggerDownload(r.rows?.length?csvBuildText(r.rows):(r.csvText||''), csvFileName(r.fuente, r.rows));
     showNotif('CSV descargado ✓','success');
   }catch(e){ showNotif('Error: '+e.message,'error'); }
 };
