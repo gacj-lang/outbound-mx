@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-17T21:27:25Z">
+<meta name="app-version" content="2026-09-17T23:18:03Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-17a CSV para Odoo: la información extra ya no sale en seis columnas sueltas. El resumen, tus notas y los datos de DENUE, DIRIND, ALIMENTARIA, Apollo y Outscraper van juntos en el campo Notes, cada uno con su etiqueta. En el importador de Odoo mapeas una sola columna en vez de seis. En la app los sigues viendo y editando por separado en el detalle de cada fila.';
+const APP_BUILD_STAMP='2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -2595,7 +2595,11 @@ window.savePexelsKey=async function(){
 
 // ══════════════════════════════════════════
 // MÉTRICAS — Forecast (objetivo vs. logrado), Llamadas, Actividad semanal y Tablero de KPIs
-// Alcance por rol: manager=todo · tl=su equipo (tlId) + lo suyo · ae=solo lo suyo (aeUid).
+// Alcance de LECTURA por rol: manager=todo · tl=su equipo (tlId) + lo suyo · ae=solo lo suyo (aeUid).
+// Alcance de ESCRITURA (2026-09-17): el mismo. Manager y TL capturan y corrigen a nombre de otra
+// persona con el selector "Capturando para" y los botones de cada renglón del histórico; el AE
+// sigue escribiendo solo sobre lo suyo. Todo write deja sello (updatedByUid/Name/Gram + updatedAt)
+// y el histórico lo muestra cuando quien editó no es el dueño del registro.
 // Colecciones: forecastRecords (1 doc por account+mes) y metActivityRecords (1 doc por
 // account+semana, con intromeets/demos/llamadas/llamadas conectadas), mismo patrón de scoping
 // por rol que discoveryRecords/analytics.
@@ -2624,6 +2628,11 @@ const _metState = {
   range:'month',        // 'week' = semana laboral L–V · 'month' = mes completo
   month:'', weekRef:'', // YYYY-MM · YYYY-MM-DD (cualquier día de la semana; se ajusta al lunes)
   account:'', tl:'',
+  // captureUid: de quién es el registro que los formularios escriben (no necesariamente el tuyo).
+  // captureWeek: la semana que los formularios de Llamadas y Actividad están capturando — vive
+  // aparte de weekRef (el filtro de la tabla) para poder corregir una semana vieja sin perder de
+  // vista el rango que estás mirando.
+  captureUid:'', captureWeek:'',
   forecasts:[], activities:[], people:[], tls:[], errors:[]
 };
 
@@ -2655,9 +2664,91 @@ function _metBandColor(p){ return p>=90?'#2e7d32':p>=70?'#b26a00':'#c62828'; }
 // traen name/gram/tlId, así que todo lo que se escribe pasa por aquí.
 function _metClean(obj){ const o={}; Object.entries(obj).forEach(([k,v])=>{ o[k]=(v===undefined)?null:v; }); return o; }
 function _metMyUid(){ return currentUserData?.uid || currentUser?.uid || null; }
-function _metErrMsg(e){
-  if(e?.code==='permission-denied'||/insufficient permissions/i.test(e?.message||''))
-    return 'Firestore rechazó la operación (permission-denied). Falta la regla de seguridad de esta colección.';
+
+// ── Capturar y corregir a nombre de otra persona (pedido 2026-09-17) ──────────
+// Hasta hoy los tres formularios escribían SIEMPRE sobre el doc de quien tenía la sesión: el
+// manager veía a todo el equipo pero no podía corregir un solo número, y un dato mal capturado se
+// quedaba mal. Ahora manager y TL eligen a quién le capturan, corrigen cualquier renglón del
+// histórico y pueden eliminarlo. El AE no ve nada de esto: sigue escribiendo solo sobre lo suyo.
+// Alcance: manager = todos · TL = quienes le reportan (tlId) + él mismo · AE = él mismo.
+// El permiso se valida aquí Y en la regla de Firestore — esto es comodidad de UI, no seguridad.
+function _metPuedeDelegar(){ const r=currentUserData?.role; return r==='manager'||r==='tl'; }
+function _metPuedeEditarA(uid){
+  const me=currentUserData||{}, myUid=_metMyUid();
+  if(!uid||!myUid) return false;
+  if(uid===myUid) return true;
+  if(me.role==='manager') return true;
+  if(me.role==='tl') return ((_metState.people||[]).find(p=>p.uid===uid)?.tlId||null)===myUid;
+  return false;
+}
+function _metPersona(uid){ return (_metState.people||[]).find(p=>p.uid===uid)||null; }
+function _metNombre(uid){
+  const p=_metPersona(uid);
+  if(p) return p.name||p.gram||'Sin nombre';
+  return uid===_metMyUid()?(currentUserData?.name||currentUserData?.gram||'ti'):'—';
+}
+// Personas a las que puedo capturarles, yo siempre primero. Se excluyen otros managers: el tablero
+// de KPIs tampoco los cuenta, no tienen cuota propia que capturar.
+function _metCaptureOptions(){
+  const myUid=_metMyUid();
+  const yo=_metPersona(myUid)||{uid:myUid,name:currentUserData?.name,gram:currentUserData?.gram};
+  const otros=(_metState.people||[])
+    .filter(p=>p.uid&&p.uid!==myUid&&p.role!=='manager'&&_metPuedeEditarA(p.uid))
+    .sort((a,b)=>(a.name||a.gram||'').localeCompare(b.name||b.gram||'','es'));
+  return [yo,...otros];
+}
+// El uid destino, siempre revalidado: si el rol cambió o la persona ya no está en el alcance,
+// la captura regresa sola a uno mismo en vez de escribir donde no debe.
+function _metCaptureUid(){
+  const uid=_metState.captureUid||_metMyUid();
+  return _metPuedeEditarA(uid)?uid:_metMyUid();
+}
+// Barra "Capturando para" arriba de cada formulario. Un AE no la ve (solo se captura a sí mismo).
+// Cuando el destino NO eres tú se pinta en ámbar: capturar sobre la cuenta equivocada es el error
+// fácil de cometer y caro de encontrar.
+function _metCaptureSelect(){
+  if(!_metPuedeDelegar()) return '';
+  const uid=_metCaptureUid(), myUid=_metMyUid(), ajeno=uid!==myUid;
+  const opts=_metCaptureOptions().map(p=>`<option value="${p.uid}" ${p.uid===uid?'selected':''}>${p.uid===myUid?'Yo · ':''}${p.name||p.gram||'Sin nombre'}</option>`).join('');
+  return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;border-radius:8px;background:${ajeno?'#fff8e6':'var(--gray-50)'};border:1px solid ${ajeno?'#FBB130':'var(--gray-100)'}">
+    <label style="font-size:12.5px;font-weight:600;color:var(--gray-700);white-space:nowrap">Capturando para</label>
+    <select class="input" style="max-width:240px" onchange="metSetCaptureUid(this.value)">${opts}</select>
+    ${ajeno?`<span style="font-size:12px;color:#8a6100">Lo que guardes aquí queda en el registro de ${_metNombre(uid)}, con tu nombre como quien lo editó.</span>`:''}
+  </div>`;
+}
+// Sello de auditoría: quién tocó el registro por última vez. Sin esto, a un AE le cambian su número
+// y no hay forma de saber quién ni cuándo.
+function _metAudit(){
+  const me=currentUserData||{};
+  return {updatedByUid:_metMyUid(), updatedByName:me.name||null, updatedByGram:me.gram||null, updatedAt:serverTimestamp()};
+}
+// Marca bajo el nombre en las tablas cuando el registro lo tocó alguien que no es su dueño.
+function _metEditadoPor(r){
+  if(!r?.updatedByUid||r.updatedByUid===r.aeUid) return '';
+  return `<div style="font-size:10.5px;color:#8a6100">✏️ Editado por ${r.updatedByGram||r.updatedByName||'otra persona'}</div>`;
+}
+// Botones de corregir/eliminar de cada renglón del histórico. Solo para quien puede delegar y solo
+// sobre los registros dentro de su alcance.
+function _metRowActions(r,fnEditar,fnEliminar){
+  if(!_metPuedeDelegar()) return '';
+  if(!_metPuedeEditarA(r.aeUid)) return '<div></div>';
+  const btn='background:none;border:1px solid var(--gray-200);border-radius:6px;cursor:pointer;font-size:12px;width:28px;height:26px;padding:0';
+  return `<div style="display:flex;gap:4px;justify-content:flex-end">
+    <button style="${btn}" title="Corregir este registro" onclick="${fnEditar}('${r.id}')">✏️</button>
+    <button style="${btn};border-color:#f2c1bd" title="Eliminar este registro" onclick="${fnEliminar}('${r.id}')">🗑️</button>
+  </div>`;
+}
+window.metSetCaptureUid=function(uid){ _metState.captureUid=uid||_metMyUid(); metRenderBody(); };
+window.metSetCaptureWeek=function(v){ _metState.captureWeek=v||_metISO(new Date()); metRenderResults(); };
+function _metErrMsg(e,destino){
+  if(e?.code==='permission-denied'||/insufficient permissions/i.test(e?.message||'')){
+    // Escribir sobre el registro de otra persona necesita que la regla de Firestore autorice a
+    // manager y TL, no solo al dueño (aeUid). Es el permission-denied fácil de confundir con
+    // "falta la colección", así que se nombra aparte.
+    return (destino&&destino!==_metMyUid())
+      ? `Firestore no te dejó escribir en el registro de ${_metNombre(destino)} (permission-denied). La regla de esta colección todavía solo autoriza al dueño: falta permitir manager y TL.`
+      : 'Firestore rechazó la operación (permission-denied). Falta la regla de seguridad de esta colección.';
+  }
   return e?.message||String(e);
 }
 
@@ -2665,6 +2756,8 @@ async function renderMetricas(){
   const content=document.getElementById('moduleContent');
   if(!_metState.month) _metState.month=_metMonthKey(new Date());
   if(!_metState.weekRef) _metState.weekRef=_metISO(new Date());
+  if(!_metState.captureWeek) _metState.captureWeek=_metISO(new Date());
+  if(!_metState.captureUid) _metState.captureUid=_metMyUid();
   content.innerHTML=`
     <div style="max-width:1100px;margin:0 auto;padding:24px">
       <div class="page-header" style="margin-bottom:16px"><h2>🎯 Métricas</h2><p>Forecast por account (objetivo vs. logrado), llamadas, actividad semanal y tablero de KPIs del mes.</p></div>
@@ -2743,6 +2836,9 @@ async function metLoadAll(){
 window.metSetRange=function(r){ _metState.range=r; metRenderBody(); };
 window.metSetFilter=function(field,value){
   _metState[field]=value;
+  // Elegir una cuenta en el filtro también apunta ahí la captura: quien filtra a una persona es
+  // justamente porque va a revisar o corregir lo suyo. Limpiar el filtro la regresa a uno mismo.
+  if(field==='account') _metState.captureUid=(value&&_metPuedeEditarA(value))?value:_metMyUid();
   // El formulario de Forecast se precarga con el mes elegido, así que ese sí se redibuja entero.
   if(_metState.tab==='forecast') metRenderBody(); else metRenderResults();
 };
@@ -2823,8 +2919,10 @@ function _metMetaSufijo(nAcc){ return nAcc>1?` <span style="color:var(--gray-400
 // ── Pestaña Forecast ──────────────────────────────────────────────────────────
 function metRenderForecast(el){
   const myUid=_metMyUid();
+  const destino=_metCaptureUid(), ajeno=destino!==myUid;
   const month=_metState.month;
-  const mine=_metState.forecasts.find(r=>r.aeUid===myUid && r.month===month);
+  // 'mine' dejó de ser "lo mío": es el registro de la persona a la que le estoy capturando.
+  const mine=_metState.forecasts.find(r=>r.aeUid===destino && r.month===month);
   const rows=_metState.forecasts.filter(r=>{
     if(_metState.account && r.aeUid!==_metState.account) return false;
     if(_metState.tl && r.tlId!==_metState.tl) return false;
@@ -2833,8 +2931,9 @@ function metRenderForecast(el){
 
   const objetivoCard=`
     <div class="card" style="padding:20px;margin-bottom:16px">
-      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">🎯 Tu objetivo — ${_metMonthLabel(month)}</h3>
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">🎯 ${ajeno?`Objetivo de ${_metNombre(destino)}`:'Tu objetivo'} — ${_metMonthLabel(month)}</h3>
       <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Se fija idealmente el día 15 del mes anterior (regla 15-15).</p>
+      ${_metCaptureSelect()}
       <div class="form-grid-2">
         <div class="form-group"><label>Objetivo MRR (Mex$)</label><input type="number" id="metFcTargetMRR" class="input" value="${mine?.targetMRR??''}" placeholder="Ej. ${MET_KPI.MRR_MES}"></div>
         <div class="form-group"><label>Objetivo NRR (Mex$)</label><input type="number" id="metFcTargetNRR" class="input" value="${mine?.targetNRR??''}" placeholder="Ej. ${MET_KPI.NRR_MES}"></div>
@@ -2847,7 +2946,7 @@ function metRenderForecast(el){
   // truena sin regla de Firestore, en la práctica nunca se veía.
   const logradoCard=`
     <div class="card" style="padding:20px;margin-bottom:16px">
-      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">✅ Lo logrado — ${_metMonthLabel(month)}</h3>
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">✅ Lo logrado${ajeno?` de ${_metNombre(destino)}`:''} — ${_metMonthLabel(month)}</h3>
       <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Puedes actualizarlo durante el mes y cerrarlo al final: el tablero de KPIs lo usa tal cual. Alimenta la comparativa de abajo y la certeza de tu forecast.</p>
       <div class="form-grid-2">
         <div class="form-group"><label>Logrado MRR (Mex$)</label><input type="number" id="metActualMRR_self" class="input" value="${mine?.actualMRR??''}" placeholder="Al cierre de mes"></div>
@@ -2859,22 +2958,24 @@ function metRenderForecast(el){
 
   const comparativa=mine?_metComparativaCard(mine):'';
 
-  const grid='display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr .9fr;gap:8px;align-items:center';
+  const acc=_metPuedeDelegar();
+  const grid=`display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr .9fr${acc?' 76px':''};gap:8px;align-items:center`;
   const varTag=v=>v===null?'<span style="color:var(--gray-400)">—</span>':`<span style="color:${v>=0?'#2e7d32':'#c62828'};font-weight:700">${v>=0?'+':''}${v}%</span>`;
   const tableRows=rows.map(r=>{
     const varMRR=(r.actualMRR!=null&&r.targetMRR)?Math.round((r.actualMRR-r.targetMRR)/r.targetMRR*100):null;
     const varNRR=(r.actualNRR!=null&&r.targetNRR)?Math.round((r.actualNRR-r.targetNRR)/r.targetNRR*100):null;
     return `<div style="${grid};padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;font-size:13px">
-      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">${_metMonthLabel(r.month)}</div></div>
+      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">${_metMonthLabel(r.month)}</div>${_metEditadoPor(r)}</div>
       <div>${_metMXN(r.targetMRR)}</div><div>${_metMXN(r.actualMRR)} ${varTag(varMRR)}</div>
       <div>${_metMXN(r.targetNRR)}</div><div>${_metMXN(r.actualNRR)} ${varTag(varNRR)}</div>
       <div style="font-size:11px;color:var(--gray-400)">${r.actualSetAt||r.actualMRR!=null?'Cerrado':'Abierto'}</div>
+      ${_metRowActions(r,'metEditForecast','metDeleteForecast')}
     </div>`;
   }).join('');
   const header=`<div style="${grid};padding:0 12px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400)">
-    <div>Account / Mes</div><div>Objetivo MRR</div><div>Logrado MRR</div><div>Objetivo NRR</div><div>Logrado NRR</div><div>Estatus</div></div>`;
+    <div>Account / Mes</div><div>Objetivo MRR</div><div>Logrado MRR</div><div>Objetivo NRR</div><div>Logrado NRR</div><div>Estatus</div>${acc?'<div></div>':''}</div>`;
   el.innerHTML=objetivoCard+logradoCard+comparativa
-    +_aSection('📊 Histórico de forecast',`<div style="overflow-x:auto"><div style="min-width:720px">${header}${tableRows||'<div class="cdc-empty">Sin registros para este filtro</div>'}</div></div>`);
+    +_aSection('📊 Histórico de forecast',`<div style="overflow-x:auto"><div style="min-width:${acc?800:720}px">${header}${tableRows||'<div class="cdc-empty">Sin registros para este filtro</div>'}</div></div>`);
 }
 
 function _metComparativaCard(r){
@@ -2901,44 +3002,53 @@ function _metComparativaCard(r){
 }
 
 window.metSaveForecastTarget=async function(){
-  const myUid=_metMyUid();
-  if(!db||!myUid){ showNotif('Sin sesión activa','error'); return; }
+  const destino=_metCaptureUid();
+  if(!db||!destino){ showNotif('Sin sesión activa','error'); return; }
+  if(!_metPuedeEditarA(destino)){ showNotif('No puedes capturar a nombre de esta persona','error'); return; }
   const month=_metState.month;
   const targetMRR=parseFloat(document.getElementById('metFcTargetMRR')?.value)||0;
   const targetNRR=parseFloat(document.getElementById('metFcTargetNRR')?.value)||0;
   if(!month){ showNotif('Selecciona el mes','error'); return; }
   try{
-    const ref=await _metEnsureForecastDoc(month);
-    await updateDoc(doc(db,'forecastRecords',ref),_metClean({targetMRR,targetNRR,targetSetAt:serverTimestamp()}));
-    showNotif('Objetivo guardado ✓','success');
+    const ref=await _metEnsureForecastDoc(month,destino);
+    await updateDoc(doc(db,'forecastRecords',ref),_metClean({targetMRR,targetNRR,targetSetAt:serverTimestamp(),..._metAudit()}));
+    showNotif(_metOkMsg('Objetivo guardado',destino),'success');
     await metLoadAll();
-  }catch(e){ showNotif('Error: '+_metErrMsg(e),'error'); }
+  }catch(e){ showNotif('Error: '+_metErrMsg(e,destino),'error'); }
 };
 
 window.metSaveForecastActual=async function(){
-  const myUid=_metMyUid();
-  if(!db||!myUid){ showNotif('Sin sesión activa','error'); return; }
+  const destino=_metCaptureUid();
+  if(!db||!destino){ showNotif('Sin sesión activa','error'); return; }
+  if(!_metPuedeEditarA(destino)){ showNotif('No puedes capturar a nombre de esta persona','error'); return; }
   const month=_metState.month;
   const actualMRR=parseFloat(document.getElementById('metActualMRR_self')?.value)||0;
   const actualNRR=parseFloat(document.getElementById('metActualNRR_self')?.value)||0;
   try{
-    const ref=await _metEnsureForecastDoc(month);
-    await updateDoc(doc(db,'forecastRecords',ref),_metClean({actualMRR,actualNRR,actualSetAt:serverTimestamp()}));
-    showNotif('Logrado registrado ✓','success');
+    const ref=await _metEnsureForecastDoc(month,destino);
+    await updateDoc(doc(db,'forecastRecords',ref),_metClean({actualMRR,actualNRR,actualSetAt:serverTimestamp(),..._metAudit()}));
+    showNotif(_metOkMsg('Logrado registrado',destino),'success');
     await metLoadAll();
-  }catch(e){ showNotif('Error: '+_metErrMsg(e),'error'); }
+  }catch(e){ showNotif('Error: '+_metErrMsg(e,destino),'error'); }
 };
 
+// El aviso dice de quién fue el registro cuando no es el propio: guardar sobre otra persona nunca
+// debe verse igual que guardar lo tuyo.
+function _metOkMsg(txt,uid){ return uid===_metMyUid()?txt+' ✓':`${txt} en ${_metNombre(uid)} ✓`; }
+
 // Un solo doc por account+mes. Si no existe lo crea vacío para que "Registrar logrado" funcione
-// aunque el account nunca haya fijado objetivo.
-async function _metEnsureForecastDoc(month){
-  const me=currentUserData||{}; const myUid=_metMyUid();
-  const existing=await getDocs(query(collection(db,'forecastRecords'),where('aeUid','==',myUid),where('month','==',month)));
+// aunque el account nunca haya fijado objetivo. El doc se crea a nombre de la persona destino
+// (aeUid/aeName/aeGram/tlId salen de SU perfil, no del de quien captura): de eso depende que ella
+// lo siga viendo como suyo y que el scoping por rol lo siga alcanzando.
+async function _metEnsureForecastDoc(month,uid){
+  const destino=uid||_metMyUid();
+  const p=_metPersona(destino)||currentUserData||{};
+  const existing=await getDocs(query(collection(db,'forecastRecords'),where('aeUid','==',destino),where('month','==',month)));
   if(!existing.empty) return existing.docs[0].id;
   const created=await addDoc(collection(db,'forecastRecords'),_metClean({
-    aeUid:myUid, aeName:me.name, aeGram:me.gram, tlId:me.tlId||null, month,
+    aeUid:destino, aeName:p.name, aeGram:p.gram, tlId:p.tlId||null, month,
     targetMRR:0, targetNRR:0, targetSetAt:null, actualMRR:null, actualNRR:null, actualSetAt:null,
-    createdAt:serverTimestamp() }));
+    createdAt:serverTimestamp(), ..._metAudit() }));
   return created.id;
 }
 
@@ -2951,32 +3061,39 @@ function metRenderLlamadas(el){
   const nAcc=_metNAcc(rows);
   const metaLl=_metTargetFor(MET_KPI.LLAMADAS_MES,nAcc);
   const semanaActual=_metMondayOf(_metISO(new Date()));
+  // El formulario ahora precarga lo que ya existe para esa persona y esa semana: así corregir es
+  // ver el número anterior y cambiarlo, no escribir a ciegas encima de lo que hubiera.
+  const destino=_metCaptureUid(), capWeek=_metState.captureWeek||_metISO(new Date());
+  const yaHay=_metWeekRecord(destino,_metMondayOf(capWeek));
   const form=`
     <div class="card" style="padding:20px;margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">📞 Registrar llamadas de la semana</h3>
       <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Elige cualquier día de la semana — se ajusta solo al lunes. Se guarda en el mismo registro semanal que intromeets y demos.</p>
+      ${_metCaptureSelect()}
       <div class="form-grid-2">
-        <div class="form-group"><label>Semana</label><input type="date" id="metCallWeek" class="input" value="${_metISO(new Date())}"></div>
+        <div class="form-group"><label>Semana</label><input type="date" id="metCallWeek" class="input" value="${capWeek}" onchange="metSetCaptureWeek(this.value)"></div>
         <div></div>
-        <div class="form-group"><label>Llamadas realizadas</label><input type="number" min="0" id="metCalls" class="input" placeholder="0"></div>
-        <div class="form-group"><label>Llamadas conectadas</label><input type="number" min="0" id="metCallsConnected" class="input" placeholder="0"></div>
+        <div class="form-group"><label>Llamadas realizadas</label><input type="number" min="0" id="metCalls" class="input" placeholder="0" value="${yaHay?.calls??''}"></div>
+        <div class="form-group"><label>Llamadas conectadas</label><input type="number" min="0" id="metCallsConnected" class="input" placeholder="0" value="${yaHay?.callsConnected??''}"></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:6px" onclick="metSaveCalls()">Guardar llamadas</button>
-      <div style="font-size:12px;color:var(--gray-400);margin-top:8px">Semana en curso: ${_metWeekLabel(semanaActual)}</div>
+      <button class="btn btn-primary" style="margin-top:6px" onclick="metSaveCalls()">${yaHay?'Actualizar llamadas':'Guardar llamadas'}</button>
+      <div style="font-size:12px;color:var(--gray-400);margin-top:8px">Semana en curso: ${_metWeekLabel(semanaActual)}${yaHay?` · ya hay un registro de esta semana${destino!==_metMyUid()?` en ${_metNombre(destino)}`:''}, lo que guardes lo reemplaza`:''}</div>
     </div>`;
   const kpis=`<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     ${_metKpiCard('Llamadas en '+_metRangeLabel()+_metMetaSufijo(nAcc),totalLl,metaLl)}
     ${_metKpiCard('Conectadas',totalCn,null)}
     ${_metKpiCard('Tasa de conexión',_metPct(tasa),null,tasa>=0.3?'#2e7d32':'#b26a00')}
   </div>`;
-  const grid='display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:8px;align-items:center';
+  const acc=_metPuedeDelegar();
+  const grid=`display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr${acc?' 76px':''};gap:8px;align-items:center`;
   const header=`<div style="${grid};padding:0 12px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400)">
-    <div>Account / Semana</div><div>Llamadas</div><div>Conectadas</div><div>Tasa</div></div>`;
+    <div>Account / Semana</div><div>Llamadas</div><div>Conectadas</div><div>Tasa</div>${acc?'<div></div>':''}</div>`;
   const body=rows.map(r=>{
     const c=r.calls||0, k=r.callsConnected||0;
     return `<div style="${grid};padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;font-size:13px">
-      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">${_metWeekLabel(r.weekStart)}</div></div>
-      <div>${c}</div><div>${k}</div><div>${c?Math.round(k/c*100)+'%':'—'}</div></div>`;
+      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">${_metWeekLabel(r.weekStart)}</div>${_metEditadoPor(r)}</div>
+      <div>${c}</div><div>${k}</div><div>${c?Math.round(k/c*100)+'%':'—'}</div>
+      ${_metRowActions(r,'metEditWeek','metDeleteWeek')}</div>`;
   }).join('');
   el.innerHTML=form+kpis+_aSection('📊 Histórico de llamadas',header+(body||'<div class="cdc-empty">Sin registros para este filtro</div>'));
 }
@@ -2987,7 +3104,7 @@ window.metSaveCalls=async function(){
   const callsConnected=parseInt(document.getElementById('metCallsConnected')?.value)||0;
   if(!dateVal){ showNotif('Selecciona la semana','error'); return; }
   if(callsConnected>calls){ showNotif('Las conectadas no pueden superar el total de llamadas','error'); return; }
-  await _metSaveWeek(dateVal,{calls,callsConnected},'Llamadas guardadas ✓');
+  await _metSaveWeek(dateVal,{calls,callsConnected},'Llamadas guardadas');
 };
 
 // ── Pestaña Actividad semanal ─────────────────────────────────────────────────
@@ -2996,28 +3113,34 @@ function metRenderActivity(el){
   const totalIntro=rows.reduce((a,r)=>a+(r.intromeets||0),0);
   const totalDemos=rows.reduce((a,r)=>a+(r.demos||0),0);
   const nAcc=_metNAcc(rows);
+  const destino=_metCaptureUid(), capWeek=_metState.captureWeek||_metISO(new Date());
+  const yaHay=_metWeekRecord(destino,_metMondayOf(capWeek));
   const form=`
     <div class="card" style="padding:20px;margin-bottom:20px">
       <h3 style="font-size:15px;font-weight:700;margin-bottom:4px">📅 Registrar semana</h3>
       <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px">Elige cualquier día de la semana — se ajusta solo al lunes de esa semana laboral.</p>
+      ${_metCaptureSelect()}
       <div class="form-grid-2">
-        <div class="form-group"><label>Semana</label><input type="date" id="metWeekStart" class="input" value="${_metISO(new Date())}"></div>
+        <div class="form-group"><label>Semana</label><input type="date" id="metWeekStart" class="input" value="${capWeek}" onchange="metSetCaptureWeek(this.value)"></div>
         <div></div>
-        <div class="form-group"><label>Intromeets realizados</label><input type="number" min="0" id="metIntromeets" class="input" placeholder="0"></div>
-        <div class="form-group"><label>Demos realizadas</label><input type="number" min="0" id="metDemos" class="input" placeholder="0"></div>
+        <div class="form-group"><label>Intromeets realizados</label><input type="number" min="0" id="metIntromeets" class="input" placeholder="0" value="${yaHay?.intromeets??''}"></div>
+        <div class="form-group"><label>Demos realizadas</label><input type="number" min="0" id="metDemos" class="input" placeholder="0" value="${yaHay?.demos??''}"></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:6px" onclick="metSaveWeeklyActivity()">Guardar</button>
+      <button class="btn btn-primary" style="margin-top:6px" onclick="metSaveWeeklyActivity()">${yaHay?'Actualizar':'Guardar'}</button>
+      ${yaHay?`<div style="font-size:12px;color:var(--gray-400);margin-top:8px">Ya hay un registro de esta semana${destino!==_metMyUid()?` en ${_metNombre(destino)}`:''}, lo que guardes lo reemplaza.</div>`:''}
     </div>`;
   const kpis=`<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     ${_metKpiCard('Intromeets en '+_metRangeLabel()+_metMetaSufijo(nAcc),totalIntro,_metTargetFor(MET_KPI.INTROMEETS_MES,nAcc))}
     ${_metKpiCard('Demos en '+_metRangeLabel()+_metMetaSufijo(nAcc),totalDemos,_metTargetFor(MET_KPI.DEMOS_MES,nAcc))}
   </div>`;
-  const grid='display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;align-items:center';
+  const acc=_metPuedeDelegar();
+  const grid=`display:grid;grid-template-columns:1.4fr 1fr 1fr${acc?' 76px':''};gap:8px;align-items:center`;
   const header=`<div style="${grid};padding:0 12px 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400)">
-    <div>Account / Semana</div><div>Intromeets</div><div>Demos</div></div>`;
+    <div>Account / Semana</div><div>Intromeets</div><div>Demos</div>${acc?'<div></div>':''}</div>`;
   const body=rows.map(r=>`<div style="${grid};padding:10px 12px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;font-size:13px">
-      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">${_metWeekLabel(r.weekStart)}</div></div>
-      <div>${r.intromeets||0}</div><div>${r.demos||0}</div></div>`).join('');
+      <div><strong>${r.aeName||r.aeGram||'—'}</strong><div style="font-size:11px;color:var(--gray-400)">${_metWeekLabel(r.weekStart)}</div>${_metEditadoPor(r)}</div>
+      <div>${r.intromeets||0}</div><div>${r.demos||0}</div>
+      ${_metRowActions(r,'metEditWeek','metDeleteWeek')}</div>`).join('');
   el.innerHTML=form+kpis+_aSection('📊 Histórico de actividad',header+(body||'<div class="cdc-empty">Sin registros para este filtro</div>'));
 }
 
@@ -3026,29 +3149,76 @@ window.metSaveWeeklyActivity=async function(){
   const intromeets=parseInt(document.getElementById('metIntromeets')?.value)||0;
   const demos=parseInt(document.getElementById('metDemos')?.value)||0;
   if(!dateVal){ showNotif('Selecciona la semana','error'); return; }
-  await _metSaveWeek(dateVal,{intromeets,demos},'Actividad guardada ✓');
+  await _metSaveWeek(dateVal,{intromeets,demos},'Actividad guardada');
 };
+
+// El registro semanal ya cargado de esa persona, para precargar el formulario y saber si guardar
+// va a reemplazar algo.
+function _metWeekRecord(uid,weekStart){
+  if(!uid||!weekStart) return null;
+  return (_metState.activities||[]).find(r=>r.aeUid===uid&&r.weekStart===weekStart)||null;
+}
 
 // Un solo doc por account+semana. Las pestañas de Llamadas y Actividad escriben campos distintos
 // del MISMO doc, por eso el update es parcial: guardar llamadas no pisa intromeets/demos.
-async function _metSaveWeek(dateVal,fields,okMsg){
-  const me=currentUserData||{}; const myUid=_metMyUid();
-  if(!db||!myUid){ showNotif('Sin sesión activa','error'); return; }
+// El doc se crea a nombre de la persona destino, igual que en el forecast.
+async function _metSaveWeek(dateVal,fields,okMsg,uid){
+  const destino=uid||_metCaptureUid();
+  if(!db||!destino){ showNotif('Sin sesión activa','error'); return; }
+  if(!_metPuedeEditarA(destino)){ showNotif('No puedes capturar a nombre de esta persona','error'); return; }
+  const p=_metPersona(destino)||currentUserData||{};
   const weekStart=_metMondayOf(dateVal);
   if(!weekStart){ showNotif('Fecha inválida','error'); return; }
   try{
-    const existing=await getDocs(query(collection(db,'metActivityRecords'),where('aeUid','==',myUid),where('weekStart','==',weekStart)));
+    const existing=await getDocs(query(collection(db,'metActivityRecords'),where('aeUid','==',destino),where('weekStart','==',weekStart)));
     if(!existing.empty){
-      await updateDoc(doc(db,'metActivityRecords',existing.docs[0].id),_metClean({...fields,updatedAt:serverTimestamp()}));
+      await updateDoc(doc(db,'metActivityRecords',existing.docs[0].id),_metClean({...fields,..._metAudit()}));
     } else {
       await addDoc(collection(db,'metActivityRecords'),_metClean({
-        aeUid:myUid, aeName:me.name, aeGram:me.gram, tlId:me.tlId||null, weekStart,
+        aeUid:destino, aeName:p.name, aeGram:p.gram, tlId:p.tlId||null, weekStart,
         intromeets:0, demos:0, calls:0, callsConnected:0, ...fields,
-        createdAt:serverTimestamp(), updatedAt:serverTimestamp() }));
+        createdAt:serverTimestamp(), ..._metAudit() }));
     }
-    showNotif(okMsg,'success');
+    showNotif(_metOkMsg(okMsg,destino),'success');
     await metLoadAll();
-  }catch(e){ showNotif('Error: '+_metErrMsg(e),'error'); }
+  }catch(e){ showNotif('Error: '+_metErrMsg(e,destino),'error'); }
+}
+
+// ── Corregir y eliminar desde el histórico ────────────────────────────────────
+// "Corregir" no abre nada nuevo: apunta el formulario de arriba a esa persona y a ese mes o semana,
+// que ya se precarga solo con lo que hay. Un paso, la UI que el equipo ya conoce.
+window.metEditForecast=function(id){
+  const r=(_metState.forecasts||[]).find(x=>x.id===id); if(!r) return;
+  if(!_metPuedeEditarA(r.aeUid)){ showNotif('No puedes modificar el registro de esta persona','error'); return; }
+  _metState.captureUid=r.aeUid;
+  if(r.month) _metState.month=r.month;
+  metRenderBody();
+  document.getElementById('metBody')?.scrollIntoView({behavior:'smooth',block:'start'});
+  showNotif(`Corrigiendo el forecast de ${_metNombre(r.aeUid)} · ${_metMonthLabel(r.month)}`,'info');
+};
+window.metEditWeek=function(id){
+  const r=(_metState.activities||[]).find(x=>x.id===id); if(!r) return;
+  if(!_metPuedeEditarA(r.aeUid)){ showNotif('No puedes modificar el registro de esta persona','error'); return; }
+  _metState.captureUid=r.aeUid;
+  if(r.weekStart) _metState.captureWeek=r.weekStart;
+  metRenderBody();
+  document.getElementById('metBody')?.scrollIntoView({behavior:'smooth',block:'start'});
+  showNotif(`Corrigiendo la semana del ${_metWeekLabel(r.weekStart)} de ${_metNombre(r.aeUid)}`,'info');
+};
+window.metDeleteForecast=function(id){ _metDelete('forecastRecords',(_metState.forecasts||[]).find(x=>x.id===id),'el forecast'); };
+window.metDeleteWeek=function(id){ _metDelete('metActivityRecords',(_metState.activities||[]).find(x=>x.id===id),'la semana'); };
+async function _metDelete(coll,r,que){
+  if(!r?.id) return;
+  if(!_metPuedeEditarA(r.aeUid)){ showNotif('No puedes eliminar el registro de esta persona','error'); return; }
+  const cuando=r.month?_metMonthLabel(r.month):_metWeekLabel(r.weekStart);
+  if(!confirm(`¿Eliminar ${que} de ${_metNombre(r.aeUid)} — ${cuando}? No se puede deshacer.`)) return;
+  try{
+    await deleteDoc(doc(db,coll,r.id));
+    // Si el formulario estaba apuntando justo ahí, se queda sin nada que precargar: recargar deja
+    // los campos vacíos solos, sin que parezca que el registro sigue vivo.
+    showNotif('Registro eliminado ✓','success');
+    await metLoadAll();
+  }catch(e){ showNotif('Error: '+_metErrMsg(e,r.aeUid),'error'); }
 }
 
 function _metKpiCard(label,value,target,color){
