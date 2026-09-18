@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-17T23:18:03Z">
+<meta name="app-version" content="2026-09-18T16:47:22Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2722,6 +2722,16 @@ function _metAudit(){
   const me=currentUserData||{};
   return {updatedByUid:_metMyUid(), updatedByName:me.name||null, updatedByGram:me.gram||null, updatedAt:serverTimestamp()};
 }
+// Filtros para buscar el registro existente de una persona. Firestore evalúa la regla de lectura
+// contra la QUERY, no contra cada doc: para un TL que busca a alguien de su equipo, "aeUid == X"
+// no le prueba a Firestore que el resultado sea suyo y niega la consulta completa. La regla solo
+// lo deja pasar si la query trae también where('tlId','==',su uid) — el mismo gotcha de companies.
+// El manager no lo necesita (isManager() no depende del doc) y el dueño tampoco (aeUid == él).
+function _metWhereDe(uid,...extra){
+  const w=[where('aeUid','==',uid),...extra];
+  if(uid!==_metMyUid()&&currentUserData?.role==='tl') w.push(where('tlId','==',_metMyUid()));
+  return w;
+}
 // Marca bajo el nombre en las tablas cuando el registro lo tocó alguien que no es su dueño.
 function _metEditadoPor(r){
   if(!r?.updatedByUid||r.updatedByUid===r.aeUid) return '';
@@ -3043,7 +3053,7 @@ function _metOkMsg(txt,uid){ return uid===_metMyUid()?txt+' ✓':`${txt} en ${_m
 async function _metEnsureForecastDoc(month,uid){
   const destino=uid||_metMyUid();
   const p=_metPersona(destino)||currentUserData||{};
-  const existing=await getDocs(query(collection(db,'forecastRecords'),where('aeUid','==',destino),where('month','==',month)));
+  const existing=await getDocs(query(collection(db,'forecastRecords'),..._metWhereDe(destino,where('month','==',month))));
   if(!existing.empty) return existing.docs[0].id;
   const created=await addDoc(collection(db,'forecastRecords'),_metClean({
     aeUid:destino, aeName:p.name, aeGram:p.gram, tlId:p.tlId||null, month,
@@ -3170,7 +3180,7 @@ async function _metSaveWeek(dateVal,fields,okMsg,uid){
   const weekStart=_metMondayOf(dateVal);
   if(!weekStart){ showNotif('Fecha inválida','error'); return; }
   try{
-    const existing=await getDocs(query(collection(db,'metActivityRecords'),where('aeUid','==',destino),where('weekStart','==',weekStart)));
+    const existing=await getDocs(query(collection(db,'metActivityRecords'),..._metWhereDe(destino,where('weekStart','==',weekStart))));
     if(!existing.empty){
       await updateDoc(doc(db,'metActivityRecords',existing.docs[0].id),_metClean({...fields,..._metAudit()}));
     } else {
