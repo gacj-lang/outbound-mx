@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-18T16:47:22Z">
+<meta name="app-version" content="2026-09-18T16:54:37Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
+const APP_BUILD_STAMP='2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1619,7 +1619,7 @@ function renderPendingUsers(users){
   if(users.length===0){ c.innerHTML='<p class="empty-state">No hay usuarios pendientes ✓</p>'; return; }
   c.innerHTML=users.map(u=>`
     <div class="user-card">
-      <div class="user-card-info"><div class="user-avatar sm">${u.name[0]}</div><div><strong>${u.name}</strong><div class="user-meta">${u.email}</div></div></div>
+      <div class="user-card-info"><div class="user-avatar sm">${_esc((u.name||'?')[0])}</div><div><strong>${_esc(u.name||'')}</strong><div class="user-meta">${_esc(u.email||'')}</div></div></div>
       <div class="user-card-actions">
         <button class="btn btn-sm btn-success" onclick="approveUser('${u.uid}')">✓ Aprobar</button>
         <button class="btn btn-sm btn-ghost-danger" onclick="rejectUser('${u.uid}')">✕</button>
@@ -1633,9 +1633,9 @@ function renderTeamList(users){
   if(nonMgr.length===0&&!mgr){ c.innerHTML='<p class="empty-state">No hay usuarios activos todavía</p>'; return; }
   const tls=nonMgr.filter(u=>u.role==='tl'), aes=nonMgr.filter(u=>u.role==='ae');
   const tlForDropdown=[...(mgr?[{...mgr,name:mgr.name+' (Manager)'}]:[]),...tls];
-  const tlOpts='<option value="">Sin TL</option>'+tlForDropdown.map(t=>`<option value="${t.uid}">${t.name}</option>`).join('');
+  const tlOpts='<option value="">Sin TL</option>'+tlForDropdown.map(t=>`<option value="${t.uid}">${_esc(t.name||'')}</option>`).join('');
   const row=(u)=>`<div class="user-card">
-    <div class="user-card-info"><div class="user-avatar sm">${u.name[0]}</div><div><strong>${u.name}</strong><div class="user-meta">${u.gram}${u.appointmentLink?` · 📅`:''}</div></div></div>
+    <div class="user-card-info"><div class="user-avatar sm">${_esc((u.name||'?')[0])}</div><div><strong>${_esc(u.name||'')}</strong><div class="user-meta">${u.gram}${u.appointmentLink?` · 📅`:''}</div></div></div>
     <div class="user-card-actions">
       <select class="role-select role-pick" onchange="assignRole('${u.uid}',this.value)">
         <option value="ae" ${u.role==='ae'?'selected':''}>AE</option>
@@ -1938,7 +1938,7 @@ function analyticsProspeccion(rows){
   if(!list.length) return '';
   const maxOpp=Math.max(1,...list.map(r=>r.opp));
   const inner=list.map(r=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 4px;border-top:1px solid var(--gray-100)">
-    <div style="flex:1;min-width:0"><span style="font-size:13px;font-weight:600">${r.name}</span> <span style="font-size:11px;color:var(--gray-400)">· ${r.csv} solicitud${r.csv===1?'':'es'}</span></div>
+    <div style="flex:1;min-width:0"><span style="font-size:13px;font-weight:600">${_esc(r.name||'')}</span> <span style="font-size:11px;color:var(--gray-400)">· ${r.csv} solicitud${r.csv===1?'':'es'}</span></div>
     <div style="flex:1;height:10px;background:var(--gray-100);border-radius:99px;overflow:hidden;max-width:220px"><div style="height:100%;width:${Math.round(r.opp/maxOpp*100)}%;background:#9333ea"></div></div>
     <div style="width:130px;text-align:right;font-size:13px;font-weight:700">${r.opp} <span style="font-weight:400;color:var(--gray-400);font-size:11px">oportunidades</span></div></div>`).join('');
   return _aSection('🧩 Prospección (Generación de leads)',inner);
@@ -1953,8 +1953,8 @@ function analyticsPeople(rows){
     <div>Persona</div><div style="text-align:right">Disc</div><div style="text-align:right">Pric</div><div style="text-align:right">Prop</div><div style="text-align:right">CSV</div><div style="text-align:right">Cont</div><div style="text-align:right">Emp</div><div style="text-align:right">Total</div></div>`;
   const rowsH=rows.map(r=>`<div style="${grid};padding:8px 4px;border-top:1px solid var(--gray-100)">
     <div style="display:flex;align-items:center;gap:8px;min-width:0">
-      <div style="width:24px;height:24px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(r.name||'?')[0].toUpperCase()}</div>
-      <div style="min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</div><div style="font-size:11px;color:var(--gray-400)">${r.gram}</div></div></div>
+      <div style="width:24px;height:24px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_esc((r.name||'?')[0].toUpperCase())}</div>
+      <div style="min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(r.name||'')}</div><div style="font-size:11px;color:var(--gray-400)">${_esc(r.gram||'')}</div></div></div>
     ${num(r.disc)}${num(r.pric)}${num(r.prop)}${num(r.csv)}${num(r.cont)}${num(r.emp)}
     <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
       <div style="flex:1;height:8px;background:var(--gray-100);border-radius:99px;overflow:hidden;max-width:80px"><div style="height:100%;width:${Math.round(r.total/max*100)}%;background:var(--purple)"></div></div>
@@ -1995,7 +1995,7 @@ function analyticsContent(canalTotals,rows){
   const top=rows.filter(r=>r.cont).sort((a,b)=>b.cont-a.cont).slice(0,8);
   const peopleRows=top.map(r=>{ const chips=_A_CANALES.filter(c=>r.canal[c.key]).map(c=>`<span style="font-size:11px;background:${c.color}22;color:${c.color};padding:2px 7px;border-radius:99px">${c.label} ${r.canal[c.key]}</span>`).join(' ');
     return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 4px;border-top:1px solid var(--gray-100)">
-      <div style="font-size:13px;font-weight:600">${r.name} <span style="color:var(--gray-400);font-weight:400">· ${r.cont}</span></div>
+      <div style="font-size:13px;font-weight:600">${_esc(r.name||'')} <span style="color:var(--gray-400);font-weight:400">· ${r.cont}</span></div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">${chips}</div></div>`; }).join('');
   return _aSection('✉️ Producción de contenido',
     `<div style="margin-bottom:10px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em">Por canal</div>${canalBars}
@@ -2295,9 +2295,9 @@ function _maintRenderDiscoveryReport(results,applied){
   document.getElementById('maintReportPopup')?.remove();
   const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='maintReportPopup';
   const fixRows=results.fix.map(f=>`<div style="padding:8px 10px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;font-size:12.5px">
-      <strong>${f.empresa||'—'}</strong> — ${f.before.aeName||f.before.aeGram||'?'} → <strong style="color:var(--success)">${f.after.aeName}</strong>
+      <strong>${_esc(f.empresa||'—')}</strong> — ${f.before.aeName||f.before.aeGram||'?'} → <strong style="color:var(--success)">${f.after.aeName}</strong>
     </div>`).join('')||'<div style="font-size:13px;color:var(--gray-400)">Ninguno con señal clara.</div>';
-  const skipRows=results.skip.map(s=>`<div style="padding:6px 10px;font-size:11.5px;color:var(--gray-500);border-bottom:1px solid var(--gray-100)">${s.empresa||'—'} — ${s.motivo}</div>`).join('');
+  const skipRows=results.skip.map(s=>`<div style="padding:6px 10px;font-size:11.5px;color:var(--gray-500);border-bottom:1px solid var(--gray-100)">${_esc(s.empresa||'—')} — ${_esc(s.motivo||'')}</div>`).join('');
   overlay.innerHTML=`<div class="disc-popup-box" style="max-width:640px;max-height:80vh;overflow:auto">
     <div class="disc-popup-header"><div class="disc-popup-title">${applied?'✅ Backfill aplicado':'🔍 Backfill — vista previa'}</div>
       <button class="disc-copy-btn" onclick="document.getElementById('maintReportPopup').remove()">✕</button></div>
@@ -2383,14 +2383,14 @@ window.openEditUserPopup=async function(uid){
   overlay.className='disc-popup-overlay'; overlay.id='editUserPopup';
   overlay.innerHTML=`<div class="disc-popup-box" style="max-width:520px">
     <div class="disc-popup-header">
-      <div class="disc-popup-title">✏️ Editar usuario — ${u.name}</div>
+      <div class="disc-popup-title">✏️ Editar usuario — ${_esc(u.name||'')}</div>
       <button class="disc-copy-btn" onclick="document.getElementById('editUserPopup').remove()">✕</button>
     </div>
     <div class="disc-popup-body" style="display:flex;flex-direction:column;gap:12px">
       <div class="form-grid-2">
-        <div class="form-group"><label>Nombre completo</label><input type="text" id="euName" class="input" value="${u.name||''}"></div>
+        <div class="form-group"><label>Nombre completo</label><input type="text" id="euName" class="input" value="${_esc(u.name||'')}"></div>
         <div class="form-group"><label>Nombre corto (templates)</label><input type="text" id="euTemplate" class="input" value="${u.nombreTemplate||''}"></div>
-        <div class="form-group"><label>Teléfono</label><input type="tel" id="euPhone" class="input" value="${u.phone||''}"></div>
+        <div class="form-group"><label>Teléfono</label><input type="tel" id="euPhone" class="input" value="${_esc(u.phone||'')}"></div>
         <div class="form-group"><label>Link de Appointment</label><input type="text" id="euAppointment" class="input" value="${u.appointmentLink||''}" placeholder="https://calendly.com/…"></div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -2709,7 +2709,7 @@ function _metCaptureUid(){
 function _metCaptureSelect(){
   if(!_metPuedeDelegar()) return '';
   const uid=_metCaptureUid(), myUid=_metMyUid(), ajeno=uid!==myUid;
-  const opts=_metCaptureOptions().map(p=>`<option value="${p.uid}" ${p.uid===uid?'selected':''}>${p.uid===myUid?'Yo · ':''}${p.name||p.gram||'Sin nombre'}</option>`).join('');
+  const opts=_metCaptureOptions().map(p=>`<option value="${p.uid}" ${p.uid===uid?'selected':''}>${p.uid===myUid?'Yo · ':''}${_esc(p.name||p.gram||'Sin nombre')}</option>`).join('');
   return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;border-radius:8px;background:${ajeno?'#fff8e6':'var(--gray-50)'};border:1px solid ${ajeno?'#FBB130':'var(--gray-100)'}">
     <label style="font-size:12.5px;font-weight:600;color:var(--gray-700);white-space:nowrap">Capturando para</label>
     <select class="input" style="max-width:240px" onchange="metSetCaptureUid(this.value)">${opts}</select>
@@ -2870,11 +2870,11 @@ function _metFilterBar(){
     :`<input type="month" class="input" style="max-width:170px" value="${_metState.month}" onchange="metSetFilter('month',this.value)">`;
   const accSel=isTLorMgr?`<select class="input" style="max-width:200px" onchange="metSetFilter('account',this.value)">
       <option value="">Todas las cuentas</option>
-      ${_metState.people.filter(p=>p.uid).map(p=>`<option value="${p.uid}" ${_metState.account===p.uid?'selected':''}>${p.name||p.gram||'Sin nombre'}</option>`).join('')}
+      ${_metState.people.filter(p=>p.uid).map(p=>`<option value="${p.uid}" ${_metState.account===p.uid?'selected':''}>${_esc(p.name||p.gram||'Sin nombre')}</option>`).join('')}
     </select>`:'';
   const tlSel=isMgr?`<select class="input" style="max-width:180px" onchange="metSetFilter('tl',this.value)">
       <option value="">Todos los TL</option>
-      ${_metState.tls.map(t=>`<option value="${t.uid}" ${_metState.tl===t.uid?'selected':''}>${t.name||t.gram||'Sin nombre'}</option>`).join('')}
+      ${_metState.tls.map(t=>`<option value="${t.uid}" ${_metState.tl===t.uid?'selected':''}>${_esc(t.name||t.gram||'Sin nombre')}</option>`).join('')}
     </select>`:'';
   return `<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">${rango}${accSel}${tlSel}</div>`;
 }
@@ -3344,7 +3344,7 @@ function _metChartPerf(rows,month){
   const bars=rows.map(p=>{
     const c=_metBandColor(p.perf);
     return `<div style="display:flex;align-items:center;gap:12px;padding:7px 4px;border-top:1px solid var(--gray-100)">
-      <div style="width:150px;min-width:150px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}${p.conRegistros?'':' <span style="font-weight:400;color:var(--gray-400);font-size:11px">· sin registros</span>'}</div>
+      <div style="width:150px;min-width:150px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(p.name||'')}${p.conRegistros?'':' <span style="font-weight:400;color:var(--gray-400);font-size:11px">· sin registros</span>'}</div>
       <div style="flex:1;height:16px;background:var(--gray-100);border-radius:99px;overflow:hidden;position:relative">
         <div style="height:100%;width:${Math.min(p.perf,100)}%;background:${c}"></div>
         <div style="position:absolute;left:90%;top:0;bottom:0;width:1px;background:var(--gray-300)"></div>
@@ -3420,8 +3420,8 @@ function _metBoardTable(rows){
     <div style="text-align:right">Certeza</div><div style="text-align:right">Performance</div></div>`;
   const body=rows.map(p=>`<div style="${grid};padding:9px 4px;border-top:1px solid var(--gray-100)">
     <div style="display:flex;align-items:center;gap:8px;min-width:0">
-      <div style="width:24px;height:24px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(p.name||'?')[0].toUpperCase()}</div>
-      <div style="min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div><div style="font-size:11px;color:var(--gray-400)">${p.conRegistros?(p.gram||''):'Sin registros del mes'}</div></div></div>
+      <div style="width:24px;height:24px;border-radius:50%;background:var(--purple-light);color:var(--purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_esc((p.name||'?')[0].toUpperCase())}</div>
+      <div style="min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(p.name||'')}</div><div style="font-size:11px;color:var(--gray-400)">${p.conRegistros?(p.gram||''):'Sin registros del mes'}</div></div></div>
     ${num(p.llamadas,MET_KPI.LLAMADAS_MES)}${num(p.conectadas,0)}
     ${num(p.intromeets,MET_KPI.INTROMEETS_MES)}${num(p.demos,MET_KPI.DEMOS_MES)}
     <div style="text-align:right;font-size:12.5px;color:${(p.mrr||0)>=MET_KPI.MRR_MES?'#2e7d32':'#c62828'}">${p.hasActual?_metMXN(p.mrr):'<span style="color:var(--gray-400)">sin captura</span>'}</div>
@@ -3845,7 +3845,7 @@ window.discOpenChangeCreator=async function(id){
       <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Creador actual: <strong>${s.aeName||s.aeGram||'—'}</strong>. Esto reescribe directamente quién aparece como dueño de esta sesión — úsalo solo para corregir un registro mal atribuido (p.ej. un duplicado).</p>
       <div class="form-group"><label>Nuevo creador</label>
         <select class="input" id="discChangeCreatorSelect">
-          ${candidates.map(u=>`<option value="${u.uid}" ${u.uid===s.aeUid?'selected':''}>${u.name}${u.gram?' ('+u.gram+')':''}</option>`).join('')}
+          ${candidates.map(u=>`<option value="${u.uid}" ${u.uid===s.aeUid?'selected':''}>${_esc(u.name||'')}${u.gram?' ('+u.gram+')':''}</option>`).join('')}
         </select>
       </div>
       <button class="btn btn-primary btn-full" onclick="discSaveChangeCreator('${id}')">Guardar</button>
@@ -5553,7 +5553,7 @@ window.showScreen=showScreen;
 function renderAppHeader(){
   const el=document.getElementById('userInfo'); if(!el||!currentUserData) return;
   const rl={manager:'Manager',tl:'Team Leader',ae:'AE'};
-  el.innerHTML=`<div class="user-avatar">${(currentUserData.name||'?')[0]}</div><div class="user-details"><span class="user-name">${currentUserData.name}</span><span class="user-role role-${currentUserData.role}">${rl[currentUserData.role]||currentUserData.role}</span></div>`;
+  el.innerHTML=`<div class="user-avatar">${_esc((currentUserData.name||'?')[0])}</div><div class="user-details"><span class="user-name">${_esc(currentUserData.name||'')}</span><span class="user-role role-${currentUserData.role}">${rl[currentUserData.role]||currentUserData.role}</span></div>`;
   const mn=document.getElementById('nav-manager'); if(mn) mn.style.display=currentUserData.role==='manager'?'flex':'none';
   csvSetupLeadJobsListener();
   cadSetupRepliesPolling();
@@ -6166,8 +6166,8 @@ async function m2oShowEmpDrop(cid,term){
   }
   drop.innerHTML=(filtered.length>0?filtered.map(c=>`
     <div class="m2o-option" onmousedown="m2oSelectCo('${c.id}','${cid}')">
-      <span class="m2o-option-name">${c.nombre}</span>
-      <span class="m2o-option-meta">${[c.giro,c.tamaño].filter(Boolean).join(' · ')}</span>
+      <span class="m2o-option-name">${_esc(c.nombre||'')}</span>
+      <span class="m2o-option-meta">${_esc([c.giro,c.tamaño].filter(Boolean).join(' · '))}</span>
     </div>`).join(''):'<div class="m2o-empty">Sin resultados</div>')+
     moreRow+
     `<div class="m2o-create" onmousedown="m2oStartCreateCo('${cid}','${term||''}')">
@@ -6264,8 +6264,8 @@ function m2oShowCtDrop(cid,term){
   const filtered=term?contacts.filter(c=>(c.nombre||'').toLowerCase().includes(term.toLowerCase())):contacts;
   drop.innerHTML=(filtered.length>0?filtered.map((ct,i)=>`
     <div class="m2o-option" onmousedown="m2oSelectCt(${i},'${cid}')">
-      <span class="m2o-option-name">${ct.nombre}</span>
-      <span class="m2o-option-meta">${[ct.cargo,ct.email].filter(Boolean).join(' · ')}</span>
+      <span class="m2o-option-name">${_esc(ct.nombre||'')}</span>
+      <span class="m2o-option-meta">${_esc([ct.cargo,ct.email].filter(Boolean).join(' · '))}</span>
     </div>`).join(''):'<div class="m2o-empty">Sin contactos en esta empresa</div>')+
     `<div class="m2o-create" onmousedown="m2oStartCreateCt('${cid}','${term||''}')">
       <span>＋</span> Crear "${term||'nuevo contacto'}"
@@ -6288,7 +6288,7 @@ window.m2oStartCreateCt=function(cid,name){
   form.style.display='block';
   form.innerHTML=`
     <div class="m2o-create-form">
-      <div class="m2o-create-form-title">👤 Nuevo contacto en ${cpState.selectedCompany?.nombre||''}</div>
+      <div class="m2o-create-form-title">👤 Nuevo contacto en ${_esc(cpState.selectedCompany?.nombre||'')}</div>
       <div class="form-group" style="margin-bottom:8px"><label style="font-size:12px;font-weight:600;color:var(--gray-600)">Nombre *</label>
         <input class="m2o-mini-input" id="m2oCtNombre_${cid}" value="${name}" style="width:100%"></div>
       <div class="m2o-create-grid">
@@ -6987,7 +6987,10 @@ function gcExtractJson(text){
 }
 // Almacén temporal de variantes para guardar/copiar
 let _gcVariants=[];
-const _esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// Liga web/LinkedIn para un href: solo http(s) (sin esquema se le pone https://, así 'javascript:' nunca
+// llega a ejecutarse) y escapada para que una comilla no rompa el atributo.
+function _hrefWeb(u){ const s=String(u||'').trim(); return _esc(/^https?:\/\//i.test(s)?s:'https://'+s.replace(/^\/+/,'')); }
 
 // Separa el texto generado en variantes — tolera markdown (**VARIANTE 1:**), distintas
 // palabras (Variante/Opción/Versión/Mensaje), con/sin dos puntos, y marcador en línea propia o inline.
@@ -11738,12 +11741,12 @@ function empRender(companies){
       const contactsHtml=ctList.length?`<div style="border-top:1px solid var(--gray-100);margin-top:10px;padding-top:10px">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:6px">Contactos (${ctList.length})</div>
         ${ctList.map(ct=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <div style="width:24px;height:24px;border-radius:50%;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--purple);flex-shrink:0">${(ct.nombre||'?')[0]}</div>
+          <div style="width:24px;height:24px;border-radius:50%;background:var(--purple-light);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--purple);flex-shrink:0">${_esc((ct.nombre||'?')[0])}</div>
           <div style="min-width:0">
-            <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ct.nombre||'Sin nombre'}</div>
-            ${ct.cargo?`<div style="font-size:10px;color:var(--gray-400)">${ct.cargo}</div>`:''}
+            <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(ct.nombre||'Sin nombre')}</div>
+            ${ct.cargo?`<div style="font-size:10px;color:var(--gray-400)">${_esc(ct.cargo)}</div>`:''}
           </div>
-          ${ct.linkedin?`<a href="https://${ct.linkedin.replace(/^https?:\/\//,'')}" target="_blank" style="font-size:11px;color:var(--purple);margin-left:auto;flex-shrink:0" onclick="event.stopPropagation()">in</a>`:''}
+          ${ct.linkedin?`<a href="${_hrefWeb(ct.linkedin)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--purple);margin-left:auto;flex-shrink:0" onclick="event.stopPropagation()">in</a>`:''}
         </div>`).join('')}
       </div>`:'';
       return `<div class="card" style="cursor:pointer;transition:box-shadow .15s" onclick="empOpenDetail('${co.id}')"
@@ -11751,8 +11754,8 @@ function empRender(companies){
         <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
           <div style="width:40px;height:40px;background:var(--purple-light);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🏢</div>
           <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:6px;min-width:0"><div style="font-size:15px;font-weight:700;color:var(--gray-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${co.nombre}</div>${co.inteligencia?.prioridad?.nivel?_empPrioridadBadge(co.inteligencia.prioridad.nivel):''}</div>
-            <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${[co.giro,co.tamaño].filter(Boolean).join(' · ')||'Sin industria'}</div>
+            <div style="display:flex;align-items:center;gap:6px;min-width:0"><div style="font-size:15px;font-weight:700;color:var(--gray-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(co.nombre||'')}</div>${co.inteligencia?.prioridad?.nivel?_empPrioridadBadge(co.inteligencia.prioridad.nivel):''}</div>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${_esc([co.giro,co.tamaño].filter(Boolean).join(' · ')||'Sin industria')}</div>
           </div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${docTags||'<span style="font-size:11px;color:var(--gray-400)">Sin documentos aún</span>'}</div>
@@ -11762,8 +11765,8 @@ function empRender(companies){
           ${gram}</div>`:''}
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:10px">
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            ${co.website?`<a href="${co.website}" target="_blank" style="font-size:12px;color:var(--accent)" onclick="event.stopPropagation()">🌐 Web</a>`:''}
-            ${co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank" style="font-size:12px;color:var(--purple)" onclick="event.stopPropagation()">💼 LinkedIn</a>`:''}
+            ${co.website?`<a href="${_hrefWeb(co.website)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent)" onclick="event.stopPropagation()">🌐 Web</a>`:''}
+            ${co.linkedin?`<a href="${_hrefWeb(co.linkedin)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--purple)" onclick="event.stopPropagation()">💼 LinkedIn</a>`:''}
           </div>
           <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
             <button class="btn btn-ghost btn-sm" onclick="empEdit('${co.id}')">✏️ Editar</button>
@@ -12432,7 +12435,7 @@ window.empOpenDetail=async function(id){
   const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='empDetailPopup';
   overlay.innerHTML=`<div class="disc-popup-box" style="max-width:760px">
     <div class="disc-popup-header">
-      <div class="disc-popup-title">🏢 ${co.nombre}</div>
+      <div class="disc-popup-title">🏢 ${_esc(co.nombre||'')}</div>
       <div class="disc-popup-actions">
         <button class="btn btn-ghost btn-sm" onclick="empMasContactos('${id}')" title="Buscar más personas de esta empresa">👥 Más contactos</button>
         <button class="btn btn-ghost btn-sm" onclick="empEdit('${id}');document.getElementById('empDetailPopup').remove()">✏️ Editar</button>
@@ -12443,7 +12446,7 @@ window.empOpenDetail=async function(id){
     </div>
     <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--gray-200)">
-        ${[['Asignado a',_empAsignadoNombre(co)||'—'],['Industria',co.giro?`${co.giro}${co.industriaFuente?`<div style="font-size:11px;color:var(--gray-400)">${_esc(co.industriaFuente)}</div>`:''}`:''],['Tamaño',co.tamaño?`${co.tamaño}${co.empleados?` <span style="color:var(--gray-400)">(${co.empleados}${co.inteligencia?.empresaLusha?.empleadosRango?` · rango Lusha ${_esc(co.inteligencia.empresaLusha.empleadosRango)}`:''})</span>`:''}`:''],['Prioridad',co.inteligencia?.prioridad?.nivel?_empPrioridadBadge(co.inteligencia.prioridad.nivel):''],['Origen',co.origen],['Sitio web',co.website?`<a href="${/^https?:\/\//i.test(co.website)?co.website:'https://'+co.website}" target="_blank" rel="noopener">${co.website}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="https://${co.linkedin.replace(/^https?:\/\//,'')}" target="_blank">${co.linkedin}</a>`:'—'],['Creada por',co.createdBy||'—']].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
+        ${[['Asignado a',_esc(_empAsignadoNombre(co)||'—')],['Industria',co.giro?`${_esc(co.giro)}${co.industriaFuente?`<div style="font-size:11px;color:var(--gray-400)">${_esc(co.industriaFuente)}</div>`:''}`:''],['Tamaño',co.tamaño?`${_esc(co.tamaño)}${co.empleados?` <span style="color:var(--gray-400)">(${_esc(co.empleados)}${co.inteligencia?.empresaLusha?.empleadosRango?` · rango Lusha ${_esc(co.inteligencia.empresaLusha.empleadosRango)}`:''})</span>`:''}`:''],['Prioridad',co.inteligencia?.prioridad?.nivel?_empPrioridadBadge(co.inteligencia.prioridad.nivel):''],['Origen',_esc(co.origen||'')],['Sitio web',co.website?`<a href="${_hrefWeb(co.website)}" target="_blank" rel="noopener">${_esc(co.website)}</a>`:'—'],['LinkedIn',co.linkedin?`<a href="${_hrefWeb(co.linkedin)}" target="_blank" rel="noopener">${_esc(co.linkedin)}</a>`:'—'],['Creada por',_esc(co.createdBy||'—')]].map(([k,v])=>`<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:2px">${k}</div><div style="font-size:13px">${v||'—'}</div></div>`).join('')}
       </div>
       <div id="empIntel">${_empIntelHtml(co)}</div>
       <div id="empDetailDocs"><div class="cdc-empty">Cargando documentos...</div></div>
@@ -12508,7 +12511,7 @@ window.empOpenDetail=async function(id){
                 </div>
               </div>
               <div class="emp-saved-text" data-full="${_esc(s.texto||'')}" style="font-size:12.5px;color:var(--gray-700);line-height:1.6;white-space:pre-wrap;max-height:64px;overflow:hidden;cursor:pointer" onclick="this.style.maxHeight=this.style.maxHeight==='none'?'64px':'none'">${_esc(s.texto||'')}</div>
-              ${s.contacto?`<div style="font-size:11px;color:var(--gray-400);margin-top:4px">Para: ${s.contacto} · ${s.aeName||''}</div>`:''}
+              ${s.contacto?`<div style="font-size:11px;color:var(--gray-400);margin-top:4px">Para: ${_esc(s.contacto)} · ${_esc(s.aeName||'')}</div>`:''}
             </div>
           </div>`).join('')}</div>`);
       }
@@ -12760,7 +12763,7 @@ window.empOpenReassign=async function(id){
   document.getElementById('empReassignPopup')?.remove();
   const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='empReassignPopup';
   overlay.innerHTML=`<div class="disc-popup-box" style="max-width:420px">
-    <div class="disc-popup-header"><div class="disc-popup-title">🔁 Reasignar "${co.nombre}"</div>
+    <div class="disc-popup-header"><div class="disc-popup-title">🔁 Reasignar "${_esc(co.nombre||'')}"</div>
       <button class="disc-copy-btn" onclick="document.getElementById('empReassignPopup').remove()">✕</button></div>
     <div class="disc-popup-body">
       <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Asignado actual: <strong>${_empAsignadoNombre(co)||'—'}</strong>. Reasignar cambia quién ve y trabaja esta cuenta de aquí en adelante — las sesiones de Qcall/Pricing/CSV ya hechas se quedan con quien las creó, no se mueven.</p>
@@ -12796,7 +12799,7 @@ window.empEdit=async function(id){
       <button class="disc-copy-btn" onclick="document.getElementById('empEditPopup').remove()">✕</button>
     </div>
     <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
-      <div class="form-group"><label>Nombre *</label><input class="input" id="empEditNombre" value="${co.nombre||''}" oninput="empAutosaveEdit('${id}')"></div>
+      <div class="form-group"><label>Nombre *</label><input class="input" id="empEditNombre" value="${_esc(co.nombre||'')}" oninput="empAutosaveEdit('${id}')"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group"><label>Giro / Industria</label>
           <select class="input" id="empEditGiro" onchange="empAutosaveEdit('${id}')"><option value="">—</option>${Object.keys(INDUSTRY_MAP).map(k=>`<option ${co.giro===k?'selected':''}>${k}</option>`).join('')}</select></div>
@@ -12804,8 +12807,8 @@ window.empEdit=async function(id){
           <select class="input" id="empEditTam" onchange="empAutosaveEdit('${id}')"><option value="">—</option>${['1-10 empleados','11-50 empleados','51-200 empleados','200+ empleados'].map(v=>`<option ${co.tamaño===v?'selected':''}>${v}</option>`).join('')}</select></div>
         <div class="form-group"><label>Origen</label>
           <select class="input" id="empEditOrig" onchange="empAutosaveEdit('${id}')"><option value="">—</option>${['Ferias comerciales','Networking','Lusha','Apollo','LinkedIn','Bases de datos','Google','Otro'].map(v=>`<option ${co.origen===v?'selected':''}>${v}</option>`).join('')}</select></div>
-        <div class="form-group"><label>Sitio web</label><input class="input" id="empEditWeb" value="${co.website||''}" oninput="empAutosaveEdit('${id}')"></div>
-        <div class="form-group" style="grid-column:span 2"><label>LinkedIn empresa</label><input class="input" id="empEditLi" value="${co.linkedin||''}" oninput="empAutosaveEdit('${id}')"></div>
+        <div class="form-group"><label>Sitio web</label><input class="input" id="empEditWeb" value="${_esc(co.website||'')}" oninput="empAutosaveEdit('${id}')"></div>
+        <div class="form-group" style="grid-column:span 2"><label>LinkedIn empresa</label><input class="input" id="empEditLi" value="${_esc(co.linkedin||'')}" oninput="empAutosaveEdit('${id}')"></div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
         <span id="empEditAutosaveInd" style="font-size:12px;color:var(--gray-400);font-weight:600">Autoguardado activo</span>
@@ -12896,7 +12899,7 @@ window.empShowCreateContact=function(){
       <div class="form-group"><label>Empresa *</label>
         <select class="input" id="empCtEmpresa">
           <option value="">— Selecciona empresa —</option>
-          ${_allEmpresas.map(e=>`<option value="${e.id}">${e.nombre}</option>`).join('')}
+          ${_allEmpresas.map(e=>`<option value="${e.id}">${_esc(e.nombre||'')}</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><label>Nombre del contacto *</label><input class="input" id="empCtNombre" placeholder="Nombre completo"></div>
@@ -13479,8 +13482,8 @@ thead{ display:table-header-group; }
   <div style="position:relative;z-index:2;max-width:56%">
     <div style="background:white;border-radius:20px;padding:36px 40px;border:1px solid #e8e6e1">
       <div style="font-size:13px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.14em;margin-bottom:10px;font-family:'Inter',sans-serif">Preparada para</div>
-      <div style="font-size:38px;font-weight:800;color:#21272B;letter-spacing:-.8px;line-height:1.05;font-family:'Inter',sans-serif">${co?.nombre||'[Empresa]'}</div>
-      ${ct?`<div style="font-size:16px;color:#6b7280;margin-top:8px;font-family:'Inter',sans-serif">${ct.nombre}${ct.cargo?` · ${ct.cargo}`:''}</div>`:''}
+      <div style="font-size:38px;font-weight:800;color:#21272B;letter-spacing:-.8px;line-height:1.05;font-family:'Inter',sans-serif">${_esc(co?.nombre||'[Empresa]')}</div>
+      ${ct?`<div style="font-size:16px;color:#6b7280;margin-top:8px;font-family:'Inter',sans-serif">${_esc(ct.nombre||'')}${ct.cargo?` · ${_esc(ct.cargo)}`:''}</div>`:''}
       <div style="height:1px;background:#f0f0f0;margin:22px 0"></div>
       <div style="font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px;font-family:'Inter',sans-serif">Presentada por</div>
       <div style="font-size:18px;font-weight:700;color:#714B67;font-family:'Inter',sans-serif">${aeFullN}</div>
@@ -13507,7 +13510,7 @@ thead{ display:table-header-group; }
       <div style="background:#714B67;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;color:white">odoo</div>
       <div style="font-size:11px;color:#714B67;font-weight:600">Propuesta Comercial</div>
     </div>
-    <div style="font-size:9px;color:#9ca3af;font-family:'Inter',monospace">${co?.nombre||''} · ${folio}</div>
+    <div style="font-size:9px;color:#9ca3af;font-family:'Inter',monospace">${_esc(co?.nombre||'')} · ${folio}</div>
   </div>
 
   <!-- ¿Quiénes somos? -->
@@ -13553,7 +13556,7 @@ thead{ display:table-header-group; }
       <div style="background:#714B67;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;color:white">odoo</div>
       <div style="font-size:11px;color:#714B67;font-weight:600">Inversión y contratación</div>
     </div>
-    <div style="font-size:9px;color:#9ca3af;font-family:'Inter',monospace">${co?.nombre||''} · ${folio}</div>
+    <div style="font-size:9px;color:#9ca3af;font-family:'Inter',monospace">${_esc(co?.nombre||'')} · ${folio}</div>
   </div>
 
   <!-- Config summary strip -->
@@ -13671,7 +13674,7 @@ thead{ display:table-header-group; }
       <div style="background:#714B67;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;color:white">odoo</div>
       <div style="font-size:11px;color:#714B67;font-weight:600">Firma y pago en línea</div>
     </div>
-    <div style="font-size:9px;color:#9ca3af;font-family:'Inter',monospace">${co?.nombre||''} · ${folio}</div>
+    <div style="font-size:9px;color:#9ca3af;font-family:'Inter',monospace">${_esc(co?.nombre||'')} · ${folio}</div>
   </div>
 
   <!-- CTA propuesta Odoo -->
@@ -13720,7 +13723,7 @@ thead{ display:table-header-group; }
       <div style="background:#714B67;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;color:white">odoo</div>
       <div style="font-size:11px;color:#714B67;font-weight:600">Aplicaciones y alcance</div>
     </div>
-    <div style="font-size:9px;color:#9ca3af;font-family:'Inter',monospace">${co?.nombre||''} · ${folio}</div>
+    <div style="font-size:9px;color:#9ca3af;font-family:'Inter',monospace">${_esc(co?.nombre||'')} · ${folio}</div>
   </div>
 
   <!-- Modules -->
@@ -14273,9 +14276,9 @@ window.renderPricingRecords=async function(){
       return `<div class="card" style="padding:18px;display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;align-items:flex-start;gap:12px;min-width:0">
           ${isMgr?`<input type="checkbox" class="pricingRecChk" value="${d.id}" onclick="pricingUpdateSel()" style="margin-top:6px;width:16px;height:16px;accent-color:var(--purple);flex-shrink:0">`:''}
-          <div style="width:40px;height:40px;border-radius:50%;background:${color};color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">${_pricingInitials(r.companyName)}</div>
+          <div style="width:40px;height:40px;border-radius:50%;background:${color};color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">${_esc(_pricingInitials(r.companyName))}</div>
           <div style="min-width:0;flex:1">
-            <div style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.companyName||'Sin empresa'}</div>
+            <div style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(r.companyName||'Sin empresa')}</div>
             <div style="font-size:12px;color:var(--gray-400);margin-top:1px">${r.aeName||''} · ${date}</div>
           </div>
           ${canReassign?`<button class="btn btn-ghost btn-sm" style="padding:4px 8px;flex-shrink:0" onclick="pricingOpenReassign('${d.id}')" title="Reasignar dueño">🔁</button>`:''}
@@ -14330,7 +14333,7 @@ window.pricingOpenReassign=async function(id){
   document.getElementById('pricingReassignPopup')?.remove();
   const overlay=document.createElement('div'); overlay.className='disc-popup-overlay'; overlay.id='pricingReassignPopup';
   overlay.innerHTML=`<div class="disc-popup-box" style="max-width:420px">
-    <div class="disc-popup-header"><div class="disc-popup-title">🔁 Reasignar pricing — ${r.companyName||'Sin empresa'}</div>
+    <div class="disc-popup-header"><div class="disc-popup-title">🔁 Reasignar pricing — ${_esc(r.companyName||'Sin empresa')}</div>
       <button class="disc-copy-btn" onclick="document.getElementById('pricingReassignPopup').remove()">✕</button></div>
     <div class="disc-popup-body">
       <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Dueño actual: <strong>${r.aeName||r.aeGram||'—'}</strong>. El nuevo dueño ve y edita este pricing; al anterior le deja de aparecer. Solo se mueve ESTE registro — la empresa, la sesión de Qcall y la propuesta no cambian de dueño.</p>
@@ -16050,7 +16053,7 @@ function renderLeadJobsBell(){
       return `<div class="lead-bell-item" ${listo&&!j.read?`style="background:var(--${vacio?'warning-light':'success-light'})"`:''}>
         <div style="display:flex;gap:8px;align-items:flex-start">
           <div style="flex:1;cursor:pointer" onclick="csvOpenLeadJob('${j.id}')">
-            <div style="font-weight:600">${j.nombre||statusLabel[j.status]||j.status}</div>
+            <div style="font-weight:600">${_esc(j.nombre||statusLabel[j.status]||j.status||'')}</div>
             <div style="font-size:11px;margin-top:3px;${colorEstado}">${etiqueta}${listo?` — ${n} de ${j.solicitados||n} lead${(j.solicitados||n)!==1?'s':''}`:` · ${j.solicitados||''} solicitados`}${listo&&!j.read?' · NUEVO':''}</div>
             ${listo&&motivo?`<div style="font-size:11px;color:var(--gray-500);margin-top:3px;line-height:1.35">${_esc(motivo)}</div>`:''}
             ${vacio?`<a onclick="event.stopPropagation();csvRetryLeadJob('${j.id}')" style="font-size:11px;font-weight:700;color:var(--purple);cursor:pointer;display:inline-block;margin-top:4px">↻ Ajustar filtros y reintentar</a>`:''}
