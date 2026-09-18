@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-18T16:54:37Z">
+<meta name="app-version" content="2026-09-18T19:42:15Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1612,7 +1612,10 @@ async function loadManagerPanel(){
 window.approveUser = async(uid)=>{ try{ await updateDoc(doc(db,'users',uid),{status:'active',approvedAt:serverTimestamp()}); showNotif('Usuario aprobado ✓','success'); } catch(e){ showNotif('Error: '+e.message,'error'); }};
 window.rejectUser  = async(uid)=>{ if(!confirm('¿Rechazar este usuario?')) return; try{ await updateDoc(doc(db,'users',uid),{status:'rejected'}); showNotif('Rechazado','info'); } catch(e){}};
 window.assignRole  = async(uid,role)=>{ try{ await updateDoc(doc(db,'users',uid),{role}); showNotif('Rol actualizado','success'); } catch(e){}};
-window.assignTL    = async(aeUid,tlUid)=>{ try{ await updateDoc(doc(db,'users',aeUid),{tlId:tlUid||null}); showNotif('TL asignado','success'); } catch(e){}};
+window.assignTL    = async(aeUid,tlUid)=>{ try{ await updateDoc(doc(db,'users',aeUid),{tlId:tlUid||null}); showNotif('TL asignado','success');
+  // Los registros de Métricas guardan el tlId del día en que se capturaron: se re-sellan con el
+  // equipo nuevo para que su TL los vea y no le duplique semanas (ver _metResyncTlIdDe).
+  _metResyncTlIdDe(aeUid,tlUid).catch(e=>console.warn('assignTL métricas:',e)); } catch(e){}};
 
 function renderPendingUsers(users){
   const c=document.getElementById('pendingList'); if(!c) return;
@@ -2840,6 +2843,51 @@ async function metLoadAll(){
   const [forecasts,activities]=await Promise.all([_metLoadSafe('forecastRecords'),_metLoadSafe('metActivityRecords')]);
   _metState.forecasts=forecasts; _metState.activities=activities;
   metRenderBody();
+  _metSyncTlIds().catch(e=>console.warn('metricas sync tlId:',e));
+}
+
+// ── El tlId de cada registro, al día con el equipo real (2026-09-18) ──────────
+// assignTL solo cambia el perfil del AE, y cada registro de Métricas guarda el tlId que el AE tenía
+// el día que capturó. Si después le asignan TL o lo cambian de equipo, su TL nuevo no ve esos
+// registros —la regla de lectura va por el tlId del doc— y al capturarle esa semana la app no
+// encuentra el registro existente y crea un duplicado que el tablero sumaría doble.
+// Por eso el manager resincroniza: al asignar TL (assignTL) y, como red de seguridad, la primera vez
+// que abre Métricas en la sesión. Solo toca el campo tlId: la regla se lo permite al manager SIN
+// firma de editor, porque no cambia ningún número y no debe aparecer como "Editado por".
+async function _metResyncTlIdDe(aeUid,tlUid){
+  if(!db||currentUserData?.role!=='manager'||!aeUid) return 0;
+  let n=0;
+  for(const coll of ['forecastRecords','metActivityRecords']){
+    const snap=await getDocs(query(collection(db,coll),where('aeUid','==',aeUid)));
+    for(const d of snap.docs){
+      if((d.data().tlId||null)===(tlUid||null)) continue;
+      await updateDoc(doc(db,coll,d.id),{tlId:tlUid||null}); n++;
+    }
+  }
+  return n;
+}
+let _metSyncHecho=false;
+async function _metSyncTlIds(){
+  if(_metSyncHecho||!db||currentUserData?.role!=='manager') return;
+  _metSyncHecho=true;   // una vez por sesión: es red de seguridad, no un proceso
+  // people del manager = usuarios activos. Un registro de alguien que ya no está activo no se toca:
+  // no hay perfil vigente contra el cual compararlo.
+  const perfil=new Map((_metState.people||[]).map(p=>[p.uid,p.tlId||null]));
+  const pendientes=[];
+  [['forecastRecords',_metState.forecasts],['metActivityRecords',_metState.activities]].forEach(([coll,rows])=>{
+    (rows||[]).forEach(r=>{
+      if(!r?.id||!perfil.has(r.aeUid)) return;
+      const tl=perfil.get(r.aeUid);
+      if((r.tlId||null)!==tl) pendientes.push({coll,r,tl});
+    });
+  });
+  let ok=0;
+  for(const {coll,r,tl} of pendientes){
+    // Si la regla todavía no lo permite, fallaría igual en todos: se corta al primero.
+    try{ await updateDoc(doc(db,coll,r.id),{tlId:tl}); r.tlId=tl; ok++; }
+    catch(e){ console.warn('metricas sync tlId:',coll,r.id,_metErrMsg(e)); break; }
+  }
+  if(ok) console.info(`metricas: ${ok} registro(s) con el TL al día`);
 }
 
 // ── Barra de filtros ──────────────────────────────────────────────────────────
