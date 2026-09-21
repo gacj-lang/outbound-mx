@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-21T20:25:21Z">
+<meta name="app-version" content="2026-09-21T22:17:04Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-21d Empresas carga más rápido para el manager: los contadores de Qcall y pricing de las tarjetas salen de 2 consultas en total, no de 2 por empresa (eran ~2,200 a la vez y Firestore las frenaba, atorando también el detalle de la empresa). · 2026-09-21c Reasignar una empresa ya le pasa al nuevo dueño todo lo ligado: sesiones de Intromeet/Qcall, pricing, propuestas y CSV. Quién hizo cada una queda guardado y Analytics se lo sigue contando a esa persona. La herramienta de Mantenimiento de Qcall ya respeta la reasignación. Crear una empresa desde el selector con sitio web ya arma su ficha sola. · 2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
+const APP_BUILD_STAMP='2026-09-21e Generación de contenidos usa la ficha de la empresa: Template, Cold Calling y Brochure ya personalizan con qué hace, las apps que le aplican, sus dolores probables y sus señales recientes cuando la empresa tiene ficha. Los dolores van como pregunta, nunca como hecho, y el mensaje no dice de dónde salió el dato. · 2026-09-21d Empresas carga más rápido para el manager: los contadores de Qcall y pricing de las tarjetas salen de 2 consultas en total, no de 2 por empresa (eran ~2,200 a la vez y Firestore las frenaba, atorando también el detalle de la empresa). · 2026-09-21c Reasignar una empresa ya le pasa al nuevo dueño todo lo ligado: sesiones de Intromeet/Qcall, pricing, propuestas y CSV. Quién hizo cada una queda guardado y Analytics se lo sigue contando a esa persona. La herramienta de Mantenimiento de Qcall ya respeta la reasignación. Crear una empresa desde el selector con sitio web ya arma su ficha sola. · 2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -6968,6 +6968,45 @@ function gcUpdateIndDisplay(subId){
   else { el.style.display='none'; }
 }
 
+// Ficha consultiva de la empresa (companies.inteligencia: la arma el buscador o POST /empresaInteligencia)
+// para Template, Cold Calling y Brochure. Hasta el 2026-09-21 estos módulos personalizaban solo con lo
+// capturado a mano y el URL como texto aunque la ficha ya existiera. Va sola, sin botón: si hay ficha
+// entra al prompt y si no, no pasa nada. Es investigación previa, no algo que haya dicho el prospecto,
+// y el prompt lo dice así. La prioridad no se manda: es interna y no debe llegar al mensaje.
+const GC_FICHA_SENALES_DIAS=45; // más viejas que esto, las señales ya no son "recientes"
+function _gcFichaContext(c){
+  const i=c?.inteligencia; if(!i) return '';
+  const f=i.ficha||{}, s=i.senales||{}, e=i.empresaLusha||{}, ea=i.empresaApollo||{};
+  const corta=(t,n)=>{ t=String(t||'').replace(/\s+/g,' ').trim(); return t.length>n?t.slice(0,n)+'…':t; };
+  const lineas=[];
+  // Una ficha armada sin sitio ni datos de Lusha sale genérica ("Sin información disponible" y
+  // dolores de manual): no dice nada de ESTA empresa y solo metería ruido.
+  if(f.queHace&&!/sin informaci[oó]n/i.test(f.queHace)){
+    lineas.push(`Qué hace: ${corta(f.queHace,400)}`);
+    if(f.apps?.length) lineas.push(`Apps de Odoo que probablemente le aplican: ${f.apps.slice(0,4).map(a=>a.porque?`${a.app} (${corta(a.porque,120)})`:a.app).join('; ')}`);
+    if(f.dolores?.length) lineas.push(`Dolores probables (hipótesis sin confirmar): ${f.dolores.slice(0,4).map(d=>corta(d,140)).join('; ')}`);
+    if(f.gancho) lineas.push(`Posible gancho de apertura: ${corta(f.gancho,250)}`);
+    if(f.preguntas?.length) lineas.push(`Preguntas de descubrimiento sugeridas: ${f.preguntas.slice(0,3).map(p=>corta(p,160)).join(' | ')}`);
+  }
+  const perfil=e.descripcion||ea.descripcion;
+  if(perfil) lineas.push(`Perfil público: ${corta(perfil,350)}`);
+  const dias=i.actualizada?(Date.now()-new Date(i.actualizada).getTime())/86400000:Infinity;
+  if(dias<=GC_FICHA_SENALES_DIAS){
+    const sen=[];
+    if(s.contratacion?.vacantesSemana) sen.push(`publicó ${s.contratacion.vacantesSemana} vacante(s) en una semana`);
+    if(s.areasContratando?.length) sen.push(`está contratando en ${s.areasContratando.slice(0,4).join(', ')}`);
+    if(s.plantilla12m?.cambioPct) sen.push(`su plantilla cambió ${s.plantilla12m.cambioPct>0?'+':''}${s.plantilla12m.cambioPct}% en 12 meses`);
+    (s.noticias||[]).slice(0,2).forEach(n=>{ if(n?.titulo) sen.push(`noticia: ${corta(n.titulo,140)}`); });
+    if(sen.length) lineas.push(`Señales públicas recientes (se pueden mencionar con naturalidad si vienen al caso): ${sen.join('; ')}`);
+    if(s.intencion?.temas?.length) lineas.push(`Temas en los que muestra interés (dato interno para elegir el ángulo, NO lo menciones): ${s.intencion.temas.slice(0,4).join(', ')}`);
+  }
+  if(!lineas.length) return '';
+  return `\n--- FICHA DE LA EMPRESA (investigación previa con su sitio web, bases de datos comerciales e IA) ---
+${lineas.join('\n')}
+Cómo usarla: personaliza con lo que dice aquí (qué hace, apps, gancho, señales), sin inventar nada que no esté. Los dolores son HIPÓTESIS: plantéalos como pregunta o como algo común en empresas como la suya, nunca como un hecho ("sé que batallan con…"). Si todavía no hay conversación con el prospecto, es un lead en frío: no presupongas proyecto, presupuesto ni fecha. Nunca digas que tienes una ficha o una investigación, ni menciones de dónde salió el dato. Si la memoria acumulada (lo que dijo el prospecto) o los campos que llenó el AE dicen otra cosa, mandan ellos.
+---`;
+}
+
 // ── Build Claude prompt context from company ──
 function gcCompanyContext(overrideCompany=null){
   const c=overrideCompany||cont.company;
@@ -6978,7 +7017,7 @@ function gcCompanyContext(overrideCompany=null){
   const memCtx=buildMemoryContext(c);
   const aeAppt=currentUserData?.appointmentLink||'';
   return `EMPRESA: ${c.nombre} | Giro: ${c.giro||'nd'} | Tamaño: ${c.tamaño||'nd'} | Origen: ${c.origen||'nd'}${c.website?` | Web: ${c.website}`:''}${c.linkedin?` | LinkedIn empresa: ${c.linkedin}`:''}
-CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.correo||ct.email||'nd'}${ct.linkedin?` | LinkedIn: ${ct.linkedin}`:''}`: 'Sin contacto seleccionado'}${aeAppt?`\nLINK DE AGENDADO DEL AE: ${aeAppt}`:''}${odooInd?`\nCONTEXTO INDUSTRIA (${c.giro}): ${odooInd}`:''}${memCtx}`;
+CONTACTO: ${ct?`${ct.nombre} | Cargo: ${ct.cargo||'nd'} | Email: ${ct.correo||ct.email||'nd'}${ct.linkedin?` | LinkedIn: ${ct.linkedin}`:''}`: 'Sin contacto seleccionado'}${aeAppt?`\nLINK DE AGENDADO DEL AE: ${aeAppt}`:''}${odooInd?`\nCONTEXTO INDUSTRIA (${c.giro}): ${odooInd}`:''}${_gcFichaContext(c)}${memCtx}`;
 }
 
 // A qué módulo de la app pertenece cada función que llama a gcCallClaude. Se mantiene aquí y no en
