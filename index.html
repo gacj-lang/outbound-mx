@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-21T15:20:49Z">
+<meta name="app-version" content="2026-09-21T20:00:52Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4890,13 +4890,21 @@ function discRenderFeedback(text){
 async function discLoadRecentSessions(industry, limit=5){
   if(!db||!industry) return [];
   try{
-    const q=query(collection(db,'discoveryRecords'),
-      where('industria','==',industry),
-      where('status','==','completado'),
-      orderBy('createdAt','desc'));
-    const snap=await getDocs(q);
-    return snap.docs.slice(0,limit).map(d=>d.data());
-  } catch(e){ return []; }
+    if(currentUserData?.role==='manager'){
+      const q=query(collection(db,'discoveryRecords'),
+        where('industria','==',industry),
+        where('status','==','completado'),
+        orderBy('createdAt','desc'));
+      const snap=await getDocs(q);
+      return snap.docs.slice(0,limit).map(d=>d.data());
+    }
+    // AE y TL: la regla solo les deja leer lo suyo y lo de su equipo, y la query sin aeUid/tlId se
+    // negaba entera (el análisis salía sin sesiones previas). Se filtra y ordena en cliente para no
+    // exigir un índice compuesto nuevo.
+    const docs=await _docsEnAlcance('discoveryRecords',where('industria','==',industry));
+    return docs.map(d=>d.data()).filter(r=>r.status==='completado')
+      .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).slice(0,limit);
+  } catch(e){ console.warn('discLoadRecentSessions:',e); return []; }
 }
 
 function discBuildClaudePrompt(ctx){
@@ -6062,6 +6070,23 @@ async function _searchCompaniesByScope(scope){
   return [...byId.values()].sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
 }
 
+// Registros con lectura por rol (Qcall, pricing, propuesta, CSV) que cumplen un filtro. Las reglas dejan
+// leer al AE solo lo suyo (aeUid), al TL lo suyo + su equipo (tlId del doc) y al manager todo, y
+// Firestore evalúa la regla contra la QUERY: pedir solo "companyId == X" se niega ENTERA para AE y TL
+// aunque todos los resultados fueran suyos (2026-09-21: el detalle de empresa de una account no
+// mostraba su propia Qcall). Por eso la consulta lleva el mismo filtro que la regla. Límite que pone
+// la regla, no el código: si la empresa se reasignó, el nuevo dueño no ve lo que capturó el anterior.
+async function _docsEnAlcance(col,...filtros){
+  const role=currentUserData?.role, uid=currentUserData?.uid;
+  if(role==='manager') return (await getDocs(query(collection(db,col),...filtros))).docs;
+  const qs=[getDocs(query(collection(db,col),...filtros,where('aeUid','==',uid)))];
+  // El tlId de un TL guarda a SU manager, no a él: sus propios registros salen por aeUid.
+  if(role==='tl') qs.push(getDocs(query(collection(db,col),...filtros,where('tlId','==',uid))));
+  const snaps=await Promise.all(qs);
+  return [...new Map(snaps.flatMap(s=>s.docs).map(d=>[d.id,d])).values()];
+}
+function _docsDeEmpresa(col,id){ return _docsEnAlcance(col,where('companyId','==',id)); }
+
 async function getCompany(id){
   if(!db||!id) return null;
   try{ const s=await getDoc(doc(db,'companies',id)); return s.exists()?{id:s.id,...s.data()}:null; }
@@ -6408,12 +6433,13 @@ async function loadCentroControl(){
   const actContainer=document.getElementById('cdcActivity'); if(!actContainer) return;
   if(db){
     try{
-      const q=currentUserData?.role==='ae'?
-        query(collection(db,'discoveryRecords'),where('aeUid','==',currentUserData.uid)):
-        query(collection(db,'discoveryRecords'),orderBy('updatedAt','desc'));
-      const snap=await getDocs(q);
-      const allDocs=snap.docs.map(d=>d.data());
-      if(currentUserData?.role==='ae') allDocs.sort((a,b)=>(b.updatedAt?.seconds||0)-(a.updatedAt?.seconds||0));
+      // Manager: todo, ya ordenado. AE y TL: solo lo que la regla les deja leer (antes el TL pedía la
+      // colección completa y le salía "Sin actividad reciente" por un permission-denied).
+      const isMgr=currentUserData?.role==='manager';
+      const docs=isMgr?(await getDocs(query(collection(db,'discoveryRecords'),orderBy('updatedAt','desc')))).docs
+        :await _docsEnAlcance('discoveryRecords');
+      const allDocs=docs.map(d=>d.data());
+      if(!isMgr) allDocs.sort((a,b)=>(b.updatedAt?.seconds||0)-(a.updatedAt?.seconds||0));
       const recent=allDocs.slice(0,4);
       await _discHydrateCompanyNames(recent); // misma caché de nombre-en-vivo que usa la lista de Qcall/Intromeet
       actContainer.innerHTML=recent.length===0?'<div class="cdc-empty">Sin actividad reciente</div>':
@@ -11759,10 +11785,10 @@ async function empLoad(){
       co._docs={discovery:0,pricing:0};
       try{
         const [d,p]=await Promise.all([
-          getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',co.id))),
-          getDocs(query(collection(db,'pricingRecords'),where('companyId','==',co.id)))
+          _docsDeEmpresa('discoveryRecords',co.id),
+          _docsDeEmpresa('pricingRecords',co.id)
         ]);
-        co._docs.discovery=d.size; co._docs.pricing=p.size;
+        co._docs.discovery=d.length; co._docs.pricing=p.length;
       } catch(e){}
     }));
   } else {
@@ -12531,13 +12557,13 @@ window.empOpenDetail=async function(id){
       // IMPORTANTE: sin orderBy() para evitar requerir índice compuesto — se ordena en cliente
       const byDate=(a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0);
       const [discR,csvR,priceR,freshCo]=await Promise.all([
-        getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',id))).catch(e=>{console.warn('disc:',e);return{docs:[]};}),
+        _docsDeEmpresa('discoveryRecords',id).then(docs=>({docs})).catch(e=>{console.warn('disc:',e);return{docs:[]};}),
         // companyIds (2026-09-14): un CSV de "Agregar leads" puede traer varias empresas y se liga a todas.
         Promise.all([
-          getDocs(query(collection(db,'csvSessions'),where('companyId','==',id))).catch(e=>{console.warn('csv:',e);return{docs:[]};}),
-          getDocs(query(collection(db,'csvSessions'),where('companyIds','array-contains',id))).catch(()=>({docs:[]})),
-        ]).then(([a,b])=>({docs:[...new Map([...a.docs,...b.docs].map(d=>[d.id,d])).values()]})),
-        getDocs(query(collection(db,'pricingRecords'),where('companyId','==',id))).catch(e=>{console.warn('price:',e);return{docs:[]};}),
+          _docsDeEmpresa('csvSessions',id).catch(e=>{console.warn('csv:',e);return[];}),
+          _docsEnAlcance('csvSessions',where('companyIds','array-contains',id)).catch(e=>{console.warn('csv companyIds:',e);return[];}),
+        ]).then(([a,b])=>({docs:[...new Map([...a,...b].map(d=>[d.id,d])).values()]})),
+        _docsDeEmpresa('pricingRecords',id).then(docs=>({docs})).catch(e=>{console.warn('price:',e);return{docs:[]};}),
         getDoc(doc(db,'companies',id)).catch(()=>null),
       ]);
       const disc=[...discR.docs].sort(byDate), csv=[...csvR.docs].sort(byDate), price=[...priceR.docs].sort(byDate);
@@ -13999,10 +14025,9 @@ window.propLoadLastPricing=async function(){
   if(!co){ showNotif('Selecciona una empresa primero','error'); return; }
   if(!db){ showNotif('Sin conexión a Firebase','error'); return; }
   try{
-    const q=query(collection(db,'pricingRecords'),where('companyId','==',co.id));
-    const snap=await getDocs(q);
-    if(snap.empty){ showNotif('No se encontró pricing para esta empresa','warning'); return; }
-    const docs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    const found=await _docsDeEmpresa('pricingRecords',co.id);
+    if(!found.length){ showNotif('No se encontró pricing para esta empresa','warning'); return; }
+    const docs=found.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
     const last=docs[0];
     pricingState.result={editionName:last.edition,users:last.users,planIdx:last.planIdx,mensualRef:last.mensualRef,implPrice:last.implPrice,total:last.total,implHrs:last.implHrs||50};
     pricingState.users=last.users; pricingState.planIdx=last.planIdx;
@@ -18818,7 +18843,11 @@ async function ninjaObtenerAreasOportunidadAE(ae, cantidadSesiones){
   const target=matches[0];
 
   let sessSnap;
-  try{ sessSnap=await getDocs(query(collection(db,'discoveryRecords'),where('aeUid','==',target.uid))); }
+  // Un TL que consulta a alguien de su equipo necesita también tlId == él: si no, Firestore niega
+  // la consulta completa (mismo caso que _metWhereDe).
+  const _filtrosSes=[where('aeUid','==',target.uid)];
+  if(role==='tl'&&target.uid!==currentUserData.uid) _filtrosSes.push(where('tlId','==',currentUserData.uid));
+  try{ sessSnap=await getDocs(query(collection(db,'discoveryRecords'),..._filtrosSes)); }
   catch(e){ return {error:'No se pudieron leer las sesiones: '+e.message}; }
 
   let sesiones=sessSnap.docs.map(d=>d.data());
@@ -18854,15 +18883,10 @@ async function ninjaObtenerHistorialEmpresa(empresa){
   }
   const co=candidatos[0];
 
-  let discSnap={docs:[]},priceSnap={docs:[]},propSnap={docs:[]},csvSnap={docs:[]};
-  try{
-    [discSnap,priceSnap,propSnap,csvSnap]=await Promise.all([
-      getDocs(query(collection(db,'discoveryRecords'),where('companyId','==',co.id))),
-      getDocs(query(collection(db,'pricingRecords'),where('companyId','==',co.id))),
-      getDocs(query(collection(db,'propuestaRecords'),where('companyId','==',co.id))),
-      getDocs(query(collection(db,'csvSessions'),where('companyId','==',co.id))),
-    ]);
-  }catch(e){ /* si un índice falla, seguimos con lo que sí cargó */ }
+  // Cada colección por separado: si una falla, las otras siguen (antes un Promise.all dejaba todo vacío).
+  const _enAlcance=col=>_docsDeEmpresa(col,co.id).then(docs=>({docs})).catch(e=>{console.warn('ninja '+col+':',e);return{docs:[]};});
+  const [discSnap,priceSnap,propSnap,csvSnap]=await Promise.all(
+    ['discoveryRecords','pricingRecords','propuestaRecords','csvSessions'].map(_enAlcance));
 
   const byDate=(a,b)=>_aTsMs(b.createdAt)-_aTsMs(a.createdAt);
   const disc=discSnap.docs.map(d=>d.data()).sort(byDate);
