@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-21T20:00:52Z">
+<meta name="app-version" content="2026-09-21T20:06:13Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
+const APP_BUILD_STAMP='2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1174,7 +1174,6 @@ const ODOO_INDUSTRY_ICONS = {
 };
 // Helper para obtener URL de asset
 function industryIconUrl(giro){ const k=Object.keys(ODOO_INDUSTRY_ICONS).find(k=>k===giro?.toLowerCase()); return k?`${ASSETS}/icons/industry/${ODOO_INDUSTRY_ICONS[k]}.svg`:`${ASSETS}/icons/industry/industry_it.svg`; }
-let PEXELS_KEY = ''; // Banco de fotos para imágenes de LinkedIn — cargado desde Firestore config/app
 
 // ── Lista única de buzzwords prohibidas — compartida por TODOS los prompts vía ANTI_HALLUCINATION
 // (antes había 2 listas distintas e incompletas regadas en el archivo; una sola fuente evita que
@@ -1508,14 +1507,7 @@ async function loadAppConfig(){
   // copia que haya quedado en el navegador de cada AE — dejarla sería mantener una credencial viva
   // en el dispositivo sin ninguna razón.
   try{ localStorage.removeItem('outbound_claude_key'); }catch(e){}
-  if(!db) return;
-  try{
-    const snap=await getDoc(doc(db,'config','app'));
-    if(snap.exists()){
-      const d=snap.data();
-      if(d.pexelsKey) PEXELS_KEY=d.pexelsKey;
-    }
-  } catch(e){ console.warn('loadAppConfig:',e); }
+  // La de Pexels tampoco (2026-09-21): las fotos las busca el servidor (/fotos), ver fetchIndustryPhoto.
 }
 
 // ══════════════════════════════════════════
@@ -2518,13 +2510,8 @@ function renderSettings(){
           <p class="settings-desc">Ya no se configura aquí. Desde el 2 de septiembre de 2026 las llamadas de IA pasan por el servidor de la app, que guarda la key de la empresa — antes viajaba al navegador de cada quien y cualquiera podía copiarla desde las herramientas de desarrollador. No tienes que hacer nada.</p>
         </div>
         ${isManager?`<div class="card settings-card">
-          <div class="card-header"><h3>🖼️ Pexels (fotos para LinkedIn)</h3><span class="status-dot ${PEXELS_KEY?'dot-green':'dot-red'}"></span></div>
-          <p class="settings-desc">Banco de fotos reales para Publicación LinkedIn (estilo "Foto real"). Compartido para todo el equipo — se guarda en Firestore, nunca en el código del repo (que es público). Solo visible para managers.<br><a href="https://www.pexels.com/api/" target="_blank" class="link">Pexels API →</a></p>
-          <div class="form-group"><label>Pexels API Key</label><input type="password" id="pexelsApiKey" class="input" placeholder="563492ad6f9170..." value="${PEXELS_KEY}"></div>
-          <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
-            <button class="btn btn-primary" onclick="savePexelsKey()">Guardar</button>
-            ${PEXELS_KEY?'<span class="key-saved">✓ Activa para todo el equipo</span>':'<span style="font-size:13px;color:var(--gray-400)">Sin configurar — Publicación LinkedIn usa solo "Tarjeta gráfica"</span>'}
-          </div>
+          <div class="card-header"><h3>🖼️ Pexels (fotos para LinkedIn)</h3><span class="status-dot dot-green"></span></div>
+          <p class="settings-desc">Ya no se configura aquí. Desde el 21 de septiembre de 2026 las fotos las busca el servidor de la app con la key de la variable <b>PEXELS_API_KEY</b> en Railway — antes viajaba al navegador de cada quien y se podía copiar desde las herramientas de desarrollador. Solo visible para managers.</p>
         </div>`:''}
         <div class="card settings-card">
           <div class="card-header"><h3>🔔 Notificaciones del navegador</h3><span class="status-dot cfg-notif-dot ${_cfgNotifDotClass()}"></span></div>
@@ -2583,18 +2570,6 @@ window.changeMyPassword=async function(){
   }
 };
 
-// Key compartida de Pexels — vive SOLO en Firestore config/app (nunca en el código fuente del
-// repo, que es público). Solo managers ven este campo (ver isManager en renderSettings).
-window.savePexelsKey=async function(){
-  if(!db||currentUserData?.role!=='manager') return;
-  const k=document.getElementById('pexelsApiKey').value.trim();
-  try{
-    await setDoc(doc(db,'config','app'),{pexelsKey:k},{merge:true});
-    PEXELS_KEY=k;
-    showNotif(k?'Pexels API Key guardada ✓':'Pexels API Key eliminada','success');
-    setTimeout(()=>renderSettings(),800);
-  } catch(e){ showNotif('Error al guardar: '+e.message,'error'); }
-};
 
 // ══════════════════════════════════════════
 // MÉTRICAS — Forecast (objetivo vs. logrado), Llamadas, Actividad semanal y Tablero de KPIs
@@ -5721,21 +5696,20 @@ const PHOTO_KEYWORDS = {
   'Otra':['business professional laptop office','manager tablet meeting','office team computer working'],
 };
 
-// Busca una foto en Pexels por industria. Devuelve {url, photographer} o null.
+// Busca una foto en Pexels por industria. Devuelve {url, photographer} o null. La búsqueda la hace
+// el servidor (POST /fotos) con su propia key: hasta el 2026-09-21 salía del navegador con la key
+// bajada de Firestore, a la vista de cualquiera con F12.
 async function fetchIndustryPhoto(industria, page=1){
-  if(!PEXELS_KEY){ return null; }
   const kws=PHOTO_KEYWORDS[industria]||PHOTO_KEYWORDS['Otra'];
   const query=kws[(page-1)%kws.length];
   try{
-    const res=await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=15&orientation=landscape`,{
-      headers:{'Authorization':PEXELS_KEY}
-    });
-    if(!res.ok) throw new Error('Pexels '+res.status);
-    const data=await res.json();
-    const photos=data.photos||[];
+    const res=await fetch(REPORTES_ODOO_BASE+'/fotos',{method:'POST',headers:await claudeProxyHeaders(),body:JSON.stringify({query})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||'fotos '+res.status);
+    const photos=data.fotos||[];
     if(!photos.length) return null;
     const pick=photos[(page-1)%photos.length];
-    return { url:pick.src.large2x||pick.src.large, photographer:pick.photographer, query };
+    return { url:pick.url, photographer:pick.fotografo, query };
   }catch(e){ console.warn('fetchIndustryPhoto:',e.message); return null; }
 }
 
@@ -7536,7 +7510,6 @@ function renderGcPublicacionLinkedIn(){
             <div style="font-size:11px;color:var(--gray-500);margin-top:2px">Diseño con degradado, iconos y formas de Odoo</div>
           </button>
         </div>
-        ${!PEXELS_KEY?`<div style="margin-top:10px;font-size:12px;color:var(--warning);background:var(--warning-light);border:1px solid #fde68a;border-radius:8px;padding:8px 12px">⚠️ Las fotos reales requieren configurar la API de Pexels. Avisa al manager. Mientras, usa "Tarjeta gráfica".</div>`:''}
       </div>
 
       <div class="gc-form-section">
@@ -7691,13 +7664,9 @@ Reglas:
   // Si el estilo es foto, busca una foto real de la industria (página aleatoria para variar la imagen, no siempre la misma)
   cont.lastPhoto=null;
   if(cont.imgStyle!=='grafica'){
-    if(PEXELS_KEY){
-      cont.photoPage=1+Math.floor(Math.random()*8);
-      cont.lastPhoto=await fetchIndustryPhoto(ind,cont.photoPage);
-      if(!cont.lastPhoto) showNotif('No se encontró foto, usando tarjeta gráfica','info');
-    } else {
-      showNotif('Pexels no configurado — usando tarjeta gráfica','info');
-    }
+    cont.photoPage=1+Math.floor(Math.random()*8);
+    cont.lastPhoto=await fetchIndustryPhoto(ind,cont.photoPage);
+    if(!cont.lastPhoto) showNotif('No se encontró foto, usando tarjeta gráfica','info');
   }
   renderGcImagePreview(parsed);
   // Auto-guardar el post en la memoria de la empresa — NUNCA para Publicación LinkedIn (channel
@@ -7953,7 +7922,7 @@ function renderGcImagePreview(data){
         ${canvasInner}
       </div>
     </div>
-    <p style="font-size:12px;color:var(--gray-400);margin-top:8px;text-align:center">Vista previa escalada · El PNG será en resolución completa${photo?` · Foto: ${photo.photographer} (Pexels)`:''}</p>
+    <p style="font-size:12px;color:var(--gray-400);margin-top:8px;text-align:center">Vista previa escalada · El PNG será en resolución completa${photo?` · Foto: ${_esc(photo.photographer||'')} (Pexels)`:''}</p>
     ${data.post_text&&data._channel==='pub'?`
     <div style="margin-top:24px;background:var(--gray-50);border-radius:var(--radius);border:1.5px solid var(--gray-200);padding:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
