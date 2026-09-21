@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-21T20:22:44Z">
+<meta name="app-version" content="2026-09-21T20:25:21Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-21c Reasignar una empresa ya le pasa al nuevo dueño todo lo ligado: sesiones de Intromeet/Qcall, pricing, propuestas y CSV. Quién hizo cada una queda guardado y Analytics se lo sigue contando a esa persona. La herramienta de Mantenimiento de Qcall ya respeta la reasignación. Crear una empresa desde el selector con sitio web ya arma su ficha sola. · 2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
+const APP_BUILD_STAMP='2026-09-21d Empresas carga más rápido para el manager: los contadores de Qcall y pricing de las tarjetas salen de 2 consultas en total, no de 2 por empresa (eran ~2,200 a la vez y Firestore las frenaba, atorando también el detalle de la empresa). · 2026-09-21c Reasignar una empresa ya le pasa al nuevo dueño todo lo ligado: sesiones de Intromeet/Qcall, pricing, propuestas y CSV. Quién hizo cada una queda guardado y Analytics se lo sigue contando a esa persona. La herramienta de Mantenimiento de Qcall ya respeta la reasignación. Crear una empresa desde el selector con sitio web ya arma su ficha sola. · 2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -11774,17 +11774,18 @@ async function empLoad(){
   // era un for...of con await adentro: una empresa a la vez, en serie — con N empresas eso son N
   // pares de round-trips secuenciales, el segundo cuello de botella real detrás de la lentitud de
   // Empresas reportada 2026-08-21 (el primero era searchCompanies(), ver comentario ahí arriba).
+  // 2026-09-21: UNA consulta por colección (todo lo del alcance) y se cuenta por companyId en el
+  // navegador. Con 2 consultas por empresa, el manager (~1,100 empresas) disparaba ~2,200 a la vez:
+  // Firestore respondía resource-exhausted ("Too many outstanding requests") y se atoraban las demás
+  // lecturas de la pantalla, como el detalle de la empresa.
   if(db){
-    await Promise.all(_allEmpresas.map(async co=>{
-      co._docs={discovery:0,pricing:0};
-      try{
-        const [d,p]=await Promise.all([
-          _docsDeEmpresa('discoveryRecords',co.id),
-          _docsDeEmpresa('pricingRecords',co.id)
-        ]);
-        co._docs.discovery=d.length; co._docs.pricing=p.length;
-      } catch(e){}
-    }));
+    _allEmpresas.forEach(co=>{ co._docs={discovery:0,pricing:0}; });
+    try{
+      const porId=new Map(_allEmpresas.map(co=>[co.id,co]));
+      const [dAll,pAll]=await Promise.all([_docsEnAlcance('discoveryRecords'),_docsEnAlcance('pricingRecords')]);
+      dAll.forEach(d=>{ const co=porId.get(d.data().companyId); if(co) co._docs.discovery++; });
+      pAll.forEach(d=>{ const co=porId.get(d.data().companyId); if(co) co._docs.pricing++; });
+    } catch(e){ console.warn('empLoad contadores:',e); }
   } else {
     _allEmpresas.forEach(co=>{ co._docs={discovery:0,pricing:0}; });
   }
