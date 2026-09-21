@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-18T19:53:58Z">
+<meta name="app-version" content="2026-09-21T15:20:49Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -5014,22 +5014,37 @@ CERO INVENCIÓN — esta regla manda sobre todas las demás, incluida la de dens
 // desde que los pasos corren en paralelo: tres llamadas simultáneas con la transcripción completa
 // pueden topar el límite de la cuenta, y sin esto el paso moría con un error rojo en vez de esperar
 // unos segundos y volver a intentar.
+// También se reintenta cuando no llega respuesta legible ("Failed to fetch"): la conexión se cortó
+// (wifi, VPN, laptop dormida) o Railway contestó un 502 propio, que viene sin encabezados CORS y el
+// navegador lo reporta igual que un corte. Caso real 2026-09-21: a un AE le falló el paso de
+// recomendaciones con "Failed to fetch" y, como ese error no tenía reintento, el paso murió al
+// primer intento. Si se agotan los intentos, el mensaje dice a los cuántos segundos se cortó: cerca
+// de 0 s es un bloqueo de red; un número fijo como 60 s es un proxy o VPN que corta conexiones largas.
 async function _discFetchClaude(body, intentos=4, meta={}){
   let espera=2000;
   for(let i=0;;i++){
-    const res=await fetch(CLAUDE_PROXY_URL,{
-      method:'POST',
-      headers:await claudeProxyHeaders(),
-      body:JSON.stringify(body)
-    });
-    if(i<intentos-1&&(res.status===429||res.status>=500)){
+    const t0=Date.now();
+    let res, data;
+    try{
+      res=await fetch(CLAUDE_PROXY_URL,{
+        method:'POST',
+        headers:await claudeProxyHeaders(),
+        body:JSON.stringify(body)
+      });
+      if(!(i<intentos-1&&(res.status===429||res.status>=500))) data=await res.json();
+    }catch(e){
+      const seg=Math.round((Date.now()-t0)/1000);
+      console.warn(`Qcall · ${meta.funcion||'discovery'}: sin respuesta del servidor a los ${seg} s (intento ${i+1} de ${intentos})`,e);
+      if(i<intentos-1){ await new Promise(r=>setTimeout(r,espera)); espera*=2; continue; }
+      throw new Error(`la conexión con el servidor se cortó a los ${seg} s, ${intentos} intentos. Revisa tu internet o VPN y dale a ↺ Regenerar.`);
+    }
+    if(data===undefined){
       // retry-after solo llega si la API lo expone a CORS; si no, se cae al respaldo exponencial.
       const ra=parseFloat(res.headers.get('retry-after'));
       await new Promise(r=>setTimeout(r, Number.isFinite(ra)?Math.min(ra*1000,30000):espera));
       espera*=2;
       continue;
     }
-    const data=await res.json();
     // Se registra cada tramo por separado, no solo el último: una nota que se reanudó 3 veces
     // costó 3 llamadas con el prompt completo, y el panel tiene que verlas todas.
     aiLogUsage('qcall', meta.funcion||'discovery', body.model, data);
