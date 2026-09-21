@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-21T20:06:13Z">
+<meta name="app-version" content="2026-09-21T20:22:44Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
+const APP_BUILD_STAMP='2026-09-21c Reasignar una empresa ya le pasa al nuevo dueño todo lo ligado: sesiones de Intromeet/Qcall, pricing, propuestas y CSV. Quién hizo cada una queda guardado y Analytics se lo sigue contando a esa persona. La herramienta de Mantenimiento de Qcall ya respeta la reasignación. Crear una empresa desde el selector con sitio web ya arma su ficha sola. · 2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -1895,11 +1895,17 @@ function analyticsCompute(){
   for(let i=monthCount-1;i>=0;i--){ const d=new Date(dnow.getFullYear(),dnow.getMonth()-i,1); const key=d.getFullYear()+'-'+d.getMonth(); buckets.push(bmap[key]={key,label:d.toLocaleDateString('es-MX',{month:'short'}),disc:0,cont:0}); }
   const bucketFor=ms=>{ if(!ms) return null; const d=new Date(ms); return bmap[d.getFullYear()+'-'+d.getMonth()]||null; };
 
-  // Colecciones ya scopeadas por rol en la query
-  discoveries.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; P(d.aeGram,d.aeName,d.aeUid).disc++; const b=bucketFor(ms); if(b)b.disc++; });
-  pricings.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; P(d.aeGram,d.aeName,d.aeUid).pric++; });
-  propuestas.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; P(d.aeGram,d.aeName,d.aeUid).prop++; });
-  csvs.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; const p=P(d.aeGram,d.aeName,d.aeUid); p.csv++; p.opp+=(d.rowCount||0); });
+  // Colecciones ya scopeadas por rol en la query. La actividad cuenta para quien la HIZO: si la empresa
+  // se reasignó, el registro trae autor* (ver _empReasignarLigados) y aeUid ya es el dueño nuevo. Lo
+  // que te pasaron de otra persona no cuenta como actividad tuya.
+  const quien=d=>{
+    if(d.autorUid&&d.autorUid!==d.aeUid) return inScope(d.autorGram,d.autorUid)?P(d.autorGram,d.autorName,d.autorUid):null;
+    return P(d.aeGram,d.aeName,d.aeUid);
+  };
+  discoveries.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; const p=quien(d); if(!p) return; p.disc++; const b=bucketFor(ms); if(b)b.disc++; });
+  pricings.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; const p=quien(d); if(p) p.pric++; });
+  propuestas.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; const p=quien(d); if(p) p.prop++; });
+  csvs.forEach(d=>{ const ms=_aTsMs(d.createdAt); if(!within(ms)) return; const p=quien(d); if(!p) return; p.csv++; p.opp+=(d.rowCount||0); });
   // companies/contenido: leídos completos, se scopean en cliente
   companies.forEach(co=>{
     const cg=co.createdByGram, cu=co.createdByUid;
@@ -2195,7 +2201,7 @@ function renderManagerPanel(){
       <div class="card" style="margin-top:16px">
         <div class="card-header"><h3>🛠 Mantenimiento — creador de Qcall/Intromeet</h3></div>
         <div style="padding:2px 0">
-          <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:10px;line-height:1.5">Corrige sesiones de Intromeet/Qcall que quedaron con el creador mal escrito por un bug ya corregido (el autoguardado sobrescribía aeUid/aeName con quien tocara la sesión, no con quien la creó). Regla: cada registro se corrige a quien creó la empresa correspondiente. Se salta solo si la empresa no tiene registrado su creador (empresas muy viejas) o no se puede resolver su usuario.</p>
+          <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:10px;line-height:1.5">Corrige sesiones de Intromeet/Qcall que quedaron con el creador mal escrito por un bug ya corregido (el autoguardado sobrescribía aeUid/aeName con quien tocara la sesión, no con quien la creó). Regla: cada registro pasa al dueño actual de su empresa (el asignado; si nunca se reasignó, quien la creó). Se salta solo si la empresa no tiene registrado su creador (empresas muy viejas) o no se puede resolver su usuario.</p>
           <button id="maintBackfillBtn" class="btn btn-primary btn-full" onclick="maintRunDiscoveryBackfill(false)">🔍 Analizar (vista previa, no escribe nada)</button>
         </div>
       </div>
@@ -2251,6 +2257,17 @@ async function _maintAnalyzeDiscoveryAssignee(){
     const r={id:d.id,...d.data()};
     const co=r.companyId?companies.get(r.companyId):null;
     if(!co){ results.skip.push({id:r.id,empresa:r.empresa,motivo:'Sin empresa vinculada (companyId)'}); return; }
+    // 2026-09-21: si la empresa ya se reasignó, el dueño de sus Qcalls es el asignado actual (reasignar
+    // mueve todo lo ligado, ver _empReasignarLigados). Antes esto las regresaba siempre a quien CREÓ la
+    // empresa y deshacía la reasignación.
+    if(co.asignadoUid){
+      const ua=usersByUid.get(co.asignadoUid);
+      const newVals={aeUid:co.asignadoUid, aeName:co.asignadoNombre||ua?.name||'', aeGram:co.asignadoGram||ua?.gram||'', tlId:ua?.tlId||null};
+      const same=r.aeUid===newVals.aeUid&&r.aeName===newVals.aeName&&r.aeGram===newVals.aeGram&&(r.tlId||null)===(newVals.tlId||null);
+      if(same){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:'Ya estaba correcto'}); return; }
+      results.fix.push({id:r.id,empresa:co.nombre||r.empresa,before:{aeName:r.aeName,aeGram:r.aeGram},after:newVals});
+      return;
+    }
     if(!co.createdByUid&&!co.createdByGram&&!co.createdBy){ results.skip.push({id:r.id,empresa:co.nombre||r.empresa,motivo:'La empresa no tiene registrado quién la creó (empresa muy vieja)'}); return; }
     // Resolvemos el usuario por uid directo si la empresa lo trae; si no (empresas viejas), por
     // gram o nombre contra la colección users.
@@ -6306,6 +6323,14 @@ window.m2oSaveCo=async function(cid){
   renderM2o(cid);
   if(cpState.cb) cpState.cb(company,null);
   showNotif('Empresa creada ✓','success');
+  // Igual que "Nueva empresa" en Empresas (empSaveCreate): con sitio web la ficha se arma sola en
+  // segundo plano. Sin sitio no se gasta nada — con solo el nombre la ficha sale genérica — y queda el
+  // botón "Crear ficha" en el detalle de la empresa.
+  if(company.website){
+    _empPedirInteligencia([company])
+      .then(async d=>{ const patch=_empPatchInteligencia(company,(d.empresas||[])[0]||{}); if(Object.keys(patch).length&&await saveCompany({id,...patch})) Object.assign(company,patch); })
+      .catch(e=>console.warn('ficha de empresa nueva:',e));
+  }
 };
 
 // ── Contacto dropdown ──
@@ -12549,7 +12574,7 @@ window.empOpenDetail=async function(id){
       const secHead=(t)=>`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:8px">${t}</div>`;
 
       if(disc.length) sections.push(`<div style="margin-bottom:16px">${secHead(`🔍 Discovery (${disc.length})`)}
-        ${disc.map(d=>{const r=d.data();return docRow(co.nombre||r.empresa||'Sin nombre',`${r.aeName||''} · ${r.industriaNombre||''} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();openDiscoveryForm('${d.id}')`,`deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
+        ${disc.map(d=>{const r=d.data();return docRow(_esc(co.nombre||r.empresa||'Sin nombre'),`${_esc(r.aeName||'')}${r.autorUid&&r.autorUid!==r.aeUid?` (la hizo ${_esc(r.autorName||r.autorGram||'otra persona')})`:''} · ${_esc(r.industriaNombre||'')} · ${(r.status||'').replace('_',' ')}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();openDiscoveryForm('${d.id}')`,`deleteRecord('discoveryRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
 
       if(price.length) sections.push(`<div style="margin-bottom:16px">${secHead(`💰 Pricing (${price.length})`)}
         ${price.map(d=>{const r=d.data();window._pricingRecordsCache[d.id]=r;return docRow(`${r.edition||'Pricing'} · ${r.users||0} usuarios`,`${fmtMXN(r.total)} · ${r.implHrs||0} hrs impl${r.isSH?' · Odoo.SH':''}`,fmtDate(r.createdAt),`document.getElementById('empDetailPopup').remove();pricingOpenRecord('${d.id}')`,`deleteRecord('pricingRecords','${d.id}',()=>empOpenDetail('${id}'))`);}).join('')}</div>`);
@@ -12820,7 +12845,7 @@ window.empOpenReassign=async function(id){
     } else {
       const snap=await getDocs(query(collection(db,'users'),where('tlId','==',currentUserData.uid)));
       candidates=snap.docs.map(d=>d.data()).filter(u=>u.status==='active');
-      candidates.push({uid:currentUserData.uid,name:currentUserData.name,gram:currentUserData.gram}); // el propio TL también puede ser dueño
+      candidates.push({uid:currentUserData.uid,name:currentUserData.name,gram:currentUserData.gram,tlId:currentUserData.tlId||null}); // el propio TL también puede ser dueño
     }
   } catch(e){ showNotif('Error cargando equipo: '+e.message,'error'); return; }
   candidates.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
@@ -12831,29 +12856,67 @@ window.empOpenReassign=async function(id){
     <div class="disc-popup-header"><div class="disc-popup-title">🔁 Reasignar "${_esc(co.nombre||'')}"</div>
       <button class="disc-copy-btn" onclick="document.getElementById('empReassignPopup').remove()">✕</button></div>
     <div class="disc-popup-body">
-      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Asignado actual: <strong>${_empAsignadoNombre(co)||'—'}</strong>. Reasignar cambia quién ve y trabaja esta cuenta de aquí en adelante — las sesiones de Qcall/Pricing/CSV ya hechas se quedan con quien las creó, no se mueven.</p>
+      <p style="font-size:12.5px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Asignado actual: <strong>${_empAsignadoNombre(co)||'—'}</strong>. El nuevo dueño recibe la cuenta con todo lo que tiene ligado: sesiones de Intromeet/Qcall, pricing, propuestas y CSV. Quién hizo cada una queda guardado y se le sigue contando en Analytics.</p>
       <div class="form-group"><label>Nuevo dueño</label>
         <select class="input" id="empReassignSelect">
           ${candidates.length?candidates.map(u=>`<option value="${u.uid}" ${u.uid===_empAsignadoUid(co)?'selected':''}>${u.name}${u.gram?' ('+u.gram+')':''}</option>`).join(''):'<option value="">Sin candidatos disponibles</option>'}
         </select>
       </div>
-      <button class="btn btn-primary btn-full" onclick="empSaveReassign('${id}')" ${candidates.length?'':'disabled'}>Reasignar</button>
+      <button class="btn btn-primary btn-full" id="empReassignBtn" onclick="empSaveReassign('${id}')" ${candidates.length?'':'disabled'}>Reasignar</button>
     </div>
   </div>`;
   document.body.appendChild(overlay);
 };
+// Reasignar una empresa mueve también lo que tiene ligado (Qcall/Intromeet, pricing, propuestas y CSV)
+// al nuevo dueño — pedido del usuario 2026-09-21; antes se quedaba con quien lo creó y el nuevo dueño
+// no lo podía ni ver (las reglas leen por aeUid/tlId). Quién lo HIZO se guarda una sola vez en autor*
+// (el dueño que tenía antes de la primera reasignación): Analytics y el coaching de Ninja se lo siguen
+// contando a esa persona. Límites: un TL solo mueve lo que puede leer (lo suyo y lo de su equipo), y un
+// CSV ligado a varias empresas ("Agregar leads") no se mueve, porque arrastraría a las demás.
+async function _empReasignarLigados(companyId,u){
+  const me=currentUserData||{};
+  const base={aeUid:u.uid,aeName:u.name||'',aeGram:u.gram||'',tlId:u.tlId||null,
+    reasignadoPorUid:me.uid||'',reasignadoPorNombre:me.name||'',reasignadoAt:serverTimestamp()};
+  let movidos=0, fallidos=0;
+  for(const col of ['discoveryRecords','pricingRecords','propuestaRecords','csvSessions']){
+    let docs;
+    try{
+      docs=await _docsDeEmpresa(col,companyId);
+      if(col==='csvSessions'){
+        const extra=await _docsEnAlcance(col,where('companyIds','array-contains',companyId));
+        docs=[...new Map([...docs,...extra].map(d=>[d.id,d])).values()];
+      }
+    }catch(e){ console.warn('reasignar '+col+':',e); fallidos++; continue; }
+    for(const d of docs){
+      const r=d.data();
+      if(r.aeUid===u.uid) continue;
+      if(col==='csvSessions'&&(r.companyIds||[]).length>1) continue;
+      const patch={...base};
+      if(!r.autorUid&&r.aeUid){ patch.autorUid=r.aeUid; patch.autorName=r.aeName||''; patch.autorGram=r.aeGram||''; }
+      try{ await updateDoc(d.ref,patch); movidos++; }
+      catch(e){ console.warn('reasignar '+col+' '+d.id+':',e); fallidos++; }
+    }
+  }
+  return {movidos,fallidos};
+}
 window.empSaveReassign=async function(id){
   const sel=document.getElementById('empReassignSelect');
   const uid=sel?.value; if(!uid){ showNotif('Elige a quién reasignar','error'); return; }
   const u=_empReassignCandidates.find(c=>c.uid===uid);
   if(!u){ showNotif('Usuario no válido','error'); return; }
+  const btn=document.getElementById('empReassignBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Reasignando…'; }
   try{
     await updateDoc(doc(db,'companies',id),{asignadoUid:u.uid,asignadoNombre:u.name||'',asignadoGram:u.gram||'',asignadoAt:serverTimestamp()});
+    const {movidos,fallidos}=await _empReasignarLigados(id,u);
     document.getElementById('empReassignPopup')?.remove();
     document.getElementById('empDetailPopup')?.remove();
-    showNotif(`Reasignado a ${u.name} ✓`,'success');
+    showNotif(`Reasignado a ${u.name} ✓${movidos?` · ${movidos} registro${movidos===1?'':'s'} de Qcall, pricing, propuestas o CSV pasaron también`:''}${fallidos?` · ${fallidos} no se pudieron mover, vuelve a reasignar para reintentar`:''}`,fallidos?'warning':'success');
     await empLoad(); // re-fetch: el alcance por rol (matchesScope) ahora depende de asignado*
-  } catch(e){ showNotif('Error al reasignar: '+e.message,'error'); }
+  } catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='Reasignar'; }
+    showNotif('Error al reasignar: '+e.message,'error');
+  }
 };
 
 window.empEdit=async function(id){
@@ -18765,7 +18828,8 @@ async function ninjaBuscarApps(queryText){
 async function ninjaObtenerMisKPIs(meses){
   if(!db||!currentUserData?.uid) return {error:'Sin conexión a la base de datos.'};
   const n=Number(meses)||6, cutoff=Date.now()-n*30*86400000, uid=currentUserData.uid;
-  const within=ts=>_aTsMs(ts)>=cutoff;
+  // Solo lo que hizo esta persona: lo que le pasaron al reasignarle una empresa trae autor* de otro.
+  const within=d=>_aTsMs(d.createdAt)>=cutoff&&(!d.autorUid||d.autorUid===uid);
   try{
     const [discSnap,pricSnap,propSnap,csvSnap]=await Promise.all([
       getDocs(query(collection(db,'discoveryRecords'),where('aeUid','==',uid))),
@@ -18773,10 +18837,10 @@ async function ninjaObtenerMisKPIs(meses){
       getDocs(query(collection(db,'propuestaRecords'),where('aeUid','==',uid))),
       getDocs(query(collection(db,'csvSessions'),where('aeUid','==',uid))),
     ]);
-    const disc=discSnap.docs.map(d=>d.data()).filter(d=>within(d.createdAt)).length;
-    const pric=pricSnap.docs.map(d=>d.data()).filter(d=>within(d.createdAt)).length;
-    const prop=propSnap.docs.map(d=>d.data()).filter(d=>within(d.createdAt)).length;
-    const csvDocs=csvSnap.docs.map(d=>d.data()).filter(d=>within(d.createdAt));
+    const disc=discSnap.docs.map(d=>d.data()).filter(within).length;
+    const pric=pricSnap.docs.map(d=>d.data()).filter(within).length;
+    const prop=propSnap.docs.map(d=>d.data()).filter(within).length;
+    const csvDocs=csvSnap.docs.map(d=>d.data()).filter(within);
     return {periodoMeses:n, discoveries:disc, pricings:pric, propuestas:prop, solicitudesCSV:csvDocs.length, oportunidadesCSV:csvDocs.reduce((s,d)=>s+(d.rowCount||0),0)};
   }catch(e){ return {error:'No se pudieron leer tus KPIs: '+e.message}; }
 }
@@ -18811,15 +18875,23 @@ async function ninjaObtenerAreasOportunidadAE(ae, cantidadSesiones){
   if(matches.length>1) return {error:`Encontré ${matches.length} personas que coinciden con "${ae}": ${matches.map(u=>u.name).join(', ')}. Pide que aclare cuál.`};
   const target=matches[0];
 
-  let sessSnap;
   // Un TL que consulta a alguien de su equipo necesita también tlId == él: si no, Firestore niega
   // la consulta completa (mismo caso que _metWhereDe).
   const _filtrosSes=[where('aeUid','==',target.uid)];
   if(role==='tl'&&target.uid!==currentUserData.uid) _filtrosSes.push(where('tlId','==',currentUserData.uid));
-  try{ sessSnap=await getDocs(query(collection(db,'discoveryRecords'),..._filtrosSes)); }
+  // El coaching es sobre las llamadas que ESA persona hizo: si una empresa se reasignó, sus Qcalls
+  // traen autor* y aeUid ya es el dueño nuevo. El manager busca también por autorUid para no perder
+  // las que hizo y ya pasaron a otra persona (un TL no las puede leer si salieron de su equipo).
+  let sesiones;
+  try{
+    const qs=[getDocs(query(collection(db,'discoveryRecords'),..._filtrosSes))];
+    if(role==='manager') qs.push(getDocs(query(collection(db,'discoveryRecords'),where('autorUid','==',target.uid))));
+    const snaps=await Promise.all(qs);
+    sesiones=[...new Map(snaps.flatMap(s=>s.docs).map(d=>[d.id,d.data()])).values()]
+      .filter(s=>(s.autorUid||s.aeUid)===target.uid);
+  }
   catch(e){ return {error:'No se pudieron leer las sesiones: '+e.message}; }
 
-  let sesiones=sessSnap.docs.map(d=>d.data());
   sesiones.sort((a,b)=>_aTsMs(b.createdAt)-_aTsMs(a.createdAt));
   sesiones=sesiones.slice(0,n).filter(s=>s.feedbackFinal);
 
