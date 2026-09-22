@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-22T20:44:20Z">
+<meta name="app-version" content="2026-09-22T20:46:24Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -5436,6 +5436,9 @@ const DISC_AUTO_PISTAS={
   'emp-usuarios':'cuántas personas usan hoy el sistema que ya tienen',
   'op-personas':'cuántas personas trabajan en la operación (almacén, producción, campo)',
   'adm-fact':'cuántas facturas emiten al mes',
+  'adm-nom':'solo si dijeron cuántos hay en nómina; no copies el total de empleados',
+  // En la prueba con una llamada real sacó la facturación del ticket promedio: la cita existía, el dato no.
+  'emp-facturacion':'solo si dijeron cuánto facturan o venden al mes o al año. No lo calcules con el ticket promedio ni con el número de facturas',
   'adm-personas':'cuántas personas llevan lo administrativo y contable',
   'dol-impacto':'solo si dieron una cifra: dinero, horas o clientes perdidos; sin número, omítelo',
   'eb-nombre':'nombre y puesto de quien aprueba la compra',
