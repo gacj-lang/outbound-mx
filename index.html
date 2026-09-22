@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-22T20:40:09Z">
+<meta name="app-version" content="2026-09-22T20:42:08Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -5421,7 +5421,8 @@ Escribe en tercera persona, tono de bitácora de cuenta (no un mensaje al client
 // (sep-2026). Con la transcripción pegada, la IA llena SOLO lo vacío (nunca pisa lo que el AE
 // escribió) y solo con lo que se dijo en la llamada: si no salió, se queda vacío. Son leads en frío,
 // así que no se presupone presupuesto, fecha ni decisor. Lo que llena queda marcado "IA" hasta que el
-// AE lo toque. "¿Odoo resuelve su caso?" no se llena: es el juicio del AE, no algo que diga el cliente.
+// AE lo toque. "¿Odoo resuelve su caso?", champion y criterios no se llenan: son juicio del AE, no algo
+// que diga el cliente.
 // El catálogo se arma de dgBuildSections, así que si cambian las preguntas o los campos del
 // formulario, esto los sigue solo.
 const DISC_AUTO_MIN=300; // caracteres de transcripción para que valga la pena la llamada
@@ -5447,12 +5448,14 @@ const DISC_AUTO_PISTAS={
   'competencia':'solo si mencionaron otra opción que evalúan o evaluaron',
 };
 const DISC_AUTO_CIFRA=new Set(['dol-impacto']);
-// Opciones que dicen "no se sabe": solo valen si el prospecto lo dijo; si el tema no salió, se omite.
+// Opciones que dicen "no se sabe": ni se le ofrecen a la IA. Con la instrucción de usarlas solo si el
+// prospecto lo dijo, igual eligió "No sabemos aún" en una llamada donde no se habló de competencia.
+// Si el tema no salió, el campo se queda vacío; si de verdad dijeron que no saben, lo marca el AE.
 const DISC_AUTO_NO_SE=['No sabemos aún','No sé quién decide','No definido','Aún no tienen monto definido'];
 
 function discAutoCatalogo(st){
   const s=st.selections, secs=dgBuildSections(st);
-  const campos=[], chips=[], temas=[], quals=[];
+  const campos=[], chips=[], temas=[];
   const esNum=x=>x.ph==='#';
   // Datos de la empresa (Situación): viven sueltos en selections, no en selections.fld
   [['emp-razones','Situación · Razones sociales'],['emp-empleados','Situación · Empleados totales'],
@@ -5461,11 +5464,11 @@ function discAutoCatalogo(st){
   if(_discVacio(s['emp-facturacion'])) campos.push({id:'emp-facturacion',l:'Situación · '+(s.sinFines?'Ingreso anual (donativos)':'Facturación mensual'),dest:'emp',opts:DG_FACT_OPTS});
   const addFields=(fields,lbl)=>(fields||[]).forEach(f=>[f.one,...(f.two||[])].filter(Boolean).forEach(x=>{
     if(!_discVacio(s.fld?.[x.id])||campos.some(c=>c.id===x.id)) return;
-    campos.push({id:x.id,l:`${lbl} · ${x.l}`,dest:'fld',num:esNum(x),opts:x.sel?x.sel.filter(o=>o!=='—'):null});
+    campos.push({id:x.id,l:`${lbl} · ${x.l}`,dest:'fld',num:esNum(x),opts:x.sel?x.sel.filter(o=>o!=='—'&&!DISC_AUTO_NO_SE.includes(o)):null});
   }));
   const addPicks=(picks,lbl)=>(picks||[]).forEach(pk=>{
     if(DISC_AUTO_SKIP_PICKS.has(pk.group)||!_discVacio(s[pk.group])) return;
-    campos.push({id:pk.group,l:`${lbl} · ${pk.label}`,dest:'pick',opts:pk.opts});
+    campos.push({id:pk.group,l:`${lbl} · ${pk.label}`,dest:'pick',opts:pk.opts.filter(o=>!DISC_AUTO_NO_SE.includes(o))});
   });
   const addTemas=(guide,crit,ns,lbl)=>{
     (guide||[]).forEach((g,i)=>{ const k=`${ns}-g${i}`; if(!s.cov?.[k]) temas.push({id:k,l:`${lbl} · ${g.t}${g.s?` (${g.s})`:''}`}); });
@@ -5482,12 +5485,12 @@ function discAutoCatalogo(st){
     }
     if(sec.dolorText&&_discVacio(s.fld?.['dol-principal'])) campos.push({id:'dol-principal',l:'Dolor · Dolor principal, en una frase y con las palabras del cliente',dest:'fld'});
     addFields(sec.fields,sec.title); addPicks(sec.picks,sec.title); addTemas(sec.guide,sec.crit,sec.id,sec.title); addChips(sec.chips,sec.id,sec.title);
-    (sec.quals||[]).forEach(q=>{ if(!s.qual?.[q.k]) quals.push({id:q.k,l:q.l}); });
+    // sec.quals (champion, criterios) no se ofrecen: son juicio del AE, igual que "fit".
   });
   const conProducto=(s.producto||'fisico')!=='servicios';
   if(conProducto&&_discVacio(s['origen-prod'])) campos.push({id:'origen-prod',l:'Producto · Origen del producto',dest:'pick',opts:DG_ORIGEN});
   const prod=conProducto&&_discVacio(s.prodOpts);
-  return {campos,chips,temas,quals,prod};
+  return {campos,chips,temas,prod};
 }
 
 // Aplica la respuesta de la IA sobre un estado (la copia del análisis o el formulario vivo). Valida
@@ -5495,8 +5498,8 @@ function discAutoCatalogo(st){
 // ya tienen algo se descartan. Devuelve qué cambió, para poder guardarlo campo por campo.
 function discAutoAplicar(st,cat,parsed){
   const s=st.selections;
-  ['fld','chip','cov','qual','iaFill'].forEach(k=>{ if(!s[k]||typeof s[k]!=='object') s[k]={}; });
-  const cambios={emp:[],fld:[],pick:[],chips:[],temas:[],quals:[],prod:false};
+  ['fld','chip','cov','iaFill'].forEach(k=>{ if(!s[k]||typeof s[k]!=='object') s[k]={}; });
+  const cambios={emp:[],fld:[],pick:[],chips:[],temas:[],prod:false};
   const byId=new Map(cat.campos.map(c=>[c.id,c]));
   Object.entries(parsed?.campos||{}).forEach(([id,v])=>{
     const c=byId.get(id); if(!c) return;
@@ -5517,8 +5520,6 @@ function discAutoAplicar(st,cat,parsed){
   if(cambios.chips.length) s.dolores=Object.values(s.chip);
   const temaIds=new Set(cat.temas.map(x=>x.id));
   (Array.isArray(parsed?.temas)?parsed.temas:[]).forEach(id=>{ if(temaIds.has(id)&&!s.cov[id]){ s.cov[id]=true; cambios.temas.push(id); } });
-  const qualIds=new Set(cat.quals.map(x=>x.id));
-  (Array.isArray(parsed?.calificacion)?parsed.calificacion:[]).forEach(k=>{ if(qualIds.has(k)&&!s.qual[k]){ s.qual[k]=true; cambios.quals.push(k); } });
   if(cat.prod&&_discVacio(s.prodOpts)){
     const ok=(Array.isArray(parsed?.producto)?parsed.producto:[]).filter(x=>DG_PROD_CHARS.includes(x));
     if(ok.length){ s.prodOpts=ok; cambios.prod=true; }
@@ -5551,7 +5552,6 @@ function _discAutoPatch(s,c){
   c.chips.forEach(id=>{ patch[`selections.chip.${id}`]=s.chip[id]; });
   if(c.chips.length){ patch['selections.dolores']=s.dolores; patch.dolores=s.dolores; }
   c.temas.forEach(id=>{ patch[`selections.cov.${id}`]=true; });
-  c.quals.forEach(k=>{ patch[`selections.qual.${k}`]=true; });
   if(c.prod) patch['selections.prodOpts']=s.prodOpts;
   [...c.emp,...c.fld,...c.pick].forEach(id=>{ patch[`selections.iaFill.${id}`]=true; });
   return patch;
@@ -5562,7 +5562,7 @@ async function discAutollenar(ctx){
   const job=ctx.job;
   try{
     const cat=discAutoCatalogo(ctx);
-    if(!cat.campos.length&&!cat.chips.length&&!cat.temas.length&&!cat.quals.length&&!cat.prod) return;
+    if(!cat.campos.length&&!cat.chips.length&&!cat.temas.length&&!cat.prod) return;
     const lineaCampo=c=>`- ${c.id} | ${c.l}${DISC_AUTO_PISTAS[c.id]?` (${DISC_AUTO_PISTAS[c.id]})`:''} | ${c.opts?'UNA de: '+c.opts.map(o=>`"${o}"`).join(', '):(c.num?'solo un número entero':'texto corto')}`;
     const prompt=`Vas a llenar el formulario de una llamada de discovery de Odoo México a partir de su transcripción. En la transcripción hablan el account de Odoo (${ctx.aeName||'el AE'}) y el prospecto. Los datos que buscas son los que dio el PROSPECTO sobre su empresa, no lo que el account propuso o explicó de Odoo.
 
@@ -5577,18 +5577,15 @@ ${cat.chips.map(c=>`- ${c.id} | ${c.l}`).join('\n')||'(ninguna)'}
 TEMAS DE LA GUÍA (marca los que SÍ se platicaron en la llamada, aunque fuera de pasada):
 ${cat.temas.map(c=>`- ${c.id} | ${c.l}`).join('\n')||'(ninguno)'}
 
-CALIFICACIÓN (marca solo si quedó claro en la llamada):
-${cat.quals.map(q=>`- ${q.id} | ${q.l}`).join('\n')||'(nada)'}
 ${cat.prod?`\nCARACTERÍSTICAS DEL PRODUCTO (solo las que el prospecto mencionó, copiadas exactas): ${DG_PROD_CHARS.map(o=>`"${o}"`).join(', ')}\n`:''}
 CÓMO ESCRIBIR LOS VALORES:
 - Si el campo trae opciones, copia UNA opción exacta, tal cual está escrita. Si ninguna le queda, no lo incluyas.
-- Las opciones que significan "no se sabe" (${DISC_AUTO_NO_SE.map(o=>`"${o}"`).join(', ')}) solo si el prospecto lo dijo con esas palabras o casi. Si el tema simplemente no salió, omite el campo.
 - Números: solo el número entero, sin texto, y solo si el prospecto dio esa cifra. Si dieron un rango, el punto medio redondeado. No calcules ni deduzcas cifras.
 - Si no sabes un valor, omite el id. Nunca pongas 0, null, "nd" ni "no mencionado".
 - Texto: corto, estilo nota, en español de México, con las palabras del prospecto cuando se pueda (máximo ~120 caracteres). El dolor principal va en una frase.
 
 Responde SOLO con este JSON, sin texto antes ni después y sin markdown:
-{"campos":{"id":"valor"},"senales":["id"],"temas":["id"],"calificacion":["id"]${cat.prod?',"producto":["característica exacta"]':''}}
+{"campos":{"id":"valor"},"senales":["id"],"temas":["id"]${cat.prod?',"producto":["característica exacta"]':''}}
 
 TRANSCRIPCIÓN:
 ${ctx.transcript}`;
@@ -5597,7 +5594,7 @@ ${ctx.transcript}`;
     let parsed={}; try{ parsed=JSON.parse(m?m[0]:raw); }catch(e){ console.warn('discAutollenar: JSON inválido',e); return; }
 
     const c=discAutoAplicar(ctx,cat,parsed);
-    if(!c.n&&!c.chips.length&&!c.temas.length&&!c.quals.length&&!c.prod) return;
+    if(!c.n&&!c.chips.length&&!c.temas.length&&!c.prod) return;
     // Los pasos que siguen (nota, feedback, resumen) leen ctx: que ya vean los campos llenos, y que el
     // coach no diga "faltó cubrir" un tema que sí se platicó pero nadie palomeó.
     const cov=dgCoverage(ctx), tot=cov.reduce((a,x)=>({d:a.d+x.done,t:a.t+x.total}),{d:0,t:0});
