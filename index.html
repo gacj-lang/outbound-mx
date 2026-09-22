@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-22T18:03:26Z">
+<meta name="app-version" content="2026-09-22T20:34:30Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-22a Cadencias: la firma ya no cambia a mitad del hilo. Se arma una vez, al activar, con el nombre y puesto de quien activa, y todos los toques mandan esa misma; el correo sale también con ese nombre como remitente. En Configuración hay una tarjeta nueva para capturar tu puesto y pegar tu propia firma (la de Odoo o la de Gmail, con botón para traerla), con vista previa de cómo le llega al prospecto; si no pegas ninguna, sale la estándar de Odoo. En Historial por empresa cada hilo dice si la cadencia sigue activa y cuándo sale el próximo correo, y trae el botón «Terminar cadencia» para cortarla cuando el prospecto ya contestó. · 2026-09-21e Generación de contenidos usa la ficha de la empresa: Template, Cold Calling y Brochure ya personalizan con qué hace, las apps que le aplican, sus dolores probables y sus señales recientes cuando la empresa tiene ficha. Los dolores van como pregunta, nunca como hecho, y el mensaje no dice de dónde salió el dato. · 2026-09-21d Empresas carga más rápido para el manager: los contadores de Qcall y pricing de las tarjetas salen de 2 consultas en total, no de 2 por empresa (eran ~2,200 a la vez y Firestore las frenaba, atorando también el detalle de la empresa). · 2026-09-21c Reasignar una empresa ya le pasa al nuevo dueño todo lo ligado: sesiones de Intromeet/Qcall, pricing, propuestas y CSV. Quién hizo cada una queda guardado y Analytics se lo sigue contando a esa persona. La herramienta de Mantenimiento de Qcall ya respeta la reasignación. Crear una empresa desde el selector con sitio web ya arma su ficha sola. · 2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
+const APP_BUILD_STAMP='2026-09-22b Intromeet / Qcall: si pegas la transcripción, «Analizar discovery» ahora también llena los campos que dejaste vacíos (empleados, sistemas, CRM, sistema contable, dolor principal, presupuesto, quién decide, próximo paso y más), palomea los temas de la guía que sí se platicaron y marca las señales que el prospecto describió. Solo llena lo vacío: nunca cambia lo que tú capturaste, y solo usa lo que se dijo en la llamada. Si un dato no salió, se queda vacío. Cada campo que llenó la IA lleva la marca IA hasta que lo revises o lo cambies. Como ya ve los temas platicados, el feedback final deja de marcar como faltantes cosas que sí cubriste. · 2026-09-22a Cadencias: la firma ya no cambia a mitad del hilo. Se arma una vez, al activar, con el nombre y puesto de quien activa, y todos los toques mandan esa misma; el correo sale también con ese nombre como remitente. En Configuración hay una tarjeta nueva para capturar tu puesto y pegar tu propia firma (la de Odoo o la de Gmail, con botón para traerla), con vista previa de cómo le llega al prospecto; si no pegas ninguna, sale la estándar de Odoo. En Historial por empresa cada hilo dice si la cadencia sigue activa y cuándo sale el próximo correo, y trae el botón «Terminar cadencia» para cortarla cuando el prospecto ya contestó. · 2026-09-21e Generación de contenidos usa la ficha de la empresa: Template, Cold Calling y Brochure ya personalizan con qué hace, las apps que le aplican, sus dolores probables y sus señales recientes cuando la empresa tiene ficha. Los dolores van como pregunta, nunca como hecho, y el mensaje no dice de dónde salió el dato. · 2026-09-21d Empresas carga más rápido para el manager: los contadores de Qcall y pricing de las tarjetas salen de 2 consultas en total, no de 2 por empresa (eran ~2,200 a la vez y Firestore las frenaba, atorando también el detalle de la empresa). · 2026-09-21c Reasignar una empresa ya le pasa al nuevo dueño todo lo ligado: sesiones de Intromeet/Qcall, pricing, propuestas y CSV. Quién hizo cada una queda guardado y Analytics se lo sigue contando a esa persona. La herramienta de Mantenimiento de Qcall ya respeta la reasignación. Crear una empresa desde el selector con sitio web ya arma su ficha sola. · 2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -3713,6 +3713,10 @@ const DG_OPERATIVO={
     fields:[{one:{id:'op-mix-sys',l:'Sistemas actuales (inventario y proyectos)',ph:'Ej. Excel para ambos…'}},{two:[{id:'op-almacenes',l:'Almacenes',ph:'#'},{id:'op-personas',l:'Personas operativas',ph:'#'}]}],
     chips:['Inventario a mano','Sin registro de horas','Producto y servicio desconectados','Doble captura','Sin trazabilidad'] }
 };
+const DG_FACT_OPTS=['Menos de $500K MXN','$500K – $2M MXN','$2M – $5M MXN','$5M – $15M MXN','$15M – $50M MXN','$50M – $150M MXN','Más de $150M MXN'];
+// Marca de "lo llenó la IA con la transcripción" (ver discAutollenar). Se quita sola cuando el AE
+// toca ese campo: a partir de ahí el dato es suyo.
+function dgIaTag(key){ return disc.selections.iaFill?.[key]?'<span class="dg-ia" title="Lo llenó la IA con la transcripción. Revísalo; si lo cambias, deja de estar marcado.">IA</span>':''; }
 const DG_PROD_CHARS=['Perecederos / caducidad','Lote / número de serie','Venta en unidades y/o paquetes','Usa código de barras'];
 const DG_ORIGEN=['Nacionales','Importados','Ambos'];
 const DG_NONPROFIT_WOW=[
@@ -4131,6 +4135,7 @@ const DG_CSS=`
 .dg-databox{background:#f9fafb;border-radius:10px;padding:16px}
 .dg-field{margin-bottom:11px}
 .dg-field label{font-size:12px;color:#6b7280;font-weight:600;display:block;margin-bottom:5px}
+.dg-ia{display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#ede9fe;color:#6d28d9;font-size:10px;font-weight:700;line-height:15px;vertical-align:1px;cursor:help}
 .dg-field input,.dg-field select,.dg-field textarea{width:100%;padding:9px 11px;border:1px solid #e5e7eb;border-radius:8px;font-size:13.5px;background:#fff;font-family:inherit}
 .dg-drow{display:flex;gap:9px}.dg-drow .dg-field{flex:1}
 .dg-chips{display:flex;flex-wrap:wrap;gap:7px}
@@ -4287,7 +4292,8 @@ function buildDiscoveryFormHTML(data){
           <div class="dg-pc-b">
             <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Transcripción de Google Meet · opcional</div>
             <textarea class="disc-transcript-ta" id="discTranscriptInput" oninput="discAutosave()" placeholder="Pega aquí la transcripción completa de la llamada... (opcional)" style="width:100%;min-height:70px;max-height:140px;resize:vertical;border:1px solid #e5e7eb;border-radius:8px;padding:10px;font-size:13px;font-family:inherit"></textarea>
-            <div style="font-size:11px;color:#9ca3af;margin-top:6px;line-height:1.5">Funciona igual sin transcripción — usa lo que ya capturaste en la llamada (notas, chips, MEDDIC).</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:6px;line-height:1.5">Si la pegas, la IA también llena los campos que dejaste vacíos y los marca con <span class="dg-ia" style="margin-left:0">IA</span> para que los revises. Sin transcripción funciona igual, con lo que capturaste en la llamada.</div>
+            <div id="discAutoFillMsg" style="display:none;font-size:12px;line-height:1.5;color:#5b21b6;background:#f5f3ff;border-radius:8px;padding:8px 10px;margin-top:8px"></div>
             <button class="disc-gemini-btn" id="discAnalyzeAllBtn" onclick="discAnalyzeDiscovery()" style="margin-top:12px;width:100%">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
               <span id="discAnalyzeAllLbl">Analizar discovery</span>
@@ -4366,13 +4372,15 @@ function buildDiscoveryFormHTML(data){
 // ── Section model ──
 const DG_SECTION_META=[{id:'situacion',t:'Situación'},{id:'flujo',t:'Flujo'},{id:'dolor',t:'Dolor'},{id:'budget',t:'Budget'},{id:'timeline',t:'Timeline'}];
 
-function dgBuildSections(){
-  const s=disc.selections;
-  const indId=disc.currentInd||'otra';
+// st = {selections,currentInd,activeTV}: por default el formulario vivo; el análisis en segundo plano
+// pasa su propia copia (ctx) porque el AE puede salirse de la pantalla a media corrida.
+function dgBuildSections(st=disc){
+  const s=st.selections;
+  const indId=st.currentInd||'otra';
   const prod=s.producto||'fisico';
   const op=DG_OPERATIVO[prod]||DG_OPERATIVO.fisico;
   const _mapT=arr=>(arr||[]).map(x=>typeof x==='string'?{t:x}:x);
-  const ventaArea=ak=>[...disc.activeTV].flatMap(v=>(DG_VENTA_CRIT[v]?.[ak]||[]));
+  const ventaArea=ak=>[...st.activeTV].flatMap(v=>(DG_VENTA_CRIT[v]?.[ak]||[]));
   const comCrit=[..._mapT(DG_COM_GENERAL),..._mapT(s.sinFines?DG_NONPROFIT_COM:(DG_COM_CRIT[indId]||DG_COM_CRIT.otra)),..._mapT(ventaArea('com'))];
   const opCrit =[..._mapT(DG_OP_GENERAL),..._mapT(s.sinFines?DG_NONPROFIT_CRIT:(DG_IND_CRIT[indId]||DG_IND_CRIT.otra)),..._mapT(ventaArea('op'))];
   const admCrit=[..._mapT(DG_ADM_GENERAL),..._mapT(s.sinFines?DG_NONPROFIT_ADM:(DG_ADM_CRIT[indId]||DG_ADM_CRIT.otra)),..._mapT(ventaArea('adm'))];
@@ -4473,8 +4481,8 @@ function dgItem(g,key,isCrit){
 }
 function dgFieldHTML(f){
   const v=_dgEsc(disc.selections.fld?.[f.id]||'');
-  if(f.sel){ const opts=f.sel.map(o=>`<option ${v===o?'selected':''}>${o}</option>`).join(''); return `<div class="dg-field"><label>${f.l}</label><select data-fld="${f.id}" onchange="dgFld(this)">${opts}</select></div>`; }
-  return `<div class="dg-field"><label>${f.l}</label><input data-fld="${f.id}" value="${v}" placeholder="${f.ph||''}" oninput="dgFld(this)"></div>`;
+  if(f.sel){ const opts=f.sel.map(o=>`<option ${v===o?'selected':''}>${o}</option>`).join(''); return `<div class="dg-field"><label>${f.l}${dgIaTag(f.id)}</label><select data-fld="${f.id}" onchange="dgFld(this)">${opts}</select></div>`; }
+  return `<div class="dg-field"><label>${f.l}${dgIaTag(f.id)}</label><input data-fld="${f.id}" value="${v}" placeholder="${f.ph||''}" oninput="dgFld(this)"></div>`;
 }
 function dgFieldsHTML(fields){
   return (fields||[]).map(f=>{ if(f.one) return dgFieldHTML(f.one); if(f.two) return `<div class="dg-drow">${f.two.map(dgFieldHTML).join('')}</div>`; return ''; }).join('');
@@ -4484,7 +4492,7 @@ function dgChipsHTML(chips,ns,label){
   return `<div class="dg-chiplbl">${label||'Toca lo que detectes'}</div><div class="dg-chips">${c}</div>`;
 }
 function dgPicksHTML(picks){
-  return (picks||[]).map(p=>{ const sel=disc.selections[p.group]; const opts=p.opts.map(o=>`<span class="dg-chip ${sel===o?'sel':''}" onclick="dgPick('${p.group}','${o.replace(/'/g,"&#39;")}')">${o}</span>`).join(''); return `<div class="dg-chiplbl">${p.label}</div><div class="dg-chips">${opts}</div>`; }).join('');
+  return (picks||[]).map(p=>{ const sel=disc.selections[p.group]; const opts=p.opts.map(o=>`<span class="dg-chip ${sel===o?'sel':''}" onclick="dgPick('${p.group}','${o.replace(/'/g,"&#39;")}')">${o}</span>`).join(''); return `<div class="dg-chiplbl">${p.label}${dgIaTag(p.group)}</div><div class="dg-chips">${opts}</div>`; }).join('');
 }
 function dgQualsHTML(quals){
   if(!quals||!quals.length) return '';
@@ -4497,7 +4505,7 @@ function dgProdCharsHTML(){
   const checks=DG_PROD_CHARS.map(c=>`<label class="dg-pc-check"><input type="checkbox" name="discProdOpt" value="${c}" ${opts.includes(c)?'checked':''} onchange="dgProdChar(this)"> ${c}</label>`).join('');
   const orig=disc.selections['origen-prod'];
   const origChips=DG_ORIGEN.map(o=>`<span class="dg-chip ${orig===o?'sel':''}" onclick="dgPick('origen-prod','${o}')">${o}</span>`).join('');
-  return `<div class="dg-prodchars"><h5>📦 Características del producto</h5><div class="dg-pc-checks">${checks}</div><div class="dg-chiplbl" style="margin-top:0">Origen del producto</div><div class="dg-chips">${origChips}</div></div>`;
+  return `<div class="dg-prodchars"><h5>📦 Características del producto</h5><div class="dg-pc-checks">${checks}</div><div class="dg-chiplbl" style="margin-top:0">Origen del producto${dgIaTag('origen-prod')}</div><div class="dg-chips">${origChips}</div></div>`;
 }
 function dgCfgStripHTML(){
   const v=[...disc.activeTV].map(x=>TV_NAMES[x]).join(', ')||'—';
@@ -4526,16 +4534,16 @@ function dgEmpFieldsHTML(){
   const val=k=>_dgEsc(s[k]||'');
   return `<div class="dg-field" style="display:none"><label>Nombre</label><input id="d-emp-nombre" type="text" value="${val('emp-nombre')}" oninput="discSaveEmpresa()"></div>
     <div class="dg-drow">
-      <div class="dg-field"><label>Razones sociales</label><input id="d-emp-razones" type="number" min="1" value="${val('emp-razones')}" placeholder="#" oninput="discSaveEmpresa()"></div>
-      <div class="dg-field"><label>Empleados</label><input id="d-emp-empleados" type="number" min="1" value="${val('emp-empleados')}" placeholder="#" oninput="discSaveEmpresa()"></div>
+      <div class="dg-field"><label>Razones sociales${dgIaTag('emp-razones')}</label><input id="d-emp-razones" type="number" min="1" value="${val('emp-razones')}" placeholder="#" oninput="discSaveEmpresa(this)"></div>
+      <div class="dg-field"><label>Empleados${dgIaTag('emp-empleados')}</label><input id="d-emp-empleados" type="number" min="1" value="${val('emp-empleados')}" placeholder="#" oninput="discSaveEmpresa(this)"></div>
     </div>
-    <div class="dg-field"><label>Sistemas actuales</label><input id="d-emp-sistemas" type="text" value="${val('emp-sistemas')}" placeholder="Ej. SAP, Excel, a la medida…" oninput="discSaveEmpresa()"></div>
+    <div class="dg-field"><label>Sistemas actuales${dgIaTag('emp-sistemas')}</label><input id="d-emp-sistemas" type="text" value="${val('emp-sistemas')}" placeholder="Ej. SAP, Excel, a la medida…" oninput="discSaveEmpresa(this)"></div>
     <div class="dg-drow">
-      <div class="dg-field"><label>Usuarios con sistema</label><input id="d-emp-usuarios" type="number" min="0" value="${val('emp-usuarios')}" placeholder="#" oninput="discSaveEmpresa()"></div>
-      <div class="dg-field"><label>${s.sinFines?'Ingreso anual (donativos)':'Facturación / mes'}</label>
-        <select id="d-emp-facturacion" onchange="discSaveEmpresa()">
+      <div class="dg-field"><label>Usuarios con sistema${dgIaTag('emp-usuarios')}</label><input id="d-emp-usuarios" type="number" min="0" value="${val('emp-usuarios')}" placeholder="#" oninput="discSaveEmpresa(this)"></div>
+      <div class="dg-field"><label>${s.sinFines?'Ingreso anual (donativos)':'Facturación / mes'}${dgIaTag('emp-facturacion')}</label>
+        <select id="d-emp-facturacion" onchange="discSaveEmpresa(this)">
           <option value="" ${!s['emp-facturacion']?'selected':''}>— Rango —</option>
-          ${['Menos de $500K MXN','$500K – $2M MXN','$2M – $5M MXN','$5M – $15M MXN','$15M – $50M MXN','$50M – $150M MXN','Más de $150M MXN'].map(o=>`<option ${s['emp-facturacion']===o?'selected':''}>${o}</option>`).join('')}
+          ${DG_FACT_OPTS.map(o=>`<option ${s['emp-facturacion']===o?'selected':''}>${o}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -4573,7 +4581,7 @@ function dgRenderSection(){
     guide=dgGuideHTML(sec.guide,sec.crit,ns);
     let inner='';
     if(sec.empFields) inner+=dgEmpFieldsHTML();
-    if(sec.dolorText){ const dv=_dgEsc(disc.selections.fld?.['dol-principal']||''); inner+=`<div class="dg-field"><label>Dolor principal (en sus palabras)</label><textarea data-fld="dol-principal" rows="2" oninput="dgFld(this)" placeholder="Resúmelo en una frase">${dv}</textarea></div>`; }
+    if(sec.dolorText){ const dv=_dgEsc(disc.selections.fld?.['dol-principal']||''); inner+=`<div class="dg-field"><label>Dolor principal (en sus palabras)${dgIaTag('dol-principal')}</label><textarea data-fld="dol-principal" rows="2" oninput="dgFld(this)" placeholder="Resúmelo en una frase">${dv}</textarea></div>`; }
     inner+=dgFieldsHTML(sec.fields);
     inner+=dgPicksHTML(sec.picks);
     inner+=dgQualsHTML(sec.quals);
@@ -4604,21 +4612,21 @@ function dgWowHTML(area,key){
 }
 
 // ── Render: post-call synthesis ──
-function dgCoverage(){
-  const secs=dgBuildSections();
+function dgCoverage(st=disc){
+  const secs=dgBuildSections(st);
   const rows=[];
-  const sit=secs[0]; rows.push(_dgCovRow('Situación', sit.guide,sit.crit,'situacion'));
+  const sit=secs[0]; rows.push(_dgCovRow('Situación', sit.guide,sit.crit,'situacion',st));
   const fl=secs[1];
-  fl.subs.forEach((t,ti)=>rows.push(_dgCovRow('Flujo · '+t.label,t.guide,t.crit,`flujo-${ti}`)));
-  ['dolor','budget','timeline'].forEach((id,n)=>{ const sx=secs[2+n]; rows.push(_dgCovRow(sx.title,sx.guide,sx.crit,id)); });
+  fl.subs.forEach((t,ti)=>rows.push(_dgCovRow('Flujo · '+t.label,t.guide,t.crit,`flujo-${ti}`,st)));
+  ['dolor','budget','timeline'].forEach((id,n)=>{ const sx=secs[2+n]; rows.push(_dgCovRow(sx.title,sx.guide,sx.crit,id,st)); });
   return rows;
 }
-function _dgCovRow(label,guide,crit,ns){
+function _dgCovRow(label,guide,crit,ns,st=disc){
   const total=(guide?.length||0)+(crit?.length||0); let done=0;
-  (guide||[]).forEach((_,i)=>{ if(disc.selections.cov?.[`${ns}-g${i}`]) done++; });
-  (crit||[]).forEach((_,i)=>{ if(disc.selections.cov?.[`${ns}-c${i}`]) done++; });
-  const st=total===0?'none':(done>=total?'full':(done>0?'part':'none'));
-  return {label,done,total,st};
+  (guide||[]).forEach((_,i)=>{ if(st.selections.cov?.[`${ns}-g${i}`]) done++; });
+  (crit||[]).forEach((_,i)=>{ if(st.selections.cov?.[`${ns}-c${i}`]) done++; });
+  const estado=total===0?'none':(done>=total?'full':(done>0?'part':'none'));
+  return {label,done,total,st:estado};
 }
 function dgChipsByArea(){
   const groups={General:[],Comercial:[],Operativo:[],Administrativo:[],Dolor:[]};
@@ -4630,8 +4638,8 @@ function dgChipsByArea(){
   });
   return groups;
 }
-function dgQualRows(){
-  const s=disc.selections, q=s.qual||{};
+function dgQualRows(st=disc){
+  const s=st.selections, q=s.qual||{};
   const dolores=Object.values(s.chip||{});
   const r=(t,fw,d,chip,txt)=>({t,fw,d,chip,txt});
   const budMonto=(s.fld?.['bud-monto']&&s.fld['bud-monto']!=='—')?s.fld['bud-monto']:'';
@@ -4748,9 +4756,14 @@ window.dgSub=function(id,ti){ disc.ui.sub[id]=ti; disc.ui.wow=null; dgRenderSect
 window.dgWow=function(key){ disc.ui.wow=disc.ui.wow===key?null:key; dgRenderSection(); };
 window.dgCov=function(key){ if(!disc.selections.cov) disc.selections.cov={}; disc.selections.cov[key]=!disc.selections.cov[key]; if(!disc.selections.cov[key]) delete disc.selections.cov[key]; dgRender(); discAutosave(); };
 window.dgChip=function(key,label){ if(!disc.selections.chip) disc.selections.chip={}; if(disc.selections.chip[key]) delete disc.selections.chip[key]; else disc.selections.chip[key]=label; disc.selections.dolores=Object.values(disc.selections.chip); dgRenderSection(); discAutosave(); };
-window.dgPick=function(group,label){ disc.selections[group]=disc.selections[group]===label?'':label; dgRenderSection(); discAutosave(); };
+window.dgPick=function(group,label){ dgIaSoltar(group); disc.selections[group]=disc.selections[group]===label?'':label; dgRenderSection(); discAutosave(); };
 window.dgQual=function(k){ if(!disc.selections.qual) disc.selections.qual={}; disc.selections.qual[k]=!disc.selections.qual[k]; dgRenderSection(); discAutosave(); };
-window.dgFld=function(el){ if(!disc.selections.fld) disc.selections.fld={}; disc.selections.fld[el.dataset.fld]=el.value; discAutosave(); };
+function dgIaSoltar(key,el){
+  if(!disc.selections.iaFill?.[key]) return;
+  delete disc.selections.iaFill[key];
+  el?.closest('.dg-field')?.querySelector('.dg-ia')?.remove(); // sin re-render: el AE está escribiendo ahí
+}
+window.dgFld=function(el){ dgIaSoltar(el.dataset.fld,el); if(!disc.selections.fld) disc.selections.fld={}; disc.selections.fld[el.dataset.fld]=el.value; discAutosave(); };
 window.dgProdChar=function(){ disc.selections.prodOpts=[...document.querySelectorAll('input[name="discProdOpt"]:checked')].map(i=>i.value); discAutosave(); };
 window.dgCfgInd=function(val){ disc.currentInd=val; disc.selections.industria=IND_NAMES[val]||''; const l=document.getElementById('discIndLabel'); if(l) l.textContent=(IND_NAMES[val]||'')+' · En llamada'; dgRender(); discUpdateApps(); discAutosave(); };
 window.dgCfgProd=function(val){ disc.selections.producto=val; disc.selections['tipo-empresa']=DG_PROD_LABEL[val]; dgRenderSection(); discAutosave(); };
@@ -4760,7 +4773,7 @@ window.dgCfgFlag=function(k){ disc.selections[k]=!disc.selections[k]; dgRender()
 // ── Form init & restore ──
 function discInitForm(data){
   disc.selections=Object.assign({}, data?.selections||{});
-  ['chip','cov','fld','qual'].forEach(k=>{ if(!disc.selections[k]||typeof disc.selections[k]!=='object') disc.selections[k]={}; });
+  ['chip','cov','fld','qual','iaFill'].forEach(k=>{ if(!disc.selections[k]||typeof disc.selections[k]!=='object') disc.selections[k]={}; });
   if(!Array.isArray(disc.selections.prodOpts)) disc.selections.prodOpts=[];
   if(data){
     disc.recordId=data.id;
@@ -4783,6 +4796,7 @@ function discInitForm(data){
     if(data.feedbackFinal){ discRenderFeedback(stripMd(data.feedbackFinal)); discStepMark(6,'done'); }
   }
   { const nta=document.getElementById('dgNotesTa'); if(nta) nta.value=disc.selections.fld?.['notas-llamada']||''; }
+  { const n=Object.keys(disc.selections.iaFill||{}).length; discAutoMsg(n,''); }
   disc.ui={section:0,sub:{flujo:1},wow:null};
   dgRender(); dgRenderPostcall(); dgMountPicker();
   const statusBadge=document.getElementById('discStatusBadge');
@@ -4847,7 +4861,8 @@ function discReadEmpFields(){
   const fields=['nombre','razones','empleados','sistemas','usuarios','presupuesto','facturacion'];
   fields.forEach(f=>{ const el=document.getElementById('d-emp-'+f); if(el) disc.selections['emp-'+f]=el.value.trim?el.value.trim():el.value; });
 }
-window.discSaveEmpresa=function(){
+window.discSaveEmpresa=function(el){
+  if(el?.id) dgIaSoltar(el.id.replace(/^d-/,''),el);
   discReadEmpFields();
   discAutosave();
 };
@@ -5165,6 +5180,7 @@ function discJobPintar(job){
   if(r.wowAI){ disc.wowAI=r.wowAI; dgRenderPostcall(); }
   if(r.resumenIntromeet){ disc.resumenIntromeet=r.resumenIntromeet; discRenderResumen(r.resumenIntromeet); }
   if(r.feedbackFinal){ disc.feedbackFinal=r.feedbackFinal; discRenderFeedback(r.feedbackFinal); }
+  if(r.autollenado) discAutoMsg(r.autollenado.n,r.autollenado.extra);
   [1,2,3,4,5,6].forEach(n=>discStepMark(n,job.steps[n]||null));
   const btn=document.getElementById('discAnalyzeAllBtn'), lbl=document.getElementById('discAnalyzeAllLbl'), loading=document.getElementById('discAnalyzeAllLoading');
   if(btn) btn.disabled=job.running;
@@ -5397,6 +5413,203 @@ Escribe en tercera persona, tono de bitácora de cuenta (no un mensaje al client
   return text;
 }
 
+// ── Paso 0: llenar con la transcripción los campos que el AE dejó vacíos ──
+// La gente hace la llamada y captura poco: sin transcripción, 3 de 16 campos clave en promedio
+// (sep-2026). Con la transcripción pegada, la IA llena SOLO lo vacío (nunca pisa lo que el AE
+// escribió) y solo con lo que se dijo en la llamada: si no salió, se queda vacío. Son leads en frío,
+// así que no se presupone presupuesto, fecha ni decisor. Lo que llena queda marcado "IA" hasta que el
+// AE lo toque. "¿Odoo resuelve su caso?" no se llena: es el juicio del AE, no algo que diga el cliente.
+// El catálogo se arma de dgBuildSections, así que si cambian las preguntas o los campos del
+// formulario, esto los sigue solo.
+const DISC_AUTO_MIN=300; // caracteres de transcripción para que valga la pena la llamada
+const DISC_AUTO_SKIP_PICKS=new Set(['fit']);
+const _discVacio=v=>v==null||v===''||v==='—'||(Array.isArray(v)&&!v.length);
+// Aclaraciones para la IA donde la etiqueta del formulario se presta a confusión. En la primera
+// prueba real puso "Pedido llega, se fabrica" como ciclo de venta y un impacto sin números.
+const DISC_AUTO_PISTAS={
+  'com-ciclo':'cuánto tiempo pasa de la primera cotización al cierre, ej. "2 semanas"',
+  'com-vend':'cuántas personas venden o atienden clientes',
+  'emp-usuarios':'cuántas personas usan hoy el sistema que ya tienen',
+  'op-personas':'cuántas personas trabajan en la operación (almacén, producción, campo)',
+  'adm-fact':'cuántas facturas emiten al mes',
+  'adm-personas':'cuántas personas llevan lo administrativo y contable',
+  'dol-impacto':'solo si dieron una cifra: dinero, horas o clientes perdidos; sin número, omítelo',
+  'eb-nombre':'nombre y puesto de quien aprueba la compra',
+  'tl-next':'lo que quedó acordado, con día y hora si los dijeron',
+};
+const DISC_AUTO_CIFRA=new Set(['dol-impacto']);
+// Opciones que dicen "no se sabe": solo valen si el prospecto lo dijo; si el tema no salió, se omite.
+const DISC_AUTO_NO_SE=['No sabemos aún','No sé quién decide','No definido','Aún no tienen monto definido'];
+
+function discAutoCatalogo(st){
+  const s=st.selections, secs=dgBuildSections(st);
+  const campos=[], chips=[], temas=[], quals=[];
+  const esNum=x=>x.ph==='#';
+  // Datos de la empresa (Situación): viven sueltos en selections, no en selections.fld
+  [['emp-razones','Situación · Razones sociales'],['emp-empleados','Situación · Empleados totales'],
+   ['emp-sistemas','Situación · Sistemas que usan hoy (ERP, Excel, a la medida…)'],['emp-usuarios','Situación · Personas que usan el sistema actual']]
+    .forEach(([id,l])=>{ if(_discVacio(s[id])) campos.push({id,l,dest:'emp',num:id!=='emp-sistemas'}); });
+  if(_discVacio(s['emp-facturacion'])) campos.push({id:'emp-facturacion',l:'Situación · '+(s.sinFines?'Ingreso anual (donativos)':'Facturación mensual'),dest:'emp',opts:DG_FACT_OPTS});
+  const addFields=(fields,lbl)=>(fields||[]).forEach(f=>[f.one,...(f.two||[])].filter(Boolean).forEach(x=>{
+    if(!_discVacio(s.fld?.[x.id])||campos.some(c=>c.id===x.id)) return;
+    campos.push({id:x.id,l:`${lbl} · ${x.l}`,dest:'fld',num:esNum(x),opts:x.sel?x.sel.filter(o=>o!=='—'):null});
+  }));
+  const addPicks=(picks,lbl)=>(picks||[]).forEach(pk=>{
+    if(DISC_AUTO_SKIP_PICKS.has(pk.group)||!_discVacio(s[pk.group])) return;
+    campos.push({id:pk.group,l:`${lbl} · ${pk.label}`,dest:'pick',opts:pk.opts});
+  });
+  const addTemas=(guide,crit,ns,lbl)=>{
+    (guide||[]).forEach((g,i)=>{ const k=`${ns}-g${i}`; if(!s.cov?.[k]) temas.push({id:k,l:`${lbl} · ${g.t}${g.s?` (${g.s})`:''}`}); });
+    (crit||[]).forEach((g,i)=>{ const k=`${ns}-c${i}`; if(!s.cov?.[k]) temas.push({id:k,l:`${lbl} · ${g.t}`}); });
+  };
+  const addChips=(list,ns,lbl)=>(list||[]).forEach((c,i)=>{ const k=`${ns}-${i}`; if(!s.chip?.[k]) chips.push({id:k,l:`${lbl} · ${c}`,v:c}); });
+  secs.forEach(sec=>{
+    if(sec.subs){
+      sec.subs.forEach((sub,ti)=>{
+        const ns=`${sec.id}-${ti}`, lbl=`${sec.title} ${sub.label}`;
+        addFields(sub.fields,lbl); addTemas(sub.guide,sub.crit,ns,lbl); addChips(sub.chips,ns,lbl);
+      });
+      return;
+    }
+    if(sec.dolorText&&_discVacio(s.fld?.['dol-principal'])) campos.push({id:'dol-principal',l:'Dolor · Dolor principal, en una frase y con las palabras del cliente',dest:'fld'});
+    addFields(sec.fields,sec.title); addPicks(sec.picks,sec.title); addTemas(sec.guide,sec.crit,sec.id,sec.title); addChips(sec.chips,sec.id,sec.title);
+    (sec.quals||[]).forEach(q=>{ if(!s.qual?.[q.k]) quals.push({id:q.k,l:q.l}); });
+  });
+  const conProducto=(s.producto||'fisico')!=='servicios';
+  if(conProducto&&_discVacio(s['origen-prod'])) campos.push({id:'origen-prod',l:'Producto · Origen del producto',dest:'pick',opts:DG_ORIGEN});
+  const prod=conProducto&&_discVacio(s.prodOpts);
+  return {campos,chips,temas,quals,prod};
+}
+
+// Aplica la respuesta de la IA sobre un estado (la copia del análisis o el formulario vivo). Valida
+// todo contra el catálogo: ids que no existen, opciones que no están EXACTAS en la lista o campos que
+// ya tienen algo se descartan. Devuelve qué cambió, para poder guardarlo campo por campo.
+function discAutoAplicar(st,cat,parsed){
+  const s=st.selections;
+  ['fld','chip','cov','qual','iaFill'].forEach(k=>{ if(!s[k]||typeof s[k]!=='object') s[k]={}; });
+  const cambios={emp:[],fld:[],pick:[],chips:[],temas:[],quals:[],prod:false};
+  const byId=new Map(cat.campos.map(c=>[c.id,c]));
+  Object.entries(parsed?.campos||{}).forEach(([id,v])=>{
+    const c=byId.get(id); if(!c) return;
+    let val=typeof v==='number'?String(v):(typeof v==='string'?v.trim():'');
+    if(!val) return;
+    if(c.opts){ const hit=c.opts.find(o=>o.toLowerCase()===val.toLowerCase()); if(!hit) return; val=hit; }
+    // Cuando no sabe una cifra, la IA tiende a poner 0 en vez de omitir el campo (prueba real,
+    // sep-2026): un 0 aquí nunca es dato, se descarta.
+    else if(c.num){ const m=val.replace(/[,\s]/g,'').match(/\d+/); if(!m||!parseInt(m[0],10)) return; val=String(parseInt(m[0],10)); }
+    else if(DISC_AUTO_CIFRA.has(id)&&!/\d/.test(val)) return; // "impacto cuantificado" sin cifra no es impacto cuantificado
+    else val=val.slice(0,400);
+    if(c.dest==='fld'){ if(!_discVacio(s.fld[id])) return; s.fld[id]=val; cambios.fld.push(id); }
+    else { if(!_discVacio(s[id])) return; s[id]=val; cambios[c.dest].push(id); }
+    s.iaFill[id]=true;
+  });
+  const chipById=new Map(cat.chips.map(c=>[c.id,c]));
+  (Array.isArray(parsed?.senales)?parsed.senales:[]).forEach(id=>{ const c=chipById.get(id); if(c&&!s.chip[id]){ s.chip[id]=c.v; cambios.chips.push(id); } });
+  if(cambios.chips.length) s.dolores=Object.values(s.chip);
+  const temaIds=new Set(cat.temas.map(x=>x.id));
+  (Array.isArray(parsed?.temas)?parsed.temas:[]).forEach(id=>{ if(temaIds.has(id)&&!s.cov[id]){ s.cov[id]=true; cambios.temas.push(id); } });
+  const qualIds=new Set(cat.quals.map(x=>x.id));
+  (Array.isArray(parsed?.calificacion)?parsed.calificacion:[]).forEach(k=>{ if(qualIds.has(k)&&!s.qual[k]){ s.qual[k]=true; cambios.quals.push(k); } });
+  if(cat.prod&&_discVacio(s.prodOpts)){
+    const ok=(Array.isArray(parsed?.producto)?parsed.producto:[]).filter(x=>DG_PROD_CHARS.includes(x));
+    if(ok.length){ s.prodOpts=ok; cambios.prod=true; }
+  }
+  cambios.n=cambios.emp.length+cambios.fld.length+cambios.pick.length;
+  return cambios;
+}
+
+function discAutoMsg(n,extra){
+  const el=document.getElementById('discAutoFillMsg'); if(!el) return;
+  if(!n&&!extra){ el.style.display='none'; return; }
+  el.innerHTML=n
+    ?`🪄 La IA llenó <b>${n} campo${n===1?'':'s'}</b> con la transcripción${extra?` y marcó ${extra}`:''}. Están marcados con <span class="dg-ia" style="margin-left:0">IA</span> en cada sección: revísalos.`
+    :`🪄 La IA marcó ${extra} con la transcripción. No encontró datos para los campos que quedaban vacíos.`;
+  el.style.display='block';
+}
+function _discAutoExtra(c){
+  const p=[];
+  if(c.temas.length) p.push(`${c.temas.length} tema${c.temas.length===1?'':'s'} como platicado${c.temas.length===1?'':'s'}`);
+  if(c.chips.length) p.push(`${c.chips.length} señal${c.chips.length===1?'':'es'}`);
+  return p.join(' y ');
+}
+
+// Guarda solo lo que cambió, campo por campo (updateDoc con rutas), para no pisar nada más del registro.
+function _discAutoPatch(s,c){
+  const patch={updatedAt:serverTimestamp()};
+  c.emp.forEach(id=>{ patch[`selections.${id}`]=s[id]; });
+  c.fld.forEach(id=>{ patch[`selections.fld.${id}`]=s.fld[id]; });
+  c.pick.forEach(id=>{ patch[`selections.${id}`]=s[id]; if(['budget','decisor','timeline','fit'].includes(id)) patch[id]=s[id]; });
+  c.chips.forEach(id=>{ patch[`selections.chip.${id}`]=s.chip[id]; });
+  if(c.chips.length){ patch['selections.dolores']=s.dolores; patch.dolores=s.dolores; }
+  c.temas.forEach(id=>{ patch[`selections.cov.${id}`]=true; });
+  c.quals.forEach(k=>{ patch[`selections.qual.${k}`]=true; });
+  if(c.prod) patch['selections.prodOpts']=s.prodOpts;
+  [...c.emp,...c.fld,...c.pick].forEach(id=>{ patch[`selections.iaFill.${id}`]=true; });
+  return patch;
+}
+
+// Nunca lanza: si falla, el análisis sigue igual que antes, con lo que el AE capturó.
+async function discAutollenar(ctx){
+  const job=ctx.job;
+  try{
+    const cat=discAutoCatalogo(ctx);
+    if(!cat.campos.length&&!cat.chips.length&&!cat.temas.length&&!cat.quals.length&&!cat.prod) return;
+    const lineaCampo=c=>`- ${c.id} | ${c.l}${DISC_AUTO_PISTAS[c.id]?` (${DISC_AUTO_PISTAS[c.id]})`:''} | ${c.opts?'UNA de: '+c.opts.map(o=>`"${o}"`).join(', '):(c.num?'solo un número entero':'texto corto')}`;
+    const prompt=`Vas a llenar el formulario de una llamada de discovery de Odoo México a partir de su transcripción. En la transcripción hablan el account de Odoo (${ctx.aeName||'el AE'}) y el prospecto. Los datos que buscas son los que dio el PROSPECTO sobre su empresa, no lo que el account propuso o explicó de Odoo.
+
+REGLA PRINCIPAL: solo llena lo que el prospecto dijo en la llamada o lo que se desprende sin duda de lo que dijo. Si algo no salió, NO incluyas ese id. Un campo vacío está bien; un dato inventado o supuesto está mal. Son leads en frío: no supongas presupuesto, fecha de arranque ni quién decide si no lo dijeron.
+
+CAMPOS (id | qué es | formato):
+${cat.campos.map(lineaCampo).join('\n')||'(ninguno vacío)'}
+
+SEÑALES (marca solo las que el prospecto describió claramente):
+${cat.chips.map(c=>`- ${c.id} | ${c.l}`).join('\n')||'(ninguna)'}
+
+TEMAS DE LA GUÍA (marca los que SÍ se platicaron en la llamada, aunque fuera de pasada):
+${cat.temas.map(c=>`- ${c.id} | ${c.l}`).join('\n')||'(ninguno)'}
+
+CALIFICACIÓN (marca solo si quedó claro en la llamada):
+${cat.quals.map(q=>`- ${q.id} | ${q.l}`).join('\n')||'(nada)'}
+${cat.prod?`\nCARACTERÍSTICAS DEL PRODUCTO (solo las que el prospecto mencionó, copiadas exactas): ${DG_PROD_CHARS.map(o=>`"${o}"`).join(', ')}\n`:''}
+CÓMO ESCRIBIR LOS VALORES:
+- Si el campo trae opciones, copia UNA opción exacta, tal cual está escrita. Si ninguna le queda, no lo incluyas.
+- Las opciones que significan "no se sabe" (${DISC_AUTO_NO_SE.map(o=>`"${o}"`).join(', ')}) solo si el prospecto lo dijo con esas palabras o casi. Si el tema simplemente no salió, omite el campo.
+- Números: solo el número entero, sin texto, y solo si el prospecto dio esa cifra. Si dieron un rango, el punto medio redondeado. No calcules ni deduzcas cifras.
+- Si no sabes un valor, omite el id. Nunca pongas 0, null, "nd" ni "no mencionado".
+- Texto: corto, estilo nota, en español de México, con las palabras del prospecto cuando se pueda (máximo ~120 caracteres). El dolor principal va en una frase.
+
+Responde SOLO con este JSON, sin texto antes ni después y sin markdown:
+{"campos":{"id":"valor"},"senales":["id"],"temas":["id"],"calificacion":["id"]${cat.prod?',"producto":["característica exacta"]':''}}
+
+TRANSCRIPCIÓN:
+${ctx.transcript}`;
+    const raw=await discClaudeText(prompt,{maxTokens:4000,funcion:'autollenado'})||'{}';
+    const m=raw.match(/\{[\s\S]*\}/); // tolera preámbulo o ```json aunque el prompt lo prohíba
+    let parsed={}; try{ parsed=JSON.parse(m?m[0]:raw); }catch(e){ console.warn('discAutollenar: JSON inválido',e); return; }
+
+    const c=discAutoAplicar(ctx,cat,parsed);
+    if(!c.n&&!c.chips.length&&!c.temas.length&&!c.quals.length&&!c.prod) return;
+    // Los pasos que siguen (nota, feedback, resumen) leen ctx: que ya vean los campos llenos, y que el
+    // coach no diga "faltó cubrir" un tema que sí se platicó pero nadie palomeó.
+    const cov=dgCoverage(ctx), tot=cov.reduce((a,x)=>({d:a.d+x.done,t:a.t+x.total}),{d:0,t:0});
+    ctx.covPct=tot.t?Math.round(100*tot.d/tot.t):0;
+    ctx.covFaltan=cov.filter(x=>x.st!=='full').map(x=>x.label);
+    ctx.qualGaps=dgQualRows(ctx).filter(x=>x.chip==='no').map(x=>x.t);
+    job.results.autollenado={n:c.n,extra:_discAutoExtra(c)};
+
+    if(discJobEnPantalla(job)){
+      // El AE sigue en la sesión: se aplica sobre el formulario vivo (volviendo a checar que cada
+      // campo siga vacío, por si escribió algo mientras corría) y lo guarda el guardado normal.
+      discAutoAplicar(disc,cat,parsed);
+      dgRender(); dgRenderPostcall();
+      await window.discSaveRecord({silent:true});
+    } else if(job.recordId&&db){
+      await updateDoc(doc(db,'discoveryRecords',job.recordId),_discAutoPatch(ctx.selections,c));
+    }
+    discJobPintar(job);
+  }catch(e){ console.warn('discAutollenar:',e); }
+}
+
 // ── Paso 6: Feedback final de IA — coach de la SESIÓN (no del prospecto): acciones en la app + transcripción ──
 async function discStepFeedback(ctx){
   const s=ctx.selections;
@@ -5476,6 +5689,10 @@ window.discAnalyzeDiscovery = async function(){
   // sintetiza lo anterior. Antes eran siete llamadas porque apps, WOW y recomendaciones razonaban
   // el prospecto por separado — y dos de ellas volvían a cargar la transcripción completa.
   try{
+    if(transcript.length>=DISC_AUTO_MIN){
+      fase('Llenando campos con la transcripción…');
+      await discAutollenar(ctx);
+    }
     fase('Analizando la llamada…');
     const [notaText] = await Promise.all([
       paso(1,'la nota para CRM',()=>discStepNota(ctx)),
