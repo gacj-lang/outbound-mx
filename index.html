@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-22T20:38:30Z">
+<meta name="app-version" content="2026-09-22T20:40:09Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -5439,6 +5439,12 @@ const DISC_AUTO_PISTAS={
   'dol-impacto':'solo si dieron una cifra: dinero, horas o clientes perdidos; sin número, omítelo',
   'eb-nombre':'nombre y puesto de quien aprueba la compra',
   'tl-next':'lo que quedó acordado, con día y hora si los dijeron',
+  // Picks: en la prueba en vivo puso "El que decide" hablando con un gerente que le presenta
+  // opciones a su director, y "1 – 3 meses" cuando lo único con fecha era la demo.
+  'decisor':'el papel de la persona con la que habló el account, no el de su jefe. "El que decide" solo si esa persona dijo que la decisión es suya',
+  'timeline':'solo si el prospecto dijo cuándo quiere arrancar o implementar. La fecha de la demo o de la siguiente reunión NO cuenta',
+  'budget':'solo si hablaron de presupuesto para el proyecto',
+  'competencia':'solo si mencionaron otra opción que evalúan o evaluaron',
 };
 const DISC_AUTO_CIFRA=new Set(['dol-impacto']);
 // Opciones que dicen "no se sabe": solo valen si el prospecto lo dijo; si el tema no salió, se omite.
@@ -5565,7 +5571,7 @@ REGLA PRINCIPAL: solo llena lo que el prospecto dijo en la llamada o lo que se d
 CAMPOS (id | qué es | formato):
 ${cat.campos.map(lineaCampo).join('\n')||'(ninguno vacío)'}
 
-SEÑALES (marca solo las que el prospecto describió claramente):
+SEÑALES (marca solo las que el prospecto describió con hechos concretos. No las deduzcas: tener dos razones sociales no es "Multi-sucursal", y "Dolor alto" o "Urgente" solo si él lo dijo así):
 ${cat.chips.map(c=>`- ${c.id} | ${c.l}`).join('\n')||'(ninguna)'}
 
 TEMAS DE LA GUÍA (marca los que SÍ se platicaron en la llamada, aunque fuera de pasada):
