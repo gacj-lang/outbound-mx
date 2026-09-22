@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-22T20:42:08Z">
+<meta name="app-version" content="2026-09-22T20:44:20Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -5493,6 +5493,31 @@ function discAutoCatalogo(st){
   return {campos,chips,temas,prod};
 }
 
+// Cada campo y cada señal tiene que venir con una cita textual de la transcripción, y la cita tiene que
+// existir de verdad en ella: sin eso se descarta. Con solo instrucciones, Haiku seguía deduciendo
+// ("Multi-sucursal" por tener dos razones sociales, "Seguir en Excel" sin que se hablara de opciones).
+// La cita se busca por tramos de 4 palabras seguidas, sin acentos ni puntuación, para tolerar que la
+// IA la recorte o le cambie una coma.
+const _discNorm=x=>String(x||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9ñ]+/g,' ').trim();
+function _discCitaValida(cita,trNorm){
+  const w=_discNorm(cita).split(' ').filter(Boolean);
+  if(w.length<3) return false;
+  const pad=' '+trNorm+' ';
+  if(w.length<=4) return pad.includes(' '+w.join(' ')+' ');
+  for(let i=0;i+4<=w.length;i++) if(pad.includes(' '+w.slice(i,i+4).join(' ')+' ')) return true;
+  return false;
+}
+// Deja solo lo que trae cita comprobable, ya en el formato plano que usa discAutoAplicar.
+function discAutoConCita(parsed,transcript){
+  const trNorm=_discNorm(transcript);
+  const ok=x=>x&&typeof x==='object'&&_discCitaValida(x.cita,trNorm);
+  const out={campos:{},senales:[],temas:Array.isArray(parsed?.temas)?parsed.temas:[],producto:[],descartados:0};
+  Object.entries(parsed?.campos||{}).forEach(([id,x])=>{ if(ok(x)&&x.v!=null) out.campos[id]=x.v; else out.descartados++; });
+  (Array.isArray(parsed?.senales)?parsed.senales:[]).forEach(x=>{ if(ok(x)&&x.id) out.senales.push(x.id); else out.descartados++; });
+  (Array.isArray(parsed?.producto)?parsed.producto:[]).forEach(x=>{ if(ok(x)&&x.v) out.producto.push(x.v); else out.descartados++; });
+  return out;
+}
+
 // Aplica la respuesta de la IA sobre un estado (la copia del análisis o el formulario vivo). Valida
 // todo contra el catálogo: ids que no existen, opciones que no están EXACTAS en la lista o campos que
 // ya tienen algo se descartan. Devuelve qué cambió, para poder guardarlo campo por campo.
@@ -5571,7 +5596,7 @@ REGLA PRINCIPAL: solo llena lo que el prospecto dijo en la llamada o lo que se d
 CAMPOS (id | qué es | formato):
 ${cat.campos.map(lineaCampo).join('\n')||'(ninguno vacío)'}
 
-SEÑALES (marca solo las que el prospecto describió con hechos concretos. No las deduzcas: tener dos razones sociales no es "Multi-sucursal", y "Dolor alto" o "Urgente" solo si él lo dijo así):
+SEÑALES (solo las que el prospecto describió con hechos concretos. No las deduzcas: tener dos razones sociales no es "Multi-sucursal", y "Dolor alto" o "Urgente" solo si él lo dijo así):
 ${cat.chips.map(c=>`- ${c.id} | ${c.l}`).join('\n')||'(ninguna)'}
 
 TEMAS DE LA GUÍA (marca los que SÍ se platicaron en la llamada, aunque fuera de pasada):
@@ -5584,14 +5609,17 @@ CÓMO ESCRIBIR LOS VALORES:
 - Si no sabes un valor, omite el id. Nunca pongas 0, null, "nd" ni "no mencionado".
 - Texto: corto, estilo nota, en español de México, con las palabras del prospecto cuando se pueda (máximo ~120 caracteres). El dolor principal va en una frase.
 
+CITA OBLIGATORIA: cada campo, cada señal y cada característica del producto lleva una "cita": un fragmento de 4 a 15 palabras seguidas, copiado TAL CUAL de la transcripción, que pruebe el dato (de preferencia algo que dijo el prospecto). Se revisa contra la transcripción: si la cita no está ahí, el dato se descarta. Si no puedes citar algo que lo pruebe, no lo incluyas. Los temas de la guía no llevan cita.
+
 Responde SOLO con este JSON, sin texto antes ni después y sin markdown:
-{"campos":{"id":"valor"},"senales":["id"],"temas":["id"]${cat.prod?',"producto":["característica exacta"]':''}}
+{"campos":{"id":{"v":"valor","cita":"fragmento textual"}},"senales":[{"id":"id","cita":"fragmento textual"}],"temas":["id"]${cat.prod?',"producto":[{"v":"característica exacta","cita":"fragmento textual"}]':''}}
 
 TRANSCRIPCIÓN:
 ${ctx.transcript}`;
-    const raw=await discClaudeText(prompt,{maxTokens:4000,funcion:'autollenado'})||'{}';
+    const raw=await discClaudeText(prompt,{maxTokens:6000,funcion:'autollenado'})||'{}';
     const m=raw.match(/\{[\s\S]*\}/); // tolera preámbulo o ```json aunque el prompt lo prohíba
-    let parsed={}; try{ parsed=JSON.parse(m?m[0]:raw); }catch(e){ console.warn('discAutollenar: JSON inválido',e); return; }
+    let parsed={}; try{ parsed=discAutoConCita(JSON.parse(m?m[0]:raw),ctx.transcript); }catch(e){ console.warn('discAutollenar: JSON inválido',e); return; }
+    if(parsed.descartados) console.log('discAutollenar:',parsed.descartados,'dato(s) descartados por no traer cita comprobable');
 
     const c=discAutoAplicar(ctx,cat,parsed);
     if(!c.n&&!c.chips.length&&!c.temas.length&&!c.prod) return;
