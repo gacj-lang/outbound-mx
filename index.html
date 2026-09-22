@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-21T22:17:04Z">
+<meta name="app-version" content="2026-09-22T18:03:26Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1082,7 +1082,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDo
 // Sello de la última publicación — se actualiza a mano en cada deploy a productivo (no hay build
 // step que lo genere solo). Se muestra en Configuración → Acerca de, para confirmar en un vistazo
 // si el navegador ya está sirviendo la versión nueva o todavía una copia en caché.
-const APP_BUILD_STAMP='2026-09-21e Generación de contenidos usa la ficha de la empresa: Template, Cold Calling y Brochure ya personalizan con qué hace, las apps que le aplican, sus dolores probables y sus señales recientes cuando la empresa tiene ficha. Los dolores van como pregunta, nunca como hecho, y el mensaje no dice de dónde salió el dato. · 2026-09-21d Empresas carga más rápido para el manager: los contadores de Qcall y pricing de las tarjetas salen de 2 consultas en total, no de 2 por empresa (eran ~2,200 a la vez y Firestore las frenaba, atorando también el detalle de la empresa). · 2026-09-21c Reasignar una empresa ya le pasa al nuevo dueño todo lo ligado: sesiones de Intromeet/Qcall, pricing, propuestas y CSV. Quién hizo cada una queda guardado y Analytics se lo sigue contando a esa persona. La herramienta de Mantenimiento de Qcall ya respeta la reasignación. Crear una empresa desde el selector con sitio web ya arma su ficha sola. · 2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
+const APP_BUILD_STAMP='2026-09-22a Cadencias: la firma ya no cambia a mitad del hilo. Se arma una vez, al activar, con el nombre y puesto de quien activa, y todos los toques mandan esa misma; el correo sale también con ese nombre como remitente. En Configuración hay una tarjeta nueva para capturar tu puesto y pegar tu propia firma (la de Odoo o la de Gmail, con botón para traerla), con vista previa de cómo le llega al prospecto; si no pegas ninguna, sale la estándar de Odoo. En Historial por empresa cada hilo dice si la cadencia sigue activa y cuándo sale el próximo correo, y trae el botón «Terminar cadencia» para cortarla cuando el prospecto ya contestó. · 2026-09-21e Generación de contenidos usa la ficha de la empresa: Template, Cold Calling y Brochure ya personalizan con qué hace, las apps que le aplican, sus dolores probables y sus señales recientes cuando la empresa tiene ficha. Los dolores van como pregunta, nunca como hecho, y el mensaje no dice de dónde salió el dato. · 2026-09-21d Empresas carga más rápido para el manager: los contadores de Qcall y pricing de las tarjetas salen de 2 consultas en total, no de 2 por empresa (eran ~2,200 a la vez y Firestore las frenaba, atorando también el detalle de la empresa). · 2026-09-21c Reasignar una empresa ya le pasa al nuevo dueño todo lo ligado: sesiones de Intromeet/Qcall, pricing, propuestas y CSV. Quién hizo cada una queda guardado y Analytics se lo sigue contando a esa persona. La herramienta de Mantenimiento de Qcall ya respeta la reasignación. Crear una empresa desde el selector con sitio web ya arma su ficha sola. · 2026-09-21b Fotos reales: la búsqueda en Pexels la hace el servidor de la app. Ya no hay que configurar nada en Configuración ni sale el aviso amarillo en Publicación LinkedIn, y la key ya no viaja al navegador. · 2026-09-21a Empresas: las accounts y los TL ya ven sus Qcalls, pricing y CSV en el detalle de la empresa, en los contadores de las tarjetas, en "Cargar último pricing" y en el historial que consulta Ninja. Antes salían vacíos: la consulta pedía todo lo de la empresa y Firestore la negaba completa para quien no es manager. · 2026-09-18b Vincular a un evento: la página del evento la lee el backend (/paginaEvento) y su texto va en el prompt. El web_fetch de Anthropic rechaza todo odoo.com, así que ningún evento de Odoo se podía vincular y salía como Variante 1 la explicación de que no había permiso. Si la página no carga, ahora avisa y no genera nada. · 2026-09-18a Seguridad: nombres, correos, cargos, sitios web y LinkedIn de usuarios, empresas y contactos ya se pintan escapados (Panel de Manager, Empresas, contactos, selectores, Pricing y el PDF de propuesta). Un nombre con HTML adentro se ejecutaba: cualquiera puede registrarse, y el panel de pendientes del manager corría ese código con la sesión del manager. Las ligas web y LinkedIn solo aceptan http(s). · 2026-09-17b Métricas: el manager y los TL ya pueden capturar y corregir lo de su gente. Cada formulario trae un selector de para quién estás capturando, el histórico deja corregir o eliminar cualquier renglón, y los campos se precargan con lo que ya había. Todo cambio queda firmado con el nombre de quien lo hizo.';
 
 // ══════════════════════════════════════════
 // CONFIG & CONSTANTS
@@ -2497,6 +2497,30 @@ function renderSettings(){
           <div id="cfgGmailCardBody"><div class="settings-desc">Cargando…</div></div>
         </div>
 
+        <!-- CADENCIAS — FIRMA -->
+        <div class="card settings-card">
+          <div class="card-header"><h3>✍️ Firma de tus correos de cadencia</h3></div>
+          <p class="settings-desc">Va al pie de cada correo de tus cadencias. Si no pegas una tuya, sale la firma estándar de Odoo con tu nombre, puesto, teléfono y link de Appointment. Cada cadencia guarda la firma que tenías al activarla, así que los cambios aplican a las que actives después.</p>
+          <div class="form-group" style="max-width:420px">
+            <label>Puesto</label>
+            <input type="text" id="cfgMyPuesto" class="input" value="${_esc(u.puesto||'')}" placeholder="${_esc(u.role==='manager'?'Team Leader - DS':u.role==='tl'?'Team Leader':'Account Executive')}" oninput="cfgFirmaPreviewSoon()">
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label>Tu firma (opcional)</label>
+            <div id="cfgFirmaEditor" class="input" contenteditable="true" style="min-height:110px;max-height:320px;overflow:auto;background:#fff" data-ph="Pega aquí tu firma con todo y formato: cópiala de Odoo (Mis preferencias → Firma) o de Gmail." oninput="cfgFirmaPreviewSoon()"></div>
+            <p class="settings-desc" style="margin-top:4px">Las imágenes tienen que estar publicadas en internet (un logo pegado desde tu computadora no le llega al prospecto).</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="cfgFirmaDeGmail()">Traer mi firma de Gmail</button>
+            <button class="btn btn-ghost btn-sm" onclick="cfgFirmaEstandar()">Usar la estándar</button>
+            <button class="btn btn-primary btn-sm" onclick="cfgGuardarFirma()">Guardar firma</button>
+          </div>
+          <div style="margin-top:14px">
+            <div style="font-size:12px;font-weight:600;color:var(--gray-500);margin-bottom:6px" id="cfgFirmaPreviewLabel">Así se verá en tus correos</div>
+            <iframe id="cfgFirmaPreview" sandbox="" title="Vista previa de la firma" style="width:100%;height:360px;border:1px solid var(--gray-200);border-radius:8px;background:#fff"></iframe>
+          </div>
+        </div>
+
         <!-- SEGURIDAD -->
         <div class="card settings-card">
           <div class="card-header"><h3>🔑 Seguridad</h3></div>
@@ -2545,6 +2569,7 @@ function renderSettings(){
       </div>
     </div>`;
   setTimeout(cfgLoadGmailStatus,0);
+  setTimeout(cfgFirmaInit,0);
 }
 
 window.saveMyProfile=async function(){
@@ -17634,6 +17659,113 @@ function setupNavTooltips(){
 // duplicar un pipeline de IA paralelo — ver gcGenerateCadenceStepTemplate más abajo.
 const CADENCES_BASE='https://thorough-curiosity-production-098d.up.railway.app';
 
+// ── Configuración → Firma de cadencias ──
+// La firma que sale en los correos la arma el backend (buildSignatureHtml en cadences.js) y la
+// congela en cada cadencia al activarla — bug real 2026-09-22: se armaba al mandar cada toque con la
+// ficha actual y el nombre podía cambiar a mitad del hilo. Aquí solo se guarda lo que captura el
+// usuario (users/{uid}.puesto y .firmaHtml) y se pide la vista previa al backend, que limpia el HTML
+// igual que al mandar. La vista previa va en un iframe sandbox sin scripts; el editor solo recibe
+// HTML ya limpio.
+const FIRMA_MAX_CHARS=60000;
+let _cfgFirmaTimer=null;
+function _cfgFirmaLimpia(html){
+  // Limpieza local para el editor (contenteditable): tira lo que ejecute algo antes de pintarlo.
+  // El backend vuelve a limpiar con su propia lista al mandar; esto no sustituye esa limpieza.
+  try{
+    const d=new DOMParser().parseFromString(String(html||''),'text/html');
+    d.querySelectorAll('script,style,iframe,object,embed,form,input,button,textarea,select,link,meta,base,svg,math,video,audio').forEach(n=>n.remove());
+    d.body.querySelectorAll('*').forEach(el=>{
+      [...el.attributes].forEach(a=>{
+        const n=a.name.toLowerCase(), v=String(a.value||'').trim().toLowerCase();
+        if(n.startsWith('on')||n==='srcdoc'||((n==='href'||n==='src'||n==='action'||n==='formaction')&&/^(javascript|vbscript|data:text)/.test(v))) el.removeAttribute(a.name);
+      });
+    });
+    return d.body.innerHTML.trim();
+  }catch(e){ return ''; }
+}
+function _cfgFirmaEditorHtml(){
+  const ed=document.getElementById('cfgFirmaEditor'); if(!ed) return '';
+  const html=_cfgFirmaLimpia(ed.innerHTML);
+  return (ed.textContent||'').trim()||/<img\b/i.test(html)?html:'';
+}
+function _cfgFirmaPintarPlaceholder(){
+  const ed=document.getElementById('cfgFirmaEditor'); if(!ed) return;
+  ed.style.color=ed.dataset.vacio?'var(--gray-400)':'';
+}
+function cfgFirmaInit(){
+  const ed=document.getElementById('cfgFirmaEditor'); if(!ed) return;
+  ed.innerHTML=_cfgFirmaLimpia(currentUserData?.firmaHtml||'');
+  // Placeholder de un contenteditable: se muestra como texto gris y se quita al enfocar.
+  if(!_cfgFirmaEditorHtml()){ ed.textContent=ed.dataset.ph; ed.dataset.vacio='1'; }
+  _cfgFirmaPintarPlaceholder();
+  ed.addEventListener('focus',()=>{ if(ed.dataset.vacio){ ed.innerHTML=''; delete ed.dataset.vacio; _cfgFirmaPintarPlaceholder(); } });
+  ed.addEventListener('blur',()=>{ if(!_cfgFirmaEditorHtml()){ ed.textContent=ed.dataset.ph; ed.dataset.vacio='1'; _cfgFirmaPintarPlaceholder(); } });
+  // Al pegar, el navegador mete el HTML tal cual; se limpia antes de insertarlo.
+  ed.addEventListener('paste',ev=>{
+    const html=ev.clipboardData?.getData('text/html');
+    if(!html) return;
+    ev.preventDefault();
+    document.execCommand('insertHTML',false,_cfgFirmaLimpia(html));
+    cfgFirmaPreviewSoon();
+  });
+  cfgFirmaPreview();
+}
+function _cfgFirmaValor(){
+  const ed=document.getElementById('cfgFirmaEditor');
+  return ed?.dataset.vacio?'':_cfgFirmaEditorHtml();
+}
+window.cfgFirmaPreviewSoon=function(){
+  _cfgFirmaPintarPlaceholder();
+  clearTimeout(_cfgFirmaTimer); _cfgFirmaTimer=setTimeout(cfgFirmaPreview,600);
+};
+async function cfgFirmaPreview(){
+  const frame=document.getElementById('cfgFirmaPreview'); if(!frame||!currentUser) return;
+  const label=document.getElementById('cfgFirmaPreviewLabel');
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/signature/preview',{method:'POST',
+      headers:{'Authorization':`Bearer ${idToken}`,'Content-Type':'application/json'},
+      body:JSON.stringify({puesto:document.getElementById('cfgMyPuesto')?.value.trim()||'',firmaHtml:_cfgFirmaValor()})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    frame.srcdoc=`<!doctype html><meta charset="utf-8"><body style="margin:0;padding:4px 12px 12px;font-family:Arial,sans-serif">${data.html||'<p style="color:#888">Sin firma: captura tu nombre en Mis datos.</p>'}</body>`;
+    if(label) label.textContent=data.demasiadoGrande?'⚠️ Tu firma pesa demasiado (casi siempre es una imagen pegada) — así se verá con la estándar'
+      :data.propia?'Así se verá en tus correos (tu firma)':'Así se verá en tus correos (firma estándar de Odoo)';
+  }catch(e){ if(label) label.textContent='No se pudo cargar la vista previa: '+e.message; }
+}
+window.cfgFirmaEstandar=function(){
+  const ed=document.getElementById('cfgFirmaEditor'); if(!ed) return;
+  ed.textContent=ed.dataset.ph; ed.dataset.vacio='1';
+  cfgFirmaPreviewSoon();
+  showNotif('Listo: se usará la firma estándar. Da clic en "Guardar firma" para aplicarlo.','info');
+};
+window.cfgFirmaDeGmail=async function(){
+  if(!currentUser) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/gmail/signature',{headers:{'Authorization':`Bearer ${idToken}`}});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(res.status===409?'Primero conecta tu Gmail (tarjeta de arriba).':(data.error||`Error ${res.status}`));
+    if(!data.signature){ showNotif(`Tu Gmail (${data.email||''}) no tiene firma configurada. Pega la de Odoo en el recuadro.`,'info'); return; }
+    const ed=document.getElementById('cfgFirmaEditor');
+    ed.innerHTML=_cfgFirmaLimpia(data.signature); delete ed.dataset.vacio;
+    cfgFirmaPreviewSoon();
+    showNotif('Firma de Gmail cargada. Revísala y da clic en "Guardar firma".','success');
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+window.cfgGuardarFirma=async function(){
+  if(!db||!currentUser) return;
+  const puesto=document.getElementById('cfgMyPuesto')?.value.trim()||'';
+  const firmaHtml=_cfgFirmaValor();
+  if(firmaHtml.length>FIRMA_MAX_CHARS){ showNotif('Tu firma pesa demasiado — casi siempre es una imagen pegada desde tu computadora. Usa imágenes publicadas en internet o la firma estándar.','error'); return; }
+  try{
+    await updateDoc(doc(db,'users',currentUser.uid),{puesto,firmaHtml});
+    currentUserData={...currentUserData,puesto,firmaHtml};
+    showNotif('Firma guardada ✓ — aplica a las cadencias que actives desde ahora','success');
+    cfgFirmaPreview();
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
+
 // ── Configuración → Mis datos: tarjeta Conectar Gmail ──
 async function cfgLoadGmailStatus(){
   const body=document.getElementById('cfgGmailCardBody'); if(!body||!currentUser) return;
@@ -18144,9 +18276,11 @@ async function cadLoadCompanyHistory(companyKey){
     const res=await fetch(CADENCES_BASE+'/cadences/company/'+encodeURIComponent(companyKey)+'/history',{headers:{'Authorization':`Bearer ${idToken}`}});
     const data=await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
-    body.innerHTML=cadHistoryTimelineHtml(data.timeline||[]);
+    _cadHistKey=companyKey;
+    body.innerHTML=cadHistoryTimelineHtml(data.timeline||[],data.cadences||[]);
   }catch(e){ body.innerHTML=`<div class="cdc-empty">Error: ${_esc(e.message)}</div>`; }
 }
+let _cadHistKey=null;
 // Agrupado por cadenceId — pedido del usuario 2026-08-14: antes cada mensaje (enviado o respuesta)
 // tenía su propio botón de copiar, por separado. Para documentar en Odoo se quiere UN solo bloque
 // copiable con el hilo completo (todo lo enviado + la respuesta, en orden), no mensajes sueltos.
@@ -18162,8 +18296,24 @@ function _cadHtmlToText(s){
     return (d.body.textContent||'').replace(/[ \t]*\n[ \t]*/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   }catch(e){ return s; }
 }
-function cadHistoryTimelineHtml(timeline){
+// Estado de la cadencia arriba de cada hilo + botón "Terminar cadencia" (pedido 2026-09-22): el
+// account ve la respuesta aquí y desde aquí mismo corta los correos que faltan. La detección
+// automática solo ve respuestas dentro del mismo hilo de Gmail; si el prospecto contesta en un
+// correo nuevo o por teléfono, la cadencia seguiría mandando sin este botón.
+function _cadHistEstadoHtml(cad){
+  if(!cad) return '';
+  const fecha=s=>{ try{return new Date(s).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return '';} };
+  if(cad.status==='activa'){
+    const next=(cad.steps||[]).find(x=>x.status==='pendiente');
+    return `<span style="font-size:12px;font-weight:600;color:var(--success)">🟢 Activa${next?` · próximo correo: ${_esc(next.label||'')}, ${_esc(fecha(next.scheduledDate))}`:''}</span>`;
+  }
+  const txt=cad.status==='respondio'?'✅ Terminada — ya no manda correos':'⏹ Detenida — ya no manda correos';
+  return `<span style="font-size:12px;font-weight:600;color:var(--gray-500)">${txt}${cad.stopReason?` · ${_esc(cad.stopReason)}`:''}</span>`;
+}
+function cadHistoryTimelineHtml(timeline,cadences=[]){
   if(!timeline.length) return '<div class="cdc-empty">Sin actividad de cadencias para esta empresa todavía.</div>';
+  const cadById=new Map(cadences.map(c=>[c.id,c]));
+  const me=currentUserData||{};
   const fmt=s=>{ try{return new Date(s).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return s||'';} };
   const txt=_cadHtmlToText;
   const groups=[]; const byId=new Map();
@@ -18189,14 +18339,33 @@ function cadHistoryTimelineHtml(timeline){
           <div style="font-size:12.5px;color:var(--gray-700);white-space:pre-wrap">${_esc(txt(item.bodyText||item.snippet))}</div>
         </div>`
     ).join('');
+    const cad=cadById.get(items[0].cadenceId);
+    const puedeTerminar=cad?.status==='activa'&&(me.role==='manager'||cad.aeUid===me.uid);
     return `<div class="card" style="padding:14px;margin-bottom:12px;border-left:3px solid ${hasReply?'var(--success)':'var(--purple)'}">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
-        <button class="btn btn-ghost btn-sm" onclick="cadCopyHistThread(this)" data-full="${_esc(threadText)}">📋 Copiar hilo completo</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <div style="min-width:0">${_cadHistEstadoHtml(cad)}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${puedeTerminar?`<button class="btn btn-ghost-danger btn-sm" data-id="${_esc(cad.id)}" onclick="cadTerminarDesdeHistorial(this.dataset.id,${hasReply})">⏹ Terminar cadencia</button>`:''}
+          <button class="btn btn-ghost btn-sm" onclick="cadCopyHistThread(this)" data-full="${_esc(threadText)}">📋 Copiar hilo completo</button>
+        </div>
       </div>
       ${itemsHtml}
     </div>`;
   }).join('');
 }
+window.cadTerminarDesdeHistorial=async function(id,trasRespuesta){
+  if(!confirm('¿Terminar esta cadencia? Ya no se mandará ningún correo pendiente a este prospecto. No se puede reactivar.')) return;
+  try{
+    const idToken=await currentUser.getIdToken();
+    const res=await fetch(CADENCES_BASE+'/cadences/'+encodeURIComponent(id)+'/stop',{method:'POST',
+      headers:{'Authorization':`Bearer ${idToken}`,'Content-Type':'application/json'},body:JSON.stringify({trasRespuesta:!!trasRespuesta})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error||`Error ${res.status}`);
+    showNotif('Cadencia terminada — ya no se manda nada más','success');
+    _cadActiveCache=null;
+    if(_cadHistKey) cadLoadCompanyHistory(_cadHistKey);
+  }catch(e){ showNotif('Error: '+e.message,'error'); }
+};
 window.cadCopyHistThread=async function(btn){
   await navigator.clipboard.writeText(btn.dataset.full||'');
   showNotif('Hilo copiado ✓','success');
