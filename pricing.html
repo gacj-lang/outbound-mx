@@ -2075,6 +2075,10 @@
 
       // Descuento lic: solo aplica si está desbloqueado
       const activeLicDisc  = discLicUnlocked  ? licDiscByPlan[i] : 0;
+      // Precio de referencia del light user (fijo: mismo en año 1 y año 2+, sin descuento)
+      const lightRefHtml   = lightRate() > 0 && lightUsers > 0
+        ? `<div class="ct-base" style="margin-top:4px">Light user: <strong>${fmtMXN(lightRate())}</strong> / mes</div>`
+        : '';
       const activeImplDisc = discImplUnlocked ? implDiscByPlan[i] : 0;
 
       const licTotal   = getLicTotal(i, activeLicDisc);
@@ -2190,6 +2194,7 @@
             ${renewalTip}
           </div>
           <div class="ct-base">usuario / mes</div>
+          ${lightRefHtml}
         </td>
         <td>
           ${(() => {
@@ -2197,7 +2202,8 @@
                 const y2Disc = activeLicDisc > 0 ? Math.round(tarifaY2 * (1 - activeLicDisc / 100) * 100) / 100 : null;
                 return `<div style="font-family:var(--mono);font-weight:700;font-size:14px;color:var(--ink)">${fmtMXN(y2Disc !== null ? y2Disc : y2Base)}</div>
                         <div class="ct-base">usuario / mes</div>
-                        ${y2Disc !== null ? `<div class="ct-base" style="text-decoration:line-through;color:var(--muted)">${fmtMXN(y2Base)}</div>` : ''}`;
+                        ${y2Disc !== null ? `<div class="ct-base" style="text-decoration:line-through;color:var(--muted)">${fmtMXN(y2Base)}</div>` : ''}
+                        ${lightRefHtml}`;
               })()
           }
         </td>

@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-23T21:40:02Z">
+<meta name="app-version" content="2026-09-23T22:08:35Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13739,11 +13739,14 @@ window.pricingGeneratePDF=function(){
   const implHrsN=r.implHrs||0;
   const totColLbl=showImplCols?'Total lic.+impl.':'Total';
 
+  // Precio de referencia del light user bajo cada tarifa (fijo, igual en año 1 y año 2+)
+  const lightRefCell=lightUsers>0&&lightRate>0?`<div style="font-size:7.5px;color:#9ca3af;margin-top:2px">light ${fmtN(lightRate)}/mes</div>`:'';
+
   const compRows=compForTable.filter(row=>row.visible!==false||row.isSelected).map(row=>{
     const sel=row.isSelected;
     const y2Cell=row.isMonthly?'—':(row.rateY2Net!=null
       ? `<s style="color:#9ca3af;font-weight:400">${fmtN(row.rateY2)}</s><br>${fmtN(row.rateY2Net)}`
-      : fmtN(row.rateY2));
+      : fmtN(row.rateY2))+(row.isMonthly?'':lightRefCell);
     const dLicCell=row.isMonthly?'—':(!row.licDiscApplicable?'<span style="color:#c0c0c0">N/A</span>':(row.licDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.licDiscPct}%</span>`:'—'));
     const licCell=`${row.licDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.licTotalList)}</s><br>`:''}${fmtN(row.licTotal)}`
       +`${row.shCost>0?`<div style="font-size:8px;color:#c0c0c0">Licencias: ${fmtN(row.licOnly)} · Odoo.SH: ${fmtN(row.shCost)}</div>`:''}`
@@ -13759,7 +13762,7 @@ window.pricingGeneratePDF=function(){
     const totCell=`${(row.licDiscPct>0||row.implDiscPct>0)?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.totalList)}</s><br>`:''}${fmtN(row.total)}<div style="font-size:7.5px;color:#c0c0c0;font-weight:400">${totBreakdownLine}</div>`;
     return `<tr class="${sel?'sel-row':''}">
       <td>${row.label}${row.isMonthly?'<span style="font-size:8px;background:#f0f0f0;color:#999;padding:1px 5px;border-radius:3px;margin-left:4px">Base</span>':''}${sel?'<span style="font-size:8px;background:#017E84;color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px">✓ Esta propuesta</span>':''}</td>
-      <td>${fmtN(row.rateY1)}<div style="font-size:7.5px;color:#c0c0c0">usr/mes</div></td>
+      <td>${fmtN(row.rateY1)}<div style="font-size:7.5px;color:#c0c0c0">usr/mes</div>${lightRefCell}</td>
       <td>${y2Cell}</td>
       <td>${dLicCell}</td>
       <td>${licCell}</td>
