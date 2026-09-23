@@ -617,6 +617,10 @@
   .iap-trigger { font-family:var(--mono); font-size:9px; letter-spacing:1.5px; color:var(--muted);
     background:none; border:none; padding:0; cursor:pointer; opacity:.55; }
   .iap-trigger:hover { opacity:1; color:var(--purple); }
+  .lu-toggle { display:inline-flex; align-items:center; gap:4px; }
+  .lu-box { width:8px; height:8px; border:1px solid currentColor; border-radius:2px; display:inline-block; }
+  .lu-toggle.on { opacity:1; color:var(--purple); }
+  .lu-toggle.on .lu-box { background:var(--purple); border-color:var(--purple); }
   .iap-overlay { display:none; position:fixed; inset:0; background:rgba(20,18,26,.45); z-index:2000;
     align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
   .iap-overlay.open { display:flex; }
@@ -1131,6 +1135,7 @@
           <button class="country-btn" onclick="setCountry('ec', this)" title="Ecuador">🇪🇨</button>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
+          <button class="iap-trigger lu-toggle" id="lu-toggle" onclick="toggleLightUsers()" aria-pressed="false" title="Light users: mostrar u ocultar en toda la cotización"><span class="lu-box"></span>LU</button>
           <button class="iap-trigger" onclick="toggleIAP(true)" title="Servicios de consumo (IAP): referencia para la demo">IAP</button>
           <div id="currency-label" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">MXN · México</div>
         </div>
@@ -1896,7 +1901,11 @@
   // LatAm cotiza en "USD Low" → 2.90.
   const LIGHT_USER_PRICE = { MXN: 70, USD: 2.90 };
   let lightUsers = 0;
+  // Interruptor "LU": apagado = los light users no existen en ningún lado (UI, totales, payload,
+  // registro, PDF). Se conserva el número capturado para que al prenderlo regrese igual.
+  let lightEnabled = false;
   function lightRate() {
+    if (!lightEnabled) return 0;
     if (priceVersion === '2025') return 0;   // no existían en la tarifa anterior
     return LIGHT_USER_PRICE[currentCurrency.currency] || 0;
   }
@@ -3229,7 +3238,13 @@
   function refreshLightUsersUI() {
     const available = priceVersion !== '2025';
     const wrap = document.getElementById('lu-wrap');
-    if (wrap) wrap.style.display = available ? '' : 'none';
+    if (wrap) wrap.style.display = available && lightEnabled ? '' : 'none';
+    const tog = document.getElementById('lu-toggle');
+    if (tog) {
+      tog.style.display = available ? '' : 'none';
+      tog.classList.toggle('on', lightEnabled);
+      tog.setAttribute('aria-pressed', lightEnabled ? 'true' : 'false');
+    }
     const lbl = document.getElementById('lu-rate-label');
     if (lbl) lbl.textContent = `${fmtMXN(LIGHT_USER_PRICE[currentCurrency.currency] || 0)} / mes c/u`;
     const input = document.getElementById('lu-count');
@@ -3243,6 +3258,10 @@
     renderTable();
     updateTotal(currentPlanIdx);
     renderCharts();
+  }
+  function toggleLightUsers() {
+    lightEnabled = !lightEnabled;
+    setLightUsers(lightUsers);   // re-renderiza todo con o sin light users
   }
   function changeLightUsers(delta) { setLightUsers(lightUsers + delta); }
   function setLightUsersFromInput(val) {
@@ -3776,6 +3795,7 @@
         priceVersion = c.priceVersion === PRICE_VERSION_CURRENT ? PRICE_VERSION_CURRENT : '2025';
         editionBaseRates = editionsFor(currentCountry, priceVersion);
         lightUsers = priceVersion === '2025' ? 0 : Math.max(0, parseInt(c.lightUsers) || 0);
+        lightEnabled = lightUsers > 0;   // el registro solo trae light users si estaban prendidos
         refreshLightUsersUI();
         // Edición
         if (typeof c.editionIdx === 'number') {
