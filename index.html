@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-23T21:33:15Z">
+<meta name="app-version" content="2026-09-23T21:40:02Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13524,7 +13524,7 @@ window.pricingShowModuleSelector=function pricingShowModuleSelector(){
       <button class="disc-copy-btn" onclick="document.getElementById('pricingModSel').remove()">✕</button>
     </div>
     <div class="disc-popup-body" style="font-family:'Inter',sans-serif">
-      <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Selecciona los módulos que recomiendas e incluyes en las ${pricingState.result?.implHrs||50} horas de implementación. Aparecerán en la propuesta comercial.</p>
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Selecciona los módulos que recomiendas${pricingState.result?.implHrs>0?` e incluyes en las ${pricingState.result.implHrs} horas de implementación`:''}. Aparecerán en la propuesta comercial.</p>
       <div style="max-height:380px;overflow-y:auto;margin-bottom:16px;padding-right:4px">
         ${Object.entries(ODOO_APPS).map(([cat,apps])=>`
           <div style="margin-bottom:12px">
@@ -13733,6 +13733,12 @@ window.pricingGeneratePDF=function(){
   });
 
   // Respeta las filas ocultas en la comparativa del pricing (siempre conserva la seleccionada).
+  // Sin implementación → la propuesta no menciona horas ni montos de implementación en ningún lado
+  const hasImplSel=(implPriceN||0)>0||(implListN||0)>0;
+  const showImplCols=hasImplSel||compForTable.some(x=>x.hasImpl);
+  const implHrsN=r.implHrs||0;
+  const totColLbl=showImplCols?'Total lic.+impl.':'Total';
+
   const compRows=compForTable.filter(row=>row.visible!==false||row.isSelected).map(row=>{
     const sel=row.isSelected;
     const y2Cell=row.isMonthly?'—':(row.rateY2Net!=null
@@ -13757,8 +13763,8 @@ window.pricingGeneratePDF=function(){
       <td>${y2Cell}</td>
       <td>${dLicCell}</td>
       <td>${licCell}</td>
-      <td>${implCell}</td>
-      <td>${dImplCell}</td>
+      ${showImplCols?`<td>${implCell}</td>
+      <td>${dImplCell}</td>`:''}
       <td style="font-weight:700">${totCell}</td>
     </tr>`;
   }).join('');
@@ -14056,7 +14062,7 @@ thead{ display:table-header-group; }
     <div style="background:#017E84;color:white;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:700">${planLabel}</div>
     <div style="background:#f3f4f6;color:#374151;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">${users} usuarios</div>
     ${lightUsers>0?`<div style="background:#f3f4f6;color:#374151;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">${lightUsers} light user${lightUsers>1?'s':''}</div>`:''}
-    <div style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">${r.implHrs||50} hrs implementación</div>
+    ${hasImplSel?`<div style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">${implHrsN>0?`${implHrsN} hrs implementación`:'Implementación'}</div>`:''}
     ${ps.isSH?`
     <div style="background:#eef6ff;color:#0369a1;border:1px solid #bae6fd;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">⚙️ ${ps.shWorkers||1} Worker${(ps.shWorkers||1)>1?'s':''}</div>
     <div style="background:#eef6ff;color:#0369a1;border:1px solid #bae6fd;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">🌿 ${ps.shStaging||0} Staging branch${(ps.shStaging||0)!==1?'es':''}</div>
@@ -14074,9 +14080,9 @@ thead{ display:table-header-group; }
         <th>Tarifa año 2+<br><span style="font-weight:400;text-transform:none;letter-spacing:0">/usr/mes</span></th>
         <th>% Desc.<br>lic.</th>
         <th>Total licenciamiento<br><span style="font-weight:400;text-transform:none;letter-spacing:0">incl. Odoo.SH</span></th>
-        <th>Implementación</th>
-        <th>% Desc.<br>impl.</th>
-        <th>Total lic.+impl.</th>
+        ${showImplCols?`<th>Implementación</th>
+        <th>% Desc.<br>impl.</th>`:''}
+        <th>${totColLbl}</th>
       </tr></thead>
       <tbody>${compRows}</tbody>
     </table>
@@ -14092,7 +14098,7 @@ thead{ display:table-header-group; }
           {lbl:'Licenciamiento', sub:`${planMonths} meses · ${planMonths>12?`año 1 ${fmtN(rateY1)} · año 2+ ${fmtN(rateY2)}/usr/mes`:`${fmtN(rateY1)}/usr/mes`}`, val:licTotal-(lightCostSel||0), list:licDiscPct>0?licTotalList-(lightCostSel||0):0, disc:licDiscPct},
           ...(lightCostSel>0?[{lbl:'Light users', sub:`${lightUsers} × ${fmtN(lightRate)}/mes · ${planIdx===0?'1 mes':planMonths+' meses'} · tarifa fija`, val:lightCostSel, list:0, disc:0}]:[]),
           ...(ps.isSH?[{lbl:'Recursos Odoo.SH', sub:`${ps.shWorkers||1} worker${(ps.shWorkers||1)>1?'s':''} · ${ps.shStaging||0} staging · ${ps.shStorage||0} GB`, val:shCostSel, list:0, disc:0}]:[]),
-          {lbl:'Implementación', sub:`${r.implHrs||50} horas · Quickstart Odoo (única vez)`, val:implPriceN, list:implDiscPct>0?implListN:0, disc:implDiscPct},
+          ...(hasImplSel?[{lbl:'Implementación', sub:`${implHrsN>0?`${implHrsN} horas · `:''}Quickstart Odoo (única vez)`, val:implPriceN, list:implDiscPct>0?implListN:0, disc:implDiscPct}]:[]),
         ].map((it,idx)=>`
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;${idx>0?'border-top:1px solid #f3f4f6':''}">
             <div><div style="font-size:11.5px;font-weight:700;color:#21272B">${it.lbl}${it.disc>0?` <span style="font-size:9px;color:#fff;background:#714B67;padding:1px 6px;border-radius:10px;font-weight:700">−${it.disc}%</span>`:''}</div><div style="font-size:9px;color:#9ca3af;margin-top:1px">${it.sub}</div></div>
@@ -14111,7 +14117,7 @@ thead{ display:table-header-group; }
         <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.55)">Total con IVA (16%)</div>
         <div style="font-size:27px;font-weight:800;font-family:'Inter',monospace;line-height:1.05;margin:4px 0">${fmtN(total)}</div>
         <div style="font-size:9.5px;color:rgba(255,255,255,.5);line-height:1.5">${planLabel} · ${users} usuario${users>1?'s':''}${ps.isSH?' · Odoo.SH':''}<br>Subtotal ${fmtN(subtotal)} + IVA ${fmtN(iva)}</div>
-        <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:6px;border-top:1px solid rgba(255,255,255,.15);padding-top:6px">= columna "Total lic.+impl." de la fila ${planLabel}.</div>
+        <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:6px;border-top:1px solid rgba(255,255,255,.15);padding-top:6px">= columna "${totColLbl}" de la fila ${planLabel}.</div>
       </div>
     </div>
   </div>
@@ -14222,7 +14228,7 @@ thead{ display:table-header-group; }
   <!-- Modules -->
   ${selMods.length?`
   <div style="margin-bottom:16px">
-    <div class="sec-label">Aplicaciones Odoo en el alcance de implementación</div>
+    <div class="sec-label">${hasImplSel?'Aplicaciones Odoo en el alcance de implementación':'Aplicaciones Odoo de la propuesta'}</div>
     <div class="mod-grid">
       ${selMods.map(name=>{const ml=ODOO_APPS_FLAT.find(m=>m.name.toLowerCase()===name.toLowerCase());const d=ml?(ps.descMode==='long'&&ml.longDesc?ml.longDesc:ml.desc):'';return`
         <div class="mod-card sel">
@@ -14231,16 +14237,17 @@ thead{ display:table-header-group; }
           <div style="font-size:9.5px;color:#9ca3af;margin-top:2px;line-height:1.35">${d}</div>
         </div>`}).join('')}
     </div>
-    <div style="font-size:8.5px;color:#d1d5db;margin-top:5px">Módulos incluidos en las ${r.implHrs||50} horas de consultoría. Módulos adicionales se cotizan por separado.</div>
+    ${hasImplSel?`<div style="font-size:8.5px;color:#d1d5db;margin-top:5px">Módulos incluidos en ${implHrsN>0?`las ${implHrsN} horas de consultoría`:'la implementación'}. Módulos adicionales se cotizan por separado.</div>`:''}
   </div>`:''}
 
-  <!-- Impl notes -->
+  <!-- Impl notes (sin implementación y sin notas, la sección no sale) -->
+  ${hasImplSel||ps.implNotes?`
   <div style="margin-bottom:16px">
-    <div class="sec-label">Notas de implementación y alcance</div>
+    <div class="sec-label">${hasImplSel?'Notas de implementación y alcance':'Notas de alcance'}</div>
     <div style="border:1.5px solid #e5e7eb;border-radius:8px;padding:14px 16px;background:#f9fafb;font-size:11.5px;color:#374151;line-height:1.65;white-space:pre-wrap;min-height:60px">
       ${ps.implNotes||'<span style="color:#d1d5db;font-style:italic">Sin notas adicionales.</span>'}
     </div>
-  </div>
+  </div>`:''}
 
   <!-- Implementation path -->
   <div style="margin-bottom:16px">
@@ -14408,7 +14415,7 @@ function propBuildPricingSummary(ps){
       ...(ps.lightUsers>0?[{l:'Light users',v:ps.lightUsers}]:[]),
       {l:'Plan',v:(PRICING_DATA?.planLabels||[])[r.planIdx??ps.planIdx??1]||'—'},
       {l:'Mensual (ref.)',v:ps._mensualRef||fmt(r.mensualRef)||'—'},
-      {l:'Implementación',v:ps._impl||fmt(r.implPrice)||'—'},
+      {l:'Implementación',v:(r.implPrice>0||r.implHrs>0)?(ps._impl||fmt(r.implPrice)||'—'):'Sin implementación'},
       ...(ps.codeLines>0?[{l:'Líneas de código',v:`${ps.codeLines} (informativo)`}]:[]),
       {l:'Total (sin IVA)',v:fmt(r.total)||'—'},
     ].map(i=>`<div style="background:var(--gray-50);border-radius:var(--radius-sm);padding:12px">
@@ -14427,7 +14434,7 @@ window.propLoadLastPricing=async function(){
     if(!found.length){ showNotif('No se encontró pricing para esta empresa','warning'); return; }
     const docs=found.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
     const last=docs[0];
-    pricingState.result={editionName:last.edition,users:last.users,planIdx:last.planIdx,mensualRef:last.mensualRef,implPrice:last.implPrice,total:last.total,implHrs:last.implHrs||50};
+    pricingState.result={editionName:last.edition,users:last.users,planIdx:last.planIdx,mensualRef:last.mensualRef,implPrice:last.implPrice,total:last.total,implHrs:last.implHrs||0};
     pricingState.users=last.users; pricingState.planIdx=last.planIdx;
     pricingState._mensualRef=last.mensualRef?'$'+Number(last.mensualRef).toLocaleString('es-MX',{minimumFractionDigits:0}):'';
     pricingState._impl=last.implPrice?'$'+Number(last.implPrice).toLocaleString('es-MX',{minimumFractionDigits:0}):'';
@@ -14906,7 +14913,7 @@ window.pricingGenerateProposalFromRecord=function(id){
   pricingState.recordId=id;
   pricingState.odooPropUrl=r.odooPropUrl||'';
   pricingState.qeDate=r.qeDate||'';
-  pricingState.result={editionName:r.edition,users:r.users,planIdx:r.planIdx,mensualRef:r.mensualRef,implPrice:r.implPrice,total:r.total,implHrs:r.implHrs||50};
+  pricingState.result={editionName:r.edition,users:r.users,planIdx:r.planIdx,mensualRef:r.mensualRef,implPrice:r.implPrice,total:r.total,implHrs:r.implHrs||0};
   pricingState.users=r.users; pricingState.planIdx=r.planIdx;
   pricingState._mensualRef=fmt(r.mensualRef); pricingState._impl=fmt(r.implPrice);
   pricingState.isSH=r.isSH||false; pricingState.shWorkers=r.shWorkers||1; pricingState.shStaging=r.shStaging||0; pricingState.shStorage=r.shStorage||0; pricingState.shCost=r.shCost||0;
