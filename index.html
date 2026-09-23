@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-23T00:19:44Z">
+<meta name="app-version" content="2026-09-23T01:09:20Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14906,6 +14906,9 @@ window.pricingDeleteSelected=async function(){
 
 // CSV BUILDER
 // ══════════════════════════════════════════
+// Tope base de tamaño de empresa (regla del usuario, 2026-09-22). El backend lo aplica igual aunque
+// el campo quede vacío; aquí solo se muestra y se evita escribir más.
+const CSV_TOPE_EMPLEADOS=250;
 const CSV_COLUMNS=['name','contact_name','function','partner_name','Website','Email','phone','Tags_id','user_id','state_id','country_id'];
 // Bloques de información extra. Hasta 2026-09-17 salían como una columna cada uno y el AE tenía
 // que mapear seis columnas a mano en el importador de Odoo; a pedido del equipo ahora los seis se
@@ -15594,8 +15597,8 @@ function csvRenderResultadosTab(content){
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
                 <div class="form-group" style="margin:0"><label>Empleados desde <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
                   <input type="number" class="input" id="csvSearchEmpMin" min="0" placeholder="Ej. 1"></div>
-                <div class="form-group" style="margin:0"><label>Empleados hasta <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
-                  <input type="number" class="input" id="csvSearchEmpMax" min="0" placeholder="Ej. 150"></div>
+                <div class="form-group" style="margin:0"><label>Empleados hasta <span style="font-weight:400;color:var(--gray-400)">(tope 250)</span></label>
+                  <input type="number" class="input" id="csvSearchEmpMax" min="1" max="250" placeholder="250" onchange="if(Number(this.value)>250){this.value=250;showNotif('El tope es de 250 empleados','info');}"></div>
                 <span id="csvEmpHint" style="grid-column:1/-1;font-size:11px;color:var(--gray-400);display:none;margin-top:-8px"></span>
               </div>
 
@@ -15805,10 +15808,10 @@ window.csvOnFuenteChange=function(){
   const empHint=document.getElementById('csvEmpHint');
   if(empHint){
     const esDirectorio=fuente==='denue'||fuente==='dirind'||fuente==='alimentaria';
-    empHint.style.display=esDirectorio?'block':'none';
-    empHint.textContent=esDirectorio
-      ?`${CSV_FUENTES[fuente].label} no trae el tamaño de la empresa: se revisa con el dato de Apollo al cruzar. Las que quedan fuera del rango se descartan y se reponen; las que no tienen dato se entregan marcadas en Notas.`
-      :'';
+    empHint.style.display='block';
+    empHint.textContent=`Si lo dejas vacío, se buscan empresas de hasta ${CSV_TOPE_EMPLEADOS} empleados.`+(esDirectorio
+      ?` ${CSV_FUENTES[fuente].label} no trae el tamaño de la empresa: se revisa con el dato de Apollo al cruzar. Las que quedan fuera se descartan y se reponen; las que no tienen dato se entregan con la marca ⚠ Tamaño sin confirmar.`
+      :'');
   }
   if(municipioBox){
     const hayEstados=document.querySelectorAll('.csv-estado-check:checked').length>0;
@@ -17088,6 +17091,9 @@ function csvLoadJobIntoRows(job){
       // terminaba creando la empresa con giro/tamaño/LinkedIn vacíos aunque el dato ya existía.
       _linkedinContactoRaw:row.linkedin_contacto||'', _linkedinEmpresaRaw:row.linkedin_empresa||'',
       _empleadosRaw:row.empleados||null, _denuePersonalOcupadoRaw:row.denue_personal_ocupado||'',
+      // El backend no pudo confirmar el tamaño (sin número de empleados en ninguna fuente). Se ve en
+      // la tabla antes de subir a Odoo, para que el AE lo revise antes de llamar.
+      _empSinVerificar:!!row.empleadosSinVerificar,
       // Inteligencia de empresa (2026-09-14): la arma el backend al cerrar la búsqueda. Van con guion
       // bajo porque NO son columnas del CSV de Odoo (csvBuildText solo lee CSV_COLUMNS); su destino
       // es la ficha de la empresa en el CRM (csvSyncRowsToCRM).
@@ -17432,7 +17438,7 @@ function csvRenderTable(){
     const drawerHasData=_CSV_DRAWER_FIELDS.some(f=>(row[f.key]||'').trim());
     return `<tr style="border-bottom:1px solid var(--gray-100)">
     <td style="padding:4px 6px"><input type="checkbox" class="csvRowChk" value="${i}" onchange="csvUpdateBulkBar()"></td>
-    ${CSV_COLUMNS.map(col=>`<td style="padding:4px 6px;max-width:130px"><input type="text" value="${(row[col]||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvUpdateCell(${i},'${col}',this.value)" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>`).join('')}
+    ${CSV_COLUMNS.map(col=>`<td style="padding:4px 6px;max-width:130px">${col==='partner_name'&&row._empSinVerificar?`<span title="Ninguna fuente trae su número de empleados: no se pudo confirmar que tenga hasta ${CSV_TOPE_EMPLEADOS}. Revísalo antes de llamar." style="display:inline-block;margin:2px 4px 0;padding:1px 6px;border-radius:99px;background:var(--warning-light);color:var(--warning);font-size:10px;font-weight:700;white-space:nowrap">⚠ Tamaño sin confirmar</span>`:''}<input type="text" value="${(row[col]||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onchange="csvUpdateCell(${i},'${col}',this.value)" style="width:100%;border:none;background:transparent;font-size:11px;outline:none;padding:2px 4px;border-radius:3px" onfocus="this.style.background='var(--purple-light)'" onblur="this.style.background='transparent'"></td>`).join('')}
     <td style="padding:4px;white-space:nowrap;text-align:center">
       <button onclick="csvToggleDrawer(${i})" title="Ver Notes/DATOS DENUE/DIRIND/APOLLO/OUTSCRAPER/Resumen" style="background:none;border:1px solid ${drawerHasData?'var(--purple)':'var(--gray-200)'};border-radius:6px;color:${drawerHasData?'var(--purple)':'var(--gray-400)'};cursor:pointer;font-size:11px;width:26px;height:26px">${open?'︿':'﹀'}</button>
     </td>
@@ -17452,8 +17458,11 @@ function csvRenderTable(){
   </tr>`;
   }).join('');
   const emptyStates=csvRows.map((r,i)=>r.state_id?null:i+1).filter(Boolean);
+  const sinTamano=csvRows.map((r,i)=>r._empSinVerificar?i+1:null).filter(Boolean);
   const warn=document.getElementById('csvWarnings');
-  if(warn) warn.innerHTML=emptyStates.length>0?`<div style="background:var(--warning-light);color:var(--warning);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px">⚠️ Filas sin estado: ${emptyStates.join(', ')} — revisa manualmente</div>`:'';
+  const aviso=t=>`<div style="background:var(--warning-light);color:var(--warning);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:6px">${t}</div>`;
+  if(warn) warn.innerHTML=(emptyStates.length>0?aviso(`⚠️ Filas sin estado: ${emptyStates.join(', ')} — revisa manualmente`):'')
+    +(sinTamano.length>0?aviso(`⚠️ ${sinTamano.length===1?'La fila':'Las filas'} ${sinTamano.join(', ')} no ${sinTamano.length===1?'tiene':'tienen'} dato de empleados: no se pudo confirmar que ${sinTamano.length===1?'la empresa tenga':'las empresas tengan'} hasta ${CSV_TOPE_EMPLEADOS}. Revísalas antes de llamar.`):'');
   const selAll=document.getElementById('csvSelectAllChk'); if(selAll) selAll.checked=false;
   csvUpdateBulkBar();
 }
