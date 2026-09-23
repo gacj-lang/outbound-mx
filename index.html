@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-22T20:46:24Z">
+<meta name="app-version" content="2026-09-23T00:16:58Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15525,7 +15525,7 @@ function csvRenderResultadosTab(content){
                    los directorios tienen sus propios filtros, que es justo lo que pidió el usuario
                    ("filtros diferentes para una y otra herramienta"). -->
               <details style="margin:16px 0 0" id="csvSearchApolloSectorBox">
-                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Sector oficial SCIAN <span style="font-weight:400;color:var(--gray-400)">(el mismo catálogo de INEGI que usa DENUE)</span></summary>
+                <summary style="font-size:13px;font-weight:600;color:var(--gray-700);cursor:pointer;padding:2px 0">Sector oficial SCIAN <span style="font-weight:400;color:var(--gray-400)">(catálogo de INEGI; se suma a Industria (Apollo): la empresa tiene que cumplir los dos)</span></summary>
                 <div id="csvSearchApolloSectorChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-height:170px;overflow-y:auto;padding:10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-50)"><span style="font-size:12px;color:var(--gray-400)">Cargando sectores…</span></div>
               </details>
 
@@ -15596,6 +15596,7 @@ function csvRenderResultadosTab(content){
                   <input type="number" class="input" id="csvSearchEmpMin" min="0" placeholder="Ej. 1"></div>
                 <div class="form-group" style="margin:0"><label>Empleados hasta <span style="font-weight:400;color:var(--gray-400)">(opcional)</span></label>
                   <input type="number" class="input" id="csvSearchEmpMax" min="0" placeholder="Ej. 150"></div>
+                <span id="csvEmpHint" style="grid-column:1/-1;font-size:11px;color:var(--gray-400);display:none;margin-top:-8px"></span>
               </div>
 
               <div class="form-group" style="margin-bottom:16px">
@@ -15689,7 +15690,10 @@ function csvRenderResultadosTab(content){
     </div>`;
   csvRows=[]; _csvSessionId=null; _csvDirty=false; csvLoadHistory();
   csvRenderEstadoChips();
-  csvLoadApolloFiltros(); // Apollo es la fuente por defecto (radio checked arriba) — se cargan sus filtros nativos de una vez
+  // Apollo es la fuente por defecto (radio checked arriba). Se pasa por csvOnFuenteChange y no solo por
+  // csvLoadApolloFiltros: sin eso, las cajas de Lusha (Tamaño, Industria, Área) se quedaban visibles y
+  // vacías bajo Apollo hasta que el AE cambiaba de fuente y regresaba (reporte 2026-09-22).
+  csvOnFuenteChange();
   csvFetchQuotaStatus();  // el consumo pudo cambiar desde la última vez (otra búsqueda, otra pestaña)
   // Un solo listener delegado alimenta el contador: cualquier cambio dentro del formulario (chip,
   // número, texto, select) lo vuelve a pedir. Así no hay que acordarse de enganchar cada control
@@ -15792,8 +15796,20 @@ window.csvOnFuenteChange=function(){
   if(fuente==='dirind') csvLoadDirindCategorias();
   if(fuente==='alimentaria') csvLoadAlimentariaCategorias();
   if(fuente==='apollo') csvLoadApolloFiltros();
-  // Ni DIRIND ni ALIMENTARIA publican tamaño de empresa en el anuncio impreso.
-  if(empBox) empBox.style.display=(fuente==='dirind'||fuente==='alimentaria')?'none':'grid';
+  // Ni DIRIND ni ALIMENTARIA publican tamaño de empresa en el anuncio impreso, y DENUE solo trae el
+  // personal del ESTABLECIMIENTO (la sucursal, no la empresa). Antes el rango se ocultaba en DIRIND y
+  // ALIMENTARIA y el cruce con Apollo metía corporativos de 460 o 2,900 empleados sin que nadie lo
+  // revisara (ALPEZZI, 2026-09-18). Ahora el rango se ve en las tres y el backend lo aplica con el
+  // número de empleados que trae el cruce: fuera de rango se descarta y se repone.
+  if(empBox) empBox.style.display='grid';
+  const empHint=document.getElementById('csvEmpHint');
+  if(empHint){
+    const esDirectorio=fuente==='denue'||fuente==='dirind'||fuente==='alimentaria';
+    empHint.style.display=esDirectorio?'block':'none';
+    empHint.textContent=esDirectorio
+      ?`${CSV_FUENTES[fuente].label} no trae el tamaño de la empresa: se revisa con el dato de Apollo al cruzar. Las que quedan fuera del rango se descartan y se reponen; las que no tienen dato se entregan marcadas en Notas.`
+      :'';
+  }
   if(municipioBox){
     const hayEstados=document.querySelectorAll('.csv-estado-check:checked').length>0;
     municipioBox.style.display=(fuente==='denue'&&hayEstados)?'block':'none';
@@ -15985,7 +16001,7 @@ function csvRenderApolloFiltrosChips(){
   // distintas para no confundir una lista con la otra al leer los checkboxes.
   const chip=(cls,val,label,extra='',checked=false)=>`
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:white;border:1px solid var(--gray-200);border-radius:99px;padding:5px 10px;cursor:pointer">
-      <input type="checkbox" class="${cls}" value="${val}" ${checked?'checked':''} onchange="csvActualizarConteo()"> ${label}${extra}
+      <input type="checkbox" class="${cls}" value="${val}" ${checked?'checked':''} onchange="csvTechExclusiva(this);csvActualizarConteo()"> ${label}${extra}
     </label>`;
   const secBox=document.getElementById('csvSearchApolloSectorChips');
   if(secBox){
@@ -16004,6 +16020,16 @@ function csvRenderApolloFiltrosChips(){
     techNoBox.innerHTML=(_apolloFiltrosCache.tecnologias||[]).map(t=>chip('csv-apollo-tech-no-check',t.uid,t.label,'',prev.has(t.uid))).join('');
   }
 }
+// "Usa" y "No usa" la misma tecnología a la vez da cero resultados siempre: mtova lanzó tres
+// búsquedas el 2026-09-22 con Zoho en las dos listas y las tres salieron vacías. Marcar una
+// desmarca la otra.
+window.csvTechExclusiva=function(el){
+  if(!el?.checked) return;
+  const otra=el.classList.contains('csv-apollo-tech-usa-check')?'csv-apollo-tech-no-check'
+    :el.classList.contains('csv-apollo-tech-no-check')?'csv-apollo-tech-usa-check':'';
+  if(!otra) return;
+  document.querySelectorAll('.'+otra).forEach(c=>{ if(c.value===el.value) c.checked=false; });
+};
 // Lee de UN solo lugar todos los filtros nuevos de Apollo. Lo usan la búsqueda y el contador: si
 // cada uno los leyera por su cuenta, el número que ve el AE dejaría de corresponder a lo que pide.
 function _csvApolloFiltrosExtra(){
@@ -16017,8 +16043,10 @@ function _csvApolloFiltrosExtra(){
   const vacantesDesde=dias?new Date(Date.now()-dias*86400000).toISOString().slice(0,10):'';
   return {
     scianSectores:marcados('csv-apollo-sector-check'),
-    tecnologiasUsa:marcados('csv-apollo-tech-usa-check'),
-    tecnologiasNoUsa:marcados('csv-apollo-tech-no-check'),
+    tecnologiasUsa:marcados('csv-apollo-tech-usa-check').filter(t=>!marcados('csv-apollo-tech-no-check').includes(t)),
+    // Red de seguridad para filtros reusados o llenados por instrucciones: lo que está en las dos
+    // listas se contradice, así que no se manda en ninguna.
+    tecnologiasNoUsa:marcados('csv-apollo-tech-no-check').filter(t=>!marcados('csv-apollo-tech-usa-check').includes(t)),
     ingresosMin:numOf('csvSearchIngresosMin'), ingresosMax:numOf('csvSearchIngresosMax'),
     fundadaDesde:numOf('csvSearchFundadaDesde'), fundadaHasta:numOf('csvSearchFundadaHasta'),
     crecimientoMinPct:numOf('csvSearchCrecimientoPct'), crecimientoMeses:numOf('csvSearchCrecimientoMeses'),
