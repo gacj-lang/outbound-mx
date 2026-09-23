@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-23T01:09:20Z">
+<meta name="app-version" content="2026-09-23T19:58:13Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15220,17 +15220,16 @@ let _csvIndustryTagsSettled=true;
 // leads y se cachea; csvRenderQuotaHint la combina con la fuente seleccionada para pintar el texto
 // junto a "Cantidad de leads". Antes de esto (pedido 2026-08-10, después del pico de gasto de
 // Claude API) el AE no tenía forma de ver su consumo, solo el tope fijo por fuente.
-// Catálogo único de las fuentes del buscador: cómo se llaman de cara al AE, qué campo/límite les
-// corresponde en la cuota y su tope de AE por defecto (el que se usa mientras no llega el consumo
-// real del backend). Antes esto vivía como cadenas de ternarios repetidas en csvOnFuenteChange y
-// csvRenderQuotaHint; con la 5a fuente ya no eran legibles y se prestaban a que una se actualizara
-// sin la otra. Debe coincidir con FUENTES/DEFAULT_QUOTA de quota.js en el backend.
+// Catálogo único de las fuentes del buscador: cómo se llaman de cara al AE y cuántos leads caben en
+// UNA búsqueda (porBusqueda). Debe coincidir con capPorFuente de /searchLeads en el backend.
+// 2026-09-23: se quitó el tope diario por fuente; la cuota es solo semanal y mensual por persona.
 const CSV_FUENTES={
-  apollo:{label:'Apollo', limite:'dailyApollo', campo:'dayApolloCount', topeAE:10},
-  denue:{label:'DENUE', limite:'dailyDenue', campo:'dayDenueCount', topeAE:25},
-  dirind:{label:'DIRIND', limite:'dailyDirind', campo:'dayDirindCount', topeAE:25},
-  alimentaria:{label:'ALIMENTARIA', limite:'dailyAlimentaria', campo:'dayAlimentariaCount', topeAE:25},
-  outscraper:{label:'Outscraper', limite:'dailyOutscraper', campo:'dayOutscraperCount', topeAE:15},
+  apollo:{label:'Apollo', porBusqueda:10},
+  denue:{label:'DENUE', porBusqueda:25},
+  dirind:{label:'DIRIND', porBusqueda:25},
+  alimentaria:{label:'ALIMENTARIA', porBusqueda:25},
+  outscraper:{label:'Outscraper', porBusqueda:15},
+  lusha:{label:'Lusha', porBusqueda:25},
 };
 let _quotaStatusCache=null;
 async function csvFetchQuotaStatus(){
@@ -15254,12 +15253,11 @@ function csvRenderQuotaHint(){
   const fuente=csvFuenteActual();
   const info=CSV_FUENTES[fuente]||CSV_FUENTES.apollo;
   if(!_quotaStatusCache){
-    if(cantHint) cantHint.textContent=`Tope diario ${info.label}: ${info.topeAE} leads. Se aplica también tu tope semanal/mensual como AE.`;
+    if(cantHint) cantHint.textContent=`Máximo ${info.porBusqueda} leads por búsqueda en ${info.label}. Cuenta contra tu tope semanal y mensual.`;
     return;
   }
   const {limits,current}=_quotaStatusCache;
-  const dailyLimit=limits[info.limite]??info.topeAE;
-  if(cantHint) cantHint.textContent=`Hoy ${info.label}: ${current[info.campo]||0}/${dailyLimit} · Semana: ${current.weekCount||0}/${limits.weekly} · Mes: ${current.monthCount||0}/${limits.monthly}`;
+  if(cantHint) cantHint.textContent=`Máximo ${info.porBusqueda} por búsqueda en ${info.label} · Semana: ${current.weekCount||0}/${limits.weekly} · Mes: ${current.monthCount||0}/${limits.monthly}`;
   if(banner){
     const stat=(label,used,max)=>{
       const pct=max?Math.min(100,Math.round(100*used/max)):0;
@@ -15270,7 +15268,6 @@ function csvRenderQuotaHint(){
       </div>`;
     };
     banner.innerHTML=
-      Object.values(CSV_FUENTES).map(f=>stat(f.label+' hoy', current[f.campo]||0, limits[f.limite]??f.topeAE)).join('')+
       stat('Semana', current.weekCount||0, limits.weekly)+
       stat('Mes', current.monthCount||0, limits.monthly);
   }
@@ -15630,7 +15627,7 @@ function csvRenderResultadosTab(content){
           <div class="form-group" style="margin-bottom:0;max-width:220px">
             <label>Cantidad de leads</label>
             <input type="number" class="input" id="csvSearchCantidad" min="1" max="10" value="5">
-            <span style="font-size:11px;color:var(--gray-400)" id="csvSearchCantidadHint">Tope diario Apollo: 10 leads. Se aplica también tu tope semanal/mensual como AE.</span>
+            <span style="font-size:11px;color:var(--gray-400)" id="csvSearchCantidadHint">Máximo 10 leads por búsqueda en Apollo. Cuenta contra tu tope semanal y mensual.</span>
           </div>
 
           ${('Notification' in window && Notification.permission==='default')?`
@@ -15821,13 +15818,10 @@ window.csvOnFuenteChange=function(){
   if(contactoHint) contactoHint.textContent=(fuente==='denue'||fuente==='dirind'||fuente==='alimentaria')
     ?`En ${CSV_FUENTES[fuente].label} no filtra qué empresas aparecen (ahí no hay dato de contacto) — solo se usa para preferir ese tipo de persona al cruzar con Apollo.`
     :'';
-  // Tope diario por fuente: los directorios locales 25/día (gratis, en memoria), Apollo 10/día
-  // (gasta créditos reales), Outscraper 15/día (gasta créditos reales pero baratos) — el backend
-  // valida el mismo tope, esto solo evita pedir de más en la UI. Usa el tope real del rol del AE si
-  // ya llegó (_quotaStatusCache), si no cae al tope de AE por defecto.
+  // Máximo por búsqueda según la fuente (Apollo 10, Outscraper 15, el resto 25) — el backend acota
+  // igual, esto solo evita pedir de más en la UI.
   const cantIn=document.getElementById('csvSearchCantidad');
-  const limits=_quotaStatusCache?.limits;
-  const tope=limits?.[CSV_FUENTES[fuente].limite]??CSV_FUENTES[fuente].topeAE;
+  const tope=(CSV_FUENTES[fuente]||CSV_FUENTES.apollo).porBusqueda;
   if(cantIn){ cantIn.max=String(tope); if(Number(cantIn.value)>tope) cantIn.value=String(tope); }
   csvRenderQuotaHint();
 };
