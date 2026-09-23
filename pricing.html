@@ -613,6 +613,36 @@
     cursor:pointer; width:100%; letter-spacing:0.5px; transition:all .2s; display:flex; align-items:center;
     justify-content:center; gap:8px; }
   .cta-pdf:hover { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.6); color:#fff; }
+  /* SERVICIOS IAP — solo consulta (botón discreto + ventana) */
+  .iap-trigger { font-family:var(--mono); font-size:9px; letter-spacing:1.5px; color:var(--muted);
+    background:none; border:none; padding:0; cursor:pointer; opacity:.55; }
+  .iap-trigger:hover { opacity:1; color:var(--purple); }
+  .iap-overlay { display:none; position:fixed; inset:0; background:rgba(20,18,26,.45); z-index:2000;
+    align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+  .iap-overlay.open { display:flex; }
+  .iap-panel { background:#fff; border-radius:14px; width:100%; max-width:880px; padding:22px 24px 18px;
+    box-shadow:0 20px 60px rgba(0,0,0,.25); font-family:'Inter', sans-serif; color:var(--ink); }
+  .iap-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:6px; }
+  .iap-title { font-size:17px; font-weight:700; color:var(--purple); }
+  .iap-close { background:none; border:none; font-size:16px; color:var(--muted); cursor:pointer; }
+  .iap-sub { font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:14px; }
+  .iap-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .iap-table th { text-align:left; font-size:10px; font-family:var(--mono); letter-spacing:.5px; text-transform:uppercase;
+    color:var(--muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--border); }
+  .iap-table th.num, .iap-table td.num { text-align:right; }
+  .iap-table td { padding:9px 8px; border-bottom:1px solid #f1f0ec; vertical-align:top; }
+  .iap-name { font-weight:700; }
+  .iap-desc { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.4; }
+  .iap-vol { width:84px; font-family:var(--mono); font-size:12.5px; padding:5px 7px; border:1px solid var(--border);
+    border-radius:7px; outline:none; text-align:right; }
+  .iap-vol:focus { border-color:var(--purple); }
+  .iap-unit { font-size:10.5px; color:var(--muted); margin-top:3px; }
+  .iap-pack { font-size:11px; color:var(--muted); margin-top:2px; }
+  .iap-na { font-size:11px; color:var(--muted); }
+  .iap-total td { font-weight:700; border-top:1.5px solid var(--border); border-bottom:none; }
+  .iap-foot { font-size:10.5px; color:var(--muted); line-height:1.5; margin-top:12px; }
+  @media print { .iap-trigger, .iap-overlay { display:none !important; } }
+
   @media print {
     @page { size: A4 portrait; margin: 12mm 10mm; }
     * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
@@ -933,6 +963,18 @@
   .user-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
   .user-input:focus { border-color:var(--purple); box-shadow:0 0 0 3px rgba(113,75,103,.1); }
   .user-input-label { font-size:13px; color:var(--muted); font-weight:600; }
+  /* Light users — segundo contador bajo "Número de usuarios" */
+  .lu-wrap { margin-top:14px; }
+  .lu-wrap .section-label { margin-bottom:8px; }
+  .lu-wrap .user-input { width:64px; }
+  .lu-note { font-size:11px; color:var(--muted); margin-top:4px; }
+  /* Aviso de registro con tarifa anterior (congelada) */
+  .pv-legacy { display:none; margin-top:12px; font-size:11.5px; color:#92400e; background:#fef3c7;
+    border:1px solid #fde68a; border-radius:8px; padding:7px 10px; line-height:1.45; max-width:320px; }
+  .pv-legacy.visible { display:block; }
+  .pv-legacy button { font:inherit; font-weight:700; color:var(--purple); background:none; border:none;
+    padding:0; cursor:pointer; text-decoration:underline; }
+  .total-light { text-align:right; font-size:10.5px; color:rgba(255,255,255,.6); margin:-8px 0 12px; }
 
   /* PLAN TABS INSIDE TOTAL PANEL */
   .tp-plan-label { font-family:var(--mono); font-size:10px; color:rgba(255,255,255,.6); letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; }
@@ -1088,7 +1130,10 @@
           <button class="country-btn" onclick="setCountry('pe', this)" title="Perú">🇵🇪</button>
           <button class="country-btn" onclick="setCountry('ec', this)" title="Ecuador">🇪🇨</button>
         </div>
-        <div id="currency-label" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">MXN · México</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="iap-trigger" onclick="toggleIAP(true)" title="Servicios de consumo (IAP): referencia para la demo">IAP</button>
+          <div id="currency-label" style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">MXN · México</div>
+        </div>
       </div>
     </div>
   </nav>
@@ -1120,6 +1165,20 @@
         <button class="uc-btn" onclick="changeUsers(1)">+</button>
         <span class="user-input-label">usuarios</span>
       </div>
+      <div class="lu-wrap" id="lu-wrap">
+        <p class="section-label"><span class="tip">Light users<span class="tip-icon dark">?</span><span class="tip-box tip-box-left">Licencia para personal que solo usa funciones básicas: su perfil de empleado, ausencias, gastos, asistencias y evaluaciones; ver su planeación; entrar como empleado al PdV; leer Artículos, y escanear códigos de barras en almacén. También cuenta a los empleados que no tienen usuario.<br><br><strong>Tarifa fija:</strong> no lleva descuento de primer año ni descuentos manuales, y cuesta lo mismo en Estándar y Personalizado.</span></span></p>
+        <div class="user-input-wrap">
+          <button class="uc-btn" onclick="changeLightUsers(-1)">−</button>
+          <input class="user-input" type="number" id="lu-count" value="0" min="0" max="99999"
+            onchange="setLightUsersFromInput(this.value)" oninput="setLightUsersFromInput(this.value)"/>
+          <button class="uc-btn" onclick="changeLightUsers(1)">+</button>
+          <span class="user-input-label" id="lu-rate-label">$70 / mes c/u</span>
+        </div>
+      </div>
+      <div class="pv-legacy" id="pv-legacy">
+        Registro con la tarifa anterior al 24 de septiembre de 2026: se respeta el precio con el que se cotizó.
+        <button onclick="setPriceVersion(PRICE_VERSION_CURRENT)">Pasar a la tarifa vigente</button>
+      </div>
     </div>
     <div class="edition-info" id="edition-info"></div>
     <div class="price-card" id="price-card">
@@ -1130,10 +1189,10 @@
       <div class="pc-label">Precio usuario base</div>
       <div class="pc-main">
         <span class="pc-currency" id="pc-currency">$</span>
-        <span class="pc-amount" id="pc-amount">342</span>
+        <span class="pc-amount" id="pc-amount">410</span>
       </div>
       <div class="pc-strikethrough">
-        <span class="pc-old" id="pc-old">$ 425</span>
+        <span class="pc-old" id="pc-old">$ 510</span>
         <span class="pc-star">*</span>
       </div>
       <div class="pc-sub" id="pc-sub">per user / month<br>(excl. VAT)</div>
@@ -1385,6 +1444,7 @@
         <div class="tp-divider"></div>
         <div class="total-row"><span class="lbl">Licenciamiento</span><span class="val" id="t-lic">—</span></div>
         <div class="total-disc" id="t-lic-disc" style="display:none"></div>
+        <div class="total-light" id="t-lic-light" style="display:none"></div>
         <div class="total-row" id="t-sh-row" style="display:none"><span class="lbl">Recursos SH</span><span class="val" id="t-sh">—</span></div>
         <div class="total-row"><span class="lbl">Implementación</span><span class="val" id="t-impl-val">—</span></div>
         <div class="total-disc" id="t-impl-disc" style="display:none"></div>
@@ -1484,6 +1544,24 @@
     </div>
   </div>
 
+
+<!-- SERVICIOS IAP — ventana de consulta. No forma parte de la cotización. -->
+<div class="iap-overlay" id="iap-overlay" onclick="if(event.target===this)toggleIAP(false)">
+  <div class="iap-panel" role="dialog" aria-label="Servicios de consumo (IAP)">
+    <div class="iap-head">
+      <div class="iap-title">Servicios de consumo (IAP)</div>
+      <button class="iap-close" onclick="toggleIAP(false)" title="Cerrar">✕</button>
+    </div>
+    <div class="iap-sub">Créditos prepagados que el cliente compra dentro de su base, cuando los necesita. No caducan y no forman parte de esta cotización. Escribe un volumen mensual estimado para ver un monto aproximado a 12 meses.</div>
+    <table class="iap-table">
+      <thead><tr>
+        <th>Servicio</th><th class="num">Volumen / mes</th><th class="num">Paquete sugerido (12 meses)</th><th class="num">Aprox. / mes</th><th class="num">Aprox. / año</th>
+      </tr></thead>
+      <tbody id="iap-tbody"></tbody>
+    </table>
+    <div class="iap-foot" id="iap-foot"></div>
+  </div>
+</div>
 
 <script>
   // ── DATA ──────────────────────────────────────────────────────────────────
@@ -1659,8 +1737,8 @@
       editions: [
         // rates = tarifa Y1 | ratesY2 = tarifa Y2+ / usuarios adicionales
         { name:'Estándar',       rates:[225, 180, 180, 180, 180, 180], ratesY2:[285, 228, 228, 228, 228, 228] },
-        { name:'Personalizado', rates:[342, 274, 274, 274, 274, 274], ratesY2:[425, 340, 340, 340, 340, 340] },
-        { name:'Odoo.SH',        rates:[342, 274, 274, 274, 274, 274], ratesY2:[425, 340, 340, 340, 340, 340] },
+        { name:'Personalizado', rates:[410, 330, 330, 330, 330, 330], ratesY2:[510, 410, 410, 410, 410, 410] },
+        { name:'Odoo.SH',        rates:[410, 330, 330, 330, 330, 330], ratesY2:[510, 410, 410, 410, 410, 410] },
       ],
       impl: {
         0:   { label:'Sin paquete', price:0 },
@@ -1694,11 +1772,11 @@
           rates:   [9.10,  7.25, 7.25, 7.25, 7.25, 7.25],
           ratesY2: [11.20, 8.95, 8.95, 8.95, 8.95, 8.95] },
         { name:'Personalizado',
-          rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
-          ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
+          rates:   [16.40, 13.40, 13.40, 13.40, 13.40, 13.40],
+          ratesY2: [20.40, 16.40, 16.40, 16.40, 16.40, 16.40] },
         { name:'Odoo.SH',
-          rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
-          ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
+          rates:   [16.40, 13.40, 13.40, 13.40, 13.40, 13.40],
+          ratesY2: [20.40, 16.40, 16.40, 16.40, 16.40, 16.40] },
       ],
       impl: {
         0:   { label:'Sin paquete', price:0 },
@@ -1720,11 +1798,11 @@
           rates:   [9.10,  7.25, 7.25, 7.25, 7.25, 7.25],
           ratesY2: [11.20, 8.95, 8.95, 8.95, 8.95, 8.95] },
         { name:'Personalizado',
-          rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
-          ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
+          rates:   [16.40, 13.40, 13.40, 13.40, 13.40, 13.40],
+          ratesY2: [20.40, 16.40, 16.40, 16.40, 16.40, 16.40] },
         { name:'Odoo.SH',
-          rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
-          ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
+          rates:   [16.40, 13.40, 13.40, 13.40, 13.40, 13.40],
+          ratesY2: [20.40, 16.40, 16.40, 16.40, 16.40, 16.40] },
       ],
       impl: {
         0:   { label:'Sin paquete', price:0 },
@@ -1746,11 +1824,11 @@
           rates:   [9.10,  7.25, 7.25, 7.25, 7.25, 7.25],
           ratesY2: [11.20, 8.95, 8.95, 8.95, 8.95, 8.95] },
         { name:'Personalizado',
-          rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
-          ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
+          rates:   [16.40, 13.40, 13.40, 13.40, 13.40, 13.40],
+          ratesY2: [20.40, 16.40, 16.40, 16.40, 16.40, 16.40] },
         { name:'Odoo.SH',
-          rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
-          ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
+          rates:   [16.40, 13.40, 13.40, 13.40, 13.40, 13.40],
+          ratesY2: [20.40, 16.40, 16.40, 16.40, 16.40, 16.40] },
       ],
       impl: {
         0:   { label:'Sin paquete', price:0 },
@@ -1772,11 +1850,11 @@
           rates:   [9.10,  7.25, 7.25, 7.25, 7.25, 7.25],
           ratesY2: [11.20, 8.95, 8.95, 8.95, 8.95, 8.95] },
         { name:'Personalizado',
-          rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
-          ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
+          rates:   [16.40, 13.40, 13.40, 13.40, 13.40, 13.40],
+          ratesY2: [20.40, 16.40, 16.40, 16.40, 16.40, 16.40] },
         { name:'Odoo.SH',
-          rates:   [13.60, 10.90, 10.90, 10.90, 10.90, 10.90],
-          ratesY2: [17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
+          rates:   [16.40, 13.40, 13.40, 13.40, 13.40, 13.40],
+          ratesY2: [20.40, 16.40, 16.40, 16.40, 16.40, 16.40] },
       ],
       impl: {
         0:   { label:'Sin paquete', price:0 },
@@ -1793,6 +1871,40 @@
     },
   };
 
+  // ── VERSIÓN DE TARIFA ──────────────────────────────────────────────────
+  // '2026-09' = tarifa vigente (Knowledge "News in Pricing Odoo Experience 2026"): Personalizado
+  // y Odoo.SH suben y entran los light users. Estándar no cambió.
+  // '2025' = tarifa anterior. Los registros guardados antes del cambio la conservan (congelados);
+  // un registro sin priceVersion es de antes del cambio.
+  const PRICE_VERSION_CURRENT = '2026-09';
+  let priceVersion = PRICE_VERSION_CURRENT;
+  const LEGACY_CUSTOM_RATES_2025 = {
+    MXN: { rates:[342, 274, 274, 274, 274, 274],             ratesY2:[425, 340, 340, 340, 340, 340] },
+    USD: { rates:[13.60, 10.90, 10.90, 10.90, 10.90, 10.90], ratesY2:[17.00, 13.60, 13.60, 13.60, 13.60, 13.60] },
+  };
+  function editionsFor(code, version) {
+    const cat = countryCatalog[code];
+    if (version !== '2025') return cat.editions;
+    const old = LEGACY_CUSTOM_RATES_2025[cat.currency];
+    // Solo Personalizado (1) y Odoo.SH (2) cambiaron; Estándar (0) es igual en ambas versiones
+    return cat.editions.map((ed, i) => i === 0 ? ed : { ...ed, rates: old.rates, ratesY2: old.ratesY2 });
+  }
+
+  // ── LIGHT USERS ─────────────────────────────────────────────────────────
+  // Tarifa fija por moneda, igual en Estándar y Personalizado, mensual o anual. Sin descuento de
+  // primer año y sin descuentos manuales (el % de descuento de licencias NO los toca).
+  // LatAm cotiza en "USD Low" → 2.90.
+  const LIGHT_USER_PRICE = { MXN: 70, USD: 2.90 };
+  let lightUsers = 0;
+  function lightRate() {
+    if (priceVersion === '2025') return 0;   // no existían en la tarifa anterior
+    return LIGHT_USER_PRICE[currentCurrency.currency] || 0;
+  }
+  function lightMonthly() { return lightUsers * lightRate(); }
+  // Mensual (idx 0) = costo de un mes; contratos = todo el plazo
+  function lightCost(planIdx) { return planIdx === 0 ? lightMonthly() : lightMonthly() * planMonths[planIdx]; }
+  function lightAcum(months) { return lightMonthly() * months; }
+
   let currentCountry = 'mx';
 
   // Referencias vivas que el resto del código usa — apuntan al país activo
@@ -1807,7 +1919,7 @@
     if (fxBlk) fxBlk.style.display = code === 'mx' ? 'none' : '';
     currentCountry   = code;
     const cat        = countryCatalog[code];
-    editionBaseRates = cat.editions;
+    editionBaseRates = editionsFor(code, priceVersion);
     implPackages     = cat.impl;
     currentCurrency  = cat;
 
@@ -1834,6 +1946,7 @@
       document.getElementById('loc-wrap')?.classList.remove('visible');
     }
 
+    refreshLightUsersUI();
     renderEditionInfo();
     renderTable();
     updateTotal(currentPlanIdx);
@@ -1908,8 +2021,8 @@
     const base   = (rateY1 * currentUsers * 12)
                  + (rateY2 * currentUsers * Math.max(0, months - 12));
 
-    // Licencias con descuento + costo SH fijo (sin descuento)
-    const result = base * (1 - disc) + getSHCost(planIdx);
+    // Licencias con descuento + costo SH fijo + light users (ninguno de los dos lleva descuento)
+    const result = base * (1 - disc) + getSHCost(planIdx) + lightCost(planIdx);
     return Math.round(result * 100) / 100;
   }
 
@@ -1921,7 +2034,8 @@
     const months      = planMonths[planIdx];
     // Mismo cálculo que la barra gris: Y1×12 + Y2×resto
     const monthlyTotal  = (rateY1Mens * currentUsers * 12)
-                        + (rateY2Mens * currentUsers * Math.max(0, months - 12));
+                        + (rateY2Mens * currentUsers * Math.max(0, months - 12))
+                        + lightAcum(months);   // light users cuestan igual en ambos lados
     const contractTotal = getLicTotal(planIdx, discPct);
     return Math.max(0, monthlyTotal - contractTotal);
   }
@@ -2039,10 +2153,10 @@
       // Total cell
       // Para mensual: costo mensual = tarifa × usuarios + SH mensual (+ impl si aplica)
       const shMensual    = getSHCost(0);   // costo SH para plan mensual
-      const mensualTotal = tarifaBase * currentUsers + shMensual + (hasImpl ? implAfter : 0);
+      const mensualTotal = tarifaBase * currentUsers + shMensual + lightCost(0) + (hasImpl ? implAfter : 0);
       // Desglose licencias vs Odoo.SH — visible en TODAS las filas cuando aplica (no solo mensual)
       const shCostRow  = getSHCost(i);
-      const licPortion = i === 0 ? (tarifaBase * currentUsers) : (licTotal - shCostRow);
+      const licPortion = i === 0 ? (tarifaBase * currentUsers + lightCost(0)) : (licTotal - shCostRow);
 
       const isMXLocal  = currentCurrency.currency === 'MXN';
       const totalListPrice = getLicTotal(i, 0) + currentImplPrice;
@@ -2068,7 +2182,7 @@
         </td>
         <td>
           <div class="ct-plan">${p.label} ${badgeHtml}</div>
-          <div class="ct-base">${currentUsers} usuario${currentUsers > 1 ? 's' : ''} · ${editionBaseRates[currentEdition].name}</div>
+          <div class="ct-base">${currentUsers} usuario${currentUsers > 1 ? 's' : ''}${lightRate() > 0 && lightUsers > 0 ? ` + ${lightUsers} light` : ''} · ${editionBaseRates[currentEdition].name}</div>
         </td>
         <td>
           <div style="display:flex;align-items:center;gap:5px;">
@@ -2089,7 +2203,7 @@
         </td>
         <td class="td-disc-lic ${discLicUnlocked ? 'disc-cell-visible' : 'disc-cell-hidden'}">${licDiscCell}</td>
         <td>
-          <div class="ct-total teal">${i === 0 ? (shMensual > 0 ? fmtMXN(tarifaBase * currentUsers + shMensual) : fmtMXN(tarifaBase * currentUsers)) : (licTotal ? fmtMXN(licTotal) : '—')}</div>
+          <div class="ct-total teal">${i === 0 ? fmtMXN(tarifaBase * currentUsers + shMensual + lightCost(0)) : (licTotal ? fmtMXN(licTotal) : '—')}</div>
           ${shCostRow > 0 ? `<div class="ct-base">Licencias: ${fmtMXN(licPortion)} · Odoo.SH: ${fmtMXN(shCostRow)}</div>` : ''}
           ${i !== 0 && activeLicDisc > 0 ? `<div class="ct-base" style="text-decoration:line-through;color:var(--muted)">${fmtMXN(getLicTotal(i, 0))}</div>` : ''}
           ${i !== 0 && savings > 0 && activeLicDisc === 0 ? `<div class="ct-base">Ahorro: ${fmtMXN(savings)}</div>` : ''}
@@ -2114,14 +2228,14 @@
       const ed     = editionBaseRates[currentEdition];
       if (i === 0) {
         // Plan mensual: tarifa × usuarios (costo por mes)
-        return ed.rates[0] * currentUsers;
+        return ed.rates[0] * currentUsers + lightCost(0);
       }
       const rateY1 = ed.rates[i];
       const rateY2 = ed.ratesY2 ? ed.ratesY2[i] : rateY1;
       const months = planMonths[i];
       const disc   = (discLicUnlocked ? licDiscByPlan[i] : 0) / 100;
       const base   = (rateY1 * currentUsers * 12) + (rateY2 * currentUsers * Math.max(0, months - 12));
-      return Math.round(base * (1 - disc) * 100) / 100;
+      return Math.round((base * (1 - disc) + lightCost(i)) * 100) / 100;
     })();
 
     const discImpl  = discImplUnlocked ? implDiscByPlan[i] : 0;
@@ -2161,9 +2275,9 @@
     const licDiscPctDisp  = (i > 0 && discLicUnlocked)  ? (licDiscByPlan[i]  || 0) : 0;
     const implDiscPctDisp = (discImplUnlocked)          ? (implDiscByPlan[i] || 0) : 0;
     const edDisp = editionBaseRates[currentEdition];
-    const licListOnly = i === 0
+    const licListOnly = lightCost(i) + (i === 0
       ? edDisp.rates[0] * currentUsers
-      : (edDisp.rates[i] * currentUsers * 12) + ((edDisp.ratesY2 ? edDisp.ratesY2[i] : edDisp.rates[i]) * currentUsers * Math.max(0, planMonths[i] - 12));
+      : (edDisp.rates[i] * currentUsers * 12) + ((edDisp.ratesY2 ? edDisp.ratesY2[i] : edDisp.rates[i]) * currentUsers * Math.max(0, planMonths[i] - 12)));
     const licDiscEl = document.getElementById('t-lic-disc');
     if (licDiscEl) {
       const show = licDiscPctDisp > 0 && licListOnly > 0;
@@ -2176,9 +2290,16 @@
       implDiscEl.style.display = show ? '' : 'none';
       implDiscEl.innerHTML = show ? `<s>lista ${fmtMXN(currentImplPrice)}</s>−${implDiscPctDisp}%` : '';
     }
+    const luEl = document.getElementById('t-lic-light');
+    if (luEl) {
+      const show = lightRate() > 0 && lightUsers > 0;
+      luEl.style.display = show ? '' : 'none';
+      luEl.textContent = show ? `Incluye ${lightUsers} light user${lightUsers > 1 ? 's' : ''} · ${fmtMXN(lightCost(i))}` : '';
+    }
     document.getElementById('t-iva').textContent      = iva   > 0 ? fmtMXN(iva)   : '—';
     document.getElementById('t-total').textContent    = total > 0 ? fmtMXN(total) : '—';
-    document.getElementById('t-sub2').textContent     = `Plan ${plans[i].label} | ${usuariosLabel} | ${implLabel} | ${edicionLabel}`;
+    const lightLabel    = lightRate() > 0 && lightUsers > 0 ? ` + ${lightUsers} light` : '';
+    document.getElementById('t-sub2').textContent     = `Plan ${plans[i].label} | ${usuariosLabel}${lightLabel} | ${implLabel} | ${edicionLabel}`;
     updateCtxMessage(i);
     updatePDFHeader();
     updateFXTable();
@@ -2324,6 +2445,7 @@
       renderFXTable();
     }
     fxLoading = false;
+    if (document.getElementById('iap-overlay')?.classList.contains('open')) renderIAP();
   }
 
   function getFXBaseUSD() {
@@ -2341,6 +2463,7 @@
       const base = (rY1 * currentUsers * 12) + (rY2 * currentUsers * Math.max(0, months - 12));
       licOnly = Math.round(base * (1 - disc) * 100) / 100;
     }
+    licOnly += lightCost(i);
     const discImpl = discImplUnlocked ? implDiscByPlan[i] : 0;
     const implAfter = currentImplPrice > 0 ? Math.round(currentImplPrice * (1 - discImpl / 100) * 100) / 100 : 0;
     const sub = Math.round((licOnly + shCost + implAfter) * 100) / 100;
@@ -2564,6 +2687,7 @@
       items: [
         { text: 'Odoo Online — todos los módulos incluidos', tag: null },
         { text: 'Hosting y soporte incluidos',               tag: null },
+        { text: 'Si usa agentes de IA (app IA), pasa a Personalizado', tag: null },
       ]
     },
     {
@@ -2672,7 +2796,7 @@
 
     el.innerHTML = rows.map(r => {
       const rateY2 = ed.ratesY2 ? ed.ratesY2[r.planIdx] : ed.rates[r.planIdx];
-      const total  = rateY2 * currentUsers * r.months;
+      const total  = rateY2 * currentUsers * r.months + lightAcum(r.months);
       return `<div class="rmc-row">
         <span class="rmc-plan">${r.label}</span>
         <span class="rmc-total">${fmt(total)}</span>
@@ -2731,9 +2855,9 @@
       const shMensual   = getSHCost(0);
       const years       = months / 12;
       const shMensualAcum = shMensual * months;
-      const mensualLic  = i === 0
+      const mensualLic  = lightAcum(months) + (i === 0
         ? rateY1Mens * currentUsers * months
-        : (rateY1Mens * currentUsers * 12) + (rateY2Mens * currentUsers * Math.max(0, months - 12));
+        : (rateY1Mens * currentUsers * 12) + (rateY2Mens * currentUsers * Math.max(0, months - 12)));
       const mensualAcum = mensualLic + shMensualAcum + (hasImpl ? currentImplPrice : 0);
 
       // Costo real contrato: misma lógica que renderTable
@@ -2833,8 +2957,8 @@
 
     const planIdx = currentPlanIdx;
     const months  = planMonths[planIdx] || 60;
-    const baseRate    = editionBaseRates[currentEdition].rates[0] * currentUsers;
-    const contractRate= editionBaseRates[currentEdition].rates[planIdx] * currentUsers;
+    const baseRate    = editionBaseRates[currentEdition].rates[0] * currentUsers + lightMonthly();
+    const contractRate= editionBaseRates[currentEdition].rates[planIdx] * currentUsers + lightMonthly();
     const totalMonths = Math.max(months, 12);
 
     // Puntos mes a mes
@@ -2935,6 +3059,7 @@
       const mensualAcum    = (rateY1Mens * currentUsers * 12)
                            + (rateY2Mens * currentUsers * Math.max(0, months - 12))
                            + (shMensual * months)
+                           + lightAcum(months)
                            + (hasImpl ? currentImplPrice : 0);
       const contratoTotal  = getLicTotal(planIdx, activeLicDisc) + implAfter;
       const costoMesBase   = rateY1Mens * currentUsers;
@@ -2962,10 +3087,10 @@
       const rateY1   = ed.rates[i];           // contract rate Y1 (per user/month)
       const rateY2   = ed.ratesY2 ? ed.ratesY2[i] : rateY1; // list/renewal rate
       // Multi-year contract total
-      const contract = (rateY1 * currentUsers * 12) + (rateY2 * currentUsers * Math.max(0, months - 12));
+      const contract = (rateY1 * currentUsers * 12) + (rateY2 * currentUsers * Math.max(0, months - 12)) + lightAcum(months);
       // Annual renewal at list price (ratesY2[1]) every year
       const annualRate = ed.ratesY2 ? ed.ratesY2[1] : ed.rates[1];
-      const renewal    = annualRate * currentUsers * 12 * years;
+      const renewal    = annualRate * currentUsers * 12 * years + lightAcum(months);
       const saving     = Math.max(0, renewal - contract);
       return { i, label: plans[i].label, contract, renewal, saving, years };
     });
@@ -3095,12 +3220,154 @@
     }
   }
 
+  function refreshLightUsersUI() {
+    const available = priceVersion !== '2025';
+    const wrap = document.getElementById('lu-wrap');
+    if (wrap) wrap.style.display = available ? '' : 'none';
+    const lbl = document.getElementById('lu-rate-label');
+    if (lbl) lbl.textContent = `${fmtMXN(LIGHT_USER_PRICE[currentCurrency.currency] || 0)} / mes c/u`;
+    const input = document.getElementById('lu-count');
+    if (input && String(lightUsers) !== input.value) input.value = lightUsers;
+    document.getElementById('pv-legacy')?.classList.toggle('visible', !available);
+  }
+
+  function setLightUsers(n) {
+    lightUsers = Math.max(0, Math.min(99999, n));
+    refreshLightUsersUI();
+    renderTable();
+    updateTotal(currentPlanIdx);
+    renderCharts();
+  }
+  function changeLightUsers(delta) { setLightUsers(lightUsers + delta); }
+  function setLightUsersFromInput(val) {
+    const n = parseInt(val);
+    if (!isNaN(n) && n >= 0) setLightUsers(n);
+  }
+
+  // Cambia la versión de tarifa (registros congelados → vigente). Re-renderiza todo.
+  function setPriceVersion(v) {
+    priceVersion = v === '2025' ? '2025' : PRICE_VERSION_CURRENT;
+    editionBaseRates = editionsFor(currentCountry, priceVersion);
+    refreshLightUsersUI();
+    renderEditionInfo();
+    renderTable();
+    updateTotal(currentPlanIdx);
+    renderCharts();
+  }
+
+  // ── SERVICIOS IAP — SOLO CONSULTA ─────────────────────────────────────────
+  // Referencia para resolver dudas en la demo. NO toca el pricing, los totales, el autoguardado
+  // ni la propuesta: nada de esto viaja en getPricingPayload(). Precios de iap.odoo.com (EUR,
+  // revisados el 2026-09-23). packs = [cantidad, precio EUR]. perUnit = créditos por unidad.
+  const IAP_SERVICES = [
+    { id:'ai', name:'Odoo IA', desc:'Agentes de IA: automatizar tareas, generar contenido y analizar datos.',
+      unit:'créditos', perUnit:1, packs:[[10,10],[100,100],[500,500],[1000,1000]],
+      note:'El consumo varía según la tarea y el tamaño de la petición.' },
+    { id:'phone', name:'Telefonía Odoo', desc:'Números telefónicos, llamadas y enrutamiento con el softphone de Odoo.',
+      unit:'créditos', perUnit:1, packs:[[20,20],[100,100],[500,500],[2000,2000]],
+      note:'Odoo no publica la tarifa por minuto ni por número.' },
+    { id:'sms', name:'SMS', desc:'Mensajes de texto a contactos desde la base.',
+      unit:'SMS', perUnit:{ mx:0.20, cl:0.20, co:0.20, pe:0.12, ec:null }, packs:[[10,10],[100,100],[500,500],[1000,1000]],
+      note:'Por SMS de hasta 160 caracteres; uno más largo consume más.' },
+    { id:'ocr', name:'Digitalización de documentos', desc:'OCR con IA para facturas de proveedor, gastos y CVs.',
+      unit:'documentos', perUnit:1, packs:[[100,15],[1000,120],[10000,1000],[100000,5000]], free:200 },
+    { id:'autocomplete', name:'Autocompletado de contactos', desc:'Completa contactos con datos corporativos.',
+      unit:'contactos', perUnit:1, packs:[[100,6.5],[1000,60],[10000,600]], free:30 },
+    { id:'leads', name:'Generación de leads', desc:'Leads por criterios, visitantes del sitio web y enriquecimiento.',
+      unit:'leads', perUnit:1, packs:[[500,100],[1000,200],[10000,2000]], free:20 },
+    { id:'snail', name:'Correo postal', desc:'Envío de facturas y recordatorios de cobro por correo físico.',
+      unit:'envíos', perUnit:1, packs:[[10,18],[100,150],[500,650]] },
+    { id:'pe_edi', name:'Facturación electrónica (SUNAT)', desc:'Envío de comprobantes electrónicos a SUNAT.',
+      unit:'documentos', perUnit:1, packs:[[1000,22],[5000,110],[10000,220],[20000,440]], free:1000, countries:['pe'] },
+  ];
+  const IAP_EUR_FALLBACK = { MXN: 19.8, USD: 1.15 };   // solo si no hay tipo de cambio del día
+  const iapVolumes = {};
+
+  function iapEurRate() {
+    const code = currentCurrency.currency;
+    if (fxRates && fxRates.EUR && (code === 'USD' || fxRates[code])) {
+      return { rate: (code === 'USD' ? 1 : fxRates[code]) / fxRates.EUR, live: true };
+    }
+    return { rate: IAP_EUR_FALLBACK[code] || 1, live: false };
+  }
+  function iapPerUnit(svc) {
+    return typeof svc.perUnit === 'object' ? svc.perUnit[currentCountry] : svc.perUnit;
+  }
+  // Paquete más barato que cubre lo que se necesita en 12 meses (n × un mismo paquete)
+  function iapBestPack(svc, credits) {
+    let best = null;
+    svc.packs.forEach(([size, price]) => {
+      const n = Math.ceil(credits / size);
+      // Empate de costo (tarifa plana por crédito) → el que pide menos paquetes
+      if (!best || n * price < best.cost || (n * price === best.cost && n < best.n)) best = { size, n, cost: n * price };
+    });
+    return best;
+  }
+
+  function renderIAP() {
+    const tbody = document.getElementById('iap-tbody');
+    if (!tbody) return;
+    const { rate, live } = iapEurRate();
+    const fmtN = n => n.toLocaleString(currentCurrency.locale, { maximumFractionDigits: 0 });
+    let totMonth = 0, totYear = 0;
+    const rows = IAP_SERVICES.filter(svc => !svc.countries || svc.countries.includes(currentCountry)).map(svc => {
+      const perUnit = iapPerUnit(svc);
+      const vol = iapVolumes[svc.id] || 0;
+      const notes = [svc.note, svc.free ? `Incluye ${fmtN(svc.free)} gratis al activarlo.` : ''].filter(Boolean).join(' ');
+      const head = `<div class="iap-name">${svc.name}</div><div class="iap-desc">${svc.desc}${notes ? ' ' + notes : ''}</div>`;
+      if (perUnit == null) {
+        return `<tr><td>${head}</td><td class="num" colspan="4"><span class="iap-na">No disponible en ${currentCurrency.name}</span></td></tr>`;
+      }
+      const unitLbl = perUnit === 1 || svc.unit === 'créditos'
+        ? svc.unit
+        : `${svc.unit} · ${perUnit} crédito${perUnit === 1 ? '' : 's'} c/u`;
+      const input = `<input class="iap-vol" type="number" min="0" step="1" value="${vol || ''}" placeholder="0"
+          oninput="setIAPVolume('${svc.id}', this.value)"><div class="iap-unit">${unitLbl}</div>`;
+      if (vol <= 0) return `<tr><td>${head}</td><td class="num">${input}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>`;
+      const pack  = iapBestPack(svc, vol * perUnit * 12);
+      const year  = pack.cost * rate;
+      const month = year / 12;
+      totMonth += month; totYear += year;
+      return `<tr><td>${head}</td><td class="num">${input}</td>
+        <td class="num">${pack.n} × ${fmtN(pack.size)}<div class="iap-pack">${fmtN(pack.cost)} €</div></td>
+        <td class="num">${fmtMXN(month)}</td><td class="num">${fmtMXN(year)}</td></tr>`;
+    });
+    rows.push(`<tr class="iap-total"><td>Total aproximado</td><td></td><td></td>
+      <td class="num">${totYear > 0 ? fmtMXN(totMonth) : '—'}</td><td class="num">${totYear > 0 ? fmtMXN(totYear) : '—'}</td></tr>`);
+    tbody.innerHTML = rows.join('');
+    const foot = document.getElementById('iap-foot');
+    if (foot) foot.textContent =
+      `Precios de iap.odoo.com en euros, 1 € = ${fmtMXN(rate)} ${currentCurrency.currency}` +
+      `${live ? ` (tipo de cambio del ${fxDate})` : ' (tipo de cambio aproximado)'}. ` +
+      `Sin impuestos. Montos de referencia: el cobro real depende del consumo y del tipo de cambio al comprar.`;
+  }
+  function setIAPVolume(id, val) {
+    const n = parseInt(val);
+    iapVolumes[id] = isNaN(n) || n < 0 ? 0 : n;
+    // Re-render sin perder el foco del campo que se está escribiendo
+    const active = document.activeElement, idx = [...document.querySelectorAll('.iap-vol')].indexOf(active);
+    const pos = active?.selectionStart;
+    renderIAP();
+    if (idx >= 0) {
+      const el = document.querySelectorAll('.iap-vol')[idx];
+      if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (_) {} }
+    }
+  }
+  function toggleIAP(open) {
+    const ov = document.getElementById('iap-overlay');
+    if (!ov) return;
+    if (open) { fetchFXRates(); renderIAP(); }
+    ov.classList.toggle('open', !!open);
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleIAP(false); });
+
   // ── INIT ──────────────────────────────────────────────────────────────────
   renderTable();
   updateKPIs(currentPlanIdx);
   updateTotal(currentPlanIdx);
   renderEditionInfo();
   renderCharts();
+  refreshLightUsersUI();
   // Fetch FX rates automatically on load
   fetchFXRates();
   pricingReady = true;  // a partir de aquí, cada cambio dispara autoguardado
@@ -3159,6 +3426,7 @@
       const base   = (rateY1 * currentUsers * 12) + (rateY2 * currentUsers * Math.max(0, months - 12));
       licOnly = Math.round(base * (1 - disc) * 100) / 100;
     }
+    licOnly += lightCost(i);
     const discImpl  = discImplUnlocked ? implDiscByPlan[i] : 0;
     const implAfter = currentImplPrice > 0 ? Math.round(currentImplPrice * (1 - discImpl / 100) * 100) / 100 : 0;
     const sub       = Math.round((licOnly + shCost + implAfter) * 100) / 100;
@@ -3498,6 +3766,11 @@
     if (e.data?.type === 'load_config') {
       const c = e.data;
       try {
+        // Versión de tarifa: sin priceVersion = registro de antes del cambio → tarifa anterior congelada
+        priceVersion = c.priceVersion === PRICE_VERSION_CURRENT ? PRICE_VERSION_CURRENT : '2025';
+        editionBaseRates = editionsFor(currentCountry, priceVersion);
+        lightUsers = priceVersion === '2025' ? 0 : Math.max(0, parseInt(c.lightUsers) || 0);
+        refreshLightUsersUI();
         // Edición
         if (typeof c.editionIdx === 'number') {
           const etabs = document.querySelectorAll('.etab');
@@ -3584,7 +3857,7 @@
       const activeImplDisc = discImplUnlocked ? (implDiscByPlan[i] || 0) : 0;
       const shCost         = getSHCost(i);
       // Total licenciamiento (INCLUYE SH) — igual que la columna de la tabla interactiva
-      const licTotalList = isMonthly ? rateY1 * currentUsers + shCost : getLicTotal(i, 0);
+      const licTotalList = isMonthly ? rateY1 * currentUsers + shCost + lightCost(0) : getLicTotal(i, 0);
       const licTotal     = isMonthly ? licTotalList               : getLicTotal(i, activeLicDisc);
       // Licenciamiento sin SH (para desglose del resumen)
       const licOnly      = Math.round((licTotal     - shCost) * 100) / 100;
@@ -3600,7 +3873,7 @@
         isMonthly, isSelected: i === currentPlanIdx, visible: rowVisible[i] !== false,
         rateY1, rateY2, rateY2Net,
         licDiscPct: activeLicDisc, licDiscApplicable: i >= 2, implDiscPct: activeImplDisc,
-        shCost, licOnly, licOnlyList, licTotal, licTotalList,
+        shCost, lightCost: lightCost(i), licOnly, licOnlyList, licTotal, licTotalList,
         hasImpl, implList, implNet, total, totalList, savings,
       };
     });
@@ -3608,7 +3881,7 @@
 
   function getPricingPayload() {
     const ed = editionBaseRates[currentEdition];
-    const mensualRef = ed.rates[currentPlanIdx] * currentUsers;
+    const mensualRef = ed.rates[currentPlanIdx] * currentUsers + lightMonthly();
     const total = getCurrentTotalRaw();
     const clientName = document.getElementById('client-name-input')?.value?.trim() || '';
     const implNotes = document.getElementById('impl-notes-text')?.value?.trim() || '';
@@ -3634,6 +3907,8 @@
       isSH, shWorkers, shStaging, shStorage, shCost,
       codeLines,
       rateY1, rateY2,
+      priceVersion, lightUsers: lightRate() > 0 ? lightUsers : 0, lightRate: lightRate(),
+      lightCost: lightCost(currentPlanIdx),
       licDiscByPlan: licDiscByPlanOut, implDiscByPlan: implDiscByPlanOut, implPriceList: currentImplPrice,
       compTable: buildCompTable(), rowVisible: rowVisible.slice(),
     };

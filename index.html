@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#714B67">
 <!-- Versión de este build — comparada en vivo contra version.json para avisar cuando hay una actualización -->
-<meta name="app-version" content="2026-09-23T19:58:13Z">
+<meta name="app-version" content="2026-09-23T21:33:15Z">
 <!-- Tipografías Odoo: Inter (cuerpo) + Caveat (headlines) — self-hosted vía GitHub Pages + CDN fallback -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1431,7 +1431,7 @@ function odooValuePropHTML(){
 // Precios oficiales Odoo (MXN, por usuario/mes) — fuente: brochure oficial · odoo.com/pricing
 const ODOO_PRICING = {
   estandar:     {nombre:'Estándar',      precio:'180', plataformas:'Odoo en línea',                 extras:''},
-  personalizado:{nombre:'Personalizado', precio:'274', plataformas:'Odoo en línea · Odoo.sh · Local', extras:'+ Studio de Odoo · Multiempresas · API externa'},
+  personalizado:{nombre:'Personalizado', precio:'330', plataformas:'Odoo en línea · Odoo.sh · Local', extras:'+ Studio de Odoo · Multiempresas · API externa'},
 };
 function odooPricingHTML(){
   const card=(p,color)=>`<div style="border:2px solid ${color};border-radius:14px;padding:12px 18px 14px;background:#fff;text-align:center;break-inside:avoid;page-break-inside:avoid">
@@ -6111,12 +6111,38 @@ const ODOO_INDUSTRIES = {
 const PRICING_DATA = {
   planMonths:[1,12,24,36,48,60],   // usado por pricingGeneratePDF() para la tabla comparativa y el resumen — no es código muerto
   planLabels:['Mensual','1 año','2 años','3 años','4 años','5 años'],
+  // Tarifa vigente (2026-09, "News in Pricing Odoo Experience 2026"). Estándar no cambió.
   editions:[
+    {id:'standard',       name:'Estándar',      rates:[225,180,180,180,180,180], ratesY2:[285,228,228,228,228,228]},
+    {id:'personalizable', name:'Personalizado', rates:[410,330,330,330,330,330], ratesY2:[510,410,410,410,410,410]},
+    {id:'sh',             name:'Odoo.SH',        rates:[410,330,330,330,330,330], ratesY2:[510,410,410,410,410,410]},
+  ],
+  // Tarifa anterior: la conservan (congelada) los registros guardados sin priceVersion
+  editionsLegacy:[
     {id:'standard',       name:'Estándar',      rates:[225,180,180,180,180,180], ratesY2:[285,228,228,228,228,228]},
     {id:'personalizable', name:'Personalizado', rates:[342,274,274,274,274,274], ratesY2:[425,340,340,340,340,340]},
     {id:'sh',             name:'Odoo.SH',        rates:[342,274,274,274,274,274], ratesY2:[425,340,340,340,340,340]},
   ],
+  priceVersionCurrent:'2026-09',
+  lightUserRateMXN:70,
 };
+// Ediciones según la versión de tarifa del registro (sin versión = tarifa anterior)
+function pdEditions(priceVersion){
+  return priceVersion===PRICING_DATA.priceVersionCurrent?PRICING_DATA.editions:PRICING_DATA.editionsLegacy;
+}
+// Campos de pricing que se restauran desde un registro guardado (propuesta directa / último pricing).
+// compTable es la tabla ya calculada con la tarifa con la que se cotizó: así el PDF respeta ese precio.
+function _pricingStateFromRecord(r){
+  pricingState.priceVersion=r.priceVersion||'';
+  pricingState.lightUsers=r.lightUsers||0;
+  pricingState.lightRate=r.lightRate||0;
+  pricingState.compTable=Array.isArray(r.compTable)?r.compTable:null;
+  pricingState.rateY1=r.rateY1||0;
+  pricingState.rateY2=r.rateY2||0;
+  pricingState.licDiscByPlan=Array.isArray(r.licDiscByPlan)?r.licDiscByPlan:null;
+  pricingState.implDiscByPlan=Array.isArray(r.implDiscByPlan)?r.implDiscByPlan:null;
+  pricingState.implPriceList=r.implPriceList||r.implPrice||0;
+}
 const pricingState = {company:null,contact:null,planIdx:1,users:5,shWorkers:1,shStaging:0,shStorage:0,codeLines:0,result:null};
 
 async function saveCompany(data){
@@ -13425,6 +13451,9 @@ function applyPricingMsg(d){
   pricingState.implDiscByPlan=Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null;
   pricingState.implPriceList=d.implPriceList||d.implPrice||0;
   pricingState.compTable=Array.isArray(d.compTable)?d.compTable:null;
+  pricingState.priceVersion=d.priceVersion||'';
+  pricingState.lightUsers=d.lightUsers||0;
+  pricingState.lightRate=d.lightRate||0;
 }
 
 // Upsert del registro de pricing (autoguardado / guardado manual). Usa pricingState.recordId.
@@ -13448,6 +13477,9 @@ async function pricingUpsertRecord(d,opts={}){
     licDiscByPlan:Array.isArray(d.licDiscByPlan)?d.licDiscByPlan:null, implDiscByPlan:Array.isArray(d.implDiscByPlan)?d.implDiscByPlan:null, implPriceList:d.implPriceList||d.implPrice||null,
     isSH:d.isSH||false, shWorkers:d.shWorkers||0, shStaging:d.shStaging||0, shStorage:d.shStorage||0, shCost:d.shCost||0,
     codeLines:d.codeLines||0,
+    // Tarifa con la que se cotizó (congela el precio del registro) + light users + tabla ya calculada
+    priceVersion:d.priceVersion||'', lightUsers:d.lightUsers||0, lightRate:d.lightRate||0,
+    rateY1:d.rateY1||0, rateY2:d.rateY2||0, compTable:Array.isArray(d.compTable)?d.compTable:null,
     payTermIdx:d.payTermIdx??-1, payStartDate:d.payStartDate||'', qeDate:d.qeDate||'', implNotes:d.implNotes||'', odooPropUrl:pricingState.odooPropUrl||'',
     rowVisible:Array.isArray(d.rowVisible)?d.rowVisible:null,
     // Quién tocó el registro por última vez — esto SÍ se reescribe en cada guardado, a propósito.
@@ -13614,8 +13646,14 @@ window.pricingGeneratePDF=function(){
 
   // Plan data
   const PD=PRICING_DATA;
-  const edIdx=r.editionIdx??1;
-  const ed=PD.editions[edIdx]||PD.editions[1];
+  // Tarifa con la que se cotizó (registros viejos sin versión = tarifa anterior). Los registros
+  // abiertos desde la lista no traen editionIdx: se busca la edición por nombre.
+  const pdEds=pdEditions(ps.priceVersion);
+  const edIdx=r.editionIdx??Math.max(0,pdEds.findIndex(e=>e.name===r.editionName));
+  const ed=pdEds[edIdx]||pdEds[1];
+  const lightUsers=ps.lightUsers||0;
+  const lightRate=ps.lightRate||(lightUsers>0?PD.lightUserRateMXN:0);
+  const lightFor=i=>lightUsers*lightRate*(i===0?1:PD.planMonths[i]);   // mensual = un mes; contratos = todo el plazo
   const users=r.users||ps.users||1;
   const planIdx=r.planIdx??ps.planIdx??1;
   const rateY1=ps.rateY1||ed.rates[planIdx]||0;
@@ -13629,7 +13667,7 @@ window.pricingGeneratePDF=function(){
   const comp=Array.isArray(ps.compTable)&&ps.compTable.length?ps.compTable:null;
   const selRow=comp?(comp.find(x=>x.isSelected)||comp[planIdx]||comp[0]):null;
 
-  let licDiscPct, implDiscPct, licTotal, licTotalList, implListN, implPriceN, shCostSel, subtotal;
+  let licDiscPct, implDiscPct, licTotal, licTotalList, implListN, implPriceN, shCostSel, subtotal, lightCostSel;
   if(selRow){
     licDiscPct   = selRow.licDiscPct||0;
     implDiscPct  = selRow.implDiscPct||0;
@@ -13638,6 +13676,7 @@ window.pricingGeneratePDF=function(){
     implListN    = selRow.implList;
     implPriceN   = selRow.implNet;
     shCostSel    = selRow.shCost||0;
+    lightCostSel = selRow.lightCost||0;   // light users (ya incluidos en licOnly)
     subtotal     = selRow.total;          // licOnly + SH + impl = última columna de la tabla
   } else {
     // Fallback para registros antiguos sin compTable
@@ -13647,8 +13686,9 @@ window.pricingGeneratePDF=function(){
     implDiscPct=implDiscArr?(implDiscArr[planIdx]||0):0;
     const licY1=rateY1*users*Math.min(planMonths,12);
     const licY2=planMonths>12?rateY2*users*(planMonths-12):0;
-    licTotalList=licY1+licY2;
-    licTotal=Math.round(licTotalList*(1-licDiscPct/100));
+    lightCostSel=lightFor(planIdx);
+    licTotalList=licY1+licY2+lightCostSel;
+    licTotal=Math.round((licY1+licY2)*(1-licDiscPct/100))+lightCostSel;   // light users sin descuento
     const implPrice=r.implPrice||ps._impl||0;
     implListN=ps.implPriceList||(typeof implPrice==='string'?parseFloat(implPrice.replace(/[^0-9.]/g,'')):implPrice);
     implPriceN=Math.round(implListN*(1-implDiscPct/100));
@@ -13677,15 +13717,17 @@ window.pricingGeneratePDF=function(){
     const r1=ed.rates[i], r2=(ed.ratesY2||[])[i]||r1, months=PD.planMonths[i];
     const ld=(Array.isArray(ps.licDiscByPlan)?(ps.licDiscByPlan[i]||0):0);
     const idsc=(Array.isArray(ps.implDiscByPlan)?(ps.implDiscByPlan[i]||0):0);
-    const licList=i===0?r1*users:(r1*users*Math.min(months,12))+(r2*users*Math.max(0,months-12));
-    const licNet=Math.round(licList*(1-ld/100));
+    const luCost=lightFor(i);
+    const usrList=i===0?r1*users:(r1*users*Math.min(months,12))+(r2*users*Math.max(0,months-12));
+    const licList=usrList+luCost;
+    const licNet=Math.round(usrList*(1-ld/100))+luCost;
     const implList=i===0?0:(implListN||0);
     const implNet=Math.round(implList*(1-idsc/100));
-    const mEquiv=i===0?0:(ed.rates[0]*users*Math.min(months,12))+((ed.ratesY2?.[0]||ed.rates[0])*users*Math.max(0,months-12));
+    const mEquiv=i===0?0:(ed.rates[0]*users*Math.min(months,12))+((ed.ratesY2?.[0]||ed.rates[0])*users*Math.max(0,months-12))+luCost;
     return {idx:i,label:pl,isMonthly:i===0,isSelected:i===planIdx,
       rateY1:r1,rateY2:r2,rateY2Net:ld>0?Math.round(r2*(1-ld/100)):null,
       licDiscPct:ld,licDiscApplicable:i>=2,implDiscPct:idsc,
-      shCost:0,licTotal:licNet,licTotalList:licList,
+      shCost:0,lightCost:luCost,licOnly:licNet,licTotal:licNet,licTotalList:licList,
       hasImpl:implList>0,implList,implNet,total:licNet+implNet,totalList:licList+implList,
       savings:i>0?Math.max(0,mEquiv-licNet):0};
   });
@@ -13699,6 +13741,7 @@ window.pricingGeneratePDF=function(){
     const dLicCell=row.isMonthly?'—':(!row.licDiscApplicable?'<span style="color:#c0c0c0">N/A</span>':(row.licDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.licDiscPct}%</span>`:'—'));
     const licCell=`${row.licDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.licTotalList)}</s><br>`:''}${fmtN(row.licTotal)}`
       +`${row.shCost>0?`<div style="font-size:8px;color:#c0c0c0">Licencias: ${fmtN(row.licOnly)} · Odoo.SH: ${fmtN(row.shCost)}</div>`:''}`
+      +`${row.lightCost>0?`<div style="font-size:8px;color:#c0c0c0">Incluye light users: ${fmtN(row.lightCost)}</div>`:''}`
       +`${(!row.isMonthly&&row.licDiscPct===0&&row.savings>0)?`<div style="font-size:8px;color:#16a34a">Ahorro ${fmtN(row.savings)}</div>`:''}`;
     const implCell=!row.hasImpl?'—':(row.implDiscPct>0?`<s style="color:#9ca3af;font-weight:400">${fmtN(row.implList)}</s><br>${fmtN(row.implNet)}`:fmtN(row.implNet));
     const dImplCell=!row.hasImpl?'—':(row.implDiscPct>0?`<span style="color:#714B67;font-weight:700">−${row.implDiscPct}%</span>`:'—');
@@ -14012,6 +14055,7 @@ thead{ display:table-header-group; }
     <div style="background:#714B67;color:white;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:700">${r.editionName||ed.name}</div>
     <div style="background:#017E84;color:white;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:700">${planLabel}</div>
     <div style="background:#f3f4f6;color:#374151;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">${users} usuarios</div>
+    ${lightUsers>0?`<div style="background:#f3f4f6;color:#374151;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">${lightUsers} light user${lightUsers>1?'s':''}</div>`:''}
     <div style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">${r.implHrs||50} hrs implementación</div>
     ${ps.isSH?`
     <div style="background:#eef6ff;color:#0369a1;border:1px solid #bae6fd;padding:4px 12px;border-radius:20px;font-size:10.5px;font-weight:600">⚙️ ${ps.shWorkers||1} Worker${(ps.shWorkers||1)>1?'s':''}</div>
@@ -14045,7 +14089,8 @@ thead{ display:table-header-group; }
     <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:12px;align-items:stretch">
       <div style="border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden">
         ${[
-          {lbl:'Licenciamiento', sub:`${planMonths} meses · ${planMonths>12?`año 1 ${fmtN(rateY1)} · año 2+ ${fmtN(rateY2)}/usr/mes`:`${fmtN(rateY1)}/usr/mes`}`, val:licTotal, list:licDiscPct>0?licTotalList:0, disc:licDiscPct},
+          {lbl:'Licenciamiento', sub:`${planMonths} meses · ${planMonths>12?`año 1 ${fmtN(rateY1)} · año 2+ ${fmtN(rateY2)}/usr/mes`:`${fmtN(rateY1)}/usr/mes`}`, val:licTotal-(lightCostSel||0), list:licDiscPct>0?licTotalList-(lightCostSel||0):0, disc:licDiscPct},
+          ...(lightCostSel>0?[{lbl:'Light users', sub:`${lightUsers} × ${fmtN(lightRate)}/mes · ${planIdx===0?'1 mes':planMonths+' meses'} · tarifa fija`, val:lightCostSel, list:0, disc:0}]:[]),
           ...(ps.isSH?[{lbl:'Recursos Odoo.SH', sub:`${ps.shWorkers||1} worker${(ps.shWorkers||1)>1?'s':''} · ${ps.shStaging||0} staging · ${ps.shStorage||0} GB`, val:shCostSel, list:0, disc:0}]:[]),
           {lbl:'Implementación', sub:`${r.implHrs||50} horas · Quickstart Odoo (única vez)`, val:implPriceN, list:implDiscPct>0?implListN:0, disc:implDiscPct},
         ].map((it,idx)=>`
@@ -14360,6 +14405,7 @@ function propBuildPricingSummary(ps){
     ${[
       {l:'Edición',v:r.editionName||ps.edition||'—'},
       {l:'Usuarios',v:r.users||ps.users||'—'},
+      ...(ps.lightUsers>0?[{l:'Light users',v:ps.lightUsers}]:[]),
       {l:'Plan',v:(PRICING_DATA?.planLabels||[])[r.planIdx??ps.planIdx??1]||'—'},
       {l:'Mensual (ref.)',v:ps._mensualRef||fmt(r.mensualRef)||'—'},
       {l:'Implementación',v:ps._impl||fmt(r.implPrice)||'—'},
@@ -14392,6 +14438,7 @@ window.propLoadLastPricing=async function(){
     pricingState.shStorage=last.shStorage||0;
     pricingState.shCost=last.shCost||0;
     pricingState.codeLines=last.codeLines||0;
+    _pricingStateFromRecord(last);
     pricingState.company=co;
     pricingState.recordId=last.id;
     pricingState.odooPropUrl=last.odooPropUrl||'';
@@ -14525,7 +14572,7 @@ window.renderPricingHome=function renderPricingHome(){
             </div>
           </div>
         </div>
-        <p style="font-size:11px;color:var(--gray-400);margin-top:14px;text-align:center">MXN sin IVA · Precio de primera contratación vigente 12 meses · * Odoo.SH incluye costo adicional de hosting</p>
+        <p style="font-size:11px;color:var(--gray-400);margin-top:14px;text-align:center">MXN sin IVA · Precio de primera contratación vigente 12 meses · * Odoo.SH incluye costo adicional de hosting<br>Light users: $${PRICING_DATA.lightUserRateMXN} por usuario / mes en ambos planes, tarifa fija sin descuento</p>
       </div>
     </div>`;
   window.pricingToggle=function(mode){
@@ -14835,6 +14882,7 @@ window.pricingOpenRecord=function(id){
     implDiscByPlan:Array.isArray(r.implDiscByPlan)?r.implDiscByPlan:[0,0,0,0,0,0],
     isSH:r.isSH||false, shWorkers:r.shWorkers||1, shStaging:r.shStaging||0, shStorage:r.shStorage||0,
     codeLines:r.codeLines||0,
+    priceVersion:r.priceVersion||'', lightUsers:r.lightUsers||0,
     payTermIdx:r.payTermIdx??-1, payStartDate:r.payStartDate||'', implNotes:r.implNotes||'',
     rowVisible:Array.isArray(r.rowVisible)?r.rowVisible:null,
     clientName:r.companyName||''
@@ -14864,6 +14912,7 @@ window.pricingGenerateProposalFromRecord=function(id){
   pricingState.isSH=r.isSH||false; pricingState.shWorkers=r.shWorkers||1; pricingState.shStaging=r.shStaging||0; pricingState.shStorage=r.shStorage||0; pricingState.shCost=r.shCost||0;
   pricingState.codeLines=r.codeLines||0;
   pricingState.implNotes=r.implNotes||'';
+  _pricingStateFromRecord(r);
   const co=r.companyId?_allEmpresas?.find(e=>e.id===r.companyId):null;
   const memMods=co?.memory?.pricing?.selectedApps||[];
   if(memMods.length) pricingState.selectedModules=memMods;
